@@ -9,24 +9,41 @@ const date = new Intl.DateTimeFormat("zh-CN", {
   month: "2-digit",
   day: "2-digit"
 }).format(frontmatter.pubDate);
+const headings = (Astro.props.headings ?? []).filter((heading) => heading.depth >= 2 && heading.depth <= 3);
 ---
 
 <BaseLayout title={title} description={frontmatter.description}>
-  <article class="article">
-    <a class="back-link" href="/blog/">← 回到文章列表</a>
-    <header class="article-header">
-      <div class="meta-row">
-        <span>{categoryLabel[frontmatter.category]}</span>
-        <time datetime={frontmatter.pubDate.toISOString()}>{date}</time>
+  <div class="article-shell">
+    <article class="article" data-pagefind-body>
+      <a class="back-link" href="/blog/">← 回到文章列表</a>
+      <header class="article-header">
+        <div class="meta-row">
+          <span>{categoryLabel[frontmatter.category]}</span>
+          <time datetime={frontmatter.pubDate.toISOString()}>{date}</time>
+        </div>
+        <h1>{frontmatter.title}</h1>
+        <p>{frontmatter.description}</p>
+        <div class="tag-row" aria-label="Tags">
+          {frontmatter.tags.map((tag: string) => <span>#{tag}</span>)}
+        </div>
+      </header>
+      <div class="prose">
+        <slot />
       </div>
-      <h1>{frontmatter.title}</h1>
-      <p>{frontmatter.description}</p>
-      <div class="tag-row" aria-label="Tags">
-        {frontmatter.tags.map((tag: string) => <span>#{tag}</span>)}
-      </div>
-    </header>
-    <div class="prose">
-      <slot />
-    </div>
-  </article>
+    </article>
+    {
+      headings.length > 0 && (
+        <aside class="article-toc" aria-label="文章导航" data-pagefind-ignore>
+          <p>ON THIS PAGE</p>
+          <nav>
+            {headings.map((heading) => (
+              <a class={`toc-depth-${heading.depth}`} href={`#${heading.slug}`}>
+                {heading.text}
+              </a>
+            ))}
+          </nav>
+        </aside>
+      )
+    }
+  </div>
 </BaseLayout>

@@ -2,6 +2,7 @@
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
 import { categoryLabel } from "@/lib/site";
+import { Icon } from "astro-icon/components";
 
 const posts = (await getCollection("blog", ({ data }) => !data.draft))
   .sort((a, b) => {
@@ -44,6 +45,21 @@ const coverFocus: Record<string, string> = {
     <p class="section-kicker">Archive</p>
     <h1>Blog</h1>
     <p>开发经验、站点折腾、兴趣记录都会先夹在这里。每篇文章像一张贴进手账的照片，隔一阵回来，也能看见当时为什么这么想。</p>
+  </section>
+
+  <section class="blog-search-card" data-pagefind-ignore>
+    <div class="blog-search-heading">
+      <Icon name="tabler:search" aria-hidden="true" />
+      <div>
+        <p class="section-kicker">Search</p>
+        <h2>翻找笔记</h2>
+      </div>
+    </div>
+    <label class="blog-search-box">
+      <span>关键词</span>
+      <input type="search" data-blog-search placeholder="输入 AstrBot、插件、部署..." autocomplete="off" />
+    </label>
+    <div class="blog-search-results" data-blog-search-results aria-live="polite"></div>
   </section>
 
   <section class="blog-timeline" aria-label="Blog timeline">
@@ -97,4 +113,98 @@ const coverFocus: Record<string, string> = {
       ))
     }
   </section>
+
+  <script>
+    const searchInput = document.querySelector("[data-blog-search]");
+    const searchResults = document.querySelector("[data-blog-search-results]");
+    let pagefindReady;
+
+    const escapeHtml = (value) =>
+      value.replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[char] ?? char);
+
+    const loadPagefind = async () => {
+      if (!pagefindReady) {
+        const importRuntime = new Function("path", "return import(path)");
+        pagefindReady = importRuntime("/pagefind/pagefind.js").then(async (pagefind) => {
+          await pagefind.options({
+            excerptLength: 18
+          });
+          return pagefind;
+        });
+      }
+      return pagefindReady;
+    };
+
+    const renderSearchState = (message) => {
+      if (!searchResults) return;
+      searchResults.innerHTML = `<p class="blog-search-empty">${message}</p>`;
+    };
+
+    const fallbackLocalSearch = (query) => {
+      const cards = [...document.querySelectorAll(".blog-post-row")];
+      const lowerQuery = query.toLowerCase();
+      const matches = cards
+        .map((card) => ({
+          href: card.getAttribute("href") ?? "#",
+          title: card.querySelector("h2")?.textContent?.trim() ?? "Untitled",
+          excerpt: card.querySelector("p")?.textContent?.trim() ?? "",
+          text: card.textContent?.toLowerCase() ?? ""
+        }))
+        .filter((item) => item.text.includes(lowerQuery))
+        .slice(0, 5);
+
+      if (!matches.length) {
+        renderSearchState("没有找到相关笔记。");
+        return;
+      }
+
+      if (!searchResults) return;
+      searchResults.innerHTML = matches.map((item) => `
+        <a class="blog-search-result" href="${item.href}">
+          <strong>${escapeHtml(item.title)}</strong>
+          <span>${escapeHtml(item.excerpt)}</span>
+        </a>
+      `).join("");
+    };
+
+    let searchTimer = 0;
+    searchInput?.addEventListener("input", () => {
+      window.clearTimeout(searchTimer);
+      const query = searchInput.value.trim();
+      if (!query) {
+        if (searchResults) searchResults.innerHTML = "";
+        return;
+      }
+
+      searchTimer = window.setTimeout(async () => {
+        renderSearchState("正在翻页...");
+        try {
+          const pagefind = await loadPagefind();
+          const search = await pagefind.search(query);
+          const data = await Promise.all(search.results.slice(0, 5).map((result) => result.data()));
+
+          if (!data.length) {
+            renderSearchState("没有找到相关笔记。");
+            return;
+          }
+
+          if (!searchResults) return;
+          searchResults.innerHTML = data.map((item) => `
+            <a class="blog-search-result" href="${item.url}">
+              <strong>${escapeHtml(item.meta.title || "Untitled")}</strong>
+              <span>${item.excerpt || ""}</span>
+            </a>
+          `).join("");
+        } catch {
+          fallbackLocalSearch(query);
+        }
+      }, 180);
+    });
+  </script>
 </BaseLayout>

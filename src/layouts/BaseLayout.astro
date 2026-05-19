@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { site } from "@/lib/site";
+import { Icon } from "astro-icon/components";
 
 interface Props {
   title?: string;
@@ -105,7 +106,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
           {
             site.nav.map((item) => (
               <a href={item.href} aria-label={`${item.label}: ${item.hint}`}>
-                <span class="nav-icon" aria-hidden="true">{item.icon}</span>
+                <span class="nav-icon" aria-hidden="true"><Icon name={item.icon} /></span>
                 <span class="nav-label">{item.label}</span>
                 <span class="nav-hint">{item.hint}</span>
               </a>
@@ -629,7 +630,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       });
 
       const enhanceCodeBlocks = () => {
-        document.querySelectorAll(".prose pre").forEach((pre) => {
+        document.querySelectorAll(".prose pre:not(.expressive-code pre)").forEach((pre) => {
           if (pre.querySelector(".code-block-copy")) return;
           const button = document.createElement("button");
           button.type = "button";
