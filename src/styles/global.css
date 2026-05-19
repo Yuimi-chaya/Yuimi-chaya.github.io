@@ -1745,11 +1745,16 @@ img {
 }
 
 .identity-avatar {
+  --flower-sway: 0deg;
   position: relative;
   z-index: 2;
   flex: 0 0 auto;
   transform: translateX(0);
   transition: transform 760ms cubic-bezier(0.18, 1.18, 0.28, 1);
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .hero.is-docked .identity-avatar {
@@ -1759,14 +1764,120 @@ img {
 .identity-avatar img {
   width: clamp(104px, 13.5vw, 158px);
   height: clamp(104px, 13.5vw, 158px);
-  padding: 6px;
+  padding: 3px;
   object-fit: cover;
   background: #fffaf1;
-  border: 4px solid rgba(255, 250, 241, 0.9);
+  border: 2px solid rgba(255, 250, 241, 0.92);
   border-radius: 999px;
   box-shadow:
-    0 0 0 9px rgba(255, 226, 234, 0.4),
+    0 0 0 5px rgba(255, 226, 234, 0.3),
     0 18px 54px rgba(80, 101, 132, 0.24);
+}
+
+.avatar-flower {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  z-index: 4;
+  width: 28px;
+  height: 50px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(24px) scaleY(0.12) rotate(var(--flower-sway));
+  transform-origin: 50% 100%;
+  transition:
+    opacity 180ms ease,
+    transform 620ms cubic-bezier(0.18, 1.28, 0.24, 1);
+}
+
+.hero.is-docked .avatar-flower {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-28px) scaleY(1) rotate(var(--flower-sway));
+}
+
+.avatar-flower::before {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 4px;
+  height: 28px;
+  content: "";
+  background: linear-gradient(180deg, #7ec68a, #4c9a64);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
+  transform: translateX(-50%);
+}
+
+.avatar-flower::after {
+  position: absolute;
+  left: 7px;
+  bottom: 12px;
+  width: 10px;
+  height: 6px;
+  content: "";
+  background: rgba(122, 190, 132, 0.9);
+  border-radius: 999px 0 999px 0;
+  transform: rotate(-32deg);
+}
+
+.avatar-flower__bloom {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  background: #ffd966;
+  border-radius: 999px;
+  box-shadow:
+    0 -10px 0 3px #e93e4f,
+    0 10px 0 3px #e93e4f,
+    -10px 0 0 3px #e93e4f,
+    10px 0 0 3px #e93e4f,
+    0 4px 12px rgba(136, 40, 55, 0.26);
+  transform: translateX(-50%);
+}
+
+.avatar-poke-bubble {
+  position: absolute;
+  left: 50%;
+  top: -64px;
+  z-index: 5;
+  min-width: 150px;
+  padding: 8px 10px;
+  color: #334561;
+  text-align: center;
+  background: rgba(255, 250, 241, 0.92);
+  border: 1px solid rgba(215, 130, 156, 0.24);
+  border-radius: 8px;
+  box-shadow: 0 12px 26px rgba(67, 82, 106, 0.16);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(8px) scale(0.96);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.avatar-poke-bubble::after {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  content: "";
+  background: inherit;
+  border-right: 1px solid rgba(215, 130, 156, 0.24);
+  border-bottom: 1px solid rgba(215, 130, 156, 0.24);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.avatar-poke-bubble.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+.identity-avatar.is-poked img {
+  animation: avatar-poke-shake 560ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
 
 .identity-terminal {
@@ -3403,6 +3514,28 @@ img {
   46%,
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes avatar-poke-shake {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  12% {
+    transform: translate(-5px, 2px) rotate(-4deg) scale(0.98);
+  }
+  24% {
+    transform: translate(6px, -1px) rotate(4deg) scale(1.02);
+  }
+  36% {
+    transform: translate(-4px, -2px) rotate(-3deg) scale(1.01);
+  }
+  52% {
+    transform: translate(4px, 2px) rotate(3deg) scale(0.99);
+  }
+  70% {
+    transform: translate(-2px, 0) rotate(-1deg) scale(1.01);
   }
 }
 

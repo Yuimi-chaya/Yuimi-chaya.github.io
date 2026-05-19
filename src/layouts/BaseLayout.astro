@@ -84,11 +84,15 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 
       </div>
     </aside>
-    <nav class="custom-context-menu" data-context-menu aria-label="快捷菜单">
-      <button type="button" data-context-action="top">↑ 回到顶部</button>
-      <button type="button" data-context-action="home">⌂ 返回首页</button>
-      <button type="button" data-context-action="copy">⧉ 复制链接</button>
-      <button type="button" data-context-action="sakura">✿ 樱花开关</button>
+    <nav class="custom-context-menu" data-context-menu aria-label="&#x5FEB;&#x6377;&#x83DC;&#x5355;">
+      <button type="button" data-context-action="top">&#x2191; &#x56DE;&#x5230;&#x9876;&#x90E8;</button>
+      <button type="button" data-context-action="refresh">&#x21BB; &#x5237;&#x65B0;&#x9875;&#x9762;</button>
+      <button type="button" data-context-action="home">&#x2302; &#x8FD4;&#x56DE;&#x9996;&#x9875;</button>
+      <button type="button" data-context-action="back">&#x2190; &#x540E;&#x9000;</button>
+      <button type="button" data-context-action="forward">&#x2192; &#x524D;&#x8FDB;</button>
+      <button type="button" data-context-action="copy">&#x29C9; &#x590D;&#x5236;&#x94FE;&#x63A5;</button>
+      <button type="button" data-context-action="title">T &#x590D;&#x5236;&#x6807;&#x9898;</button>
+      <button type="button" data-context-action="sakura">&#x273F; &#x6A31;&#x82B1;&#x5F00;&#x5173;</button>
     </nav>
     <div class="site-shell">
       <header class="site-header" aria-label="Primary">
@@ -571,7 +575,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         if (!contextMenu) return;
         event.preventDefault();
         const menuWidth = 188;
-        const menuHeight = 182;
+        const menuHeight = 348;
         const x = Math.min(event.clientX, window.innerWidth - menuWidth - 12);
         const y = Math.min(event.clientY, window.innerHeight - menuHeight - 12);
         contextMenu.style.setProperty("--menu-x", `${Math.max(12, x)}px`);
@@ -588,12 +592,22 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 
         const action = button.dataset.contextAction;
         if (action === "top") window.scrollTo({ top: 0, behavior: "smooth" });
+        if (action === "refresh") window.location.reload();
         if (action === "home") window.location.href = "/";
+        if (action === "back") history.back();
+        if (action === "forward") history.forward();
         if (action === "copy") {
           await navigator.clipboard?.writeText(window.location.href);
-          button.textContent = "✓ 已复制";
+          button.textContent = "\u2713 \u94fe\u63a5\u5df2\u590d\u5236";
           window.setTimeout(() => {
-            button.textContent = "⧉ 复制链接";
+            button.textContent = "\u29c9 \u590d\u5236\u94fe\u63a5";
+          }, 1200);
+        }
+        if (action === "title") {
+          await navigator.clipboard?.writeText(document.title);
+          button.textContent = "\u2713 \u6807\u9898\u5df2\u590d\u5236";
+          window.setTimeout(() => {
+            button.textContent = "T \u590d\u5236\u6807\u9898";
           }, 1200);
         }
         if (action === "sakura") {

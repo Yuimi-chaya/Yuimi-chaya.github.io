@@ -39,8 +39,12 @@ const formatter = new Intl.DateTimeFormat("zh-CN", {
       </div>
 
       <div class="hero-profile identity-card" data-hero-profile aria-label="Profile">
-        <div class="identity-avatar">
+        <div class="identity-avatar" data-poke-avatar>
+          <span class="avatar-flower" aria-hidden="true">
+            <span class="avatar-flower__bloom"></span>
+          </span>
           <img src="/assets/profile.jpg" alt="Yuimi Lab avatar" width="168" height="168" />
+          <span class="avatar-poke-bubble" data-poke-bubble>&#x64CD;&#x4F5C;&#x592A;&#x5FEB;&#x5566;&#xFF0C;&#x4F11;&#x606F;&#x4E00;&#x4E0B;&#x5427;</span>
         </div>
         <div class="identity-terminal" aria-label="identity terminal card">
           <div class="identity-terminal-bar">
@@ -323,6 +327,48 @@ const formatter = new Intl.DateTimeFormat("zh-CN", {
 
     runTypingLoop(typingTarget, terminalLines);
     runTypingLoop(nameTarget, nameLines, 96, 46, 1500);
+
+    const pokeAvatar = document.querySelector("[data-poke-avatar]");
+    const pokeBubble = document.querySelector("[data-poke-bubble]");
+    let lastPokeAt = 0;
+    let bubbleTimer = 0;
+
+    const showPokeBubble = (text) => {
+      if (!pokeBubble) return;
+      pokeBubble.textContent = text;
+      pokeBubble.classList.add("is-visible");
+      window.clearTimeout(bubbleTimer);
+      bubbleTimer = window.setTimeout(() => {
+        pokeBubble.classList.remove("is-visible");
+      }, 1700);
+    };
+
+    pokeAvatar?.addEventListener("pointermove", (event) => {
+      const rect = pokeAvatar.getBoundingClientRect();
+      const offset = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
+      pokeAvatar.style.setProperty("--flower-sway", `${offset * 9}deg`);
+    });
+
+    pokeAvatar?.addEventListener("pointerleave", () => {
+      pokeAvatar.style.setProperty("--flower-sway", "0deg");
+    });
+
+    pokeAvatar?.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      const now = Date.now();
+      if (now - lastPokeAt < 10000) {
+        showPokeBubble("\u64cd\u4f5c\u592a\u5feb\u5566\uff0c\u4f11\u606f\u4e00\u4e0b\u5427");
+        return;
+      }
+
+      lastPokeAt = now;
+      pokeAvatar.classList.remove("is-poked");
+      void pokeAvatar.offsetWidth;
+      pokeAvatar.classList.add("is-poked");
+      showPokeBubble("\u6233\u5230\u4e86~");
+      window.setTimeout(() => pokeAvatar.classList.remove("is-poked"), 720);
+    });
+
     setProgress(0);
     handleHeroScroll();
     window.addEventListener("wheel", handleHeroWheel, { passive: false });
