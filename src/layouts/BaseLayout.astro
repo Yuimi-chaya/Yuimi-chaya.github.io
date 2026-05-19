@@ -120,10 +120,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         <div class="footer-inner">
           <p class="footer-signature-line">© 2026 BY 喝益胃 / Yuimi Lab</p>
           <p>二次元手账、开发记录、还有一点点宇宙回声。</p>
-          <p>🛰️ 旅行者一号已发射 <time data-elapsed-from="1977-09-05T12:56:00Z">计算中...</time></p>
-          <p>🛰️ 旅行者二号已发射 <time data-elapsed-from="1977-08-20T14:29:00Z">计算中...</time></p>
-          <p>🌸 Yuimi Lab 落地 <time data-elapsed-from="2026-05-18T00:00:00+08:00">计算中...</time></p>
-          <p>💍 契约之吻已经 <time data-elapsed-from="2022-09-24T00:00:00+08:00">计算中...</time> 没有第二季了</p>
+          <p>🛰️ 旅行者一号：<time data-elapsed-from="1977-09-05T12:56:00Z" data-elapsed-mode="minute">计算中...</time> 仍在远航</p>
+          <p>🛰️ 旅行者二号：<time data-elapsed-from="1977-08-20T14:29:00Z" data-elapsed-mode="minute">计算中...</time> 仍在远航</p>
+          <p>🌸 Yuimi Lab 已落地：<time data-elapsed-from="2026-05-18T00:00:00+08:00" data-elapsed-mode="second">计算中...</time></p>
+          <p>💍 契约之吻：<time data-elapsed-from="2022-09-24T00:00:00+08:00" data-elapsed-mode="days">计算中...</time>，第二季仍未响应</p>
           <p class="footer-status-line">sakura: falling / pig: on duty / tea: warm</p>
         </div>
       </footer>
@@ -156,14 +156,25 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 
       const timerNodes = document.querySelectorAll("[data-elapsed-from]");
       const padTimer = (value) => String(value).padStart(2, "0");
-      const formatElapsed = (startDate) => {
+      const getElapsedParts = (startDate) => {
         const diff = Math.max(0, Date.now() - startDate.getTime());
         const totalSeconds = Math.floor(diff / 1000);
-        const days = Math.floor(totalSeconds / 86400);
-        const hours = Math.floor((totalSeconds % 86400) / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
+        return {
+          days: Math.floor(totalSeconds / 86400),
+          hours: Math.floor((totalSeconds % 86400) / 3600),
+          minutes: Math.floor((totalSeconds % 3600) / 60),
+          seconds: totalSeconds % 60
+        };
+      };
 
+      const formatElapsed = (startDate, mode = "second") => {
+        const { days, hours, minutes, seconds } = getElapsedParts(startDate);
+        if (mode === "minute") {
+          return `${days.toLocaleString("zh-CN")}天 ${padTimer(hours)}小时 ${padTimer(minutes)}分`;
+        }
+        if (mode === "days") {
+          return `第 ${days.toLocaleString("zh-CN")} 天`;
+        }
         return `${days.toLocaleString("zh-CN")}天 ${padTimer(hours)}小时 ${padTimer(minutes)}分 ${padTimer(seconds)}秒`;
       };
 
@@ -171,7 +182,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         timerNodes.forEach((node) => {
           const start = new Date(node.dataset.elapsedFrom);
           if (Number.isNaN(start.getTime())) return;
-          node.textContent = formatElapsed(start);
+          node.textContent = formatElapsed(start, node.dataset.elapsedMode);
           node.setAttribute("dateTime", start.toISOString());
         });
       };
