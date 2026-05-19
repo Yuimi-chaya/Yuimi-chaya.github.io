@@ -3,7 +3,7 @@ title: "二次元审美与开发者主页可以怎样共存"
 description: "一个个人站点可以同时保留技术可信度和兴趣辨识度。"
 pubDate: 2026-05-17
 updatedDate: 2026-05-17
-cover: "https://img.cdn1.vip/i/6a0c9a0b15956_1779210763.webp"
+cover: "/blog-covers/cover-10.webp"
 tags: ["Design", "Anime", "Personal Site"]
 category: "anime"
 ---

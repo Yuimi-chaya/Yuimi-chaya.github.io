@@ -3,7 +3,7 @@ title: "从 Hexo 小站到 Yuimi Lab"
 description: "隔了几年重新打开个人博客，顺手给旧站点和当时跟着教程折腾的自己打个招呼。"
 pubDate: 2026-05-19
 updatedDate: 2026-05-19
-cover: "https://img.cdn1.vip/i/6a0c9a08d8297_1779210760.webp"
+cover: "/blog-covers/cover-09.webp"
 tags: ["Blog", "Hexo", "Fomalhaut", "Restart"]
 category: "life"
 ---
