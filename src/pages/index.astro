@@ -1,0 +1,332 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+import { categoryLabel } from "@/lib/site";
+
+const posts = (await getCollection("blog", ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 3);
+
+const formatter = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+---
+
+<BaseLayout>
+  <section class="hero-stage" data-hero-stage>
+    <div class="hero">
+      <div class="hero-overlay"></div>
+      <div class="hero-copy" data-hero-copy>
+        <p class="eyebrow">Personal scrapbook / Anime diary</p>
+        <h1 data-title="Yuimi Lab">Yuimi Lab</h1>
+        <p class="hero-text terminal-line" aria-label="typing subtitle">
+          <span class="hero-terminal-badge" aria-hidden="true"></span>
+          <span class="hero-terminal-stack">
+            <span class="hero-terminal-status" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+            <span class="hero-terminal-command">
+              <span class="terminal-prefix">asteria@lab:~$</span>
+              <span class="terminal-typing" data-terminal-typing></span>
+            </span>
+          </span>
+          <span class="terminal-cursor" aria-hidden="true"></span>
+        </p>
+      </div>
+
+      <div class="hero-profile identity-card" data-hero-profile aria-label="Profile">
+        <div class="identity-avatar">
+          <img src="/assets/profile.jpg" alt="Yuimi Lab avatar" width="168" height="168" />
+        </div>
+        <div class="identity-terminal" aria-label="identity terminal card">
+          <div class="identity-terminal-bar">
+            <div class="terminal-dots" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <span class="terminal-title">yuimi-profile.exe</span>
+          </div>
+          <p class="identity-path">C:\Users\Yuimi\profile</p>
+          <p class="identity-command">
+            <span class="terminal-prefix">profile@yuimi:~$</span>
+            <span data-name-typing></span>
+            <span class="terminal-cursor" aria-hidden="true"></span>
+          </p>
+          <p class="identity-caption">喝益胃 / Yuimi-chaya</p>
+          <div class="social-links" aria-label="Social links">
+            <a href="https://github.com/Yuimi-chaya" target="_blank" rel="noreferrer" aria-label="GitHub profile">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.1 3.29 9.4 7.86 10.93.58.1.79-.25.79-.56v-2.16c-3.2.7-3.87-1.38-3.87-1.38-.52-1.33-1.27-1.68-1.27-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.68 1.24 3.34.95.1-.74.4-1.24.72-1.53-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.47.11-3.06 0 0 .97-.31 3.16 1.18A10.9 10.9 0 0 1 12 5.98c.98 0 1.96.13 2.88.39 2.19-1.49 3.15-1.18 3.15-1.18.63 1.59.24 2.77.12 3.06.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.27 5.7.41.36.77 1.06.77 2.14v3.18c0 .31.21.67.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+              </svg>
+              GitHub
+            </a>
+            <a href="https://space.bilibili.com/494350222" target="_blank" rel="noreferrer" aria-label="Bilibili profile">
+              <svg viewBox="0 0 32 32" aria-hidden="true">
+                <path d="M11.1 6.4 8.5 3.8a1.4 1.4 0 0 0-2 2l2.7 2.7h-.7A5.5 5.5 0 0 0 3 14v7.2A5.5 5.5 0 0 0 8.5 26h15A5.5 5.5 0 0 0 29 21.2V14a5.5 5.5 0 0 0-5.5-5.5h-.7l2.7-2.7a1.4 1.4 0 0 0-2-2l-2.6 2.6H11.1Zm-2.6 5h15A2.6 2.6 0 0 1 26.1 14v7.2a2.6 2.6 0 0 1-2.6 2.6h-15a2.6 2.6 0 0 1-2.6-2.6V14a2.6 2.6 0 0 1 2.6-2.6Zm2.7 5.1a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Zm9.6 0a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z" />
+              </svg>
+              Bilibili
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <a class="scroll-cue" href="#main-content" aria-label="Scroll to content">
+        <span class="scroll-cue__prompt">scroll@home:~$</span>
+        <span class="scroll-cue__arrows" aria-hidden="true">
+          <span>&gt;</span>
+          <span>&gt;</span>
+          <span>&gt;</span>
+        </span>
+      </a>
+    </div>
+  </section>
+
+  <div class="scene-divider" aria-hidden="true">
+    <div class="scene-divider__rail">
+      <span class="scene-divider__glow"></span>
+      <span class="scene-divider__stitch"></span>
+      <span class="scene-divider__note note-a"></span>
+      <span class="scene-divider__note note-b"></span>
+      <span class="scene-divider__note note-c"></span>
+      <span class="scene-divider__spark spark-a"></span>
+      <span class="scene-divider__spark spark-b"></span>
+      <span class="scene-divider__spark spark-c"></span>
+    </div>
+  </div>
+
+  <div class="home-content-bg">
+    <section class="lab-stage" id="main-content">
+      <div class="lab-status-panel">
+        <p class="section-kicker">Desk Memo</p>
+        <h2>这里放着最近喜欢的光。</h2>
+        <p>动画片段、代码笔记、网页小玩具和一点点日常心情，都先被夹在这张桌面上。来访者可以慢慢翻，不需要急着找到标准答案。</p>
+        <div class="status-screen" aria-label="Lab status">
+          <span class="status-dot"></span>
+          <strong>now playing</strong>
+          <code>anime-memo && code-diary && tiny-arcade</code>
+        </div>
+      </div>
+      <div class="mood-board" aria-label="Mood board">
+        <article class="mood-card mood-card--large">
+          <span>Scrap</span>
+          <strong>技术笔记也可以贴上贴纸</strong>
+          <p>不是把严肃内容变轻，而是给它一个更愿意被打开的封面。</p>
+        </article>
+        <article class="mood-card mood-card--tall">
+          <span>Arcade</span>
+          <strong>路过时打一局</strong>
+          <p>收藏一些网页小游戏，像书桌旁边偷偷亮着的小机器。</p>
+        </article>
+        <article class="mood-card mood-card--soft">
+          <span>Mood</span>
+          <strong>今天适合浅蓝色</strong>
+          <p>背景、歌单、樱花和看板娘一起值班，主页就会有自己的天气。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="content-band latest-reel">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Latest Notes</p>
+          <h2>最近贴上的纸条</h2>
+        </div>
+      </div>
+      <div class="post-reel">
+        {
+          posts.map((post, index) => (
+            <a class="post-card reel-card" href={`/blog/${post.id}/`} style={`--reel-index: ${index}`}>
+              <span class="reel-card__number">0{index + 1}</span>
+              <div class="meta-row">
+                <span>{categoryLabel[post.data.category]}</span>
+                <time datetime={post.data.pubDate.toISOString()}>{formatter.format(post.data.pubDate)}</time>
+              </div>
+              <h3>{post.data.title}</h3>
+              <p>{post.data.description}</p>
+              <div class="tag-row">
+                {post.data.tags.map((tag) => <span>#{tag}</span>)}
+              </div>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const stage = document.querySelector("[data-hero-stage]");
+    const hero = stage?.querySelector(".hero");
+    const typingTarget = document.querySelector("[data-terminal-typing]");
+    const nameTarget = document.querySelector("[data-name-typing]");
+
+    const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+    const pullDistance = 240;
+    const dockThreshold = 0.44;
+    const resetDelay = 360;
+    const releaseDelay = 180;
+    const terminalLines = [
+      "pin --dev-notes --anime-diary",
+      "collect \"blue moments\" && write",
+      "npm run scrapbook",
+      "echo \"做自己想做，想自己所想\""
+    ];
+    const nameLines = ["喝益胃", "Yuimi-chaya"];
+
+    let pull = 0;
+    let state = "idle";
+    let resetTimer = 0;
+    let releaseTimer = 0;
+
+    const runTypingLoop = (target, lines, writeDelay = 58, eraseDelay = 32, holdDelay = 1250) => {
+      if (!target) return;
+
+      let lineIndex = 0;
+      let charIndex = 0;
+      let deleting = false;
+
+      const tick = () => {
+        const line = lines[lineIndex];
+        target.textContent = line.slice(0, charIndex);
+
+        if (!deleting && charIndex < line.length) {
+          charIndex += 1;
+          window.setTimeout(tick, writeDelay);
+          return;
+        }
+
+        if (!deleting && charIndex === line.length) {
+          deleting = true;
+          window.setTimeout(tick, holdDelay);
+          return;
+        }
+
+        if (deleting && charIndex > 0) {
+          charIndex -= 1;
+          window.setTimeout(tick, eraseDelay);
+          return;
+        }
+
+        deleting = false;
+        lineIndex = (lineIndex + 1) % lines.length;
+        window.setTimeout(tick, 360);
+      };
+
+      tick();
+    };
+
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
+
+    if (!location.hash) {
+      requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0 }));
+    }
+
+    const setProgress = (progress) => {
+      if (!hero) return;
+
+      const value = clamp(progress);
+      hero.style.setProperty("--avatar-y", `${(1 - value) * 56}vh`);
+      hero.style.setProperty("--avatar-scale", `${0.78 + value * 0.22}`);
+      hero.style.setProperty("--profile-opacity", `${clamp((value - 0.08) / 0.48)}`);
+      hero.style.setProperty("--copy-opacity", `${1 - clamp((value - 0.12) / 0.42)}`);
+      hero.style.setProperty("--cue-opacity", `${1 - clamp(value / 0.48)}`);
+    };
+
+    const resetPull = () => {
+      if (state === "passed") return;
+      pull = 0;
+      state = "idle";
+      hero?.classList.remove("is-docked", "is-pulling");
+      setProgress(0);
+    };
+
+    const dockProfile = () => {
+      pull = pullDistance;
+      state = "docked";
+      hero?.classList.remove("is-pulling");
+      hero?.classList.add("is-docked");
+      setProgress(1);
+
+      window.clearTimeout(releaseTimer);
+      releaseTimer = window.setTimeout(() => {
+        state = "passed";
+      }, releaseDelay);
+    };
+
+    const handleHeroWheel = (event) => {
+      if (!stage || !hero) return;
+
+      const atHeroTop = window.scrollY <= 2 && stage.getBoundingClientRect().top >= -2;
+      if (!atHeroTop) {
+        state = "passed";
+        return;
+      }
+
+      if (event.deltaY < 0) {
+        event.preventDefault();
+        window.clearTimeout(resetTimer);
+        window.clearTimeout(releaseTimer);
+        pull = state === "passed" || state === "docked"
+          ? 0
+          : clamp(pull + event.deltaY, 0, pullDistance);
+        state = pull > 0 ? "pulling" : "idle";
+        hero.classList.toggle("is-pulling", state === "pulling");
+        hero.classList.remove("is-docked");
+        setProgress(pull / pullDistance);
+        resetTimer = window.setTimeout(resetPull, resetDelay);
+        return;
+      }
+
+      if (state === "passed") return;
+      if (state === "docked") {
+        event.preventDefault();
+        return;
+      }
+
+      event.preventDefault();
+      window.clearTimeout(resetTimer);
+
+      const resistance = 1 - clamp(pull / pullDistance) * 0.5;
+      pull = clamp(pull + event.deltaY * resistance, 0, pullDistance);
+      const progress = pull / pullDistance;
+
+      hero.classList.add("is-pulling");
+      setProgress(progress);
+
+      if (progress >= dockThreshold) {
+        dockProfile();
+      } else {
+        state = "pulling";
+        resetTimer = window.setTimeout(resetPull, resetDelay);
+      }
+    };
+
+    const handleHeroScroll = () => {
+      if (!stage || !hero) return;
+
+      const nativeProgress = clamp(-stage.getBoundingClientRect().top / (window.innerHeight || 1));
+      hero.style.setProperty("--hero-dim", `${0.12 + clamp((nativeProgress - 1.05) / 0.25) * 0.12}`);
+
+      if (window.scrollY <= 2 && state === "passed") {
+        pull = pullDistance;
+        hero.classList.remove("is-pulling");
+        hero.classList.add("is-docked");
+        setProgress(1);
+      }
+    };
+
+    runTypingLoop(typingTarget, terminalLines);
+    runTypingLoop(nameTarget, nameLines, 96, 46, 1500);
+    setProgress(0);
+    handleHeroScroll();
+    window.addEventListener("wheel", handleHeroWheel, { passive: false });
+    window.addEventListener("scroll", handleHeroScroll, { passive: true });
+    window.addEventListener("resize", handleHeroScroll);
+  </script>
+</BaseLayout>

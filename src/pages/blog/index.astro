@@ -1,0 +1,100 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+import { categoryLabel } from "@/lib/site";
+
+const posts = (await getCollection("blog", ({ data }) => !data.draft))
+  .sort((a, b) => {
+    const dateA = (a.data.updatedDate ?? a.data.pubDate).valueOf();
+    const dateB = (b.data.updatedDate ?? b.data.pubDate).valueOf();
+    return dateB - dateA;
+  })
+  .map((post) => {
+    const rawText = post.body
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/[#>*_\-[\]()`~]/g, "")
+      .trim();
+    const cjk = rawText.match(/[\u4e00-\u9fff]/g)?.length ?? 0;
+    const words = rawText.replace(/[\u4e00-\u9fff]/g, " ").match(/[A-Za-z0-9]+/g)?.length ?? 0;
+    return {
+      ...post,
+      wordCount: cjk + words,
+      updatedAt: post.data.updatedDate ?? post.data.pubDate,
+      cover: post.data.cover ?? "/assets/hero-wallpaper.jpg"
+    };
+  });
+
+const formatter = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+
+const coverFocus: Record<string, string> = {
+  "/blog-covers/cover-03.png": "50% 32%",
+  "/blog-covers/cover-08.jpg": "50% 30%",
+  "/blog-covers/cover-09.png": "50% 28%",
+  "/blog-covers/cover-10.jpg": "50% 30%"
+};
+---
+
+<BaseLayout title="Blog | Yuimi Lab" description="技术笔记、二次元随笔与个人记录。">
+  <section class="page-title blog-hero-card">
+    <p class="section-kicker">Archive</p>
+    <h1>Blog</h1>
+    <p>开发经验、站点折腾、兴趣记录都会先夹在这里。每篇文章像一张贴进手账的照片，隔一阵回来，也能看见当时为什么这么想。</p>
+  </section>
+
+  <section class="blog-timeline" aria-label="Blog timeline">
+    {
+      posts.map((post) => (
+        <article class="blog-timeline-item">
+          <div class="timeline-date">
+            <time datetime={post.updatedAt.toISOString()}>{formatter.format(post.updatedAt)}</time>
+            <span>updated</span>
+          </div>
+          <a class="post-row blog-post-row" href={`/blog/${post.id}/`}>
+            <div class="post-cover-frame">
+              <img src={post.cover} alt="" loading="lazy" style={`object-position: ${coverFocus[post.cover] ?? "50% 32%"}`} />
+            </div>
+            <div class="blog-post-copy">
+              <div class="meta-row">
+                <span>{categoryLabel[post.data.category]}</span>
+                <time datetime={post.data.pubDate.toISOString()}>发布 {formatter.format(post.data.pubDate)}</time>
+                <time datetime={post.updatedAt.toISOString()}>更新 {formatter.format(post.updatedAt)}</time>
+                <span>{post.wordCount.toLocaleString("zh-CN")} 字</span>
+              </div>
+              <h2>{post.data.title}</h2>
+              <p>{post.data.description}</p>
+              <div class="tag-row">
+                {post.data.tags.map((tag) => <span>#{tag}</span>)}
+              </div>
+            </div>
+          </a>
+        </article>
+      ))
+    }
+  </section>
+
+  <section class="post-list">
+    {
+      posts.map((post) => (
+        <a class="post-row compact-post-row" href={`/blog/${post.id}/`}>
+          <div>
+            <div class="meta-row">
+              <span>{categoryLabel[post.data.category]}</span>
+              <time datetime={post.data.pubDate.toISOString()}>{formatter.format(post.data.pubDate)}</time>
+              <span>{post.wordCount.toLocaleString("zh-CN")} 字</span>
+            </div>
+            <h2>{post.data.title}</h2>
+            <p>{post.data.description}</p>
+          </div>
+          <div class="tag-row">
+            {post.data.tags.map((tag) => <span>#{tag}</span>)}
+          </div>
+        </a>
+      ))
+    }
+  </section>
+</BaseLayout>

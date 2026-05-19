@@ -1,0 +1,85 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const gamePicks = [
+  {
+    name: "2048",
+    icon: "◆",
+    author: "Gabriele Cirulli",
+    vibe: "数字拼图 / 一局刚刚好",
+    license: "MIT",
+    repo: "https://github.com/gabrielecirulli/2048",
+    play: "https://gabrielecirulli.github.io/2048/",
+    summary: "把相同数字推到一起，直到桌面安静或脑袋发热。适合放在博客里当一杯茶时间的小游戏。",
+    thanks: "感谢 Gabriele Cirulli 和贡献者们让这个小小数字游戏留在网页时代。"
+  },
+  {
+    name: "Hextris",
+    icon: "⬡",
+    author: "Logan Engstrom, Garrett Finucane, Noah Moroze, Michael Yang",
+    vibe: "六边形反应 / 彩色堆叠",
+    license: "GPL-3.0",
+    repo: "https://github.com/Hextris/hextris",
+    play: "https://hextris.github.io/hextris/",
+    summary: "像 Tetris 的六边形异世界版本，颜色靠近、旋转、消去，越玩越容易进入手忙脚乱的节奏。",
+    thanks: "感谢 Hextris 原作者团队把这个有辨识度的 HTML5 游戏开源出来。"
+  },
+  {
+    name: "Clumsy Bird",
+    icon: "♪",
+    author: "Ellison Leão",
+    vibe: "横版躲避 / 像素小鸟",
+    license: "GPL-3.0",
+    repo: "https://github.com/ellisonleao/clumsy-bird",
+    play: "https://ellisonleao.github.io/clumsy-bird/",
+    summary: "点击、起飞、撞柱、再来一次。很简单，也很容易让人不服气。",
+    thanks: "感谢 Ellison Leão 将这个 MelonJS 小游戏作为开源项目保存下来。"
+  }
+];
+---
+
+<BaseLayout title="Game | Yuimi Lab" description="小游戏、互动实验和博客彩蛋入口。">
+  <section class="page-title game-hero-card">
+    <p class="section-kicker">Playroom</p>
+    <h1>Game Shelf</h1>
+    <p>这里是 Yuimi Lab 的小型街机架。收纳一些可以在浏览器里打开的开源小游戏，保留原作者署名、仓库链接和许可证信息；本站仅作个人展示与跳转收藏，不盈利，也不改动小游戏本体代码。</p>
+  </section>
+
+  <section class="game-room" aria-label="Game collection">
+    {
+      gamePicks.map((game) => (
+        <article class="game-cabinet-card">
+          <div class="game-cabinet-screen" aria-hidden="true">
+            <span>{game.icon}</span>
+            <strong>{game.name}</strong>
+          </div>
+          <div class="game-cabinet-copy">
+            <span class="game-license">{game.license}</span>
+            <h2>{game.name}</h2>
+            <p class="game-vibe">{game.vibe}</p>
+            <p>{game.summary}</p>
+            <dl class="game-credit">
+              <div>
+                <dt>Author</dt>
+                <dd>{game.author}</dd>
+              </div>
+              <div>
+                <dt>Thanks</dt>
+                <dd>{game.thanks}</dd>
+              </div>
+            </dl>
+            <div class="game-actions">
+              <a href={game.play} target="_blank" rel="noreferrer">Play</a>
+              <a href={game.repo} target="_blank" rel="noreferrer">Repository</a>
+            </div>
+          </div>
+        </article>
+      ))
+    }
+  </section>
+
+  <section class="game-note">
+    <strong>收藏说明</strong>
+    <p>这些小游戏仍属于各自原作者与开源许可证。Yuimi Lab 只做个人兴趣展示、介绍与外链，不对小游戏本体进行商业使用。</p>
+  </section>
+</BaseLayout>

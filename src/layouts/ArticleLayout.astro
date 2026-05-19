@@ -1,0 +1,32 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import { categoryLabel } from "@/lib/site";
+
+const { frontmatter } = Astro.props;
+const title = `${frontmatter.title} | Yuimi Lab`;
+const date = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+}).format(frontmatter.pubDate);
+---
+
+<BaseLayout title={title} description={frontmatter.description}>
+  <article class="article">
+    <a class="back-link" href="/blog/">← 回到文章列表</a>
+    <header class="article-header">
+      <div class="meta-row">
+        <span>{categoryLabel[frontmatter.category]}</span>
+        <time datetime={frontmatter.pubDate.toISOString()}>{date}</time>
+      </div>
+      <h1>{frontmatter.title}</h1>
+      <p>{frontmatter.description}</p>
+      <div class="tag-row" aria-label="Tags">
+        {frontmatter.tags.map((tag: string) => <span>#{tag}</span>)}
+      </div>
+    </header>
+    <div class="prose">
+      <slot />
+    </div>
+  </article>
+</BaseLayout>
