@@ -3,7 +3,7 @@ title: "给 AstrBot 写人设提示词这件事，我踩过的一些坑"
 description: "记录我在 AstrBot 人设扮演提示词上的一点点摸索：为什么不能把设定写太满，怎么让角色更像人，以及哪些限制词反而会把角色写死。"
 pubDate: 2026-05-19
 updatedDate: 2026-05-19
-cover: "/blog-covers/cover-01.webp"
+cover: "https://img.cdn1.vip/i/6a0c99fd0cd2c_1779210749.webp"
 tags: ["AstrBot", "Prompt", "Persona", "AI"]
 category: "tech"
 ---
