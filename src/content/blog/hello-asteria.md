@@ -3,7 +3,7 @@ title: "重新启动这个博客"
 description: "从旧 Hexo 迁移到 Astro，把个人站点重新定义为技术与兴趣的混合空间。"
 pubDate: 2026-05-18
 updatedDate: 2026-05-18
-cover: "/blog-covers/cover-03.png"
+cover: "/blog-covers/cover-03.webp"
 tags: ["Astro", "Blog", "Restart"]
 category: "tech"
 ---

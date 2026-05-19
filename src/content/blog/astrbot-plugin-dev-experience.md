@@ -3,7 +3,7 @@ title: "我做 AstrBot 插件这一年，最值钱的其实不是代码"
 description: "记录我在 AstrBot 插件开发里踩过的一些坑：哪些地方最容易翻车，为什么别急着大改，以及我后来为什么越来越看重稳定和约束。"
 pubDate: 2026-05-19
 updatedDate: 2026-05-19
-cover: "/blog-covers/cover-04.png"
+cover: "/blog-covers/cover-04.webp"
 tags: ["AstrBot", "Plugin", "Development", "Experience"]
 category: "tech"
 ---
