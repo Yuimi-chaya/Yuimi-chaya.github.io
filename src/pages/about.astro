@@ -1,26 +1,866 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { Icon } from "astro-icon/components";
+
+const statusItems = [
+  "正在学习 UE5",
+  "在折腾 AstrBot / MMD / 小游戏",
+  "喜欢把技术做得有点可爱"
+];
+
+const techStack = [
+  {
+    name: "Unity3D",
+    note: "游戏逻辑 / 互动实验",
+    icon: "simple-icons:unity",
+    tone: "blue"
+  },
+  {
+    name: "Blender",
+    note: "建模 / 场景 / 小道具",
+    icon: "simple-icons:blender",
+    tone: "orange"
+  },
+  {
+    name: "UE5",
+    note: "正在学习中",
+    icon: "simple-icons:unrealengine",
+    tone: "ink"
+  },
+  {
+    name: "MMD 制作",
+    note: "动作 / 镜头 / 舞台感",
+    icon: "tabler:sparkles",
+    tone: "pink"
+  },
+  {
+    name: "AstrBot",
+    note: "插件开发 / 部署记录",
+    icon: "tabler:terminal-2",
+    tone: "mint"
+  }
+];
+
+const animeShelf = [
+  { title: "契约之吻", subtitle: "Engage Kiss", image: "/assets/about/engage-kiss.webp" },
+  { title: "青春猪头少年系列", subtitle: "Rascal Does Not Dream", image: "/assets/about/aobuta.webp" },
+  { title: "无职转生", subtitle: "Mushoku Tensei", image: "/assets/about/mushoku-tensei.webp" },
+  { title: "夏洛特", subtitle: "Charlotte", image: "/assets/about/charlotte.webp" },
+  { title: "Summer Pockets", subtitle: "夏日口袋", image: "/assets/about/summer-pockets.webp" },
+  { title: "埃罗芒阿老师", subtitle: "Eromanga Sensei", image: "/assets/about/eromanga-sensei.webp" },
+  { title: "游戏人生", subtitle: "No Game No Life", image: "/assets/about/no-game-no-life.webp" },
+  { title: "某科学的超电磁炮", subtitle: "A Certain Scientific Railgun", image: "/assets/about/railgun.webp" }
+];
+
+const xpTags = [
+  { title: "猫娘", subtitle: "catgirl signal", image: "/assets/about/xp-catgirl.webp" },
+  { title: "粉毛", subtitle: "pink hair bias", image: "/assets/about/xp-pink-hair.webp" },
+  { title: "病娇", subtitle: "sweet danger", image: "/assets/about/xp-yandere.webp" },
+  { title: "重女", subtitle: "heavy love", image: "/assets/about/xp-heavy-love.webp" }
+];
+
+const gameShelf = [
+  { title: "赛博朋克 2077", subtitle: "Cyberpunk 2077", image: "/assets/about/cyberpunk-2077.webp", icon: "simple-icons:steam" },
+  { title: "终极角逐", subtitle: "THE FINALS", image: "/assets/about/the-finals.webp", icon: "simple-icons:thefinals" },
+  { title: "KovaaK's", subtitle: "aim trainer", image: "/assets/about/kovaaks.webp", icon: "tabler:device-gamepad" },
+  { title: "Aimlabs", subtitle: "aim routine", image: "/assets/about/aimlabs.webp", icon: "tabler:device-gamepad" }
+];
+
+const nowDoing = [
+  { label: "正在学习", text: "UE5 的场景、材质和蓝图，把脑内小房间慢慢搭出来。" },
+  { label: "最近在折腾", text: "AstrBot 插件、部署教程、以及能让博客动起来的小机关。" },
+  { label: "今日电波", text: "技术可以严谨一点，呈现方式可以更像玩具一点。" }
+];
 ---
 
-<BaseLayout title="About | Yuimi Lab" description="关于站点主人、技术栈与兴趣方向。">
-  <section class="page-title">
-    <p class="section-kicker">Profile</p>
-    <h1>About</h1>
-    <p>这里会慢慢整理我的技术栈、兴趣偏好、正在学习的方向，以及那些让我觉得生活发亮的小东西。</p>
+<BaseLayout title="About | Yuimi Lab" description="关于喝益胃 / Yuimi-chaya 的技术线、二次元兴趣与个人资料。">
+  <section class="about-profile-shell" aria-labelledby="about-title">
+    <aside class="about-sidebar" aria-label="Yuimi profile card">
+      <div class="about-avatar-card">
+        <span class="about-tape about-tape--left" aria-hidden="true"></span>
+        <img src="/assets/profile.jpg" alt="喝益胃 / Yuimi-chaya 的头像" width="220" height="220" />
+        <span class="about-avatar-flower" aria-hidden="true">✦</span>
+      </div>
+
+      <div class="about-id-card">
+        <p class="about-kicker">Profile README</p>
+        <h1 id="about-title">喝益胃</h1>
+        <p class="about-handle">Yuimi-chaya · Yuimi Lab</p>
+        <p class="about-bio">
+          二次元技术宅 / 兴趣驱动型折腾人，喜欢研究有意思的小东西，也喜欢把开发记录做得清透一点。
+        </p>
+
+        <div class="about-link-row" aria-label="profile links">
+          <a href="https://github.com/Yuimi-chaya" target="_blank" rel="noreferrer">
+            <Icon name="simple-icons:github" aria-hidden="true" />
+            GitHub
+          </a>
+          <a href="https://space.bilibili.com/494350222" target="_blank" rel="noreferrer">
+            <Icon name="simple-icons:bilibili" aria-hidden="true" />
+            Bilibili
+          </a>
+        </div>
+      </div>
+
+      <div class="about-status-card">
+        <p class="about-mini-title">Now status</p>
+        <ul>
+          {statusItems.map((item) => (
+            <li>
+              <Icon name="tabler:pin" aria-hidden="true" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </aside>
+
+    <section class="about-readme" aria-label="Yuimi README">
+      <div class="about-readme-hero">
+        <div>
+          <p class="section-kicker">README.md</p>
+          <h2>Hi, I am Yuimi-chaya</h2>
+          <p>
+            这里是一间把技术笔记、二次元兴趣、小游戏和看板娘机关放在一起的小房间。
+            我会记录 AstrBot、插件开发、部署踩坑，也会把喜欢的番剧、游戏和角色审美认真摆上架。
+          </p>
+        </div>
+        <div class="about-readme-badge" aria-hidden="true">
+          <Icon name="tabler:mood-smile" />
+          <span>anime x code</span>
+        </div>
+      </div>
+
+      <section class="about-section" aria-labelledby="tech-line-title">
+        <div class="about-section-heading">
+          <Icon name="tabler:terminal-2" aria-hidden="true" />
+          <div>
+            <p>Tech line</p>
+            <h2 id="tech-line-title">技术线</h2>
+          </div>
+        </div>
+
+        <div class="about-tech-grid">
+          {techStack.map((tech) => (
+            <article class={`about-tech-card about-tech-card--${tech.tone}`}>
+              <span class="about-tech-icon" aria-hidden="true">
+                <Icon name={tech.icon} />
+              </span>
+              <div>
+                <h3>{tech.name}</h3>
+                <p>{tech.note}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section class="about-section" aria-labelledby="anime-shelf-title">
+        <div class="about-section-heading">
+          <Icon name="tabler:movie" aria-hidden="true" />
+          <div>
+            <p>Anime shelf</p>
+            <h2 id="anime-shelf-title">喜欢看的番剧</h2>
+          </div>
+        </div>
+
+        <div class="about-media-grid about-media-grid--anime">
+          {animeShelf.map((item) => (
+            <article class="about-media-card">
+              <img src={item.image} alt={`${item.title} 官方视觉缩略图`} loading="lazy" width="900" height="506" />
+              <div>
+                <h3>{item.title}</h3>
+                <p>{item.subtitle}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section class="about-section about-section--split" aria-label="XP and games">
+        <div>
+          <div class="about-section-heading">
+            <Icon name="tabler:heart" aria-hidden="true" />
+            <div>
+              <p>XP tags</p>
+              <h2>XP</h2>
+            </div>
+          </div>
+
+          <div class="about-xp-grid">
+            {xpTags.map((item) => (
+              <article class="about-xp-card">
+                <img src={item.image} alt={`${item.title} 泛化视觉贴纸`} loading="lazy" width="900" height="506" />
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.subtitle}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div class="about-section-heading">
+            <Icon name="tabler:device-gamepad" aria-hidden="true" />
+            <div>
+              <p>Game shelf</p>
+              <h2>喜欢的游戏</h2>
+            </div>
+          </div>
+
+          <div class="about-game-list">
+            {gameShelf.map((item) => (
+              <article class="about-game-card">
+                <img src={item.image} alt={`${item.title} 官方视觉缩略图`} loading="lazy" width="900" height="506" />
+                <div>
+                  <span aria-hidden="true">
+                    <Icon name={item.icon} />
+                  </span>
+                  <h3>{item.title}</h3>
+                  <p>{item.subtitle}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section class="about-section" aria-labelledby="now-doing-title">
+        <div class="about-section-heading">
+          <Icon name="tabler:flower" aria-hidden="true" />
+          <div>
+            <p>Light activity</p>
+            <h2 id="now-doing-title">最近的电波</h2>
+          </div>
+        </div>
+
+        <div class="about-activity-grid">
+          {nowDoing.map((item) => (
+            <article>
+              <span>{item.label}</span>
+              <p>{item.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </section>
   </section>
 
-  <section class="two-column">
-    <div>
-      <h2>技术属性</h2>
-      <p>
-        这里适合记录前端、后端、自动化、AI 工具、部署和日常开发实践。相比堆技术名词，我更想写清楚“我怎么解决问题”。
-      </p>
-    </div>
-    <div>
-      <h2>兴趣属性</h2>
-      <p>
-        动画、游戏、音乐、角色审美和世界观偏好，都是这个小站的气味。它们不需要喧宾夺主，但应该被温柔地看见。
-      </p>
-    </div>
-  </section>
+  <style>
+    .about-profile-shell {
+      width: min(1360px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 96px 0 72px;
+      display: grid;
+      grid-template-columns: minmax(250px, 288px) minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    :global(.waifu-local-fallback) {
+      left: 6px;
+      width: 112px;
+      opacity: 0.72;
+    }
+
+    :global(.waifu-local-bubble) {
+      display: none;
+    }
+
+    :global(.waifu-local-character) {
+      width: 92px;
+      height: 92px;
+      margin-left: 0;
+    }
+
+    :global(.waifu-local-character img) {
+      width: 72px;
+      height: 72px;
+    }
+
+    .about-sidebar {
+      position: sticky;
+      top: 112px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .about-avatar-card,
+    .about-id-card,
+    .about-status-card,
+    .about-readme-hero,
+    .about-section {
+      position: relative;
+      isolation: isolate;
+      overflow: visible;
+      border: 2px solid var(--glass-line);
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 226, 234, 0.05) 44%, rgba(220, 238, 250, 0.08)),
+        rgba(255, 252, 246, 0.18);
+      box-shadow:
+        inset 0 0 0 1px var(--glass-edge),
+        var(--glass-shadow);
+      backdrop-filter: blur(2px) saturate(1.03);
+      -webkit-backdrop-filter: blur(2px) saturate(1.03);
+    }
+
+    .about-avatar-card {
+      display: grid;
+      place-items: center;
+      min-height: 250px;
+      padding: 20px;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(255, 226, 234, 0.54), transparent 32%),
+        radial-gradient(circle at 78% 72%, rgba(220, 238, 250, 0.5), transparent 34%),
+        rgba(255, 252, 246, 0.18);
+    }
+
+    .about-avatar-card img {
+      width: min(188px, 72vw);
+      height: min(188px, 72vw);
+      aspect-ratio: 1;
+      object-fit: cover;
+      border: 4px solid rgba(255, 255, 255, 0.82);
+      border-radius: 50%;
+      box-shadow:
+        0 18px 34px rgba(67, 82, 106, 0.16),
+        0 0 0 10px rgba(255, 226, 234, 0.32);
+    }
+
+    .about-tape {
+      position: absolute;
+      top: -10px;
+      left: 26px;
+      z-index: 2;
+      width: 78px;
+      height: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.58);
+      border-radius: 999px;
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.5) 0 5px, transparent 5px 10px),
+        rgba(255, 222, 139, 0.7);
+      box-shadow: 0 8px 16px rgba(91, 110, 139, 0.12);
+      transform: rotate(-9deg);
+    }
+
+    .about-avatar-flower {
+      position: absolute;
+      right: 34px;
+      bottom: 34px;
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      color: #fffaf1;
+      background: linear-gradient(135deg, var(--pink), var(--blue));
+      border: 2px solid rgba(255, 255, 255, 0.82);
+      border-radius: 50%;
+      box-shadow: 0 10px 22px rgba(91, 110, 139, 0.16);
+    }
+
+    .about-id-card,
+    .about-status-card,
+    .about-readme-hero,
+    .about-section {
+      padding: 24px;
+    }
+
+    .about-kicker,
+    .about-mini-title,
+    .about-section-heading p {
+      margin: 0;
+      color: var(--pink);
+      font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .about-id-card h1,
+    .about-readme-hero h2,
+    .about-section-heading h2 {
+      margin: 6px 0 0;
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    .about-id-card h1 {
+      font-size: clamp(2.1rem, 8vw, 3.15rem);
+      line-height: 1;
+    }
+
+    .about-handle {
+      margin: 8px 0 0;
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .about-bio,
+    .about-readme-hero p,
+    .about-activity-grid p {
+      color: var(--ink-soft);
+      line-height: 1.85;
+    }
+
+    .about-link-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .about-link-row a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px 13px;
+      color: var(--ink);
+      font-size: 0.92rem;
+      font-weight: 800;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.54);
+      border: 1px solid rgba(93, 113, 145, 0.18);
+      border-radius: 999px;
+      box-shadow: 0 10px 20px rgba(67, 82, 106, 0.08);
+    }
+
+    .about-link-row svg,
+    .about-section-heading svg,
+    .about-tech-icon svg,
+    .about-game-card span svg {
+      width: 1.2em;
+      height: 1.2em;
+    }
+
+    .about-status-card ul {
+      display: grid;
+      gap: 10px;
+      padding: 0;
+      margin: 14px 0 0;
+      list-style: none;
+    }
+
+    .about-status-card li {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      color: var(--ink);
+      font-size: 0.94rem;
+      font-weight: 700;
+      line-height: 1.55;
+    }
+
+    .about-status-card svg {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      color: var(--pink);
+    }
+
+    .about-readme {
+      display: grid;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .about-readme-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 136px;
+      gap: 18px;
+      align-items: center;
+      min-height: 220px;
+    }
+
+    .about-readme-hero h2 {
+      font-size: clamp(2.4rem, 4.2vw, 4.85rem);
+      line-height: 1.02;
+    }
+
+    .about-readme-badge {
+      display: grid;
+      place-items: center;
+      align-content: center;
+      width: 136px;
+      height: 136px;
+      color: var(--ink);
+      text-align: center;
+      background:
+        radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.9), transparent 24%),
+        linear-gradient(135deg, var(--pink-soft), var(--blue-soft));
+      border: 2px solid rgba(255, 255, 255, 0.76);
+      border-radius: 50%;
+      box-shadow: 0 18px 34px rgba(67, 82, 106, 0.12);
+      transform: rotate(4deg);
+    }
+
+    .about-readme-badge svg {
+      width: 36px;
+      height: 36px;
+      color: var(--pink);
+    }
+
+    .about-readme-badge span {
+      margin-top: 8px;
+      font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+      font-size: 0.72rem;
+      font-weight: 800;
+      line-height: 1.3;
+    }
+
+    .about-section {
+      display: grid;
+      gap: 18px;
+    }
+
+    .about-section::before {
+      position: absolute;
+      top: -9px;
+      right: 24px;
+      width: 86px;
+      height: 22px;
+      content: "";
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.54) 0 4px, transparent 4px 8px),
+        rgba(220, 238, 250, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.58);
+      border-radius: 999px;
+      box-shadow: 0 8px 16px rgba(91, 110, 139, 0.12);
+      transform: rotate(5deg);
+    }
+
+    .about-section-heading {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .about-section-heading > svg {
+      flex: 0 0 auto;
+      width: 38px;
+      height: 38px;
+      padding: 8px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(93, 113, 145, 0.18);
+      border-radius: 8px;
+      box-shadow: 0 10px 20px rgba(67, 82, 106, 0.08);
+    }
+
+    .about-tech-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .about-tech-card {
+      display: grid;
+      gap: 12px;
+      min-height: 168px;
+      padding: 16px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.5);
+      border: 1px solid rgba(93, 113, 145, 0.18);
+      border-radius: 8px;
+      box-shadow: 0 12px 24px rgba(67, 82, 106, 0.08);
+    }
+
+    .about-tech-icon {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      background: var(--blue-soft);
+      border-radius: 8px;
+    }
+
+    .about-tech-card--orange .about-tech-icon {
+      color: #e2762d;
+      background: #ffe8cf;
+    }
+
+    .about-tech-card--ink .about-tech-icon {
+      color: #fffaf1;
+      background: #31425f;
+    }
+
+    .about-tech-card--pink .about-tech-icon {
+      color: #c85278;
+      background: var(--pink-soft);
+    }
+
+    .about-tech-card--mint .about-tech-icon {
+      color: #3c8067;
+      background: rgba(184, 219, 201, 0.58);
+    }
+
+    .about-tech-card h3,
+    .about-media-card h3,
+    .about-xp-card h3,
+    .about-game-card h3 {
+      margin: 0;
+      color: var(--ink);
+      font-size: 1rem;
+      line-height: 1.35;
+    }
+
+    .about-media-card h3,
+    .about-xp-card h3,
+    .about-game-card h3 {
+      font-size: 0.96rem;
+    }
+
+    .about-tech-card p,
+    .about-media-card p,
+    .about-xp-card p,
+    .about-game-card p {
+      margin: 5px 0 0;
+      color: var(--ink-soft);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .about-media-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .about-media-card,
+    .about-xp-card,
+    .about-game-card {
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.52);
+      border: 1px solid rgba(93, 113, 145, 0.18);
+      border-radius: 8px;
+      box-shadow: 0 12px 24px rgba(67, 82, 106, 0.08);
+    }
+
+    .about-media-card img,
+    .about-xp-card img,
+    .about-game-card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      background: var(--paper-soft);
+    }
+
+    .about-media-card img {
+      height: auto;
+      object-fit: contain;
+      padding: 8px;
+      background:
+        radial-gradient(circle at 40% 34%, rgba(255, 226, 234, 0.58), transparent 38%),
+        linear-gradient(135deg, rgba(255, 250, 241, 0.72), rgba(220, 238, 250, 0.38));
+    }
+
+    .about-xp-card img {
+      aspect-ratio: 4 / 3;
+      height: auto;
+      object-fit: cover;
+    }
+
+    .about-media-card div,
+    .about-xp-card div {
+      padding: 12px;
+    }
+
+    .about-media-card div {
+      min-height: 72px;
+      padding: 10px 12px 12px;
+    }
+
+    .about-section--split {
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 22px;
+    }
+
+    .about-section--split > div {
+      min-width: 0;
+      display: grid;
+      align-content: start;
+      gap: 14px;
+    }
+
+    .about-xp-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .about-game-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .about-game-card {
+      min-height: 0;
+    }
+
+    .about-game-card img {
+      aspect-ratio: 16 / 9;
+      height: auto;
+      object-fit: cover;
+    }
+
+    .about-game-card div {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      column-gap: 8px;
+      align-items: start;
+      min-height: 78px;
+      padding: 10px 12px 12px;
+    }
+
+    .about-game-card span {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      grid-row: span 2;
+      margin-bottom: 0;
+      color: var(--ink);
+      background: var(--blue-soft);
+      border-radius: 8px;
+    }
+
+    .about-activity-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .about-activity-grid article {
+      min-height: 132px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.52);
+      border: 1px solid rgba(93, 113, 145, 0.18);
+      border-radius: 8px;
+      box-shadow: 0 12px 24px rgba(67, 82, 106, 0.08);
+    }
+
+    .about-activity-grid span {
+      display: inline-flex;
+      padding: 5px 10px;
+      color: var(--ink);
+      font-size: 0.78rem;
+      font-weight: 800;
+      background: var(--pink-soft);
+      border-radius: 999px;
+    }
+
+    @media (max-width: 1080px) {
+      .about-profile-shell {
+        grid-template-columns: 1fr;
+        padding-top: 82px;
+      }
+
+      .about-sidebar {
+        position: static;
+        grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1fr);
+        align-items: stretch;
+      }
+
+      .about-status-card {
+        grid-column: 1 / -1;
+      }
+
+      .about-status-card ul {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .about-tech-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .about-media-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .about-profile-shell {
+        width: min(100% - 24px, 1280px);
+        padding-top: 72px;
+      }
+
+      .about-sidebar,
+      .about-readme-hero,
+      .about-section--split,
+      .about-status-card ul,
+      .about-activity-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .about-readme-badge {
+        width: 118px;
+        height: 118px;
+        justify-self: start;
+      }
+
+      .about-readme-hero h2 {
+        font-size: clamp(2.1rem, 12vw, 3.2rem);
+        overflow-wrap: anywhere;
+      }
+
+      .about-tech-grid,
+      .about-xp-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .about-media-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .about-section--split {
+        grid-template-columns: 1fr;
+      }
+
+      .about-game-card {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .about-id-card,
+      .about-status-card,
+      .about-readme-hero,
+      .about-section {
+        padding: 18px;
+      }
+
+      .about-tech-grid,
+      .about-xp-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .about-media-card {
+        grid-template-columns: 1fr;
+      }
+
+      .about-tech-card {
+        min-height: 124px;
+      }
+
+      .about-game-list,
+      .about-xp-grid,
+      .about-media-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .about-game-card img {
+        aspect-ratio: 16 / 9;
+      }
+
+      .about-id-card h1 {
+        font-size: clamp(2rem, 16vw, 2.8rem);
+      }
+    }
+  </style>
 </BaseLayout>

@@ -91,7 +91,33 @@ export default defineConfig({
     sitemap(),
     icon({
       include: {
-        tabler: ["home-heart", "book-2", "device-gamepad-2", "code", "user-heart", "search"]
+        tabler: [
+          "home-heart",
+          "book-2",
+          "device-gamepad-2",
+          "code",
+          "user-heart",
+          "search",
+          "brand-github",
+          "brand-bilibili",
+          "sparkles",
+          "heart",
+          "device-gamepad",
+          "movie",
+          "pin",
+          "terminal-2",
+          "flower",
+          "mood-smile"
+        ],
+        "simple-icons": [
+          "unity",
+          "blender",
+          "unrealengine",
+          "github",
+          "bilibili",
+          "steam",
+          "thefinals"
+        ]
       }
     }),
     pagefindIntegration()
