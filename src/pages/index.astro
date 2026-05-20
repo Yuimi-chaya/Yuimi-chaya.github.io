@@ -33,6 +33,10 @@ const fallingTags = [
   <section class="hero-stage" data-hero-stage>
     <div class="hero">
       <div class="hero-overlay"></div>
+      <button class="home-notice-trigger" type="button" data-notice-open aria-haspopup="dialog">
+        <span aria-hidden="true">💌</span>
+        今日公告
+      </button>
       <div class="hero-copy" data-hero-copy>
         <p class="eyebrow">Personal scrapbook / Anime diary</p>
         <h1 data-title="Yuimi Lab">Yuimi Lab</h1>
@@ -105,6 +109,24 @@ const fallingTags = [
     </div>
   </section>
 
+  <div class="home-notice-backdrop" data-notice-backdrop hidden>
+    <section class="home-notice-modal" role="dialog" aria-modal="true" aria-labelledby="home-notice-title" data-notice-modal>
+      <button class="home-notice-close" type="button" data-notice-close aria-label="关闭公告">×</button>
+      <div class="home-notice-head">
+        <span class="home-notice-icon" data-notice-icon aria-hidden="true">💗</span>
+        <div>
+          <p data-notice-date>Today</p>
+          <h2 id="home-notice-title" data-notice-title>Yuimi Lab 今日公告</h2>
+        </div>
+      </div>
+      <div class="home-notice-body" data-notice-body></div>
+      <label class="home-notice-skip">
+        <input type="checkbox" data-notice-skip />
+        <span>今日不再弹出</span>
+      </label>
+    </section>
+  </div>
+
   <div class="scene-divider" aria-hidden="true">
     <div class="scene-divider__rail">
       <span class="scene-divider__glow"></span>
@@ -138,6 +160,232 @@ const fallingTags = [
       <canvas class="tag-rain-canvas" data-tag-rain-canvas aria-hidden="true"></canvas>
     </section>
   </div>
+
+  <script>
+    (() => {
+      const trigger = document.querySelector("[data-notice-open]");
+      const backdrop = document.querySelector("[data-notice-backdrop]");
+      const modal = document.querySelector("[data-notice-modal]");
+      const closeButton = document.querySelector("[data-notice-close]");
+      const skipInput = document.querySelector("[data-notice-skip]");
+      const titleTarget = document.querySelector("[data-notice-title]");
+      const dateTarget = document.querySelector("[data-notice-date]");
+      const iconTarget = document.querySelector("[data-notice-icon]");
+      const bodyTarget = document.querySelector("[data-notice-body]");
+      if (!trigger || !backdrop || !modal || !closeButton || !skipInput || !titleTarget || !dateTarget || !iconTarget || !bodyTarget) return;
+
+      const festivalEntries = [
+        {
+          date: "01-01",
+          icon: "🎍",
+          title: "新年启动",
+          tone: "soft",
+          lines: ["新的文件夹已经建立，旧的 bug 先假装没有追上来。", "今天适合给自己开一个干净的分支。"]
+        },
+        {
+          date: "02-14",
+          icon: "🍫",
+          title: "情人节备忘",
+          tone: "fun",
+          lines: ["今日适合投喂巧克力，也适合给喜欢的角色补一张壁纸。", "单身也没关系，代码会陪你一起报错。"]
+        },
+        {
+          date: "04-04",
+          icon: "🌧️",
+          title: "清明",
+          tone: "serious",
+          lines: ["清明时节雨纷纷，一束鲜花祭故人。", "今天把声音放轻一点，把想念放稳一点。"]
+        },
+        {
+          date: "04-05",
+          icon: "🌧️",
+          title: "清明",
+          tone: "serious",
+          lines: ["清明时节雨纷纷，一束鲜花祭故人。", "今天把声音放轻一点，把想念放稳一点。"]
+        },
+        {
+          date: "05-20",
+          icon: "💗",
+          title: "520 出租地雷",
+          tone: "chaos",
+          lines: ["提供一天伴侣服务，包天 520r，主打一个情绪价值反向拉满。"],
+          list: [
+            "早上叫起床",
+            "中午怀疑你出轨",
+            "下午对你阴阳怪气",
+            "晚上开始冷暴力",
+            "十一点过说分手",
+            "零点开始拿刀砸门喊：捅死你 × 很多遍，最后补一句喵"
+          ],
+          footnote: "本公告仅供抽象整活，请勿真的雇佣危险恋爱 NPC。"
+        },
+        {
+          date: "06-01",
+          icon: "🧸",
+          title: "儿童节玩具箱",
+          tone: "fun",
+          lines: ["今天允许把自己切回试玩版人格。", "正经事可以做，但必须先摸一下可爱按钮。"]
+        },
+        {
+          date: "10-01",
+          icon: "🍁",
+          title: "假期模式",
+          tone: "soft",
+          lines: ["今天适合慢一点打开网页，慢一点听歌。", "把 TODO 放到旁边，先给自己倒一杯快乐。"]
+        },
+        {
+          date: "12-25",
+          icon: "🎄",
+          title: "圣诞小纸条",
+          tone: "fun",
+          lines: ["礼物未必从烟囱来，也可能从 npm install 里冒出来。", "祝你今晚的报错都长得像彩灯。"]
+        }
+      ];
+
+      const solarTerms2026 = [
+        ["01-05", "小寒", "风开始认真营业，热饮也该进入常驻快捷栏。"],
+        ["01-20", "大寒", "一年最冷的尾声，适合把被窝升级成主机房。"],
+        ["02-04", "立春", "春天开始加载，进度条先开一点点。"],
+        ["02-18", "雨水", "雨水到，适合给旧计划浇一点新精神。"],
+        ["03-05", "惊蛰", "惊蛰一响，沉睡的灵感开始翻身。"],
+        ["03-20", "春分", "昼夜平分，摸鱼和努力也暂时平分。"],
+        ["04-20", "谷雨", "谷雨落下，适合播种一个长期项目。"],
+        ["05-05", "立夏", "夏天入场，冰饮和新坑都开始冒泡。"],
+        ["05-21", "小满", "小满未满，留一点余地给下一次更新。"],
+        ["06-05", "芒种", "忙种也忙写，灵感像种子一样到处乱飞。"],
+        ["06-21", "夏至", "白昼拉满，适合把喜欢的歌循环到天亮。"],
+        ["07-07", "小暑", "小暑上线，风扇和冰块加入队伍。"],
+        ["07-23", "大暑", "大暑热到出框，建议给 CPU 和自己都降温。"],
+        ["08-07", "立秋", "秋天开始排队，夏天还在赖场。"],
+        ["08-23", "处暑", "暑气准备退勤，快乐还可以加班。"],
+        ["09-07", "白露", "白露微凉，适合整理收藏夹。"],
+        ["09-23", "秋分", "秋分到，昼夜重新握手言和。"],
+        ["10-08", "寒露", "寒露上桌，外套进入每日构建。"],
+        ["10-23", "霜降", "霜降之后，热饮优先级上升。"],
+        ["11-07", "立冬", "冬天启动，给心情加一层毛茸茸缓存。"],
+        ["11-22", "小雪", "小雪轻轻落，适合开一首安静的歌。"],
+        ["12-07", "大雪", "大雪已至，窝在室内也算一种冒险。"],
+        ["12-22", "冬至", "冬至快乐，今天适合吃点热乎的。"]
+      ].map(([date, title, text]) => ({ date, icon: "🌿", title, tone: "solar", lines: [text] }));
+
+      const historyEntries = [
+        {
+          date: "05-20",
+          icon: "👖",
+          title: "今天的趣味历史",
+          tone: "history",
+          lines: ["1873 年的今天，蓝色牛仔裤相关专利获批。也就是说，今天可以理直气壮地把裤子写进文明史。"]
+        },
+        {
+          date: "03-14",
+          icon: "🥧",
+          title: "圆周率日",
+          tone: "history",
+          lines: ["今天适合吃派，也适合假装自己能背到小数点后很多位。"]
+        },
+        {
+          date: "09-09",
+          icon: "🐛",
+          title: "Bug 小传闻",
+          tone: "history",
+          lines: ["据说早期计算机真的被虫子打扰过，今天适合温柔地称呼 bug 为历史遗产。"]
+        }
+      ];
+
+      const formatKey = (date) => `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const formatStorageKey = (date) => `${date.getFullYear()}-${formatKey(date)}`;
+      const today = new Date();
+      const todayKey = formatKey(today);
+      const storageKey = `yuimi-notice-hidden-${formatStorageKey(today)}`;
+      let lockedScrollY = 0;
+
+      const todayEntries = [
+        ...festivalEntries.filter((item) => item.date === todayKey),
+        ...solarTerms2026.filter((item) => item.date === todayKey),
+        ...historyEntries.filter((item) => item.date === todayKey)
+      ];
+
+      const entries = todayEntries.length > 0
+        ? todayEntries
+        : [{
+          icon: "💌",
+          title: "今日小公告",
+          tone: "soft",
+          lines: ["今天没有撞上特别节日，那就把普通日子当成隐藏关卡。", "请领取一份随机精神补丁：可爱 +1，拖延 -0.5。"]
+        }];
+
+      const primary = entries[0];
+      iconTarget.textContent = primary.icon;
+      titleTarget.textContent = primary.title;
+      dateTarget.textContent = new Intl.DateTimeFormat("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        weekday: "long"
+      }).format(today);
+      modal.dataset.tone = primary.tone || "soft";
+
+      bodyTarget.innerHTML = entries.map((entry, index) => `
+        <article class="home-notice-entry ${index === 0 ? "is-primary" : ""}">
+          <div class="home-notice-entry-title">
+            <span aria-hidden="true">${entry.icon}</span>
+            <strong>${entry.title}</strong>
+          </div>
+          ${entry.lines.map((line) => `<p>${line}</p>`).join("")}
+          ${entry.list ? `<ol>${entry.list.map((item) => `<li>${item}</li>`).join("")}</ol>` : ""}
+          ${entry.footnote ? `<small>${entry.footnote}</small>` : ""}
+        </article>
+      `).join("");
+
+      const openNotice = () => {
+        lockedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+        document.documentElement.classList.add("is-notice-open");
+        document.body.classList.add("is-notice-open");
+        document.body.style.top = `-${lockedScrollY}px`;
+        backdrop.hidden = false;
+        backdrop.classList.add("is-open");
+        closeButton.focus({ preventScroll: true });
+      };
+
+      const closeNotice = () => {
+        if (skipInput.checked) {
+          try {
+            localStorage.setItem(storageKey, "1");
+          } catch {
+            // Ignore storage failures; the modal can still close normally.
+          }
+        }
+        backdrop.classList.remove("is-open");
+        document.documentElement.classList.remove("is-notice-open");
+        document.body.classList.remove("is-notice-open");
+        document.body.style.top = "";
+        window.scrollTo({ top: lockedScrollY, left: 0, behavior: "instant" });
+        window.setTimeout(() => {
+          backdrop.hidden = true;
+        }, 180);
+      };
+
+      trigger.addEventListener("click", openNotice);
+      closeButton.addEventListener("click", closeNotice);
+      backdrop.addEventListener("click", (event) => {
+        if (event.target === backdrop) closeNotice();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !backdrop.hidden) closeNotice();
+      });
+
+      let hiddenToday = false;
+      try {
+        hiddenToday = localStorage.getItem(storageKey) === "1";
+      } catch {
+        hiddenToday = false;
+      }
+
+      if (!hiddenToday) {
+        window.setTimeout(openNotice, 520);
+      }
+    })();
+  </script>
 
   <script>
     (() => {

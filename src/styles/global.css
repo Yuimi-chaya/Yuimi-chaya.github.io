@@ -54,6 +54,18 @@ body {
   overflow-x: hidden;
 }
 
+html.is-notice-open,
+body.is-notice-open {
+  overflow: hidden;
+}
+
+body.is-notice-open {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+}
+
 body::before {
   position: fixed;
   inset: 0;
@@ -578,6 +590,203 @@ img {
   font-size: 0.72rem;
   font-weight: 720;
   text-align: left;
+}
+
+.toy-dock {
+  width: 430px;
+  transform: translateX(-388px);
+}
+
+.toy-dock:hover,
+.toy-dock.is-pinned {
+  transform: translateX(0);
+}
+
+.toy-dock-panel {
+  gap: 14px;
+  max-height: calc(100vh - 152px);
+  overflow-y: auto;
+  padding: 18px;
+  scrollbar-width: thin;
+}
+
+.toy-dock-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.toy-dock-panel::-webkit-scrollbar-thumb {
+  background: rgba(215, 130, 156, 0.42);
+  border-radius: 999px;
+}
+
+.live2d-control-widget {
+  padding: 14px;
+}
+
+.live2d-controls {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.music-widget {
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 18px;
+}
+
+.music-widget .toy-widget-title {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.music-player-shell {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  min-width: 0;
+}
+
+.music-cover-area {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.music-cover-caption,
+.music-meta,
+.music-control-label > span {
+  color: rgba(101, 116, 145, 0.76);
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.music-info-area {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.music-widget .record-player {
+  grid-row: auto;
+  width: 150px;
+  height: 150px;
+  border-radius: 16px;
+}
+
+.music-widget .record-disc {
+  width: 104px;
+  height: 104px;
+}
+
+.music-widget .record-label {
+  width: 44px;
+  height: 44px;
+}
+
+.music-widget .record-label img {
+  width: 31px;
+  height: 28px;
+}
+
+.music-widget .record-arm {
+  top: 20px;
+  right: 22px;
+  width: 62px;
+}
+
+.music-track {
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.music-widget .music-note {
+  min-height: 28px;
+  padding: 7px 10px;
+  color: rgba(65, 85, 120, 0.78);
+  background: rgba(255, 250, 241, 0.42);
+  border: 1px dashed rgba(96, 116, 148, 0.14);
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 780;
+}
+
+.music-progress,
+.music-bottom-row,
+.music-volume {
+  display: grid;
+  gap: 9px;
+}
+
+.music-control-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(65, 85, 120, 0.76);
+}
+
+.music-control-label strong {
+  color: var(--ink);
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.music-progress {
+  grid-template-columns: 1fr;
+  margin: 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.34);
+  border: 1px solid rgba(96, 116, 148, 0.12);
+  border-radius: 14px;
+}
+
+.music-progress input,
+.music-volume input {
+  width: 100%;
+  min-width: 0;
+  accent-color: #d7829c;
+}
+
+.music-bottom-row {
+  grid-template-columns: minmax(124px, auto) minmax(0, 1fr);
+  align-items: end;
+}
+
+.music-controls {
+  grid-column: auto;
+  display: grid;
+  grid-template-columns: 38px 48px 38px;
+  gap: 9px;
+  margin: 0;
+}
+
+.music-controls button {
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
+  font-size: 1.05rem;
+}
+
+.music-controls button[data-music-toggle] {
+  color: #fffaf1;
+  background: linear-gradient(135deg, #d7829c, #9fc8eb);
+  border-color: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 10px 20px rgba(215, 130, 156, 0.2);
+}
+
+.music-volume {
+  padding: 10px 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 226, 234, 0.38), rgba(220, 238, 250, 0.28)),
+    rgba(255, 255, 255, 0.32);
+  border: 1px solid rgba(96, 116, 148, 0.12);
+  border-radius: 14px;
 }
 
 .live2d-status {
@@ -1513,6 +1722,45 @@ img {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.home-notice-trigger {
+  position: absolute;
+  top: clamp(82px, 12vh, 118px);
+  right: clamp(24px, 5vw, 72px);
+  z-index: 8;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  padding: 9px 15px;
+  color: #4f6684;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 900;
+  cursor: pointer;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(255, 226, 234, 0.7), rgba(220, 238, 250, 0.74)),
+    rgba(255, 250, 241, 0.72);
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 0 0 1px rgba(93, 113, 145, 0.12),
+    0 12px 30px rgba(61, 77, 104, 0.16);
+  backdrop-filter: blur(8px) saturate(1.08);
+  -webkit-backdrop-filter: blur(8px) saturate(1.08);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.home-notice-trigger:hover {
+  transform: translateY(-2px) rotate(1deg);
+  box-shadow:
+    inset 0 0 0 1px rgba(93, 113, 145, 0.12),
+    0 16px 34px rgba(61, 77, 104, 0.2);
+}
+
+.home-notice-trigger span {
+  font-size: 1.15rem;
+}
+
 .hero-copy {
   position: relative;
   z-index: 2;
@@ -1646,6 +1894,202 @@ img {
     linear-gradient(90deg, #ffc2da, #9fd9ff, #b8dbc9, #fff8ad, #ffc2da);
   background-size: 220% 100%;
   animation: hero-terminal-flow 4.2s linear infinite;
+}
+
+.home-notice-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(255, 226, 234, 0.28), transparent 30%),
+    radial-gradient(circle at 78% 18%, rgba(220, 238, 250, 0.28), transparent 30%),
+    rgba(45, 55, 72, 0.34);
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(5px) saturate(1.02);
+  -webkit-backdrop-filter: blur(5px) saturate(1.02);
+  overscroll-behavior: contain;
+  transition: opacity 180ms ease;
+}
+
+.home-notice-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.home-notice-modal {
+  position: relative;
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(78vh, 720px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 24px;
+  color: #405672;
+  background:
+    radial-gradient(circle at 92% 10%, rgba(255, 223, 139, 0.25), transparent 26%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 239, 247, 0.9), rgba(220, 238, 250, 0.9));
+  border: 3px solid rgba(255, 255, 255, 0.86);
+  border-radius: 22px;
+  box-shadow:
+    inset 0 0 0 1px rgba(93, 113, 145, 0.12),
+    0 26px 70px rgba(38, 52, 74, 0.26);
+  transform: translateY(18px) scale(0.96) rotate(-0.6deg);
+  transition: transform 220ms cubic-bezier(0.18, 1.12, 0.28, 1);
+}
+
+.home-notice-backdrop.is-open .home-notice-modal {
+  transform: translateY(0) scale(1) rotate(-0.6deg);
+}
+
+.home-notice-modal::before {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 124px;
+  height: 28px;
+  content: "";
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.46) 0 5px, transparent 5px 10px),
+    rgba(255, 222, 139, 0.74);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  box-shadow: 0 9px 18px rgba(67, 82, 106, 0.12);
+  transform: translateX(-50%) rotate(2deg);
+}
+
+.home-notice-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: #6b7890;
+  font: inherit;
+  font-size: 1.35rem;
+  font-weight: 900;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(93, 113, 145, 0.14);
+  border-radius: 999px;
+}
+
+.home-notice-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: center;
+  padding-right: 40px;
+}
+
+.home-notice-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  font-size: 2rem;
+  background: rgba(255, 255, 255, 0.72);
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  border-radius: 18px;
+  box-shadow: 0 10px 22px rgba(67, 82, 106, 0.12);
+}
+
+.home-notice-head p,
+.home-notice-head h2 {
+  margin: 0;
+}
+
+.home-notice-head p {
+  color: #d7829c;
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.home-notice-head h2 {
+  margin-top: 4px;
+  color: #405672;
+  font-size: clamp(1.55rem, 4vw, 2.45rem);
+  line-height: 1.1;
+}
+
+.home-notice-body {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.home-notice-entry {
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid rgba(93, 113, 145, 0.12);
+  border-radius: 16px;
+}
+
+.home-notice-entry.is-primary {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(255, 226, 234, 0.36)),
+    rgba(255, 255, 255, 0.38);
+  border-color: rgba(247, 183, 200, 0.36);
+}
+
+.home-notice-entry-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #405672;
+}
+
+.home-notice-entry-title strong {
+  font-size: 1.06rem;
+  font-weight: 900;
+}
+
+.home-notice-entry p,
+.home-notice-entry ol,
+.home-notice-entry small {
+  color: rgba(64, 86, 114, 0.86);
+}
+
+.home-notice-entry p {
+  margin: 10px 0 0;
+  line-height: 1.75;
+}
+
+.home-notice-entry ol {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding-left: 1.45em;
+  line-height: 1.6;
+}
+
+.home-notice-entry small {
+  display: block;
+  margin-top: 12px;
+  font-weight: 800;
+}
+
+.home-notice-skip {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+  color: rgba(64, 86, 114, 0.78);
+  font-size: 0.92rem;
+  font-weight: 820;
+  cursor: pointer;
+}
+
+.home-notice-skip input {
+  width: 18px;
+  height: 18px;
+  accent-color: #ff9fc2;
 }
 
 .hero-terminal-badge {
@@ -4101,8 +4545,13 @@ img {
 
   .toy-dock {
     top: 112px;
-    width: 268px;
-    transform: translateX(-228px);
+    width: 388px;
+    transform: translateX(-346px);
+  }
+
+  .toy-dock:hover,
+  .toy-dock.is-pinned {
+    transform: translateX(0);
   }
 
   .nav-links {
@@ -4323,8 +4772,13 @@ img {
 
   .toy-dock {
     top: 102px;
-    width: 250px;
-    transform: translateX(-218px);
+    width: calc(100vw - 46px);
+    transform: translateX(calc(-100vw + 88px));
+  }
+
+  .toy-dock:hover,
+  .toy-dock.is-pinned {
+    transform: translateX(0);
   }
 
   .toy-dock-handle {
@@ -4334,7 +4788,31 @@ img {
   }
 
   .toy-dock-panel {
-    padding: 10px;
+    max-height: calc(100vh - 124px);
+    padding: 12px;
+  }
+
+  .live2d-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .music-player-shell {
+    grid-template-columns: 118px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .music-widget .record-player {
+    width: 118px;
+    height: 118px;
+  }
+
+  .music-widget .record-disc {
+    width: 84px;
+    height: 84px;
+  }
+
+  .music-bottom-row {
+    grid-template-columns: 1fr;
   }
 
   .custom-context-menu {
