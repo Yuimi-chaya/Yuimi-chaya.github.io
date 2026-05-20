@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import { site } from "@/lib/site";
 import { Icon } from "astro-icon/components";
+import { ClientRouter } from "astro:transitions";
 
 interface Props {
   title?: string;
@@ -23,6 +24,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
     <link rel="icon" type="image/png" href="/assets/pig-favicon.png" />
     <link rel="apple-touch-icon" href="/assets/pig-apple-touch.png" />
     <title>{title}</title>
+    <ClientRouter />
   </head>
   <body>
     <div class="sakura-rain" aria-hidden="true">
@@ -37,7 +39,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         <img src="/assets/mini-pig-scroll.png" alt="" width="56" height="48" />
       </div>
     </div>
-    <aside class="toy-dock" aria-label="Yuimi Lab toy dock">
+    <aside class="toy-dock" aria-label="Yuimi Lab toy dock" transition:persist="yuimi-toy-dock">
       <button class="toy-dock-handle" type="button" aria-label="打开侧边工具">
         <span>TOOLS</span>
       </button>
@@ -424,181 +426,225 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         hardReloadLive2d();
       });
 
-      const musicToggle = document.querySelector("[data-music-toggle]");
-      const musicPrev = document.querySelector("[data-music-prev]");
-      const musicNext = document.querySelector("[data-music-next]");
-      const musicVolume = document.querySelector("[data-music-volume]");
-      const musicSeek = document.querySelector("[data-music-seek]");
-      const musicTrack = document.querySelector(".music-track");
-      const musicCurrent = document.querySelector("[data-music-current]");
-      const musicDuration = document.querySelector("[data-music-duration]");
-      const musicNote = document.querySelector("[data-music-note]");
       const musicCacheKey = "yuimi-radio-state-v1";
-      const audio = new Audio();
-      let musicTracks = [];
-      let musicIndex = 0;
-      let musicSeeking = false;
-      let restoreAutoplay = false;
+      const createYuimiRadio = () => {
+        const audio = new Audio();
+        const player = {
+          audio,
+          tracks: [],
+          index: 0,
+          seeking: false,
+          initialized: false,
+          restoreAutoplay: false,
+          elements: {},
+          controlAbort: null
+        };
 
-      const formatAudioTime = (seconds) => {
-        if (!Number.isFinite(seconds)) return "00:00";
-        const minute = Math.floor(seconds / 60);
-        const second = Math.floor(seconds % 60);
-        return `${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
-      };
+        const formatAudioTime = (seconds) => {
+          if (!Number.isFinite(seconds)) return "00:00";
+          const minute = Math.floor(seconds / 60);
+          const second = Math.floor(seconds % 60);
+          return `${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
+        };
 
-      const getMusicState = () => {
-        try {
-          return JSON.parse(localStorage.getItem(musicCacheKey) ?? "{}");
-        } catch {
-          return {};
-        }
-      };
+        const getMusicState = () => {
+          try {
+            return JSON.parse(localStorage.getItem(musicCacheKey) ?? "{}");
+          } catch {
+            return {};
+          }
+        };
 
-      const saveMusicState = () => {
-        const currentTrack = musicTracks[musicIndex];
-        if (!currentTrack) return;
-        localStorage.setItem(
-          musicCacheKey,
-          JSON.stringify({
-            trackId: currentTrack.id,
-            currentTime: audio.currentTime || 0,
-            volume: audio.volume,
-            paused: audio.paused,
-            updatedAt: Date.now()
-          })
-        );
-      };
+        const saveMusicState = () => {
+          const currentTrack = player.tracks[player.index];
+          if (!currentTrack) return;
+          localStorage.setItem(
+            musicCacheKey,
+            JSON.stringify({
+              trackId: currentTrack.id,
+              currentTime: audio.currentTime || 0,
+              volume: audio.volume,
+              paused: audio.paused,
+              updatedAt: Date.now()
+            })
+          );
+        };
 
-      const updateMusicUi = () => {
-        const currentTrack = musicTracks[musicIndex];
-        if (musicTrack) musicTrack.textContent = currentTrack?.title ?? "Yuimi Radio";
-        if (musicCurrent) musicCurrent.textContent = formatAudioTime(audio.currentTime);
-        if (musicDuration) musicDuration.textContent = formatAudioTime(audio.duration);
-        if (musicSeek && !musicSeeking) {
-          const progress = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
-          musicSeek.value = String(progress || 0);
-        }
-        musicToggle.textContent = audio.paused ? "▶" : "Ⅱ";
-        document.body.classList.toggle("is-music-playing", !audio.paused);
-      };
+        const queryElements = () => {
+          player.elements = {
+            toggle: document.querySelector("[data-music-toggle]"),
+            prev: document.querySelector("[data-music-prev]"),
+            next: document.querySelector("[data-music-next]"),
+            volume: document.querySelector("[data-music-volume]"),
+            seek: document.querySelector("[data-music-seek]"),
+            track: document.querySelector(".music-track"),
+            current: document.querySelector("[data-music-current]"),
+            duration: document.querySelector("[data-music-duration]"),
+            note: document.querySelector("[data-music-note]")
+          };
+        };
 
-      const loadMusicTrack = (index, { keepTime = 0, autoplay = false } = {}) => {
-        if (!musicTracks.length) return;
-        musicIndex = (index + musicTracks.length) % musicTracks.length;
-        const track = musicTracks[musicIndex];
-        audio.src = track.src;
-        audio.volume = Number(musicVolume?.value ?? 0.28);
-        audio.load();
-        if (musicNote) musicNote.textContent = `${musicIndex + 1} / ${musicTracks.length}`;
-        audio.addEventListener(
-          "loadedmetadata",
-          async () => {
-            if (keepTime > 0 && keepTime < audio.duration - 1) audio.currentTime = keepTime;
+        const updateMusicUi = () => {
+          queryElements();
+          const { toggle, volume, seek, track, current, duration, note } = player.elements;
+          const currentTrack = player.tracks[player.index];
+          if (track) track.textContent = currentTrack?.title ?? "Yuimi Radio";
+          if (current) current.textContent = formatAudioTime(audio.currentTime);
+          if (duration) duration.textContent = formatAudioTime(audio.duration);
+          if (seek && !player.seeking) {
+            const progress = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+            seek.value = String(progress || 0);
+          }
+          if (volume) volume.value = String(audio.volume || 0.28);
+          if (toggle) toggle.textContent = audio.paused ? "▶" : "Ⅱ";
+          if (note && player.tracks.length) note.textContent = `${player.index + 1} / ${player.tracks.length}`;
+          document.body.classList.toggle("is-music-playing", !audio.paused);
+        };
+
+        const loadMusicTrack = (index, { keepTime = 0, autoplay = false } = {}) => {
+          if (!player.tracks.length) return;
+          player.index = (index + player.tracks.length) % player.tracks.length;
+          const track = player.tracks[player.index];
+          const nextSrc = new URL(track.src, window.location.origin).href;
+          if (audio.src !== nextSrc) {
+            audio.src = track.src;
+            audio.load();
+          }
+          audio.volume = Number(player.elements.volume?.value ?? audio.volume ?? 0.28);
+          audio.addEventListener(
+            "loadedmetadata",
+            async () => {
+              if (keepTime > 0 && keepTime < audio.duration - 1) audio.currentTime = keepTime;
+              updateMusicUi();
+              if (autoplay) {
+                try {
+                  await audio.play();
+                } catch {
+                  if (player.elements.note) player.elements.note.textContent = "浏览器需要你点一下播放。";
+                }
+                updateMusicUi();
+              }
+            },
+            { once: true }
+          );
+          updateMusicUi();
+          saveMusicState();
+        };
+
+        const initMusicPlayer = async () => {
+          queryElements();
+          if (player.initialized) {
             updateMusicUi();
-            if (autoplay) {
+            return;
+          }
+
+          try {
+            const response = await fetch("/music/manifest.json", { cache: "no-cache" });
+            player.tracks = await response.json();
+          } catch {
+            player.tracks = [];
+          }
+
+          if (!player.tracks.length) {
+            if (player.elements.track) player.elements.track.textContent = "暂无歌曲";
+            if (player.elements.note) player.elements.note.textContent = "请把 MP3 放入 MUSIC 文件夹。";
+            return;
+          }
+
+          const cached = getMusicState();
+          const cachedIndex = player.tracks.findIndex((track) => track.id === cached.trackId);
+          player.index = cachedIndex >= 0 ? cachedIndex : 0;
+          audio.volume = Number.isFinite(cached.volume) ? cached.volume : Number(player.elements.volume?.value ?? 0.28);
+          player.restoreAutoplay = cached.paused === false;
+          loadMusicTrack(player.index, {
+            keepTime: Number(cached.currentTime ?? 0),
+            autoplay: false
+          });
+          if (player.restoreAutoplay && player.elements.note) {
+            player.elements.note.textContent = "已恢复进度，点击播放继续。";
+          }
+          player.initialized = true;
+        };
+
+        player.bind = () => {
+          queryElements();
+          player.controlAbort?.abort();
+          player.controlAbort = new AbortController();
+          const listenerOptions = { signal: player.controlAbort.signal };
+
+          player.elements.toggle?.addEventListener("click", async () => {
+            if (!player.tracks.length) return;
+            if (audio.paused) {
               try {
                 await audio.play();
               } catch {
-                if (musicNote) musicNote.textContent = "浏览器需要你点一下播放。";
+                if (player.elements.note) player.elements.note.textContent = "浏览器拦截了自动播放，请再点一次。";
               }
-              updateMusicUi();
+            } else {
+              audio.pause();
             }
-          },
-          { once: true }
-        );
-        updateMusicUi();
-        saveMusicState();
+            updateMusicUi();
+            saveMusicState();
+          }, listenerOptions);
+
+          player.elements.prev?.addEventListener("click", () => {
+            loadMusicTrack(player.index - 1, { autoplay: !audio.paused });
+          }, listenerOptions);
+
+          player.elements.next?.addEventListener("click", () => {
+            loadMusicTrack(player.index + 1, { autoplay: !audio.paused });
+          }, listenerOptions);
+
+          player.elements.volume?.addEventListener("input", () => {
+            audio.volume = Number(player.elements.volume.value);
+            saveMusicState();
+            updateMusicUi();
+          }, listenerOptions);
+
+          player.elements.seek?.addEventListener("input", () => {
+            player.seeking = true;
+            if (!audio.duration) return;
+            const target = (Number(player.elements.seek.value) / 100) * audio.duration;
+            if (player.elements.current) player.elements.current.textContent = formatAudioTime(target);
+          }, listenerOptions);
+
+          player.elements.seek?.addEventListener("change", () => {
+            if (audio.duration) {
+              audio.currentTime = (Number(player.elements.seek.value) / 100) * audio.duration;
+            }
+            player.seeking = false;
+            updateMusicUi();
+            saveMusicState();
+          }, listenerOptions);
+
+          audio.addEventListener("timeupdate", () => {
+            updateMusicUi();
+            saveMusicState();
+          });
+          audio.addEventListener("play", updateMusicUi);
+          audio.addEventListener("pause", () => {
+            updateMusicUi();
+            saveMusicState();
+          });
+          audio.addEventListener("ended", () => {
+            loadMusicTrack(player.index + 1, { autoplay: true });
+          });
+          window.addEventListener("pagehide", saveMusicState);
+          updateMusicUi();
+        };
+
+        player.init = initMusicPlayer;
+        player.update = updateMusicUi;
+        return player;
       };
 
-      const initMusicPlayer = async () => {
-        try {
-          const response = await fetch("/music/manifest.json", { cache: "no-cache" });
-          musicTracks = await response.json();
-        } catch {
-          musicTracks = [];
-        }
-
-        if (!musicTracks.length) {
-          if (musicTrack) musicTrack.textContent = "暂无歌曲";
-          if (musicNote) musicNote.textContent = "请把 MP3 放入 MUSIC 文件夹。";
-          return;
-        }
-
-        const cached = getMusicState();
-        const cachedIndex = musicTracks.findIndex((track) => track.id === cached.trackId);
-        musicIndex = cachedIndex >= 0 ? cachedIndex : 0;
-        audio.volume = Number.isFinite(cached.volume) ? cached.volume : Number(musicVolume?.value ?? 0.28);
-        if (musicVolume) musicVolume.value = String(audio.volume);
-        restoreAutoplay = cached.paused === false;
-        loadMusicTrack(musicIndex, {
-          keepTime: Number(cached.currentTime ?? 0),
-          autoplay: false
-        });
-        if (restoreAutoplay && musicNote) {
-          musicNote.textContent = "已恢复进度，点击播放继续。";
-        }
-      };
-
-      musicToggle?.addEventListener("click", async () => {
-        if (!musicTracks.length) return;
-        if (audio.paused) {
-          try {
-            await audio.play();
-          } catch {
-            if (musicNote) musicNote.textContent = "浏览器拦截了自动播放，请再点一次。";
-          }
-        } else {
-          audio.pause();
-        }
-        updateMusicUi();
-        saveMusicState();
+      window.__yuimiRadio ??= createYuimiRadio();
+      window.__yuimiRadio.bind();
+      window.__yuimiRadio.init();
+      document.addEventListener("astro:page-load", () => {
+        window.__yuimiRadio?.bind();
+        window.__yuimiRadio?.init();
       });
-
-      musicPrev?.addEventListener("click", () => {
-        loadMusicTrack(musicIndex - 1, { autoplay: !audio.paused });
-      });
-
-      musicNext?.addEventListener("click", () => {
-        loadMusicTrack(musicIndex + 1, { autoplay: !audio.paused });
-      });
-
-      musicVolume?.addEventListener("input", () => {
-        audio.volume = Number(musicVolume.value);
-        saveMusicState();
-      });
-
-      musicSeek?.addEventListener("input", () => {
-        musicSeeking = true;
-        if (!audio.duration) return;
-        const target = (Number(musicSeek.value) / 100) * audio.duration;
-        if (musicCurrent) musicCurrent.textContent = formatAudioTime(target);
-      });
-
-      musicSeek?.addEventListener("change", () => {
-        if (audio.duration) {
-          audio.currentTime = (Number(musicSeek.value) / 100) * audio.duration;
-        }
-        musicSeeking = false;
-        updateMusicUi();
-        saveMusicState();
-      });
-
-      audio.addEventListener("timeupdate", () => {
-        updateMusicUi();
-        saveMusicState();
-      });
-      audio.addEventListener("play", updateMusicUi);
-      audio.addEventListener("pause", () => {
-        updateMusicUi();
-        saveMusicState();
-      });
-      audio.addEventListener("ended", () => {
-        loadMusicTrack(musicIndex + 1, { autoplay: true });
-      });
-      window.addEventListener("pagehide", saveMusicState);
-
-      initMusicPlayer();
 
       const contextMenu = document.querySelector("[data-context-menu]");
       const hideContextMenu = () => contextMenu?.classList.remove("is-open");
@@ -679,6 +725,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 
       enhanceCodeBlocks();
       window.addEventListener("load", enhanceCodeBlocks);
+      document.addEventListener("astro:page-load", enhanceCodeBlocks);
     </script>
   </body>
 </html>

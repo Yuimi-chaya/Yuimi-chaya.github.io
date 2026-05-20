@@ -365,8 +365,18 @@ const fallingTags = [
         }, 180);
       };
 
+      const stopNoticeWheel = (event) => {
+        if (!backdrop.classList.contains("is-open")) return;
+        event.stopPropagation();
+        if (!modal.contains(event.target)) {
+          event.preventDefault();
+        }
+      };
+
       trigger.addEventListener("click", openNotice);
       closeButton.addEventListener("click", closeNotice);
+      modal.addEventListener("wheel", stopNoticeWheel, { passive: false });
+      backdrop.addEventListener("wheel", stopNoticeWheel, { passive: false });
       backdrop.addEventListener("click", (event) => {
         if (event.target === backdrop) closeNotice();
       });
@@ -888,6 +898,7 @@ const fallingTags = [
 
     const handleHeroWheel = (event) => {
       if (!stage || !hero) return;
+      if (document.documentElement.classList.contains("is-notice-open")) return;
 
       const atHeroTop = window.scrollY <= 2 && stage.getBoundingClientRect().top >= -2;
       if (!atHeroTop) {
