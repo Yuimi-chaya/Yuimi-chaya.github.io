@@ -1,41 +1,544 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { Icon } from "astro-icon/components";
 
-const projects = [
+const techLines = [
+  { key: "unity", label: "Unity3D", icon: "simple-icons:unity", note: "互动原型 / 小游戏" },
+  { key: "blender", label: "Blender", icon: "simple-icons:blender", note: "模型 / 场景 / 小道具" },
+  { key: "ue5", label: "UE5", icon: "simple-icons:unrealengine", note: "学习中 / 电影感场景" },
+  { key: "mmd", label: "MMD", icon: "tabler:sparkles", note: "动作 / 镜头 / 舞台" },
+  { key: "astrbot", label: "AstrBot", icon: "tabler:terminal-2", note: "插件 / 部署 / Bot 工具" }
+];
+
+const projectCards = [
   {
-    name: "Dev Toolkit",
-    type: "Utility",
-    summary: "收纳脚本、工具、自动化流程和开发效率相关的小作品。"
+    title: "AstrBot 插件实验台",
+    type: "Bot Plugin",
+    line: "astrbot",
+    icon: "tabler:terminal-2",
+    status: "常驻折腾",
+    summary: "把插件开发、角色提示词、部署踩坑和小型自动化整理成可以复用的工具箱。",
+    details: ["插件结构拆解", "部署流程记录", "Prompt 与人设调试"],
+    accent: "mint"
   },
   {
-    name: "Frontend Lab",
-    type: "Experiment",
-    summary: "展示交互实验、动效、UI 组件和一些轻量 Web App。"
+    title: "Unity 小机关工坊",
+    type: "Interactive Toy",
+    line: "unity",
+    icon: "simple-icons:unity",
+    status: "原型收集中",
+    summary: "用 Unity 做一些轻量互动原型，偏小游戏、角色展示和可点击的小玩具。",
+    details: ["2D 交互原型", "角色状态机", "小游戏手感测试"],
+    accent: "blue"
   },
   {
-    name: "Anime Shelf",
-    type: "Archive",
-    summary: "以后可以扩展成番剧记录、游戏档案、角色收藏或年度总结。"
+    title: "Blender 手账道具箱",
+    type: "3D Assets",
+    line: "blender",
+    icon: "simple-icons:blender",
+    status: "素材修炼",
+    summary: "练习建模、材质、灯光和小场景，把 3D 做成能放进博客的可爱摆件。",
+    details: ["低模小物", "透明材质", "柔光场景"],
+    accent: "orange"
+  },
+  {
+    title: "UE5 电影感房间",
+    type: "Learning Log",
+    line: "ue5",
+    icon: "simple-icons:unrealengine",
+    status: "正在学习",
+    summary: "从场景搭建、蓝图、材质开始，慢慢把脑内的二次元房间做成可漫游空间。",
+    details: ["蓝图入门", "场景光照", "材质节点"],
+    accent: "ink"
+  },
+  {
+    title: "MMD 镜头练习册",
+    type: "Motion Stage",
+    line: "mmd",
+    icon: "tabler:sparkles",
+    status: "灵感排队",
+    summary: "记录动作、镜头、舞台和角色表现的练习，让喜欢的角色在画面里更有呼吸感。",
+    details: ["镜头节奏", "舞台布光", "动作修正"],
+    accent: "pink"
+  },
+  {
+    title: "Yuimi Lab 页面机关",
+    type: "Web Lab",
+    line: "astrbot",
+    icon: "tabler:flower",
+    status: "持续追加",
+    summary: "把博客里的导航、樱花、音乐、看板娘、右键菜单都做成有一点玩具感的体验。",
+    details: ["Astro 页面", "轻交互组件", "可爱动效"],
+    accent: "lavender"
   }
 ];
+
 ---
 
-<BaseLayout title="Projects | Yuimi Lab" description="项目、工具和个人实验陈列。">
-  <section class="page-title">
-    <p class="section-kicker">Works</p>
-    <h1>Projects</h1>
-    <p>把能代表工程能力、审美偏好和折腾精神的东西，像收藏卡一样放在这里。</p>
+<BaseLayout title="Projects | Yuimi Lab" description="Yuimi Lab 的项目、技术线和个人实验收藏架。">
+  <section class="works-shell" aria-labelledby="works-title">
+    <div class="works-hero">
+      <div>
+        <p class="section-kicker">Works README</p>
+        <h1 id="works-title">Projects</h1>
+        <p>
+          这里不是严肃作品集，更像一张正在更新的技术收藏桌。Unity、Blender、UE5、MMD 和 AstrBot
+          会被整理成小卡片：能展示进度，也能留下下一次继续折腾的入口。
+        </p>
+      </div>
+      <div class="works-hero-orbit" aria-hidden="true">
+        {techLines.slice(0, 4).map((item) => (
+          <span>
+            <Icon name={item.icon} />
+          </span>
+        ))}
+      </div>
+    </div>
+
+    <div class="works-filter" data-works-filter aria-label="Project filters">
+      <button type="button" class="is-active" data-filter="all">ALL</button>
+      {techLines.map((item) => (
+        <button type="button" data-filter={item.key}>
+          <Icon name={item.icon} aria-hidden="true" />
+          {item.label}
+        </button>
+      ))}
+    </div>
+
+    <section class="works-tech-board" aria-label="Tech lines">
+      {techLines.map((item) => (
+        <article data-line-card={item.key}>
+          <Icon name={item.icon} aria-hidden="true" />
+          <strong>{item.label}</strong>
+          <span>{item.note}</span>
+        </article>
+      ))}
+    </section>
+
+    <section class="works-grid" aria-label="Project cards">
+      {projectCards.map((project) => (
+        <article class={`works-card works-card--${project.accent}`} data-project-line={project.line}>
+          <div class="works-card-head">
+            <span class="works-card-icon" aria-hidden="true">
+              <Icon name={project.icon} />
+            </span>
+            <div>
+              <p>{project.type}</p>
+              <h2>{project.title}</h2>
+            </div>
+          </div>
+          <p class="works-card-summary">{project.summary}</p>
+          <div class="works-card-tags">
+            {project.details.map((detail) => (
+              <span>{detail}</span>
+            ))}
+          </div>
+          <button type="button" class="works-card-toggle" data-card-toggle aria-expanded="false">
+            <Icon name="tabler:chevron-down" aria-hidden="true" />
+            查看状态
+          </button>
+          <div class="works-card-panel" data-card-panel>
+            <strong>{project.status}</strong>
+            <p>下一步会把相关笔记、截图或可玩的 demo 慢慢补到这里。</p>
+          </div>
+        </article>
+      ))}
+    </section>
+
   </section>
 
-  <section class="project-grid">
-    {
-      projects.map((project) => (
-        <article class="project-card">
-          <span>{project.type}</span>
-          <h2>{project.name}</h2>
-          <p>{project.summary}</p>
-        </article>
-      ))
+  <script>
+    const filterRoot = document.querySelector("[data-works-filter]");
+    const filterButtons = filterRoot ? Array.from(filterRoot.querySelectorAll("button")) : [];
+    const cards = Array.from(document.querySelectorAll("[data-project-line]"));
+    const lineCards = Array.from(document.querySelectorAll("[data-line-card]"));
+
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const filter = button.dataset.filter || "all";
+
+        filterButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+        cards.forEach((card) => {
+          const isMatch = filter === "all" || card.dataset.projectLine === filter;
+          card.classList.toggle("is-dimmed", !isMatch);
+        });
+        lineCards.forEach((card) => {
+          const isMatch = filter === "all" || card.dataset.lineCard === filter;
+          card.classList.toggle("is-highlighted", isMatch && filter !== "all");
+        });
+      });
+    });
+
+    document.querySelectorAll("[data-card-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const card = button.closest(".works-card");
+        if (!card) return;
+
+        const isOpen = card.classList.toggle("is-open");
+        button.setAttribute("aria-expanded", String(isOpen));
+      });
+    });
+  </script>
+
+  <style>
+    .works-shell {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 96px 0 72px;
+      display: grid;
+      gap: 20px;
     }
-  </section>
+
+    :global(.waifu-local-fallback) {
+      left: 6px !important;
+      width: 112px !important;
+      opacity: 0.72 !important;
+    }
+
+    :global(.waifu-local-bubble) {
+      display: none !important;
+    }
+
+    :global(.waifu-local-character) {
+      width: 92px !important;
+      height: 92px !important;
+      margin-left: 0 !important;
+    }
+
+    :global(.waifu-local-character img) {
+      width: 72px !important;
+      height: 72px !important;
+    }
+
+    .works-hero,
+    .works-filter,
+    .works-tech-board,
+    .works-card,
+    .works-card {
+      position: relative;
+      isolation: isolate;
+      overflow: visible;
+      border: 2px solid var(--glass-line);
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 226, 234, 0.05) 44%, rgba(220, 238, 250, 0.08)),
+        rgba(255, 252, 246, 0.18);
+      box-shadow:
+        inset 0 0 0 1px var(--glass-edge),
+        var(--glass-shadow);
+      backdrop-filter: blur(2px) saturate(1.03);
+      -webkit-backdrop-filter: blur(2px) saturate(1.03);
+    }
+
+    .works-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 220px;
+      gap: 24px;
+      align-items: center;
+      min-height: 260px;
+      padding: 34px;
+    }
+
+    .works-hero::before,
+    .works-card::before {
+      position: absolute;
+      top: -10px;
+      right: 28px;
+      width: 92px;
+      height: 24px;
+      content: "";
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.54) 0 4px, transparent 4px 8px),
+        rgba(255, 222, 139, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.58);
+      border-radius: 999px;
+      box-shadow: 0 8px 16px rgba(91, 110, 139, 0.12);
+      transform: rotate(-5deg);
+    }
+
+    .works-hero h1 {
+      margin: 8px 0 0;
+      color: var(--ink);
+      font-size: clamp(3.2rem, 8vw, 6.4rem);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .works-hero p:not(.section-kicker) {
+      max-width: 760px;
+      color: var(--ink-soft);
+      font-size: 1.04rem;
+      line-height: 1.9;
+    }
+
+    .works-hero-orbit {
+      position: relative;
+      width: 190px;
+      height: 190px;
+      justify-self: center;
+      border: 2px dashed rgba(93, 113, 145, 0.18);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(255, 226, 234, 0.38), transparent 48%),
+        rgba(255, 255, 255, 0.24);
+    }
+
+    .works-hero-orbit span {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      width: 54px;
+      height: 54px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.68);
+      border: 1px solid rgba(93, 113, 145, 0.16);
+      border-radius: 16px;
+      box-shadow: 0 14px 24px rgba(67, 82, 106, 0.12);
+    }
+
+    .works-hero-orbit span:nth-child(1) { top: -4px; left: 68px; }
+    .works-hero-orbit span:nth-child(2) { top: 68px; right: -4px; color: #e2762d; }
+    .works-hero-orbit span:nth-child(3) { bottom: -4px; left: 68px; color: #fffaf1; background: #31425f; }
+    .works-hero-orbit span:nth-child(4) { top: 68px; left: -4px; color: #c85278; }
+
+    .works-hero-orbit svg,
+    .works-card-icon svg,
+    .works-tech-board svg {
+      width: 1.35em;
+      height: 1.35em;
+    }
+
+    .works-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .works-filter button,
+    .works-card-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px 13px;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 850;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.54);
+      border: 1px solid rgba(93, 113, 145, 0.18);
+      border-radius: 999px;
+      box-shadow: 0 10px 20px rgba(67, 82, 106, 0.08);
+      transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+
+    .works-filter button:hover,
+    .works-card-toggle:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--paper-shadow);
+    }
+
+    .works-filter button.is-active {
+      background: linear-gradient(135deg, var(--pink-soft), var(--blue-soft));
+      border-color: rgba(247, 183, 200, 0.7);
+    }
+
+    .works-tech-board {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .works-tech-board article {
+      display: grid;
+      gap: 8px;
+      min-height: 138px;
+      padding: 16px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.5);
+      border: 1px solid rgba(93, 113, 145, 0.16);
+      border-radius: 8px;
+      box-shadow: 0 12px 24px rgba(67, 82, 106, 0.08);
+      transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+    }
+
+    .works-tech-board article.is-highlighted {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow);
+    }
+
+    .works-tech-board strong {
+      color: var(--ink);
+      font-size: 1.03rem;
+    }
+
+    .works-tech-board span {
+      color: var(--ink-soft);
+      font-size: 0.86rem;
+      line-height: 1.55;
+    }
+
+    .works-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .works-card {
+      display: grid;
+      align-content: start;
+      gap: 16px;
+      min-height: 320px;
+      padding: 22px;
+      transition: transform 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
+    }
+
+    .works-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow);
+    }
+
+    .works-card.is-dimmed {
+      opacity: 0.38;
+      transform: scale(0.98);
+    }
+
+    .works-card-head {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .works-card-icon {
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      color: var(--ink);
+      background: var(--blue-soft);
+      border-radius: 8px;
+    }
+
+    .works-card--orange .works-card-icon { color: #e2762d; background: #ffe8cf; }
+    .works-card--ink .works-card-icon { color: #fffaf1; background: #31425f; }
+    .works-card--pink .works-card-icon { color: #c85278; background: var(--pink-soft); }
+    .works-card--mint .works-card-icon { color: #3c8067; background: rgba(184, 219, 201, 0.58); }
+    .works-card--lavender .works-card-icon { color: #6d63a8; background: rgba(201, 194, 238, 0.52); }
+
+    .works-card-head p {
+      margin: 0;
+      color: var(--pink);
+      font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+      font-size: 0.74rem;
+      font-weight: 850;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .works-card h2 {
+      margin: 4px 0 0;
+      color: var(--ink);
+      font-size: 1.32rem;
+      line-height: 1.32;
+      letter-spacing: 0;
+    }
+
+    .works-card-summary,
+    .works-card-panel p {
+      margin: 0;
+      color: var(--ink-soft);
+      line-height: 1.78;
+    }
+
+    .works-card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .works-card-tags span {
+      padding: 6px 10px;
+      color: var(--ink);
+      font-size: 0.78rem;
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.58);
+      border: 1px solid rgba(93, 113, 145, 0.14);
+      border-radius: 999px;
+    }
+
+    .works-card-toggle {
+      justify-self: start;
+      margin-top: auto;
+    }
+
+    .works-card-toggle svg {
+      transition: transform 180ms ease;
+    }
+
+    .works-card.is-open .works-card-toggle svg {
+      transform: rotate(180deg);
+    }
+
+    .works-card-panel {
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      transition: grid-template-rows 220ms ease, opacity 180ms ease;
+    }
+
+    .works-card-panel > * {
+      overflow: hidden;
+    }
+
+    .works-card.is-open .works-card-panel {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+
+    .works-card-panel strong {
+      color: var(--ink);
+    }
+
+    @media (max-width: 1080px) {
+      .works-hero,
+      .works-tech-board,
+      .works-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .works-hero-orbit {
+        width: 160px;
+        height: 160px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .works-shell {
+        width: min(100% - 24px, 1280px);
+        padding-top: 72px;
+      }
+
+      .works-hero,
+      .works-tech-board,
+      .works-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .works-hero {
+        padding: 24px;
+      }
+
+      .works-hero h1 {
+        font-size: clamp(3rem, 18vw, 4.6rem);
+      }
+
+      .works-hero-orbit {
+        justify-self: start;
+      }
+    }
+  </style>
 </BaseLayout>

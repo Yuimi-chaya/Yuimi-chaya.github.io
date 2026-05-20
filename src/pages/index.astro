@@ -1,17 +1,32 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import { getCollection } from "astro:content";
-import { categoryLabel } from "@/lib/site";
 
-const posts = (await getCollection("blog", ({ data }) => !data.draft))
-  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
-  .slice(0, 3);
-
-const formatter = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit"
-});
+const fallingTags = [
+  "Unity3D",
+  "Blender",
+  "UE5",
+  "MMD",
+  "AstrBot",
+  "猫娘",
+  "粉毛",
+  "病娇",
+  "重女",
+  "契约之吻",
+  "青春猪头少年",
+  "无职转生",
+  "夏洛特",
+  "Summer Pockets",
+  "埃罗芒阿老师",
+  "游戏人生",
+  "超电磁炮",
+  "Cyberpunk 2077",
+  "THE FINALS",
+  "KovaaK's",
+  "Aimlabs",
+  "Yuimi Radio",
+  "Live2D",
+  "小游戏"
+];
 ---
 
 <BaseLayout>
@@ -104,63 +119,423 @@ const formatter = new Intl.DateTimeFormat("zh-CN", {
   </div>
 
   <div class="home-content-bg">
-    <section class="lab-stage" id="main-content">
-      <div class="lab-status-panel">
-        <p class="section-kicker">Desk Memo</p>
-        <h2>这里放着最近喜欢的光。</h2>
-        <p>动画片段、代码笔记、网页小玩具和一点点日常心情，都先被夹在这张桌面上。来访者可以慢慢翻，不需要急着找到标准答案。</p>
-        <div class="status-screen" aria-label="Lab status">
-          <span class="status-dot"></span>
-          <strong>now playing</strong>
-          <code>anime-memo && code-diary && tiny-arcade</code>
-        </div>
+    <section class="tag-rain-stage" id="main-content" data-tag-rain data-tags={JSON.stringify(fallingTags)} aria-label="Yuimi tag rain">
+      <div class="home-art-word" aria-label="Yuimi Lab">
+        <span>Yuimi Lab</span>
+        <small>anime notes / tiny toys / dev memo</small>
       </div>
-      <div class="mood-board" aria-label="Mood board">
-        <article class="mood-card mood-card--large">
-          <span>Scrap</span>
-          <strong>技术笔记也可以贴上贴纸</strong>
-          <p>不是把严肃内容变轻，而是给它一个更愿意被打开的封面。</p>
-        </article>
-        <article class="mood-card mood-card--tall">
-          <span>Arcade</span>
-          <strong>路过时打一局</strong>
-          <p>收藏一些网页小游戏，像书桌旁边偷偷亮着的小机器。</p>
-        </article>
-        <article class="mood-card mood-card--soft">
-          <span>Mood</span>
-          <strong>今天适合浅蓝色</strong>
-          <p>背景、歌单、樱花和看板娘一起值班，主页就会有自己的天气。</p>
-        </article>
+      <div class="home-signal-card" aria-label="Local signal">
+        <p data-home-date>---- 年 -- 月 -- 日</p>
+        <strong data-home-time>--:--:--</strong>
+        <span>本地时区 · 气温待接入</span>
       </div>
-    </section>
-
-    <section class="content-band latest-reel">
-      <div class="section-heading">
-        <div>
-          <p class="section-kicker">Latest Notes</p>
-          <h2>最近贴上的纸条</h2>
-        </div>
+      <div class="home-welcome-bubble">
+        <span aria-hidden="true">“</span>
+        <strong>哇，你终于回来了～</strong>
+        <p>这里会掉下一点兴趣标签，等它们堆在底下再慢慢消失。</p>
+        <span aria-hidden="true">”</span>
       </div>
-      <div class="post-reel">
-        {
-          posts.map((post, index) => (
-            <a class="post-card reel-card" href={`/blog/${post.id}/`} style={`--reel-index: ${index}`}>
-              <span class="reel-card__number">0{index + 1}</span>
-              <div class="meta-row">
-                <span>{categoryLabel[post.data.category]}</span>
-                <time datetime={post.data.pubDate.toISOString()}>{formatter.format(post.data.pubDate)}</time>
-              </div>
-              <h3>{post.data.title}</h3>
-              <p>{post.data.description}</p>
-              <div class="tag-row">
-                {post.data.tags.map((tag) => <span>#{tag}</span>)}
-              </div>
-            </a>
-          ))
-        }
-      </div>
+      <canvas class="tag-rain-canvas" data-tag-rain-canvas aria-hidden="true"></canvas>
     </section>
   </div>
+
+  <script>
+    (() => {
+      const stage = document.querySelector("[data-tag-rain]");
+      const canvas = document.querySelector("[data-tag-rain-canvas]");
+      if (!stage || !canvas) return;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const labels = (() => {
+        try {
+          const parsed = JSON.parse(stage.dataset.tags || "[]");
+          return [...new Set(Array.isArray(parsed) ? parsed : [])];
+        } catch {
+          return [];
+        }
+      })();
+
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const pigImage = new Image();
+      pigImage.src = "/assets/mini-pig-scroll.png";
+      const dateTarget = document.querySelector("[data-home-date]");
+      const timeTarget = document.querySelector("[data-home-time]");
+
+      const updateHomeClock = () => {
+        const now = new Date();
+        if (dateTarget) {
+          dateTarget.textContent = new Intl.DateTimeFormat("zh-CN", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            weekday: "long"
+          }).format(now);
+        }
+        if (timeTarget) {
+          timeTarget.textContent = new Intl.DateTimeFormat("zh-CN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false
+          }).format(now);
+        }
+      };
+      updateHomeClock();
+      window.setInterval(updateHomeClock, 1000);
+
+      const palette = [
+        { fill: "#fff5bf", stroke: "#f0c95a", ink: "#725d22" },
+        { fill: "#ffddea", stroke: "#f2a8bd", ink: "#824759" },
+        { fill: "#dff2ff", stroke: "#9fc8eb", ink: "#315a78" },
+        { fill: "#dff5ea", stroke: "#9bd6b7", ink: "#315e49" },
+        { fill: "#eee4ff", stroke: "#c9b8ef", ink: "#57467b" }
+      ];
+
+      const state = {
+        bodies: [],
+        queue: [],
+        started: false,
+        finishedDropping: false,
+        fading: false,
+        done: false,
+        raf: 0,
+        lastTime: 0,
+        nextDrop: 0,
+        lastDropAt: 0,
+        width: 1,
+        height: 1,
+        stageHeight: 1,
+        dpr: 1,
+        fadeStart: 0,
+        visible: true
+      };
+
+      const random = (min, max) => min + Math.random() * (max - min);
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+      const measureTag = (label) => {
+        ctx.save();
+        ctx.font = "850 18px 'Cascadia Code', 'Fira Code', Consolas, sans-serif";
+        const width = clamp(ctx.measureText(label).width + 46, 96, Math.min(260, state.width * 0.76));
+        ctx.restore();
+        return { width, height: 44 };
+      };
+
+      const makeTag = (label, index) => {
+        const size = measureTag(label);
+        const color = palette[index % palette.length];
+        const radius = Math.max(size.width, size.height) * 0.34;
+        return {
+          type: "tag",
+          label,
+          color,
+          width: size.width,
+          height: size.height,
+          radius,
+          x: random(radius + 12, state.width - radius - 12),
+          y: -random(60, 260),
+          vx: random(-1.2, 1.2),
+          vy: random(0.5, 1.8),
+          angle: random(-0.3, 0.3),
+          spin: random(-0.018, 0.018),
+          alpha: 1
+        };
+      };
+
+      const makePig = (index) => {
+        const size = random(42, 58);
+        const radius = size * 0.52;
+        return {
+          type: "pig",
+          width: size,
+          height: size * 0.78,
+          radius,
+          x: random(radius + 14, state.width - radius - 14),
+          y: -random(80, 320),
+          vx: random(-1.5, 1.5),
+          vy: random(0.4, 1.6),
+          angle: random(-0.35, 0.35),
+          spin: random(-0.02, 0.02),
+          alpha: 1,
+          index
+        };
+      };
+
+      const resize = () => {
+        const rect = stage.getBoundingClientRect();
+        state.dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+        state.width = Math.max(1, Math.floor(rect.width));
+        state.stageHeight = Math.max(1, Math.floor(rect.height));
+        state.height = state.stageHeight + 80;
+        canvas.width = Math.floor(state.width * state.dpr);
+        canvas.height = Math.floor(state.height * state.dpr);
+        canvas.style.width = state.width + "px";
+        canvas.style.height = state.height + "px";
+        ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+      };
+
+      const prepareQueue = () => {
+        const tagBodies = labels.map(makeTag);
+        const pigCount = Math.max(3, Math.min(6, Math.round(labels.length / 6)));
+        const pigBodies = Array.from({ length: pigCount }, (_, index) => makePig(index));
+        state.queue = [...tagBodies, ...pigBodies].sort(() => Math.random() - 0.5);
+      };
+
+      const startRain = () => {
+        if (state.started || state.done || labels.length === 0) return;
+        resize();
+        prepareQueue();
+        state.started = true;
+        state.lastTime = performance.now();
+        state.nextDrop = 0;
+        stage.classList.add("is-raining");
+        state.raf = window.requestAnimationFrame(tick);
+      };
+
+      const resetRain = () => {
+        if (!state.started && !state.done && state.bodies.length === 0) return;
+        window.cancelAnimationFrame(state.raf);
+        state.bodies = [];
+        state.queue = [];
+        state.started = false;
+        state.finishedDropping = false;
+        state.fading = false;
+        state.done = false;
+        state.raf = 0;
+        state.lastTime = performance.now();
+        state.nextDrop = 0;
+        state.lastDropAt = 0;
+        state.fadeStart = 0;
+        stage.classList.remove("is-raining", "is-fading");
+        ctx.clearRect(0, 0, state.width, state.height);
+      };
+
+      const drawCapsule = (body) => {
+        const r = body.height / 2;
+        ctx.save();
+        ctx.globalAlpha = body.alpha;
+        ctx.translate(body.x, body.y);
+        ctx.rotate(body.angle);
+        ctx.beginPath();
+        ctx.roundRect(-body.width / 2, -body.height / 2, body.width, body.height, r);
+        ctx.fillStyle = body.color.fill;
+        ctx.strokeStyle = body.color.stroke;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = "rgba(98, 111, 133, 0.16)";
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 8;
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.stroke();
+        ctx.fillStyle = body.color.ink;
+        ctx.font = "850 18px 'Cascadia Code', 'Fira Code', Consolas, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(body.label, 0, 1, body.width - 34);
+        ctx.restore();
+      };
+
+      const drawPig = (body) => {
+        ctx.save();
+        ctx.globalAlpha = body.alpha;
+        ctx.translate(body.x, body.y);
+        ctx.rotate(body.angle);
+        if (pigImage.complete && pigImage.naturalWidth > 0) {
+          ctx.drawImage(pigImage, -body.width / 2, -body.height / 2, body.width, body.height);
+        } else {
+          ctx.fillStyle = "#ffd5df";
+          ctx.strokeStyle = "#ef9db3";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(-body.width / 2, -body.height / 2, body.width, body.height, 18);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#6f5160";
+          ctx.font = "900 14px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("pig", 0, 1);
+        }
+        ctx.restore();
+      };
+
+      const collideBodies = () => {
+        for (let i = 0; i < state.bodies.length; i += 1) {
+          for (let j = i + 1; j < state.bodies.length; j += 1) {
+            const a = state.bodies[i];
+            const b = state.bodies[j];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const distance = Math.hypot(dx, dy) || 0.001;
+            const minDistance = a.radius + b.radius;
+            if (distance >= minDistance) continue;
+
+            const nx = dx / distance;
+            const ny = dy / distance;
+            const overlap = (minDistance - distance) * 0.52;
+            a.x -= nx * overlap;
+            a.y -= ny * overlap;
+            b.x += nx * overlap;
+            b.y += ny * overlap;
+
+            const relVx = b.vx - a.vx;
+            const relVy = b.vy - a.vy;
+            const impulse = (relVx * nx + relVy * ny) * 0.62;
+            if (impulse < 0) {
+              a.vx += impulse * nx;
+              a.vy += impulse * ny;
+              b.vx -= impulse * nx;
+              b.vy -= impulse * ny;
+              a.spin *= 0.58;
+              b.spin *= 0.58;
+            }
+          }
+        }
+      };
+
+      const stepBody = (body, dt) => {
+        const floor = state.stageHeight - 24;
+        body.vy += 0.055 * dt;
+        body.x += body.vx * dt;
+        body.y += body.vy * dt;
+        body.angle += body.spin * dt;
+
+        if (body.x - body.radius < 10) {
+          body.x = body.radius + 10;
+          body.vx = Math.abs(body.vx) * 0.52;
+          body.spin *= 0.35;
+        }
+        if (body.x + body.radius > state.width - 10) {
+          body.x = state.width - body.radius - 10;
+          body.vx = -Math.abs(body.vx) * 0.52;
+          body.spin *= 0.35;
+        }
+        if (body.y + body.radius > floor) {
+          body.y = floor - body.radius;
+          body.vy *= -0.16;
+          body.vx *= 0.62;
+          body.spin *= 0.18;
+          if (Math.abs(body.vy) < 0.72) body.vy = 0;
+          if (Math.abs(body.vx) < 0.16) body.vx = 0;
+          if (Math.abs(body.spin) < 0.018) body.spin = 0;
+        }
+
+        if (Math.abs(body.vx) + Math.abs(body.vy) < 0.42) {
+          body.spin *= 0.72;
+          if (Math.abs(body.spin) < 0.02) body.spin = 0;
+        }
+      };
+
+      const maybeFade = (now) => {
+        if (!state.finishedDropping || state.fading) return;
+        const calm = state.bodies.every((body) => Math.abs(body.vx) + Math.abs(body.vy) < 1.15);
+        if (calm || now - state.lastDropAt > 4800) {
+          state.fading = true;
+          state.fadeStart = now;
+          stage.classList.add("is-fading");
+        }
+      };
+
+      const tick = (now) => {
+        if (!state.visible) {
+          state.raf = window.requestAnimationFrame(tick);
+          return;
+        }
+
+        const dt = clamp((now - state.lastTime) / 16.67, 0.4, 2.1);
+        state.lastTime = now;
+        ctx.clearRect(0, 0, state.width, state.height);
+
+        if (!state.finishedDropping && now >= state.nextDrop) {
+          const next = state.queue.shift();
+          if (next) {
+            state.bodies.push(next);
+            state.lastDropAt = now;
+            state.nextDrop = now + random(120, 220);
+          } else {
+            state.finishedDropping = true;
+            state.lastDropAt = now;
+          }
+        }
+
+        state.bodies.forEach((body) => stepBody(body, dt));
+        for (let i = 0; i < 3; i += 1) collideBodies();
+
+        if (state.fading) {
+          const fade = clamp((now - state.fadeStart) / 5200, 0, 1);
+          state.bodies.forEach((body) => {
+            body.alpha = 1 - fade;
+            body.y += fade * 0.05 * dt;
+          });
+          if (fade >= 1) {
+            state.done = true;
+            stage.classList.remove("is-raining", "is-fading");
+            ctx.clearRect(0, 0, state.width, state.height);
+            window.cancelAnimationFrame(state.raf);
+            return;
+          }
+        }
+
+        state.bodies.forEach((body) => {
+          if (body.type === "pig") drawPig(body);
+          else drawCapsule(body);
+        });
+
+        maybeFade(now);
+        state.raf = window.requestAnimationFrame(tick);
+      };
+
+      const shouldStart = () => {
+        const rect = stage.getBoundingClientRect();
+        const viewport = window.innerHeight || document.documentElement.clientHeight;
+        return rect.top <= viewport * 0.46 && rect.bottom >= viewport * 0.34;
+      };
+
+      const isAtPageTop = () => {
+        const top = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        return top <= 4;
+      };
+
+      const onScroll = () => {
+        if (isAtPageTop()) {
+          resetRain();
+          return;
+        }
+        if (shouldStart()) startRain();
+      };
+
+      resize();
+      if (reduceMotion.matches) {
+        stage.classList.add("is-reduced-motion");
+      } else {
+        const observer = "IntersectionObserver" in window
+          ? new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+              startRain();
+              observer.disconnect();
+            }
+          }, { rootMargin: "-34% 0px -42% 0px", threshold: 0.02 })
+          : null;
+        observer?.observe(stage);
+        window.addEventListener("scroll", onScroll, { passive: true });
+        onScroll();
+      }
+      window.addEventListener("resize", () => {
+        resize();
+        state.bodies.forEach((body) => {
+          body.x = clamp(body.x, body.radius + 10, state.width - body.radius - 10);
+          body.y = Math.min(body.y, state.stageHeight - 24 - body.radius);
+        });
+      });
+      document.addEventListener("visibilitychange", () => {
+        state.visible = document.visibilityState === "visible";
+        state.lastTime = performance.now();
+      });
+      window.addEventListener("pagehide", () => window.cancelAnimationFrame(state.raf));
+    })();
+  </script>
 
   <script>
     const stage = document.querySelector("[data-hero-stage]");

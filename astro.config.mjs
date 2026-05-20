@@ -107,7 +107,8 @@ export default defineConfig({
           "pin",
           "terminal-2",
           "flower",
-          "mood-smile"
+          "mood-smile",
+          "chevron-down"
         ],
         "simple-icons": [
           "unity",
