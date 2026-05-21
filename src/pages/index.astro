@@ -159,7 +159,7 @@ const fallingTags = [
       <div class="home-signal-card" aria-label="Local signal">
         <p data-home-date>---- 年 -- 月 -- 日</p>
         <strong data-home-time>--:--:--</strong>
-        <span>本地时区 · 气温待接入</span>
+        <span data-home-weather>本地时区 · 气温待接入</span>
       </div>
       <div class="home-welcome-bubble">
         <span aria-hidden="true">“</span>
@@ -378,6 +378,183 @@ const fallingTags = [
       pigImage.src = "/assets/mini-pig-scroll.png";
       const dateTarget = document.querySelector("[data-home-date]");
       const timeTarget = document.querySelector("[data-home-time]");
+      const weatherTarget = document.querySelector("[data-home-weather]");
+      const locationCacheKey = "yuimi-home-local-signal-v1";
+      const tencentMapKey = "PDHBZ-Q6QAT-W7NXN-VIUTJ-PPEUV-C5F3P";
+      const weatherCodeText = {
+        0: "晴",
+        1: "大致晴朗",
+        2: "少云",
+        3: "阴",
+        45: "雾",
+        48: "霜雾",
+        51: "毛毛雨",
+        53: "毛毛雨",
+        55: "毛毛雨",
+        61: "小雨",
+        63: "中雨",
+        65: "大雨",
+        71: "小雪",
+        73: "中雪",
+        75: "大雪",
+        80: "阵雨",
+        81: "阵雨",
+        82: "强阵雨",
+        95: "雷雨",
+        96: "雷雨夹冰雹",
+        99: "雷雨夹冰雹"
+      };
+
+      const readJsonCache = (key) => {
+        try {
+          return JSON.parse(localStorage.getItem(key) ?? "{}");
+        } catch {
+          return {};
+        }
+      };
+
+      const writeJsonCache = (key, value) => {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch {
+          // ignore storage failures in private browsing
+        }
+      };
+
+      const jsonp = (url, params = {}, timeout = 7000) => {
+        const callbackName = `yuimiMapCallback_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        const query = new URLSearchParams({ ...params, callback: callbackName });
+        const separator = url.includes("?") ? "&" : "?";
+        const script = document.createElement("script");
+
+        return new Promise((resolve, reject) => {
+          const timer = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("JSONP timeout"));
+          }, timeout);
+
+          const cleanup = () => {
+            window.clearTimeout(timer);
+            delete window[callbackName];
+            script.remove();
+          };
+
+          window[callbackName] = (data) => {
+            cleanup();
+            resolve(data);
+          };
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("JSONP failed"));
+          };
+          script.src = `${url}${separator}${query.toString()}`;
+          document.head.appendChild(script);
+        });
+      };
+
+      const formatSignalLocation = (adInfo) => {
+        const parts = [adInfo?.province, adInfo?.city, adInfo?.district]
+          .filter(Boolean)
+          .filter((item, index, list) => list.indexOf(item) === index);
+        if (!parts.length) return adInfo?.nation || "本地时区";
+        return parts.join(" ");
+      };
+
+      const getTencentIpLocation = async () => {
+        const locationData = await jsonp("https://apis.map.qq.com/ws/location/v1/ip", {
+          key: tencentMapKey,
+          output: "jsonp"
+        });
+        const result = locationData?.result;
+        const location = result?.location;
+        if (Number(locationData?.status) !== 0 || !location) throw new Error(locationData?.message || "Tencent location failed");
+        return {
+          place: formatSignalLocation(result.ad_info),
+          latitude: Number(location.lat),
+          longitude: Number(location.lng)
+        };
+      };
+
+      const getFallbackIpLocation = async () => {
+        const response = await fetch("https://ipwho.is/?lang=zh-CN");
+        if (!response.ok) throw new Error("Fallback location failed");
+        const data = await response.json();
+        if (!data?.success) throw new Error(data?.message || "Fallback location failed");
+        const place = [data.region, data.city].filter(Boolean).join(" ") || data.country || "本地时区";
+        return {
+          place,
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude)
+        };
+      };
+
+      const getIpLocation = async () => {
+        try {
+          return await getTencentIpLocation();
+        } catch {
+          return getFallbackIpLocation();
+        }
+      };
+
+      const getTimezoneLocation = () => {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Shanghai";
+        const presets = {
+          "Asia/Shanghai": { place: "本地时区", latitude: 31.2304, longitude: 121.4737 },
+          "Asia/Tokyo": { place: "东京电波", latitude: 35.6762, longitude: 139.6503 },
+          "Asia/Hong_Kong": { place: "香港电波", latitude: 22.3193, longitude: 114.1694 },
+          "Asia/Taipei": { place: "台北电波", latitude: 25.033, longitude: 121.5654 }
+        };
+        return presets[timezone] ?? { place: timezone, latitude: 31.2304, longitude: 121.4737 };
+      };
+
+      const updateHomeWeather = async () => {
+        if (!weatherTarget) return;
+        const cached = readJsonCache(locationCacheKey);
+        if (cached.label && Date.now() - Number(cached.updatedAt ?? 0) < 1000 * 60 * 60 * 3) {
+          weatherTarget.textContent = cached.label;
+          return;
+        }
+
+        weatherTarget.textContent = "定位电波接收中...";
+        try {
+          let location;
+          try {
+            location = await getIpLocation();
+          } catch {
+            location = getTimezoneLocation();
+          }
+          if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) {
+            throw new Error("No location");
+          }
+
+          const weatherUrl = new URL("https://api.open-meteo.com/v1/forecast");
+          weatherUrl.searchParams.set("latitude", String(location.latitude));
+          weatherUrl.searchParams.set("longitude", String(location.longitude));
+          weatherUrl.searchParams.set("current", "temperature_2m,weather_code");
+          weatherUrl.searchParams.set("timezone", "auto");
+          weatherUrl.searchParams.set("forecast_days", "1");
+          const weatherResponse = await fetch(weatherUrl);
+          if (!weatherResponse.ok) throw new Error("Weather failed");
+          const weatherData = await weatherResponse.json();
+          const current = weatherData.current ?? {};
+          const temperature = Number(current.temperature_2m);
+          const weatherText = weatherCodeText[current.weather_code] ?? "天气";
+          const label = Number.isFinite(temperature)
+            ? `${location.place} · ${Math.round(temperature)}°C ${weatherText}`
+            : `${location.place} · 天气信号微弱`;
+          weatherTarget.textContent = label;
+          writeJsonCache(locationCacheKey, {
+            label,
+            place: location.place,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            updatedAt: Date.now()
+          });
+        } catch {
+          const fallbackZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "本地时区";
+          weatherTarget.textContent = `${fallbackZone} · 天气信号迷路中`;
+        }
+      };
 
       const updateHomeClock = () => {
         const now = new Date();
@@ -400,6 +577,7 @@ const fallingTags = [
       };
       updateHomeClock();
       window.setInterval(updateHomeClock, 1000);
+      updateHomeWeather();
 
       const palette = [
         { fill: "#fff5bf", stroke: "#f0c95a", ink: "#725d22" },

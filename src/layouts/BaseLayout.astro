@@ -114,7 +114,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       <button type="button" data-context-action="forward">&#x2192; &#x524D;&#x8FDB;</button>
       <button type="button" data-context-action="copy">&#x29C9; &#x590D;&#x5236;&#x94FE;&#x63A5;</button>
       <button type="button" data-context-action="title">T &#x590D;&#x5236;&#x6807;&#x9898;</button>
-      <button type="button" data-context-action="sakura">&#x273F; &#x6A31;&#x82B1;&#x5F00;&#x5173;</button>
+      <button type="button" data-context-action="sakura" aria-pressed="true">&#x273F; 樱花雨：开</button>
+      <button type="button" data-context-action="music-autoplay" aria-pressed="false">♫ 进站续播：关</button>
     </nav>
     <div class="site-shell">
       <header class="site-header" aria-label="Primary">
@@ -427,6 +428,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       });
 
       const musicCacheKey = "yuimi-radio-state-v1";
+      const musicAutoplayKey = "yuimi-radio-autoplay-v1";
+      const musicSessionAutoplayKey = "yuimi-radio-session-autoplay-v1";
       const createYuimiRadio = () => {
         const audio = new Audio();
         const player = {
@@ -436,8 +439,11 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
           seeking: false,
           initialized: false,
           restoreAutoplay: false,
+          pendingAutoplay: false,
           elements: {},
-          controlAbort: null
+          controlAbort: null,
+          audioAbort: null,
+          unlockAbort: null
         };
 
         const formatAudioTime = (seconds) => {
@@ -455,6 +461,23 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
           }
         };
 
+        const isMusicAutoplayEnabled = () => localStorage.getItem(musicAutoplayKey) === "1";
+        const isMusicSessionAutoplayEnabled = () => sessionStorage.getItem(musicSessionAutoplayKey) === "1";
+        const setMusicSessionAutoplayEnabled = (enabled) => {
+          sessionStorage.setItem(musicSessionAutoplayKey, enabled ? "1" : "0");
+        };
+
+        const setMusicAutoplayEnabled = (enabled) => {
+          localStorage.setItem(musicAutoplayKey, enabled ? "1" : "0");
+          window.dispatchEvent(new CustomEvent("yuimi:music-autoplay-change", { detail: { enabled } }));
+        };
+
+        const clampVolume = (value, fallback = 0.28) => {
+          const volume = Number(value);
+          if (!Number.isFinite(volume)) return fallback;
+          return Math.min(1, Math.max(0, volume));
+        };
+
         const saveMusicState = () => {
           const currentTrack = player.tracks[player.index];
           if (!currentTrack) return;
@@ -464,7 +487,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
               trackId: currentTrack.id,
               currentTime: audio.currentTime || 0,
               volume: audio.volume,
-              paused: audio.paused,
+              paused: player.pendingAutoplay ? false : audio.paused,
               updatedAt: Date.now()
             })
           );
@@ -501,7 +524,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
           document.body.classList.toggle("is-music-playing", !audio.paused);
         };
 
-        const loadMusicTrack = (index, { keepTime = 0, autoplay = false } = {}) => {
+        const loadMusicTrack = (index, { keepTime = 0, autoplay = false, persist = true } = {}) => {
           if (!player.tracks.length) return;
           player.index = (index + player.tracks.length) % player.tracks.length;
           const track = player.tracks[player.index];
@@ -510,7 +533,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
             audio.src = track.src;
             audio.load();
           }
-          audio.volume = Number(player.elements.volume?.value ?? audio.volume ?? 0.28);
+          const cached = getMusicState();
+          audio.volume = Number.isFinite(cached.volume)
+            ? clampVolume(cached.volume)
+            : clampVolume(player.elements.volume?.value, audio.volume || 0.28);
           audio.addEventListener(
             "loadedmetadata",
             async () => {
@@ -519,7 +545,9 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
               if (autoplay) {
                 try {
                   await audio.play();
+                  player.pendingAutoplay = false;
                 } catch {
+                  player.pendingAutoplay = true;
                   if (player.elements.note) player.elements.note.textContent = "浏览器需要你点一下播放。";
                 }
                 updateMusicUi();
@@ -528,7 +556,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
             { once: true }
           );
           updateMusicUi();
-          saveMusicState();
+          if (persist) saveMusicState();
         };
 
         const initMusicPlayer = async () => {
@@ -554,11 +582,13 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
           const cached = getMusicState();
           const cachedIndex = player.tracks.findIndex((track) => track.id === cached.trackId);
           player.index = cachedIndex >= 0 ? cachedIndex : 0;
-          audio.volume = Number.isFinite(cached.volume) ? cached.volume : Number(player.elements.volume?.value ?? 0.28);
-          player.restoreAutoplay = cached.paused === false;
+          audio.volume = Number.isFinite(cached.volume) ? clampVolume(cached.volume) : clampVolume(player.elements.volume?.value);
+          player.restoreAutoplay = cached.paused === false && (isMusicAutoplayEnabled() || isMusicSessionAutoplayEnabled());
+          player.pendingAutoplay = player.restoreAutoplay;
           loadMusicTrack(player.index, {
             keepTime: Number(cached.currentTime ?? 0),
-            autoplay: false
+            autoplay: false,
+            persist: false
           });
           if (player.restoreAutoplay && player.elements.note) {
             player.elements.note.textContent = "已恢复进度，点击播放继续。";
@@ -577,11 +607,16 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
             if (audio.paused) {
               try {
                 await audio.play();
+                setMusicSessionAutoplayEnabled(true);
+                player.pendingAutoplay = false;
               } catch {
+                player.pendingAutoplay = true;
                 if (player.elements.note) player.elements.note.textContent = "浏览器拦截了自动播放，请再点一次。";
               }
             } else {
               audio.pause();
+              setMusicSessionAutoplayEnabled(false);
+              player.pendingAutoplay = false;
             }
             updateMusicUi();
             saveMusicState();
@@ -617,24 +652,57 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
             saveMusicState();
           }, listenerOptions);
 
+          player.audioAbort?.abort();
+          player.audioAbort = new AbortController();
+          const audioListenerOptions = { signal: player.audioAbort.signal };
+
+          const tryResumeAfterRefresh = async () => {
+            if (!player.pendingAutoplay || !audio.paused || !player.tracks.length) return;
+            try {
+              await audio.play();
+              setMusicSessionAutoplayEnabled(true);
+              player.pendingAutoplay = false;
+              player.unlockAbort?.abort();
+              updateMusicUi();
+              saveMusicState();
+            } catch {
+              if (player.elements.note) player.elements.note.textContent = "浏览器需要一次交互后才能续播。";
+            }
+          };
+
+          player.unlockAbort?.abort();
+          player.unlockAbort = new AbortController();
+          const unlockOptions = { signal: player.unlockAbort.signal, passive: true };
+          ["pointerdown", "keydown", "wheel", "touchstart"].forEach((eventName) => {
+            window.addEventListener(eventName, tryResumeAfterRefresh, unlockOptions);
+          });
+
           audio.addEventListener("timeupdate", () => {
             updateMusicUi();
             saveMusicState();
-          });
-          audio.addEventListener("play", updateMusicUi);
-          audio.addEventListener("pause", () => {
+          }, audioListenerOptions);
+          audio.addEventListener("play", () => {
+            setMusicSessionAutoplayEnabled(true);
+            player.pendingAutoplay = false;
             updateMusicUi();
             saveMusicState();
-          });
+          }, audioListenerOptions);
+          audio.addEventListener("pause", () => {
+            if (!player.pendingAutoplay) setMusicSessionAutoplayEnabled(false);
+            updateMusicUi();
+            saveMusicState();
+          }, audioListenerOptions);
           audio.addEventListener("ended", () => {
             loadMusicTrack(player.index + 1, { autoplay: true });
-          });
-          window.addEventListener("pagehide", saveMusicState);
+          }, audioListenerOptions);
+          window.addEventListener("pagehide", saveMusicState, listenerOptions);
           updateMusicUi();
         };
 
         player.init = initMusicPlayer;
         player.update = updateMusicUi;
+        player.isAutoplayEnabled = isMusicAutoplayEnabled;
+        player.setAutoplayEnabled = setMusicAutoplayEnabled;
         return player;
       };
 
@@ -646,13 +714,39 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         window.__yuimiRadio?.init();
       });
 
+      const sakuraStateKey = "yuimi-sakura-enabled-v1";
       const contextMenu = document.querySelector("[data-context-menu]");
       const hideContextMenu = () => contextMenu?.classList.remove("is-open");
+      const isSakuraEnabled = () => localStorage.getItem(sakuraStateKey) !== "0";
+      const setSakuraEnabled = (enabled) => {
+        localStorage.setItem(sakuraStateKey, enabled ? "1" : "0");
+        document.body.classList.toggle("hide-sakura", !enabled);
+      };
+      const updateContextToggleLabels = () => {
+        const sakuraButton = contextMenu?.querySelector('[data-context-action="sakura"]');
+        const musicAutoplayButton = contextMenu?.querySelector('[data-context-action="music-autoplay"]');
+        const sakuraEnabled = isSakuraEnabled();
+        const musicAutoplayEnabled = window.__yuimiRadio?.isAutoplayEnabled?.() ?? false;
+        if (sakuraButton) {
+          sakuraButton.textContent = sakuraEnabled ? "✿ 樱花雨：开" : "✿ 樱花雨：关";
+          sakuraButton.setAttribute("aria-pressed", String(sakuraEnabled));
+        }
+        if (musicAutoplayButton) {
+          musicAutoplayButton.textContent = musicAutoplayEnabled ? "♫ 进站续播：开" : "♫ 进站续播：关";
+          musicAutoplayButton.setAttribute("aria-pressed", String(musicAutoplayEnabled));
+        }
+      };
+
+      setSakuraEnabled(isSakuraEnabled());
+      updateContextToggleLabels();
+      window.addEventListener("yuimi:music-autoplay-change", updateContextToggleLabels);
+
       window.addEventListener("contextmenu", (event) => {
         if (!contextMenu) return;
         event.preventDefault();
+        updateContextToggleLabels();
         const menuWidth = 188;
-        const menuHeight = 348;
+        const menuHeight = 392;
         const x = Math.min(event.clientX, window.innerWidth - menuWidth - 12);
         const y = Math.min(event.clientY, window.innerHeight - menuHeight - 12);
         contextMenu.style.setProperty("--menu-x", `${Math.max(12, x)}px`);
@@ -664,6 +758,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         if (event.key === "Escape") hideContextMenu();
       });
       contextMenu?.addEventListener("click", async (event) => {
+        event.stopPropagation();
         const button = event.target.closest("[data-context-action]");
         if (!button) return;
 
@@ -688,7 +783,13 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
           }, 1200);
         }
         if (action === "sakura") {
-          document.body.classList.toggle("hide-sakura");
+          setSakuraEnabled(!isSakuraEnabled());
+          updateContextToggleLabels();
+        }
+        if (action === "music-autoplay") {
+          const nextEnabled = !(window.__yuimiRadio?.isAutoplayEnabled?.() ?? false);
+          window.__yuimiRadio?.setAutoplayEnabled?.(nextEnabled);
+          updateContextToggleLabels();
         }
         hideContextMenu();
       });
