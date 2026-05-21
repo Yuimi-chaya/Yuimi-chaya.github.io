@@ -171,8 +171,14 @@ const fallingTags = [
     </section>
   </div>
 
-  <script>
+  <script data-astro-rerun>
     (() => {
+      window.__yuimiNoticeCleanup?.();
+      const noticeCleanupTasks = [];
+      window.__yuimiNoticeCleanup = () => {
+        noticeCleanupTasks.splice(0).forEach((cleanup) => cleanup());
+      };
+
       const trigger = document.querySelector("[data-notice-open]");
       const backdrop = document.querySelector("[data-notice-backdrop]");
       const modal = document.querySelector("[data-notice-modal]");
@@ -194,6 +200,7 @@ const fallingTags = [
       const today = new Date();
       const todayKey = formatKey(today);
       const storageKey = `yuimi-notice-hidden-${formatStorageKey(today)}`;
+      const sessionStorageKey = `yuimi-notice-opened-session-${formatStorageKey(today)}`;
       let lockedScrollY = 0;
 
       const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
@@ -321,6 +328,16 @@ const fallingTags = [
         }, 180);
       };
 
+      const openNoticeAutomatically = () => {
+        try {
+          if (sessionStorage.getItem(sessionStorageKey) === "1") return;
+          sessionStorage.setItem(sessionStorageKey, "1");
+        } catch {
+          // Session storage may be blocked, but the page should still work.
+        }
+        openNotice();
+      };
+
       const stopNoticeWheel = (event) => {
         if (!backdrop.classList.contains("is-open")) return;
         event.stopPropagation();
@@ -335,11 +352,23 @@ const fallingTags = [
       modal.addEventListener("wheel", stopNoticeWheel, { passive: false });
       backdrop.addEventListener("wheel", stopNoticeWheel, { passive: false });
       window.addEventListener("resize", updateNoticeScrollbar);
-      backdrop.addEventListener("click", (event) => {
+      const onBackdropClick = (event) => {
         if (event.target === backdrop) closeNotice();
-      });
-      document.addEventListener("keydown", (event) => {
+      };
+      const onNoticeKeydown = (event) => {
         if (event.key === "Escape" && !backdrop.hidden) closeNotice();
+      };
+      backdrop.addEventListener("click", onBackdropClick);
+      document.addEventListener("keydown", onNoticeKeydown);
+      noticeCleanupTasks.push(() => {
+        trigger.removeEventListener("click", openNotice);
+        closeButton.removeEventListener("click", closeNotice);
+        scrollArea.removeEventListener("scroll", updateNoticeScrollbar);
+        modal.removeEventListener("wheel", stopNoticeWheel);
+        backdrop.removeEventListener("wheel", stopNoticeWheel);
+        window.removeEventListener("resize", updateNoticeScrollbar);
+        backdrop.removeEventListener("click", onBackdropClick);
+        document.removeEventListener("keydown", onNoticeKeydown);
       });
 
       let hiddenToday = false;
@@ -350,13 +379,20 @@ const fallingTags = [
       }
 
       if (!hiddenToday) {
-        window.setTimeout(openNotice, 520);
+        const autoOpenTimer = window.setTimeout(openNoticeAutomatically, 520);
+        noticeCleanupTasks.push(() => window.clearTimeout(autoOpenTimer));
       }
     })();
   </script>
 
-  <script>
+  <script data-astro-rerun>
     (() => {
+      window.__yuimiHomeRainCleanup?.();
+      const cleanupTasks = [];
+      window.__yuimiHomeRainCleanup = () => {
+        cleanupTasks.splice(0).forEach((cleanup) => cleanup());
+      };
+
       const stage = document.querySelector("[data-tag-rain]");
       const canvas = document.querySelector("[data-tag-rain-canvas]");
       if (!stage || !canvas) return;
@@ -379,7 +415,7 @@ const fallingTags = [
       const dateTarget = document.querySelector("[data-home-date]");
       const timeTarget = document.querySelector("[data-home-time]");
       const weatherTarget = document.querySelector("[data-home-weather]");
-      const locationCacheKey = "yuimi-home-local-signal-v2";
+      const locationCacheKey = "yuimi-home-local-signal-v3";
       const tencentMapKey = "PDHBZ-Q6QAT-W7NXN-VIUTJ-PPEUV-C5F3P";
       const weatherCodeText = {
         0: "晴",
@@ -423,6 +459,37 @@ const fallingTags = [
 
       const jsonp = (url, params = {}, timeout = 7000) => {
         const callbackName = `yuimiMapCallback_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        const query = new URLSearchParams({ ...params, callback: callbackName });
+        const separator = url.includes("?") ? "&" : "?";
+        const script = document.createElement("script");
+
+        return new Promise((resolve, reject) => {
+          const timer = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("JSONP timeout"));
+          }, timeout);
+
+          const cleanup = () => {
+            window.clearTimeout(timer);
+            delete window[callbackName];
+            script.remove();
+          };
+
+          window[callbackName] = (data) => {
+            cleanup();
+            resolve(data);
+          };
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("JSONP failed"));
+          };
+          script.src = `${url}${separator}${query.toString()}`;
+          document.head.appendChild(script);
+        });
+      };
+
+      const jsonpText = (url, params = {}, timeout = 7000) => {
+        const callbackName = `yuimiIpCallback_${Date.now()}_${Math.random().toString(16).slice(2)}`;
         const query = new URLSearchParams({ ...params, callback: callbackName });
         const separator = url.includes("?") ? "&" : "?";
         const script = document.createElement("script");
@@ -502,6 +569,20 @@ const fallingTags = [
         };
       };
 
+      const getTencentNewsIpLocation = async () => {
+        const data = await jsonpText("https://r.inews.qq.com/api/ip2city", {
+          otype: "jsonp"
+        });
+        if (Number(data?.ret) !== 0) throw new Error(data?.errMsg || "Tencent news location failed");
+        const place = [data.province, data.city, data.district].filter(Boolean).join(" ") || data.country || "本地时区";
+        return {
+          place,
+          latitude: 31.2304,
+          longitude: 121.4737,
+          approximate: true
+        };
+      };
+
       const getIpLocation = async () => {
         try {
           return await getTencentIpLocation();
@@ -509,7 +590,11 @@ const fallingTags = [
           try {
             return await getFallbackIpLocation();
           } catch {
-            return getPconlineIpLocation();
+            try {
+              return await getTencentNewsIpLocation();
+            } catch {
+              return getPconlineIpLocation();
+            }
           }
         }
       };
@@ -532,18 +617,22 @@ const fallingTags = [
           weatherTarget.textContent = cached.label;
           return;
         }
-        if (localStorage.getItem("yuimi-home-local-signal-v1")) {
-          localStorage.removeItem("yuimi-home-local-signal-v1");
+        ["yuimi-home-local-signal-v1", "yuimi-home-local-signal-v2"].forEach((oldKey) => {
+          if (localStorage.getItem(oldKey)) localStorage.removeItem(oldKey);
+        });
+        if (cached.place === "本地时区" || cached.label?.includes("本地时区")) {
+          localStorage.removeItem(locationCacheKey);
         }
 
         weatherTarget.textContent = "定位电波接收中...";
+        let location;
         try {
-          let location;
-          try {
-            location = await getIpLocation();
-          } catch {
-            location = getTimezoneLocation();
-          }
+          location = await getIpLocation();
+        } catch {
+          location = getTimezoneLocation();
+        }
+
+        try {
           if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) {
             throw new Error("No location");
           }
@@ -572,8 +661,15 @@ const fallingTags = [
             updatedAt: Date.now()
           });
         } catch {
-          const fallbackZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "本地时区";
-          weatherTarget.textContent = `${fallbackZone} · 天气信号迷路中`;
+          const label = `${location.place} · 天气信号迷路中`;
+          weatherTarget.textContent = label;
+          writeJsonCache(locationCacheKey, {
+            label,
+            place: location.place,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            updatedAt: Date.now()
+          });
         }
       };
 
@@ -597,7 +693,8 @@ const fallingTags = [
         }
       };
       updateHomeClock();
-      window.setInterval(updateHomeClock, 1000);
+      const clockTimer = window.setInterval(updateHomeClock, 1000);
+      cleanupTasks.push(() => window.clearInterval(clockTimer));
       updateHomeWeather();
 
       const palette = [
@@ -706,6 +803,7 @@ const fallingTags = [
         state.lastTime = performance.now();
         state.nextDrop = 0;
         stage.classList.add("is-raining");
+        window.cancelAnimationFrame(state.raf);
         state.raf = window.requestAnimationFrame(tick);
       };
 
@@ -935,24 +1033,49 @@ const fallingTags = [
           : null;
         observer?.observe(stage);
         window.addEventListener("scroll", onScroll, { passive: true });
+        cleanupTasks.push(() => {
+          observer?.disconnect();
+          window.removeEventListener("scroll", onScroll);
+        });
         onScroll();
       }
-      window.addEventListener("resize", () => {
+      const onResize = () => {
         resize();
         state.bodies.forEach((body) => {
           body.x = clamp(body.x, body.radius + 10, state.width - body.radius - 10);
           body.y = Math.min(body.y, state.stageHeight - 24 - body.radius);
         });
-      });
-      document.addEventListener("visibilitychange", () => {
+      };
+      const onVisibilityChange = () => {
         state.visible = document.visibilityState === "visible";
         state.lastTime = performance.now();
+        if (state.visible && state.started && !state.done && !state.raf) {
+          state.raf = window.requestAnimationFrame(tick);
+        }
+      };
+      const onPageHide = () => {
+        window.cancelAnimationFrame(state.raf);
+        state.raf = 0;
+      };
+      window.addEventListener("resize", onResize);
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      window.addEventListener("pagehide", onPageHide);
+      cleanupTasks.push(() => {
+        window.cancelAnimationFrame(state.raf);
+        window.removeEventListener("resize", onResize);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        window.removeEventListener("pagehide", onPageHide);
       });
-      window.addEventListener("pagehide", () => window.cancelAnimationFrame(state.raf));
     })();
   </script>
 
-  <script>
+  <script data-astro-rerun>
+    window.__yuimiHeroCleanup?.();
+    const heroCleanupTasks = [];
+    window.__yuimiHeroCleanup = () => {
+      heroCleanupTasks.splice(0).forEach((cleanup) => cleanup());
+    };
+
     const stage = document.querySelector("[data-hero-stage]");
     const hero = stage?.querySelector(".hero");
     const typingTarget = document.querySelector("[data-terminal-typing]");
@@ -975,6 +1098,15 @@ const fallingTags = [
     let state = "idle";
     let resetTimer = 0;
     let releaseTimer = 0;
+    const typingTimers = new Set();
+
+    const setTypingTimer = (callback, delay) => {
+      const timer = window.setTimeout(() => {
+        typingTimers.delete(timer);
+        callback();
+      }, delay);
+      typingTimers.add(timer);
+    };
 
     const runTypingLoop = (target, lines, writeDelay = 58, eraseDelay = 32, holdDelay = 1250) => {
       if (!target) return;
@@ -989,25 +1121,25 @@ const fallingTags = [
 
         if (!deleting && charIndex < line.length) {
           charIndex += 1;
-          window.setTimeout(tick, writeDelay);
+          setTypingTimer(tick, writeDelay);
           return;
         }
 
         if (!deleting && charIndex === line.length) {
           deleting = true;
-          window.setTimeout(tick, holdDelay);
+          setTypingTimer(tick, holdDelay);
           return;
         }
 
         if (deleting && charIndex > 0) {
           charIndex -= 1;
-          window.setTimeout(tick, eraseDelay);
+          setTypingTimer(tick, eraseDelay);
           return;
         }
 
         deleting = false;
         lineIndex = (lineIndex + 1) % lines.length;
-        window.setTimeout(tick, 360);
+        setTypingTimer(tick, 360);
       };
 
       tick();
@@ -1134,17 +1266,17 @@ const fallingTags = [
       }, 1700);
     };
 
-    pokeAvatar?.addEventListener("pointermove", (event) => {
+    const handlePokeMove = (event) => {
       const rect = pokeAvatar.getBoundingClientRect();
       const offset = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
       pokeAvatar.style.setProperty("--flower-sway", `${offset * 9}deg`);
-    });
+    };
 
-    pokeAvatar?.addEventListener("pointerleave", () => {
+    const handlePokeLeave = () => {
       pokeAvatar.style.setProperty("--flower-sway", "0deg");
-    });
+    };
 
-    pokeAvatar?.addEventListener("dblclick", (event) => {
+    const handlePokeDoubleClick = (event) => {
       event.preventDefault();
       const now = Date.now();
       if (now - lastPokeAt < 10000) {
@@ -1158,6 +1290,15 @@ const fallingTags = [
       pokeAvatar.classList.add("is-poked");
       showPokeBubble("\u6233\u5230\u4e86~");
       window.setTimeout(() => pokeAvatar.classList.remove("is-poked"), 720);
+    };
+
+    pokeAvatar?.addEventListener("pointermove", handlePokeMove);
+    pokeAvatar?.addEventListener("pointerleave", handlePokeLeave);
+    pokeAvatar?.addEventListener("dblclick", handlePokeDoubleClick);
+    heroCleanupTasks.push(() => {
+      pokeAvatar?.removeEventListener("pointermove", handlePokeMove);
+      pokeAvatar?.removeEventListener("pointerleave", handlePokeLeave);
+      pokeAvatar?.removeEventListener("dblclick", handlePokeDoubleClick);
     });
 
     setProgress(0);
@@ -1165,5 +1306,17 @@ const fallingTags = [
     window.addEventListener("wheel", handleHeroWheel, { passive: false });
     window.addEventListener("scroll", handleHeroScroll, { passive: true });
     window.addEventListener("resize", handleHeroScroll);
+    window.addEventListener("pageshow", handleHeroScroll);
+    heroCleanupTasks.push(() => {
+      window.clearTimeout(resetTimer);
+      window.clearTimeout(releaseTimer);
+      window.clearTimeout(bubbleTimer);
+      typingTimers.forEach((timer) => window.clearTimeout(timer));
+      typingTimers.clear();
+      window.removeEventListener("wheel", handleHeroWheel);
+      window.removeEventListener("scroll", handleHeroScroll);
+      window.removeEventListener("resize", handleHeroScroll);
+      window.removeEventListener("pageshow", handleHeroScroll);
+    });
   </script>
 </BaseLayout>
