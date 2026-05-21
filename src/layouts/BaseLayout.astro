@@ -151,10 +151,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       </footer>
     </div>
     <script>
-      const pigScrollbar = document.querySelector("[data-pig-scrollbar]");
       let pigScrollTimer = 0;
 
       const updatePigScrollbar = () => {
+        const pigScrollbar = document.querySelector("[data-pig-scrollbar]");
         if (!pigScrollbar) return;
 
         const scrollable = document.documentElement.scrollHeight - window.innerHeight;
@@ -175,6 +175,9 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       updatePigScrollbar();
       window.addEventListener("scroll", updatePigScrollbar, { passive: true });
       window.addEventListener("resize", updatePigScrollbar);
+      document.addEventListener("astro:page-load", updatePigScrollbar);
+      document.addEventListener("astro:after-swap", updatePigScrollbar);
+      window.addEventListener("pageshow", updatePigScrollbar);
 
       const padTimer = (value) => String(value).padStart(2, "0");
       const getElapsedParts = (startDate) => {
@@ -215,27 +218,39 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       document.addEventListener("astro:after-swap", updateFooterTimers);
       window.addEventListener("pageshow", updateFooterTimers);
 
-      const toyDock = document.querySelector(".toy-dock");
-      const toyDockHandle = document.querySelector(".toy-dock-handle");
       let toyDockCloseTimer = 0;
-      toyDockHandle?.addEventListener("click", () => {
+      const getToyDock = () => document.querySelector(".toy-dock");
+      const isInsideToyDock = (target) => {
+        const toyDock = getToyDock();
+        return Boolean(toyDock && target instanceof Node && toyDock.contains(target));
+      };
+      document.addEventListener("click", (event) => {
+        const handle = event.target instanceof Element ? event.target.closest(".toy-dock-handle") : null;
+        if (!handle) return;
+        const toyDock = getToyDock();
         toyDock?.classList.toggle("is-pinned");
       });
-      toyDock?.addEventListener("mouseenter", () => {
+      document.addEventListener("pointerover", (event) => {
+        if (!isInsideToyDock(event.target) || isInsideToyDock(event.relatedTarget)) return;
         window.clearTimeout(toyDockCloseTimer);
       });
-      toyDock?.addEventListener("mouseleave", () => {
+      document.addEventListener("pointerout", (event) => {
+        if (!isInsideToyDock(event.target) || isInsideToyDock(event.relatedTarget)) return;
+        const toyDock = getToyDock();
+        if (!toyDock) return;
         if (toyDock.classList.contains("is-pinned")) return;
         toyDockCloseTimer = window.setTimeout(() => {
           toyDock.querySelector(":focus")?.blur();
         }, 180);
       });
       window.addEventListener("pointerdown", (event) => {
+        const toyDock = getToyDock();
         if (!toyDock || toyDock.contains(event.target)) return;
         toyDock.classList.remove("is-pinned");
         toyDock.querySelector(":focus")?.blur();
       });
       window.addEventListener("keydown", (event) => {
+        const toyDock = getToyDock();
         if (event.key !== "Escape" || !toyDock) return;
         toyDock.classList.remove("is-pinned");
         toyDock.querySelector(":focus")?.blur();
@@ -810,14 +825,15 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       });
 
       const sakuraStateKey = "yuimi-sakura-enabled-v1";
-      const contextMenu = document.querySelector("[data-context-menu]");
-      const hideContextMenu = () => contextMenu?.classList.remove("is-open");
+      const getContextMenu = () => document.querySelector("[data-context-menu]");
+      const hideContextMenu = () => getContextMenu()?.classList.remove("is-open");
       const isSakuraEnabled = () => localStorage.getItem(sakuraStateKey) !== "0";
       const setSakuraEnabled = (enabled) => {
         localStorage.setItem(sakuraStateKey, enabled ? "1" : "0");
         document.body.classList.toggle("hide-sakura", !enabled);
       };
       const updateContextToggleLabels = () => {
+        const contextMenu = getContextMenu();
         const sakuraButton = contextMenu?.querySelector('[data-context-action="sakura"]');
         const musicAutoplayButton = contextMenu?.querySelector('[data-context-action="music-autoplay"]');
         const sakuraEnabled = isSakuraEnabled();
@@ -837,6 +853,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       window.addEventListener("yuimi:music-autoplay-change", updateContextToggleLabels);
 
       window.addEventListener("contextmenu", (event) => {
+        const contextMenu = getContextMenu();
         if (!contextMenu) return;
         event.preventDefault();
         updateContextToggleLabels();
@@ -848,15 +865,18 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         contextMenu.style.setProperty("--menu-y", `${Math.max(12, y)}px`);
         contextMenu.classList.add("is-open");
       });
-      window.addEventListener("click", hideContextMenu);
       window.addEventListener("keydown", (event) => {
         if (event.key === "Escape") hideContextMenu();
       });
-      contextMenu?.addEventListener("click", async (event) => {
-        event.stopPropagation();
-        const button = event.target.closest("[data-context-action]");
-        if (!button) return;
+      window.addEventListener("click", async (event) => {
+        const contextMenu = getContextMenu();
+        const button = event.target instanceof Element ? event.target.closest("[data-context-action]") : null;
+        if (!button || !contextMenu?.contains(button)) {
+          hideContextMenu();
+          return;
+        }
 
+        event.stopPropagation();
         const action = button.dataset.contextAction;
         if (action === "top") window.scrollTo({ top: 0, behavior: "smooth" });
         if (action === "refresh") window.location.reload();
