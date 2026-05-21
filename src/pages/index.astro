@@ -1070,6 +1070,7 @@ const fallingTags = [
   </script>
 
   <script data-astro-rerun>
+    (() => {
     window.__yuimiHeroCleanup?.();
     const heroCleanupTasks = [];
     window.__yuimiHeroCleanup = () => {
@@ -1082,10 +1083,10 @@ const fallingTags = [
     const nameTarget = document.querySelector("[data-name-typing]");
 
     const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
-    const pullDistance = 240;
-    const dockThreshold = 0.44;
-    const resetDelay = 360;
-    const releaseDelay = 180;
+    const pullDistance = 260;
+    const dockThreshold = 0.56;
+    const resetDelay = 260;
+    const releaseDelay = 120;
     const terminalLines = [
       "pin --dev-notes --anime-diary",
       "collect \"blue moments\" && write",
@@ -1166,10 +1167,27 @@ const fallingTags = [
 
     const resetPull = () => {
       if (state === "passed") return;
+      window.clearTimeout(resetTimer);
+      window.clearTimeout(releaseTimer);
       pull = 0;
       state = "idle";
       hero?.classList.remove("is-docked", "is-pulling");
       setProgress(0);
+    };
+
+    const settlePull = () => {
+      if (state !== "pulling") return;
+
+      if (pull / pullDistance >= dockThreshold) {
+        dockProfile();
+      } else {
+        resetPull();
+      }
+    };
+
+    const schedulePullSettle = () => {
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(settlePull, resetDelay);
     };
 
     const dockProfile = () => {
@@ -1197,16 +1215,26 @@ const fallingTags = [
 
       if (event.deltaY < 0) {
         event.preventDefault();
-        window.clearTimeout(resetTimer);
         window.clearTimeout(releaseTimer);
-        pull = state === "passed" || state === "docked"
-          ? 0
-          : clamp(pull + event.deltaY, 0, pullDistance);
+
+        if (state === "passed" || state === "docked") {
+          pull = 0;
+          state = "idle";
+          hero.classList.remove("is-docked", "is-pulling");
+          setProgress(0);
+          return;
+        }
+
+        pull = clamp(pull + event.deltaY * 0.82, 0, pullDistance);
         state = pull > 0 ? "pulling" : "idle";
         hero.classList.toggle("is-pulling", state === "pulling");
         hero.classList.remove("is-docked");
         setProgress(pull / pullDistance);
-        resetTimer = window.setTimeout(resetPull, resetDelay);
+        if (state === "pulling") {
+          schedulePullSettle();
+        } else {
+          window.clearTimeout(resetTimer);
+        }
         return;
       }
 
@@ -1217,21 +1245,17 @@ const fallingTags = [
       }
 
       event.preventDefault();
-      window.clearTimeout(resetTimer);
+      window.clearTimeout(releaseTimer);
 
       const resistance = 1 - clamp(pull / pullDistance) * 0.5;
       pull = clamp(pull + event.deltaY * resistance, 0, pullDistance);
       const progress = pull / pullDistance;
 
       hero.classList.add("is-pulling");
+      hero.classList.remove("is-docked");
+      state = "pulling";
       setProgress(progress);
-
-      if (progress >= dockThreshold) {
-        dockProfile();
-      } else {
-        state = "pulling";
-        resetTimer = window.setTimeout(resetPull, resetDelay);
-      }
+      schedulePullSettle();
     };
 
     const handleHeroScroll = () => {
@@ -1318,5 +1342,6 @@ const fallingTags = [
       window.removeEventListener("resize", handleHeroScroll);
       window.removeEventListener("pageshow", handleHeroScroll);
     });
+    })();
   </script>
 </BaseLayout>

@@ -176,7 +176,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       window.addEventListener("scroll", updatePigScrollbar, { passive: true });
       window.addEventListener("resize", updatePigScrollbar);
 
-      const timerNodes = document.querySelectorAll("[data-elapsed-from]");
       const padTimer = (value) => String(value).padStart(2, "0");
       const getElapsedParts = (startDate) => {
         const diff = Math.max(0, Date.now() - startDate.getTime());
@@ -201,6 +200,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       };
 
       const updateFooterTimers = () => {
+        const timerNodes = document.querySelectorAll("[data-elapsed-from]");
         timerNodes.forEach((node) => {
           const start = new Date(node.dataset.elapsedFrom);
           if (Number.isNaN(start.getTime())) return;
@@ -211,6 +211,9 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 
       updateFooterTimers();
       window.setInterval(updateFooterTimers, 1000);
+      document.addEventListener("astro:page-load", updateFooterTimers);
+      document.addEventListener("astro:after-swap", updateFooterTimers);
+      window.addEventListener("pageshow", updateFooterTimers);
 
       const toyDock = document.querySelector(".toy-dock");
       const toyDockHandle = document.querySelector(".toy-dock-handle");
@@ -244,12 +247,49 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       const live2dMessage = document.querySelector("[data-live2d-message]");
       const live2dModel = document.querySelector("[data-live2d-model]");
       const live2dTexture = document.querySelector("[data-live2d-texture]");
+      const live2dWidget = live2dStatus?.closest(".live2d-control-widget");
+      const live2dControls = [live2dToggle, live2dMessage, live2dModel, live2dTexture].filter(Boolean);
       let live2dVisible = true;
       let live2dReady = false;
       let live2dInitStarted = false;
 
       const setLive2dStatus = (text) => {
         if (live2dStatus) live2dStatus.textContent = text;
+      };
+
+      const isHomeRoute = () => {
+        const path = window.location.pathname.replace(/\/index\.html$/, "/");
+        return path === "/";
+      };
+
+      const setLive2dControlsLocked = (locked) => {
+        live2dWidget?.classList.toggle("is-route-locked", locked);
+        live2dControls.forEach((button) => {
+          button.disabled = locked;
+          button.setAttribute("aria-disabled", String(locked));
+        });
+        if (locked) {
+          if (live2dToggle) live2dToggle.textContent = "仅首页可用";
+          setLive2dStatus("看板娘只在首页出现，阅读页先让出视野。");
+        }
+      };
+
+      const hasLive2dWidget = () => {
+        const waifu = document.getElementById("waifu");
+        const canvas = document.getElementById("live2d");
+        if (!waifu || !canvas) return false;
+        const canvasRect = canvas.getBoundingClientRect();
+        return canvasRect.width > 80 && canvasRect.height > 80;
+      };
+
+      const removeLive2dWidget = () => {
+        removeLocalWaifuFallback();
+        document.getElementById("waifu")?.remove();
+        document.getElementById("waifu-toggle")?.remove();
+        document.getElementById("waifu-tool")?.remove();
+        live2dReady = false;
+        live2dInitStarted = false;
+        live2dVisible = false;
       };
 
       const resetLive2dStorage = () => {
@@ -272,13 +312,14 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         document.head.appendChild(tag);
       });
 
-      const setWaifuVisibility = (visible) => {
+      const setWaifuVisibility = (visible, options = {}) => {
+        const { persist = true } = options;
         const waifu = document.getElementById("waifu");
         live2dVisible = visible;
-        live2dToggle.textContent = visible ? "隐藏看板娘" : "显示看板娘";
+        if (live2dToggle) live2dToggle.textContent = visible ? "隐藏看板娘" : "显示看板娘";
         setLive2dStatus(visible ? "看板娘正在左下角待机。" : "看板娘已收起。");
         if (visible) {
-          localStorage.removeItem("waifu-display");
+          if (persist) localStorage.removeItem("waifu-display");
         }
         if (!waifu) return;
 
@@ -287,7 +328,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
           window.setTimeout(() => waifu.classList.add("waifu-active"), 0);
         } else {
           waifu.classList.remove("waifu-active");
-          localStorage.setItem("waifu-display", Date.now().toString());
+          if (persist) localStorage.setItem("waifu-display", Date.now().toString());
           window.setTimeout(() => waifu.classList.add("waifu-hidden"), 320);
         }
       };
@@ -311,6 +352,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       };
 
       const ensureLocalWaifuFallback = () => {
+        if (!isHomeRoute()) return;
         if (document.querySelector(".waifu-local-fallback")) return;
         const fallback = document.createElement("div");
         fallback.className = "waifu-local-fallback";
@@ -329,6 +371,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       };
 
       const activateWaifuFallbackIfBlank = () => {
+        if (!isHomeRoute()) {
+          removeLocalWaifuFallback();
+          return;
+        }
         const waifu = document.getElementById("waifu");
         const canvas = document.getElementById("live2d");
         if (!waifu || !canvas || waifu.classList.contains("waifu-hidden")) return;
@@ -345,6 +391,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       };
 
       const reconcileWaifuFallback = () => {
+        if (!isHomeRoute()) {
+          removeLocalWaifuFallback();
+          return;
+        }
         const waifu = document.getElementById("waifu");
         const canvas = document.getElementById("live2d");
         if (!waifu || !canvas || waifu.classList.contains("waifu-hidden")) return;
@@ -356,10 +406,18 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       };
 
       const initLive2dWidget = async () => {
+        if (!isHomeRoute()) return;
+        if (hasLive2dWidget()) {
+          live2dReady = true;
+          live2dInitStarted = false;
+          setWaifuVisibility(true, { persist: false });
+          return;
+        }
         if (live2dInitStarted) return;
         live2dInitStarted = true;
         try {
           resetLive2dStorage();
+          setLive2dControlsLocked(false);
           await Promise.all([
             loadExternalResource(`${live2dBase}waifu.css`, "css"),
             loadExternalResource(`${live2dBase}waifu-tips.js`, "js")
@@ -375,7 +433,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
           });
           live2dReady = true;
           live2dVisible = true;
-          live2dToggle.textContent = "隐藏看板娘";
+          if (live2dToggle) live2dToggle.textContent = "隐藏看板娘";
           setLive2dStatus("看板娘正在左下角待机。");
           waitForWaifu((waifu) => {
             waifu.classList.remove("waifu-hidden");
@@ -392,18 +450,52 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       };
 
       const hardReloadLive2d = () => {
-        removeLocalWaifuFallback();
-        document.getElementById("waifu")?.remove();
-        document.getElementById("waifu-toggle")?.remove();
+        if (!isHomeRoute()) return;
+        removeLive2dWidget();
         resetLive2dStorage();
+        initLive2dWidget();
+      };
+
+      const hideLive2dForRoute = () => {
+        removeLocalWaifuFallback();
+        const waifu = document.getElementById("waifu");
+        if (waifu) {
+          waifu.classList.remove("waifu-active");
+          waifu.classList.add("waifu-hidden");
+        }
+        live2dInitStarted = false;
+        live2dVisible = false;
+      };
+
+      const syncLive2dRouteState = () => {
+        if (!isHomeRoute()) {
+          hideLive2dForRoute();
+          setLive2dControlsLocked(true);
+          return;
+        }
+
+        setLive2dControlsLocked(false);
+        if (hasLive2dWidget()) {
+          setWaifuVisibility(true, { persist: false });
+          window.setTimeout(reconcileWaifuFallback, 800);
+          return;
+        }
+        if (document.getElementById("waifu")) {
+          hardReloadLive2d();
+          return;
+        }
         live2dReady = false;
         live2dInitStarted = false;
         initLive2dWidget();
       };
 
-      initLive2dWidget();
+      syncLive2dRouteState();
+      document.addEventListener("astro:page-load", syncLive2dRouteState);
+      document.addEventListener("astro:after-swap", syncLive2dRouteState);
+      window.addEventListener("pageshow", syncLive2dRouteState);
 
       live2dToggle?.addEventListener("click", () => {
+        if (!isHomeRoute()) return;
         if (!live2dReady && !document.getElementById("waifu")) {
           initLive2dWidget();
           return;
@@ -415,15 +507,18 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         setWaifuVisibility(!live2dVisible);
       });
       live2dMessage?.addEventListener("click", () => {
+        if (!isHomeRoute()) return;
         setWaifuVisibility(true);
         waitForWaifu((waifu) => waifu.classList.add("waifu-active"));
         window.setTimeout(reconcileWaifuFallback, 800);
         showWaifuMessage("我在这里。要不要继续给博客堆一点可爱的功能？");
       });
       live2dModel?.addEventListener("click", () => {
+        if (!isHomeRoute()) return;
         hardReloadLive2d();
       });
       live2dTexture?.addEventListener("click", () => {
+        if (!isHomeRoute()) return;
         hardReloadLive2d();
       });
 
