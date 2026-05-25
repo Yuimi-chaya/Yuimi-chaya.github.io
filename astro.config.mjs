@@ -9,6 +9,8 @@ import rehypeExpressiveCode from "rehype-expressive-code";
 import * as pagefind from "pagefind";
 import { fileURLToPath } from "node:url";
 
+import cloudflare from "@astrojs/cloudflare";
+
 const expressiveCodeOptions = {
   themes: ["github-dark"],
   defaultProps: {
@@ -86,6 +88,7 @@ const pagefindIntegration = () => ({
 export default defineConfig({
   site: "https://yuimi-chaya.github.io",
   output: "static",
+
   integrations: [
     expressiveCode(expressiveCodeOptions),
     sitemap(),
@@ -123,6 +126,7 @@ export default defineConfig({
     }),
     pagefindIntegration()
   ],
+
   markdown: {
     syntaxHighlight: false,
     gfm: true,
@@ -146,7 +150,10 @@ export default defineConfig({
       [rehypeExpressiveCode, expressiveCodeOptions]
     ]
   },
+
   devToolbar: {
     enabled: false
-  }
+  },
+
+  adapter: cloudflare()
 });

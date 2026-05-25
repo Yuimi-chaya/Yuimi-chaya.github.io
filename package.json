@@ -6,12 +6,15 @@
   "scripts": {
     "dev": "astro dev",
     "build": "npm run generate:assets && astro build",
-    "preview": "astro preview",
+    "preview": "npm run build && wrangler dev",
     "generate:assets": "node scripts/generate-assets.mjs",
     "optimize:images": "node scripts/optimize-images.mjs",
-    "upload:images": "node scripts/upload-images-to-scdn.mjs"
+    "upload:images": "node scripts/upload-images-to-scdn.mjs",
+    "generate-types": "wrangler types",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^13.5.4",
     "@astrojs/sitemap": "^3.7.2",
     "@iconify-json/simple-icons": "^1.2.83",
     "@iconify-json/tabler": "^1.2.35",
@@ -24,6 +27,10 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "wrangler": "^4.94.0"
+  },
+  "overrides": {
+    "vite": "^7"
   }
 }
