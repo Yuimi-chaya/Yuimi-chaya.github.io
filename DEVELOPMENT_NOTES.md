@@ -46,7 +46,8 @@
 - Shared content assets: `public/blog-assets/`, `public/blog-covers/`, Markdown content images.
 - Fuyukawa Kagari theme assets: `public/themes/fuyukawa-kagari/assets/`, `public/themes/fuyukawa-kagari/music/`, Live2D CDN configuration, homepage background/avatars/brand images, About media, and the 404 visual.
 - External Fuyukawa Kagari runtime dependencies: jsDelivr Live2D packages, Cubism SDK, location/weather endpoints.
-- Kisara presentation assets: none in the prototype. Root `kisara/` images remain user-owned source material and are intentionally unreferenced.
+- Kisara presentation assets: only a generated dark placeholder at `public/themes/kisara/assets/gate-background.jpg`. Root `kisara/` images remain user-owned source material and are intentionally unreferenced.
+- Kisara gate custom background slot: replace `public/themes/kisara/assets/gate-background.jpg` to compare artwork without editing the page or CSS; the theme also keeps a dark color fallback.
 - Historical or unreferenced candidates remain untouched until a later cleanup request; absence of a current reference is not deletion approval.
 
 ## Migration Map
@@ -102,6 +103,7 @@
 - Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask and crest continue smoothly between wheel events. Document scrolling is released only after the visible level settles at 100%.
 - Escape paths: reduced-motion users start completed, restored pages below the top are synchronized to completed, and an explicit `SKIP` link bypasses the gate.
 - Boundary: no root `kisara/` source image is imported, copied, staged, or published.
+- Local helper: root `preview-blog.bat` runs `npm run build` first and starts `npm run dev -- --host 127.0.0.1` only after a successful build.
 
 ## Known Risks
 
