@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const jobs = [
   {
-    dir: "public/assets",
+    dir: "public/themes/fuyukawa-kagari/assets",
     files: ["hero-wallpaper.jpg", "fuyukawa-kagari-bg.png"],
     maxWidth: 1920,
     quality: 76

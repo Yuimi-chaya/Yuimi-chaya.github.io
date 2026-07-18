@@ -1,0 +1,130 @@
+---
+import {
+  DEFAULT_THEME_ID,
+  THEME_STORAGE_KEY,
+  themes,
+  type ThemeId
+} from "./registry";
+
+interface Props {
+  currentTheme: ThemeId;
+  honorPreference?: boolean;
+}
+
+const { currentTheme, honorPreference = true } = Astro.props;
+const config = {
+  currentTheme,
+  honorPreference,
+  defaultTheme: DEFAULT_THEME_ID,
+  storageKey: THEME_STORAGE_KEY,
+  themes: themes.map(({ id, label, routePrefix }) => ({ id, label, routePrefix }))
+};
+---
+
+<script is:inline define:vars={{ config }}>
+  (() => {
+    const themeIds = config.themes.map((theme) => theme.id);
+
+    const readPreference = () => {
+      try {
+        return window.localStorage.getItem(config.storageKey);
+      } catch {
+        return null;
+      }
+    };
+
+    const writePreference = (themeId) => {
+      try {
+        window.localStorage.setItem(config.storageKey, themeId);
+      } catch {
+        // Direct themed routes still work when storage is unavailable.
+      }
+    };
+
+    const clearPreference = () => {
+      try {
+        window.localStorage.removeItem(config.storageKey);
+      } catch {
+        // Ignore unavailable storage and continue with the default theme.
+      }
+    };
+
+    const canonicalPath = (pathname) => {
+      const normalized = pathname && pathname.startsWith("/") ? pathname : `/${pathname || ""}`;
+      const prefixed = [...config.themes]
+        .filter((theme) => theme.routePrefix)
+        .sort((a, b) => b.routePrefix.length - a.routePrefix.length);
+
+      for (const theme of prefixed) {
+        if (normalized === theme.routePrefix || normalized === `${theme.routePrefix}/`) return "/";
+        if (normalized.startsWith(`${theme.routePrefix}/`)) {
+          return normalized.slice(theme.routePrefix.length) || "/";
+        }
+      }
+
+      return normalized || "/";
+    };
+
+    const pathForTheme = (themeId, pathname) => {
+      const target = config.themes.find((theme) => theme.id === themeId)
+        || config.themes.find((theme) => theme.id === config.defaultTheme);
+      const path = canonicalPath(pathname);
+      if (!target || !target.routePrefix) return path;
+      return path === "/" ? `${target.routePrefix}/` : `${target.routePrefix}${path}`;
+    };
+
+    let storedTheme = readPreference();
+    if (storedTheme && !themeIds.includes(storedTheme)) {
+      clearPreference();
+      storedTheme = null;
+    }
+
+    const isHistoryTraversal = (() => {
+      try {
+        return window.performance.getEntriesByType("navigation")[0]?.type === "back_forward";
+      } catch {
+        return false;
+      }
+    })();
+
+    const isExplicitThemeRoute = config.currentTheme !== config.defaultTheme;
+    if (isExplicitThemeRoute) {
+      writePreference(config.currentTheme);
+    } else if (isHistoryTraversal) {
+      writePreference(config.currentTheme);
+    } else if (config.honorPreference && storedTheme && storedTheme !== config.currentTheme) {
+      const destination = pathForTheme(storedTheme, window.location.pathname)
+        + window.location.search
+        + window.location.hash;
+      window.location.replace(destination);
+      return;
+    } else if (config.honorPreference) {
+      writePreference(config.currentTheme);
+    }
+
+    document.documentElement.dataset.theme = config.currentTheme;
+    window.__yuimiTheme = {
+      current: config.currentTheme,
+      themes: config.themes,
+      pathFor: (themeId, pathname = window.location.pathname) => pathForTheme(themeId, pathname),
+      select: (themeId) => {
+        const targetTheme = themeIds.includes(themeId) ? themeId : config.defaultTheme;
+        writePreference(targetTheme);
+        if (targetTheme === config.currentTheme) return false;
+
+        const destination = pathForTheme(targetTheme, window.location.pathname)
+          + window.location.search
+          + window.location.hash;
+        window.location.assign(destination);
+        return true;
+      }
+    };
+
+    window.addEventListener("pageshow", (event) => {
+      if (!event.persisted) return;
+      writePreference(config.currentTheme);
+      document.documentElement.dataset.theme = config.currentTheme;
+      if (window.__yuimiTheme) window.__yuimiTheme.current = config.currentTheme;
+    });
+  })();
+</script>

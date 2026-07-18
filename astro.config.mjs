@@ -88,7 +88,9 @@ export default defineConfig({
   output: "static",
   integrations: [
     expressiveCode(expressiveCodeOptions),
-    sitemap(),
+    sitemap({
+      filter: (page) => !new URL(page).pathname.startsWith("/themes/")
+    }),
     icon({
       include: {
         tabler: [
@@ -108,7 +110,8 @@ export default defineConfig({
           "terminal-2",
           "flower",
           "mood-smile",
-          "chevron-down"
+          "chevron-down",
+          "palette"
         ],
         "simple-icons": [
           "unity",

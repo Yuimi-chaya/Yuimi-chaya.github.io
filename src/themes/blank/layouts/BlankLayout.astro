@@ -1,0 +1,155 @@
+---
+import "../styles/theme.css";
+import ThemePreferenceGate from "@/core/themes/ThemePreferenceGate.astro";
+import { getCanonicalPath, getThemePath, themes } from "@/core/themes/registry";
+import { site } from "@/lib/site";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = site.title, description = site.description } = Astro.props;
+const canonicalPath = getCanonicalPath(Astro.url.pathname);
+const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
+const navItems = site.nav.map((item) => ({
+  ...item,
+  href: getThemePath("blank", item.href)
+}));
+const themeOptions = themes.map((theme) => ({
+  ...theme,
+  href: getThemePath(theme.id, canonicalPath)
+}));
+---
+
+<!doctype html>
+<html lang="zh-CN" data-theme="blank">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f5f6f8" />
+    <meta name="robots" content="noindex,follow" />
+    <link rel="canonical" href={canonical} />
+    <ThemePreferenceGate currentTheme="blank" />
+    <title>{title}</title>
+  </head>
+  <body data-pagefind-ignore>
+    <a class="blank-skip-link" href="#blank-main">跳到正文</a>
+    <header class="blank-header">
+      <a class="blank-wordmark" href={getThemePath("blank", "/")}>
+        <strong>YUIMI LAB</strong>
+        <span>blank edition</span>
+      </a>
+      <nav class="blank-nav" aria-label="Blank theme navigation">
+        {navItems.map((item) => <a href={item.href}>{item.label}</a>)}
+      </nav>
+      <button class="blank-theme-return" type="button" data-theme-select="fuyukawa-kagari">
+        切回 Fuyukawa Kagari
+      </button>
+    </header>
+
+    <main id="blank-main" class="blank-main">
+      <slot />
+    </main>
+
+    <footer class="blank-footer">
+      <span>© 2026 喝益胃 / Yuimi Lab</span>
+      <span>Blank theme is a separate Astro frontend.</span>
+    </footer>
+
+    <nav class="blank-context-menu" data-blank-context-menu hidden aria-label="Blank theme context menu">
+      <p>THEME</p>
+      {
+        themeOptions.map((theme) => (
+          <button
+            type="button"
+            data-theme-select={theme.id}
+            aria-pressed={theme.id === "blank" ? "true" : "false"}
+          >
+            <span aria-hidden="true">{theme.id === "blank" ? "●" : "○"}</span>
+            <span>{theme.label}</span>
+          </button>
+        ))
+      }
+      <hr />
+      <button type="button" data-blank-action="top">回到顶部</button>
+      <button type="button" data-blank-action="home">Blank 首页</button>
+    </nav>
+
+    <script is:inline>
+      (() => {
+        const menu = document.querySelector("[data-blank-context-menu]");
+        if (!menu) return;
+        let menuReturnFocus = null;
+
+        const closeMenu = () => {
+          const shouldRestoreFocus = menu.contains(document.activeElement);
+          menu.hidden = true;
+          if (shouldRestoreFocus && menuReturnFocus instanceof HTMLElement) {
+            menuReturnFocus.focus({ preventScroll: true });
+          }
+        };
+
+        const showMenuAt = (clientX, clientY, focusFirst = false) => {
+          if (!menu.contains(document.activeElement)) {
+            const activeElement = document.activeElement;
+            menuReturnFocus = activeElement instanceof HTMLElement && activeElement !== document.body
+              ? activeElement
+              : document.querySelector(".blank-theme-return");
+          }
+          menu.hidden = false;
+          menu.style.left = "0px";
+          menu.style.top = "0px";
+          const rect = menu.getBoundingClientRect();
+          const left = Math.max(12, Math.min(clientX, window.innerWidth - rect.width - 12));
+          const top = Math.max(12, Math.min(clientY, window.innerHeight - rect.height - 12));
+          menu.style.left = `${left}px`;
+          menu.style.top = `${top}px`;
+          if (focusFirst) menu.querySelector("button")?.focus({ preventScroll: true });
+        };
+
+        const openMenu = (event) => {
+          event.preventDefault();
+          showMenuAt(event.clientX, event.clientY);
+        };
+
+        window.addEventListener("contextmenu", openMenu);
+        window.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") closeMenu();
+          if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
+            event.preventDefault();
+            const activeRect = document.activeElement?.getBoundingClientRect?.();
+            const x = activeRect ? activeRect.left + Math.min(activeRect.width, 28) : window.innerWidth / 2;
+            const y = activeRect ? activeRect.top + Math.min(activeRect.height, 28) : window.innerHeight / 2;
+            showMenuAt(x, y, true);
+          }
+        });
+
+        document.addEventListener("click", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const themeButton = target?.closest("[data-theme-select]");
+          if (themeButton) {
+            closeMenu();
+            window.__yuimiTheme?.select(themeButton.dataset.themeSelect);
+            return;
+          }
+
+          const actionButton = target?.closest("[data-blank-action]");
+          if (actionButton?.dataset.blankAction === "top") {
+            closeMenu();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            return;
+          }
+          if (actionButton?.dataset.blankAction === "home") {
+            closeMenu();
+            window.location.href = "/themes/blank/";
+            return;
+          }
+
+          if (!target?.closest("[data-blank-context-menu]")) closeMenu();
+        });
+      })();
+    </script>
+  </body>
+</html>

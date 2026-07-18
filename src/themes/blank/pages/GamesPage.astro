@@ -1,0 +1,34 @@
+---
+import BlankLayout from "../layouts/BlankLayout.astro";
+import { gamePicks } from "@/core/data/games";
+---
+
+<BlankLayout title="Games | Yuimi Lab Blank" description="Yuimi Lab 收藏的开源小游戏。">
+  <header class="blank-page-head">
+    <div>
+      <p class="blank-kicker">Playroom / external collection</p>
+      <h1>Games</h1>
+      <p>保留原作者、许可证、仓库和试玩链接；Blank 只负责这份收藏的独立排版。</p>
+    </div>
+    <span class="blank-page-index">PLAY</span>
+  </header>
+
+  <section class="blank-section blank-game-list" aria-label="游戏收藏">
+    {gamePicks.map((game) => (
+      <article>
+        <div class="blank-game-meta">
+          <span>{game.license}</span>
+          <span>{game.vibe}</span>
+        </div>
+        <h2>{game.name}</h2>
+        <p>{game.summary}</p>
+        <p><strong>Author:</strong> {game.author}</p>
+        <div class="blank-game-links">
+          <a href={game.play} target="_blank" rel="noreferrer">Play</a>
+          <a href={game.repo} target="_blank" rel="noreferrer">Repository</a>
+        </div>
+      </article>
+    ))}
+  </section>
+</BlankLayout>
+

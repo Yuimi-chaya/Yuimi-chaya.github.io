@@ -1,0 +1,69 @@
+---
+import BlankLayout from "../layouts/BlankLayout.astro";
+import { getPublishedPosts } from "@/core/content/blog";
+import { profileIdentity, profileTech } from "@/core/data/profile";
+import { getThemePath } from "@/core/themes/registry";
+
+const posts = (await getPublishedPosts()).slice(0, 4);
+const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+---
+
+<BlankLayout title="Yuimi Lab | Blank" description="Yuimi Lab 的独立空白主题入口。">
+  <section class="blank-home-hero">
+    <div>
+      <p class="blank-kicker">Theme 02 / blank frontend</p>
+      <h1>Yuimi Lab</h1>
+      <p>{profileIdentity.bio}</p>
+      <div class="blank-actions">
+        <a href={getThemePath("blank", "/blog/")}>阅读文章</a>
+        <a href={getThemePath("blank", "/about/")}>关于我</a>
+      </div>
+    </div>
+    <aside class="blank-home-aside">
+      <span class="blank-label">Independent surface</span>
+      <strong>同一份内容，另一套前端表达。</strong>
+      <p>这里不加载角色背景、Live2D、音乐、樱花或 Kagari 主题样式。</p>
+    </aside>
+  </section>
+
+  <section class="blank-section">
+    <div class="blank-section-title">
+      <h2>Latest notes</h2>
+      <a href={getThemePath("blank", "/blog/")}>全部文章</a>
+    </div>
+    <div class="blank-post-list">
+      {posts.map((post) => (
+        <a class="blank-post-row" href={getThemePath("blank", `/blog/${post.id}/`)}>
+          <time class="blank-date" datetime={post.data.pubDate.toISOString()}>
+            {dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}
+          </time>
+          <div>
+            <h2>{post.data.title}</h2>
+            <p>{post.data.description}</p>
+          </div>
+          <span aria-hidden="true">↗</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="blank-section">
+    <div class="blank-section-title">
+      <h2>Current lines</h2>
+      <span class="blank-label">shared profile data</span>
+    </div>
+    <dl class="blank-definition-list blank-two-column">
+      {profileTech.map((item) => (
+        <div>
+          <dt>{item.name}</dt>
+          <dd>{item.note}</dd>
+        </div>
+      ))}
+    </dl>
+  </section>
+</BlankLayout>
+

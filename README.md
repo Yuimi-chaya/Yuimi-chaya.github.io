@@ -46,10 +46,12 @@ category: "tech"
 ## 个性化
 
 - 站点名称、作者、导航：`src/lib/site.ts`
-- 首页结构：`src/pages/index.astro`
-- 全局样式：`src/styles/global.css`
+- 根路径入口：`src/pages/`
+- Fuyukawa Kagari 主题：`src/themes/fuyukawa-kagari/`
+- Blank 主题：`src/themes/blank/`
+- 共享内容与主题注册：`src/core/`
 - 本地视觉资产生成：`scripts/generate-assets.mjs`
-- 静态图片输出：`public/assets/`
+- Kagari 静态资源：`public/themes/fuyukawa-kagari/`
 
 ## GitHub Pages
 

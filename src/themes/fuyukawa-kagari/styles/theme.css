@@ -971,7 +971,9 @@ img {
   left: var(--menu-x);
   z-index: 60;
   display: grid;
-  width: 188px;
+  width: 220px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
   gap: 6px;
   padding: 8px;
   background:
@@ -984,10 +986,12 @@ img {
     0 18px 42px rgba(67, 82, 106, 0.2);
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
   transform: translateY(6px) scale(0.98);
   transition:
     opacity 130ms ease,
-    transform 130ms ease;
+    transform 130ms ease,
+    visibility 0s linear 130ms;
   backdrop-filter: blur(12px) saturate(1.08);
   -webkit-backdrop-filter: blur(12px) saturate(1.08);
 }
@@ -995,13 +999,79 @@ img {
 .custom-context-menu.is-open {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
   transform: translateY(0) scale(1);
+  transition-delay: 0s;
 }
 
 .custom-context-menu button {
   min-height: 34px;
   padding: 6px 10px;
   text-align: left;
+}
+
+.context-theme-group {
+  display: grid;
+  gap: 5px;
+  margin-top: 2px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(93, 113, 145, 0.24);
+}
+
+.context-theme-label {
+  padding: 0 8px;
+  color: rgba(49, 66, 95, 0.66);
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.context-theme-group button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-theme-group button[aria-pressed="true"] {
+  border-color: rgba(215, 130, 156, 0.38);
+  background: rgba(255, 226, 234, 0.76);
+}
+
+.context-theme-mark {
+  color: #d75f86;
+  font-size: 0.72rem;
+}
+
+.theme-quick-switch {
+  position: fixed;
+  right: 78px;
+  bottom: 20px;
+  z-index: 45;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  padding: 0;
+  color: #31425f;
+  background: rgba(255, 250, 241, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgba(93, 113, 145, 0.18),
+    0 10px 24px rgba(67, 82, 106, 0.18);
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.theme-quick-switch:hover,
+.theme-quick-switch:focus-visible {
+  color: #d75f86;
+  transform: rotate(-8deg) scale(1.05);
+}
+
+.theme-quick-switch svg {
+  width: 21px;
+  height: 21px;
 }
 
 .hide-sakura .sakura-rain {
@@ -1532,7 +1602,7 @@ img {
   height: 100vh;
   background:
     linear-gradient(180deg, rgba(246, 250, 255, 0.34), rgba(245, 238, 230, 0.18) 44%, rgba(255, 248, 236, 0.08)),
-    url("/assets/hero-wallpaper.webp") center / cover no-repeat;
+    url("/themes/fuyukawa-kagari/assets/hero-wallpaper.webp") center / cover no-repeat;
 }
 
 .hero-stage::after {
@@ -1701,7 +1771,7 @@ img {
   padding: 120px 24px 86px;
   background:
     linear-gradient(180deg, rgba(246, 250, 255, 0.34), rgba(245, 238, 230, 0.18) 44%, rgba(255, 248, 236, 0.76)),
-    url("/assets/hero-wallpaper.webp") center / cover no-repeat;
+    url("/themes/fuyukawa-kagari/assets/hero-wallpaper.webp") center / cover no-repeat;
 }
 
 .hero::before,
@@ -2195,7 +2265,7 @@ img {
   flex: 0 0 auto;
   width: 38px;
   height: 34px;
-  background: url("/assets/pig-brand.png") center / contain no-repeat;
+  background: url("/themes/fuyukawa-kagari/assets/pig-brand.png") center / contain no-repeat;
   filter: drop-shadow(0 5px 10px rgba(67, 82, 106, 0.16));
 }
 
@@ -2756,7 +2826,7 @@ img {
   margin-top: -1px;
   background:
     linear-gradient(180deg, rgba(255, 248, 236, 0.08), rgba(255, 248, 236, 0.08) 15%, rgba(255, 248, 236, 0.22)),
-    url("/assets/fuyukawa-kagari-bg.webp") center bottom / cover no-repeat fixed;
+    url("/themes/fuyukawa-kagari/assets/fuyukawa-kagari-bg.webp") center bottom / cover no-repeat fixed;
 }
 
 .home-content-bg::before {
@@ -4285,7 +4355,7 @@ img {
     radial-gradient(circle at 16% 22%, rgba(255, 194, 218, 0.38), transparent 260px),
     radial-gradient(circle at 88% 34%, rgba(159, 200, 235, 0.34), transparent 300px),
     linear-gradient(180deg, rgba(255, 248, 236, 0.44), rgba(255, 248, 236, 0.72) 42%, rgba(255, 248, 236, 0.58)),
-    url("/assets/fuyukawa-kagari-bg.webp") center bottom / cover no-repeat fixed;
+    url("/themes/fuyukawa-kagari/assets/fuyukawa-kagari-bg.webp") center bottom / cover no-repeat fixed;
   font-size: 0.92rem;
 }
 
@@ -4641,6 +4711,11 @@ img {
     display: none;
   }
 
+  .theme-quick-switch {
+    right: 18px;
+    bottom: 18px;
+  }
+
   .toy-dock {
     top: 112px;
     width: 388px;
@@ -4915,7 +4990,7 @@ img {
   }
 
   .custom-context-menu {
-    width: 176px;
+    width: min(208px, calc(100vw - 24px));
   }
 
   #waifu {

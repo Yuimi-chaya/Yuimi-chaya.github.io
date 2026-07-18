@@ -1,0 +1,46 @@
+---
+import BlankLayout from "../layouts/BlankLayout.astro";
+import { getPublishedPosts } from "@/core/content/blog";
+import { categoryLabel } from "@/lib/site";
+import { getThemePath } from "@/core/themes/registry";
+
+const posts = await getPublishedPosts();
+const formatter = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+---
+
+<BlankLayout title="Blog | Yuimi Lab Blank" description="Yuimi Lab 的文章归档。">
+  <header class="blank-page-head">
+    <div>
+      <p class="blank-kicker">Shared content / separate archive</p>
+      <h1>Blog</h1>
+      <p>文章内容与 Kagari 主题共享，列表、排版和阅读界面由 Blank 独立实现。</p>
+    </div>
+    <span class="blank-page-index">{String(posts.length).padStart(2, "0")}</span>
+  </header>
+
+  <section class="blank-section" aria-label="文章列表">
+    <div class="blank-post-list">
+      {posts.map((post) => (
+        <a class="blank-post-row" href={getThemePath("blank", `/blog/${post.id}/`)}>
+          <time class="blank-date" datetime={post.data.pubDate.toISOString()}>
+            {formatter.format(post.data.updatedDate ?? post.data.pubDate)}
+          </time>
+          <div>
+            <h2>{post.data.title}</h2>
+            <p>{post.data.description}</p>
+            <div class="blank-tag-line">
+              <span>{categoryLabel[post.data.category]}</span>
+              {post.data.tags.map((tag) => <span>#{tag}</span>)}
+            </div>
+          </div>
+          <span aria-hidden="true">↗</span>
+        </a>
+      ))}
+    </div>
+  </section>
+</BlankLayout>
+

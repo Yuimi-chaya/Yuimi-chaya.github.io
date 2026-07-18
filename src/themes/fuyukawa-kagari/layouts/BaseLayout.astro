@@ -1,16 +1,32 @@
 ---
-import "../styles/global.css";
+import "../styles/theme.css";
 import { site } from "@/lib/site";
 import { Icon } from "astro-icon/components";
 import { ClientRouter } from "astro:transitions";
+import ThemePreferenceGate from "@/core/themes/ThemePreferenceGate.astro";
+import { kagariAssets } from "../assets";
 
 interface Props {
   title?: string;
   description?: string;
+  honorThemePreference?: boolean;
+  redirectThemedNotFound?: boolean;
 }
 
-const { title = site.title, description = site.description } = Astro.props;
+const {
+  title = site.title,
+  description = site.description,
+  honorThemePreference = true,
+  redirectThemedNotFound = false
+} = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
+const themedNotFoundRedirectScript = `(() => {
+  const blankPrefix = "/themes/blank/";
+  if (!window.location.pathname.startsWith(blankPrefix)) return;
+  if (window.location.pathname === "/themes/blank/404/") return;
+  const original = window.location.pathname + window.location.search + window.location.hash;
+  window.location.replace("/themes/blank/404/?from=" + encodeURIComponent(original));
+})();`;
 ---
 
 <!doctype html>
@@ -20,9 +36,15 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <meta name="theme-color" content="#fff8ec" />
+    {
+      redirectThemedNotFound && (
+        <script is:inline set:html={themedNotFoundRedirectScript}></script>
+      )
+    }
     <link rel="canonical" href={canonical} />
-    <link rel="icon" type="image/png" href="/assets/pig-favicon.png" />
-    <link rel="apple-touch-icon" href="/assets/pig-apple-touch.png" />
+    <ThemePreferenceGate currentTheme="fuyukawa-kagari" honorPreference={honorThemePreference} />
+    <link rel="icon" type="image/png" href={kagariAssets.favicon} />
+    <link rel="apple-touch-icon" href={kagariAssets.appleTouchIcon} />
     <title>{title}</title>
     <ClientRouter />
   </head>
@@ -36,7 +58,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       </div>
       <div class="pig-scrollbar-pig">
         <span class="pig-scrollbar-snort">哼~ 哼~</span>
-        <img src="/assets/mini-pig-scroll.png" alt="" width="56" height="48" />
+        <img src={kagariAssets.scrollPig} alt="" width="56" height="48" />
       </div>
     </div>
     <aside class="toy-dock" aria-label="Yuimi Lab toy dock" transition:persist="yuimi-toy-dock">
@@ -69,7 +91,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
                 <div class="record-arm"></div>
                 <div class="record-disc">
                   <div class="record-label">
-                    <img src="/assets/pig-brand.png" alt="" width="42" height="38" />
+                    <img src={kagariAssets.brand} alt="" width="42" height="38" />
                   </div>
                 </div>
               </div>
@@ -116,11 +138,31 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       <button type="button" data-context-action="title">T &#x590D;&#x5236;&#x6807;&#x9898;</button>
       <button type="button" data-context-action="sakura" aria-pressed="true">&#x273F; 樱花雨：开</button>
       <button type="button" data-context-action="music-autoplay" aria-pressed="false">♫ 进站续播：关</button>
+      <div class="context-theme-group" aria-label="选择前端主题">
+        <span class="context-theme-label">THEME</span>
+        <button type="button" data-theme-select="fuyukawa-kagari" aria-pressed="true">
+          <span class="context-theme-mark" aria-hidden="true">●</span>
+          Fuyukawa Kagari
+        </button>
+        <button type="button" data-theme-select="blank" aria-pressed="false">
+          <span class="context-theme-mark" aria-hidden="true">○</span>
+          Blank
+        </button>
+      </div>
     </nav>
+    <button
+      class="theme-quick-switch"
+      type="button"
+      data-theme-select="blank"
+      aria-label="切换到 Blank 主题"
+      title="切换到 Blank 主题"
+    >
+      <Icon name="tabler:palette" aria-hidden="true" />
+    </button>
     <div class="site-shell">
       <header class="site-header" aria-label="Primary">
         <a class="brand" href="/" aria-label={`${site.name} home`}>
-          <img src="/assets/pig-brand.png" alt="" width="40" height="36" />
+          <img src={kagariAssets.brand} alt="" width="40" height="36" />
           <span>{site.name}</span>
         </a>
         <nav class="nav-links" aria-label="Main navigation">
@@ -375,7 +417,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         fallback.innerHTML = `
           <div class="waifu-local-bubble">Live2D 加载有点害羞，先由我值班。</div>
           <div class="waifu-local-character">
-            <img src="/assets/profile.jpg" alt="" width="128" height="128" />
+            <img src="/themes/fuyukawa-kagari/assets/profile.jpg" alt="" width="128" height="128" />
           </div>
         `;
         document.body.appendChild(fallback);
@@ -677,7 +719,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
           }
 
           try {
-            const response = await fetch("/music/manifest.json", { cache: "no-cache" });
+            const response = await fetch("/themes/fuyukawa-kagari/music/manifest.json", { cache: "no-cache" });
             player.tracks = await response.json();
           } catch {
             player.tracks = [];
@@ -826,7 +868,15 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 
       const sakuraStateKey = "yuimi-sakura-enabled-v1";
       const getContextMenu = () => document.querySelector("[data-context-menu]");
-      const hideContextMenu = () => getContextMenu()?.classList.remove("is-open");
+      let contextMenuReturnFocus = null;
+      const hideContextMenu = () => {
+        const contextMenu = getContextMenu();
+        const shouldRestoreFocus = contextMenu?.contains(document.activeElement);
+        contextMenu?.classList.remove("is-open");
+        if (shouldRestoreFocus && contextMenuReturnFocus instanceof HTMLElement) {
+          contextMenuReturnFocus.focus({ preventScroll: true });
+        }
+      };
       const isSakuraEnabled = () => localStorage.getItem(sakuraStateKey) !== "0";
       const setSakuraEnabled = (enabled) => {
         localStorage.setItem(sakuraStateKey, enabled ? "1" : "0");
@@ -836,6 +886,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         const contextMenu = getContextMenu();
         const sakuraButton = contextMenu?.querySelector('[data-context-action="sakura"]');
         const musicAutoplayButton = contextMenu?.querySelector('[data-context-action="music-autoplay"]');
+        const currentTheme = window.__yuimiTheme?.current ?? "fuyukawa-kagari";
         const sakuraEnabled = isSakuraEnabled();
         const musicAutoplayEnabled = window.__yuimiRadio?.isAutoplayEnabled?.() ?? false;
         if (sakuraButton) {
@@ -846,31 +897,65 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
           musicAutoplayButton.textContent = musicAutoplayEnabled ? "♫ 进站续播：开" : "♫ 进站续播：关";
           musicAutoplayButton.setAttribute("aria-pressed", String(musicAutoplayEnabled));
         }
+        contextMenu?.querySelectorAll("[data-theme-select]").forEach((button) => {
+          const isCurrent = button.dataset.themeSelect === currentTheme;
+          button.setAttribute("aria-pressed", String(isCurrent));
+          const mark = button.querySelector(".context-theme-mark");
+          if (mark) mark.textContent = isCurrent ? "●" : "○";
+        });
       };
 
       setSakuraEnabled(isSakuraEnabled());
       updateContextToggleLabels();
       window.addEventListener("yuimi:music-autoplay-change", updateContextToggleLabels);
 
-      window.addEventListener("contextmenu", (event) => {
+      const showContextMenuAt = (clientX, clientY, focusFirst = false) => {
         const contextMenu = getContextMenu();
-        if (!contextMenu) return;
-        event.preventDefault();
+        if (!contextMenu) return false;
+        if (!contextMenu.contains(document.activeElement)) {
+          const activeElement = document.activeElement;
+          contextMenuReturnFocus = activeElement instanceof HTMLElement && activeElement !== document.body
+            ? activeElement
+            : document.querySelector(".theme-quick-switch");
+        }
         updateContextToggleLabels();
-        const menuWidth = 188;
-        const menuHeight = 392;
-        const x = Math.min(event.clientX, window.innerWidth - menuWidth - 12);
-        const y = Math.min(event.clientY, window.innerHeight - menuHeight - 12);
+        const menuWidth = contextMenu.offsetWidth;
+        const menuHeight = contextMenu.offsetHeight;
+        const x = Math.min(clientX, window.innerWidth - menuWidth - 12);
+        const y = Math.min(clientY, window.innerHeight - menuHeight - 12);
         contextMenu.style.setProperty("--menu-x", `${Math.max(12, x)}px`);
         contextMenu.style.setProperty("--menu-y", `${Math.max(12, y)}px`);
         contextMenu.classList.add("is-open");
+        if (focusFirst) contextMenu.querySelector("button")?.focus({ preventScroll: true });
+        return true;
+      };
+
+      window.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        showContextMenuAt(event.clientX, event.clientY);
       });
       window.addEventListener("keydown", (event) => {
         if (event.key === "Escape") hideContextMenu();
+        if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
+          event.preventDefault();
+          const activeRect = document.activeElement?.getBoundingClientRect?.();
+          const x = activeRect ? activeRect.left + Math.min(activeRect.width, 28) : window.innerWidth / 2;
+          const y = activeRect ? activeRect.top + Math.min(activeRect.height, 28) : window.innerHeight / 2;
+          showContextMenuAt(x, y, true);
+        }
       });
       window.addEventListener("click", async (event) => {
         const contextMenu = getContextMenu();
-        const button = event.target instanceof Element ? event.target.closest("[data-context-action]") : null;
+        const target = event.target instanceof Element ? event.target : null;
+        const themeButton = target?.closest("[data-theme-select]");
+        if (themeButton) {
+          event.stopPropagation();
+          hideContextMenu();
+          window.__yuimiTheme?.select(themeButton.dataset.themeSelect);
+          return;
+        }
+
+        const button = target?.closest("[data-context-action]");
         if (!button || !contextMenu?.contains(button)) {
           hideContextMenu();
           return;

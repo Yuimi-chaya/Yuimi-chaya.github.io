@@ -1,0 +1,71 @@
+---
+import BlankLayout from "../layouts/BlankLayout.astro";
+import {
+  animeFavorites,
+  currentSignals,
+  favoriteGames,
+  profileIdentity,
+  profileStatus,
+  profileTech,
+  xpFavorites
+} from "@/core/data/profile";
+---
+
+<BlankLayout title="About | Yuimi Lab Blank" description="关于喝益胃 / Yuimi-chaya。">
+  <header class="blank-page-head">
+    <div>
+      <p class="blank-kicker">Profile / plain text edition</p>
+      <h1>{profileIdentity.displayName}</h1>
+      <p>{profileIdentity.handle} · {profileIdentity.siteName}</p>
+    </div>
+    <span class="blank-page-index">ME</span>
+  </header>
+
+  <section class="blank-section blank-two-column">
+    <div>
+      <div class="blank-section-title"><h2>Profile</h2></div>
+      <p>{profileIdentity.bio}</p>
+      <div class="blank-actions">
+        <a href={profileIdentity.github} target="_blank" rel="noreferrer">GitHub</a>
+        <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer">Bilibili</a>
+      </div>
+    </div>
+    <div>
+      <div class="blank-section-title"><h2>Status</h2></div>
+      <ul class="blank-definition-list">
+        {profileStatus.map((item) => <li>{item}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <section class="blank-section">
+    <div class="blank-section-title"><h2>Tech line</h2></div>
+    <dl class="blank-definition-list blank-two-column">
+      {profileTech.map((item) => <div><dt>{item.name}</dt><dd>{item.note}</dd></div>)}
+    </dl>
+  </section>
+
+  <section class="blank-section blank-two-column">
+    <div>
+      <div class="blank-section-title"><h2>Anime</h2></div>
+      <dl class="blank-definition-list">
+        {animeFavorites.map((item) => <div><dt>{item.title}</dt><dd>{item.subtitle}</dd></div>)}
+      </dl>
+    </div>
+    <div>
+      <div class="blank-section-title"><h2>XP / Games</h2></div>
+      <div class="blank-inline-list">
+        {xpFavorites.map((item) => <span>#{item.title}</span>)}
+        {favoriteGames.map((item) => <span>#{item.title}</span>)}
+      </div>
+    </div>
+  </section>
+
+  <section class="blank-section">
+    <div class="blank-section-title"><h2>Current signal</h2></div>
+    <dl class="blank-definition-list blank-two-column">
+      {currentSignals.map((item) => <div><dt>{item.label}</dt><dd>{item.text}</dd></div>)}
+    </dl>
+  </section>
+</BlankLayout>
+

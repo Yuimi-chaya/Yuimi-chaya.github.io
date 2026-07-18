@@ -1,11 +1,11 @@
 import { copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
 import { deflateSync } from "node:zlib";
 
-const outDir = new URL("../public/assets/", import.meta.url);
+const outDir = new URL("../public/themes/fuyukawa-kagari/assets/", import.meta.url);
 await mkdir(outDir, { recursive: true });
 
 const sourceMusicDir = new URL("../MUSIC/", import.meta.url);
-const publicMusicDir = new URL("../public/music/", import.meta.url);
+const publicMusicDir = new URL("../public/themes/fuyukawa-kagari/music/", import.meta.url);
 const audioExtensions = new Set([".mp3", ".flac", ".wav", ".ogg", ".m4a"]);
 
 function extensionOf(filename) {
@@ -14,7 +14,7 @@ function extensionOf(filename) {
 }
 
 function publicMusicPath(filename) {
-  return `/music/${filename.split("/").map(encodeURIComponent).join("/")}`;
+  return `/themes/fuyukawa-kagari/music/${filename.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 async function syncMusicLibrary() {

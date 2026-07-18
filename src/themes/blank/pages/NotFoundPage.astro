@@ -1,0 +1,19 @@
+---
+import BlankLayout from "../layouts/BlankLayout.astro";
+import { getThemePath } from "@/core/themes/registry";
+---
+
+<BlankLayout title="404 | Yuimi Lab Blank" description="Blank 主题中的页面没有找到。">
+  <section class="blank-empty">
+    <p class="blank-kicker">Not found / blank route</p>
+    <strong>404</strong>
+    <h1>这一页没有留下内容。</h1>
+    <p data-blank-missing-path></p>
+    <a href={getThemePath("blank", "/")}>返回 Blank 首页</a>
+  </section>
+  <script is:inline>
+    const missingPath = new URLSearchParams(window.location.search).get("from");
+    const target = document.querySelector("[data-blank-missing-path]");
+    if (target && missingPath) target.textContent = `原地址：${missingPath}`;
+  </script>
+</BlankLayout>

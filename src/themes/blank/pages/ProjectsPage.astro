@@ -1,0 +1,39 @@
+---
+import BlankLayout from "../layouts/BlankLayout.astro";
+import { projectEntries, projectTechLines } from "@/core/data/projects";
+---
+
+<BlankLayout title="Projects | Yuimi Lab Blank" description="Yuimi Lab 的项目与技术线。">
+  <header class="blank-page-head">
+    <div>
+      <p class="blank-kicker">Works / shared project data</p>
+      <h1>Projects</h1>
+      <p>这里展示与 Kagari 主题相同的项目内容，但不复用它的卡片、图标或交互脚本。</p>
+    </div>
+    <span class="blank-page-index">{String(projectEntries.length).padStart(2, "0")}</span>
+  </header>
+
+  <section class="blank-section">
+    <div class="blank-section-title"><h2>Tech lines</h2></div>
+    <dl class="blank-definition-list blank-two-column">
+      {projectTechLines.map((line) => <div><dt>{line.label}</dt><dd>{line.note}</dd></div>)}
+    </dl>
+  </section>
+
+  <section class="blank-section blank-project-list" aria-label="项目列表">
+    {projectEntries.map((project) => (
+      <article>
+        <div class="blank-project-meta">
+          <span>{project.type}</span>
+          <span>{project.status}</span>
+        </div>
+        <h2>{project.title}</h2>
+        <p>{project.summary}</p>
+        <div class="blank-project-details">
+          {project.details.map((detail) => <span>{detail}</span>)}
+        </div>
+      </article>
+    ))}
+  </section>
+</BlankLayout>
+
