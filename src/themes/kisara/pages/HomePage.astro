@@ -43,6 +43,7 @@ const gateStyle = [
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
       <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
+      <i class="kisara-title-cross" aria-hidden="true"></i>
     </h1>
     <div class="kisara-contract-meter" aria-hidden="true">
       <canvas class="kisara-energy-canvas" data-kisara-energy width="640" height="64"></canvas>
@@ -104,12 +105,20 @@ const gateStyle = [
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
-      const burstDistance = 1650;
+      const burstDistance = 2250;
       const springStrength = 0.06;
-      const burstSpringStrength = 0.052;
+      const burstSpringStrength = 0.038;
       const damping = 0.76;
-      const burstDamping = 0.8;
+      const burstDamping = 0.86;
       const settleDistance = 0.00035;
+      const crossStart = 0.025;
+      const crossBuildEnd = 0.28;
+      const crossFlashEnd = 0.46;
+      const crossEnd = 0.59;
+      const reformEnd = 0.78;
+      const detonationStart = 0.82;
+      const detonationEnd = 0.93;
+      const rainStart = 0.95;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
       let progress = reducedMotion || restoredBelowGate ? 1 : 0;
       let targetProgress = progress;
@@ -133,8 +142,17 @@ const gateStyle = [
       let pageMode = restoredBelowGate ? "next" : "gate";
       let scrollFrame = 0;
       let restoreWindowOpen = true;
+      let beamPose = {
+        shakeX: 0,
+        shakeY: 0,
+        lift: 0,
+        scaleX: 1,
+        scaleY: 1,
+        angle: 0
+      };
 
       const smoothstep = (value) => value * value * (3 - 2 * value);
+      const phaseProgress = (value, start, end) => smoothstep(clamp((value - start) / (end - start), 0, 1));
       const randomSeed = (index) => {
         const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
         return value - Math.floor(value);
@@ -181,12 +199,12 @@ const gateStyle = [
         const height = burstCanvasHeight;
         const context = burstContext;
         context.clearRect(0, 0, width, height);
-        const fill = energyProgress;
+        const fill = Math.max(energyProgress, 0.012);
         const burst = burstProgress;
-        if (fill <= 0.001 || width <= 1 || height <= 1) return;
+        if (width <= 1 || height <= 1) return;
 
         const time = timestamp / 1000;
-        const intensity = 0.22 + fill * 0.78;
+        const intensity = 0.12 + fill * 0.88;
         const densityScale = width < 640 ? 0.68 : width < 960 ? 0.84 : 1;
         const meterWidth = meterShell?.clientWidth || Math.min(620, width * 0.78);
         const meterHeight = meterShell?.clientHeight || 68;
@@ -198,15 +216,26 @@ const gateStyle = [
           3,
           Math.max(3, meterWidth - localFrontRadius * 2.2)
         );
-        const originX = clamp(meterLeft + localFrontX, width * 0.08, width * 0.92);
-        const originY = clamp(meterTop + meterHeight * 0.5, height * 0.18, height * 0.86);
-        const burstOriginX = width * 0.5;
-        const burstOriginY = height * 0.56;
+        const angleRadians = beamPose.angle * Math.PI / 180;
+        const headOffset = (localFrontX - meterWidth * 0.5) * beamPose.scaleX;
+        const originX = clamp(
+          meterLeft + meterWidth * 0.5 + beamPose.shakeX + Math.cos(angleRadians) * headOffset,
+          width * 0.05,
+          width * 0.95
+        );
+        const originY = clamp(
+          meterTop + meterHeight * 0.5 + beamPose.shakeY + beamPose.lift + Math.sin(angleRadians) * headOffset,
+          height * 0.12,
+          height * 0.88
+        );
+        const burstOriginX = originX;
+        const burstOriginY = originY;
         const maxRadius = Math.hypot(width, height) * 1.16;
-        const dissolve = smoothstep(clamp(burst / 0.16, 0, 1));
-        const reform = smoothstep(clamp((burst - 0.14) / 0.3, 0, 1));
-        const detonation = smoothstep(clamp((burst - 0.66) / 0.24, 0, 1));
-        const rainProgress = smoothstep(clamp((burst - 0.82) / 0.18, 0, 1));
+        const dissolve = phaseProgress(burst, 0.015, 0.14);
+        const reform = phaseProgress(burst, crossEnd, reformEnd);
+        const pressure = phaseProgress(burst, 0.7, 0.94);
+        const detonation = phaseProgress(burst, detonationStart, detonationEnd);
+        const rainProgress = phaseProgress(burst, rainStart, 1);
         const wakeOpacity = clamp(1 - dissolve * 0.78 - rainProgress * 0.72, 0, 1);
         context.save();
         context.globalCompositeOperation = "lighter";
@@ -227,106 +256,80 @@ const gateStyle = [
           context.fill();
         }
 
-        const wakeLength = Math.max(34, 34 + fill * (width * 0.76));
-        const wakeSpread = 8 + fill * (height * 0.52);
+        const wakeLength = Math.max(42, 42 + fill * (width * 0.82));
+        const wakeSpread = 10 + fill * (height * 0.44);
         if (wakeOpacity > 0.001) {
           for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
             const side = sideIndex === 0 ? -1 : 1;
-            for (let ribbon = 0; ribbon < 3; ribbon += 1) {
+            for (let ribbon = 0; ribbon < 2; ribbon += 1) {
               const ribbonSeed = randomSeed(sideIndex * 17 + ribbon + 3301);
-              const ribbonSpread = 0.46 + ribbon * 0.16 + ribbonSeed * 0.08;
+              const ribbonSpread = 0.48 + ribbon * 0.22 + ribbonSeed * 0.12;
               const gradient = context.createLinearGradient(
                 originX,
                 originY,
                 originX - wakeLength,
                 originY + side * wakeSpread * ribbonSpread
               );
-              gradient.addColorStop(0, "rgba(255, 250, 252, 0.9)");
-              gradient.addColorStop(0.18, "rgba(255, 157, 181, 0.52)");
-              gradient.addColorStop(0.72, "rgba(180, 211, 255, 0.18)");
+              gradient.addColorStop(0, "rgba(255, 250, 252, 0.58)");
+              gradient.addColorStop(0.16, "rgba(255, 157, 181, 0.32)");
+              gradient.addColorStop(0.58, "rgba(180, 211, 255, 0.12)");
               gradient.addColorStop(1, "rgba(180, 211, 255, 0)");
-              context.globalAlpha = wakeOpacity * (0.34 - ribbon * 0.06) * intensity;
+              context.globalAlpha = wakeOpacity * (0.2 - ribbon * 0.045) * intensity;
               context.strokeStyle = gradient;
-              context.lineWidth = 1.05 + fill * (1.25 - ribbon * 0.18);
+              context.lineWidth = 1.2 + fill * (1.5 - ribbon * 0.22);
+              context.lineCap = "round";
               context.shadowColor = side < 0 ? "rgba(196, 220, 255, 0.7)" : "rgba(255, 118, 151, 0.72)";
-              context.shadowBlur = 2 + fill * 8;
+              context.shadowBlur = 3 + fill * 9;
               context.beginPath();
-              for (let step = 0; step <= 14; step += 1) {
-                const travel = step / 14;
-                const x = originX - travel * wakeLength;
-                const y = originY
-                  + side * Math.pow(travel, 0.74) * wakeSpread * ribbonSpread
-                  + Math.sin(time * (2.2 + ribbonSeed) + travel * 8.5 + ribbon) * (1 + fill * 4) * (1 - travel * 0.35);
-                if (step === 0) context.moveTo(x, y);
-                else context.lineTo(x, y);
-              }
+              context.moveTo(originX, originY);
+              context.bezierCurveTo(
+                originX - wakeLength * 0.12,
+                originY + side * wakeSpread * (0.05 + ribbonSeed * 0.05),
+                originX - wakeLength * 0.45,
+                originY + side * wakeSpread * (0.24 + ribbonSeed * 0.12),
+                originX - wakeLength,
+                originY + side * wakeSpread * ribbonSpread
+              );
               context.stroke();
               context.shadowBlur = 0;
             }
           }
 
-          const wakeCount = Math.floor((18 + fill * 226) * densityScale);
+          const wakeCount = Math.floor((28 + fill * 204) * densityScale);
           for (let index = 0; index < wakeCount; index += 1) {
             const seed = randomSeed(index + 3201);
             const drift = randomSeed(index + 3901);
-            const side = index % 2 === 0 ? -1 : 1;
-            const speed = 0.1 + fill * (0.28 + seed * 0.52) + detonation * (0.3 + drift * 0.7);
-            const age = (time * speed + drift * 1.9) % 1;
+            const side = seed > 0.5 ? 1 : -1;
+            const speed = 0.08 + fill * (0.22 + seed * 0.42) + detonation * (0.18 + drift * 0.46);
+            const age = (time * speed + drift * 11.7 + index * 0.037) % 1;
             const travel = smoothstep(age);
-            const branch = Math.pow(travel, 0.72) * wakeSpread * (0.16 + seed * 0.84);
-            const x = originX
-              - travel * wakeLength
-              + Math.sin(time * (1.4 + drift) + index) * (1 + fill * 3.5);
-            const y = originY
-              + side * branch
-              + Math.sin(time * (2.1 + seed) + index) * (1.2 + fill * 5) * (1 - travel * 0.25);
+            const lane = 0.08 + drift * 0.92;
+            const turbulence = Math.sin(time * (0.7 + seed * 1.2) + age * 9 + index) * (1.4 + fill * 8.5) * (0.3 + travel * 0.7);
+            const flow = side * Math.pow(travel, 0.68) * wakeSpread * lane;
+            const x = originX - travel * wakeLength + turbulence * 0.32;
+            const y = originY + flow + turbulence;
+            const previousAge = Math.max(0, age - 0.045);
+            const previousTravel = smoothstep(previousAge);
+            const previousTurbulence = Math.sin(time * (0.7 + seed * 1.2) + previousAge * 9 + index) * (1.4 + fill * 8.5) * (0.3 + previousTravel * 0.7);
+            const previousX = originX - previousTravel * wakeLength + previousTurbulence * 0.32;
+            const previousY = originY + side * Math.pow(previousTravel, 0.68) * wakeSpread * lane + previousTurbulence;
             if (x < -40 || x > width + 40 || y < -40 || y > height + 40) continue;
-            const life = Math.pow(Math.sin(age * Math.PI), 1.35);
-            const alpha = life * (0.035 + fill * 0.38) * (0.42 + drift * 0.74) * wakeOpacity;
+            const life = Math.pow(Math.sin(age * Math.PI), 1.45);
+            const alpha = life * (0.025 + fill * 0.24) * (0.38 + drift * 0.68) * wakeOpacity;
             if (alpha <= 0.008) continue;
-            const streakX = 1.8 + fill * (4 + drift * 16) + detonation * 5;
             const streakY = side * (0.8 + fill * (2.5 + seed * 8));
             context.globalAlpha = alpha;
             context.strokeStyle = index % 8 === 0 ? "#ffffff" : index % 3 === 0 ? "#b9d3ff" : "#ff8fa9";
-            context.lineWidth = 0.45 + fill * (0.5 + seed * 0.9);
+            context.lineWidth = 0.4 + fill * (0.35 + seed * 0.7);
+            context.lineCap = "round";
             context.beginPath();
-            context.moveTo(x, y);
-            context.lineTo(x - streakX, y + streakY);
+            context.moveTo(previousX, previousY);
+            context.quadraticCurveTo(x - 1.5 - drift * 3, y - streakY * 0.4, x, y);
             context.stroke();
           }
         }
 
         if (burst > 0.001) {
-          const crossProgress = smoothstep(clamp((burst - 0.025) / 0.16, 0, 1));
-          const crossFade = 1 - smoothstep(clamp((burst - 0.13) / 0.14, 0, 1));
-          const crossOpacity = crossProgress * crossFade;
-          if (crossOpacity > 0.001) {
-            const crossRadius = 22 + crossProgress * Math.min(width, height) * 0.42;
-            context.save();
-            context.globalCompositeOperation = "source-over";
-            context.lineCap = "square";
-            context.globalAlpha = 0.24 * crossOpacity;
-            context.strokeStyle = "#080b1c";
-            context.lineWidth = 9 + crossProgress * 11;
-            context.beginPath();
-            context.moveTo(burstOriginX - crossRadius, burstOriginY - crossRadius);
-            context.lineTo(burstOriginX + crossRadius, burstOriginY + crossRadius);
-            context.moveTo(burstOriginX + crossRadius, burstOriginY - crossRadius);
-            context.lineTo(burstOriginX - crossRadius, burstOriginY + crossRadius);
-            context.stroke();
-            context.globalAlpha = 0.9 * crossOpacity;
-            context.strokeStyle = "#ffffff";
-            context.lineWidth = 1.1 + crossProgress * 1.8;
-            context.beginPath();
-            context.moveTo(burstOriginX - crossRadius, burstOriginY - crossRadius);
-            context.lineTo(burstOriginX + crossRadius, burstOriginY + crossRadius);
-            context.moveTo(burstOriginX + crossRadius, burstOriginY - crossRadius);
-            context.lineTo(burstOriginX - crossRadius, burstOriginY + crossRadius);
-            context.stroke();
-            context.restore();
-          }
-
-          const pressure = smoothstep(clamp((burst - 0.08) / 0.6, 0, 1));
           const compressionRadius = 46 + pressure * 190;
           const compression = context.createRadialGradient(
             burstOriginX,
@@ -405,11 +408,11 @@ const gateStyle = [
             for (let index = 0; index < rainCount; index += 1) {
               const seed = randomSeed(index + 5201);
               const drift = randomSeed(index + 5801);
-              const speed = 0.16 + rainProgress * (0.34 + drift * 0.62);
+              const speed = 0.055 + rainProgress * (0.12 + drift * 0.28);
               const age = (time * speed + seed * 2.4) % 1;
               const x = seed * width + Math.sin(time * (0.8 + drift) + index) * (8 + rainProgress * 24);
               const y = -48 + age * (height + 96) + (1 - rainProgress) * burstOriginY * 0.42;
-              const length = 3 + rainProgress * (6 + drift * 18);
+              const length = 2 + rainProgress * (4 + drift * 12);
               const alpha = (0.16 + drift * 0.68) * rainProgress * (0.48 + intensity * 0.52);
               context.globalAlpha = alpha;
               context.strokeStyle = index % 6 === 0 ? "#ffffff" : index % 2 === 0 ? "#ff9caf" : "#c9dcff";
@@ -427,32 +430,64 @@ const gateStyle = [
       const updateBurstPresentation = (timestamp) => {
         const fill = clamp(energyProgress, 0, 1);
         const burst = clamp(burstProgress, 0, 1);
-        const dissolve = smoothstep(clamp(burst / 0.17, 0, 1));
-        const reform = smoothstep(clamp((burst - 0.15) / 0.29, 0, 1));
-        const pressure = smoothstep(clamp((burst - 0.22) / 0.52, 0, 1));
-        const detonation = smoothstep(clamp((burst - 0.64) / 0.24, 0, 1));
-        const rainProgress = smoothstep(clamp((burst - 0.82) / 0.18, 0, 1));
+        const crossBuild = phaseProgress(burst, crossStart, crossBuildEnd);
+        const crossFlash = phaseProgress(burst, crossBuildEnd, crossFlashEnd);
+        const crossRelease = phaseProgress(burst, crossFlashEnd, crossEnd);
+        const releaseFlash = Math.sin(crossRelease * Math.PI);
+        const reform = phaseProgress(burst, crossEnd, reformEnd);
+        const pressure = phaseProgress(burst, 0.7, 0.94);
+        const detonation = phaseProgress(burst, detonationStart, detonationEnd);
+        const rainProgress = phaseProgress(burst, rainStart, 1);
+        const blurRecovery = phaseProgress(burst, 0.9, 1);
         const burstActive = burst > 0.001 && burst < 0.999;
         const time = timestamp / 1000;
-        const floatFrequency = 0.82 + fill * 1.9;
-        const floatAmplitudeX = fill > 0.001 ? 0.9 + fill * 4.8 : 0;
-        const floatAmplitudeY = fill > 0.001 ? 0.7 + fill * 3.6 : 0;
+        const instability = 0.42 + Math.pow(fill, 0.64) * 1.55;
+        const floatFrequency = 0.62 + fill * 2.8;
+        const floatAmplitudeX = 1.7 + instability * 5.8;
+        const floatAmplitudeY = 1.35 + instability * 4.5;
         const floatX = Math.sin(time * floatFrequency) * floatAmplitudeX
-          + Math.cos(time * floatFrequency * 0.61 + 1.7) * floatAmplitudeX * 0.34;
+          + Math.cos(time * floatFrequency * 0.61 + 1.7) * floatAmplitudeX * 0.42
+          + Math.sin(time * (0.37 + fill * 0.7) + 2.4) * floatAmplitudeX * 0.24;
         const floatY = Math.cos(time * floatFrequency * 0.84 + 0.6) * floatAmplitudeY
-          + Math.sin(time * floatFrequency * 0.47) * floatAmplitudeY * 0.28;
+          + Math.sin(time * floatFrequency * 0.47) * floatAmplitudeY * 0.36
+          + Math.cos(time * (0.29 + fill * 0.58) + 0.9) * floatAmplitudeY * 0.22;
+        const floatAngle = Math.sin(time * (0.58 + fill * 1.8) + 1.2) * (0.28 + instability * 0.86)
+          + Math.cos(time * (0.31 + fill * 0.9)) * (0.16 + instability * 0.42);
+        const jitterAmount = 0.24 + Math.pow(fill, 0.76) * 2.8;
+        const jitterX = Math.sin(time * (7.5 + fill * 13) + 0.7) * jitterAmount;
+        const jitterY = Math.cos(time * (9.2 + fill * 16) + 1.5) * jitterAmount * 0.62;
         const burstStrength = burstActive
-          ? (0.7 + pressure * 5.2 + detonation * 10.5) * (0.18 + pressure * 0.82)
+          ? (1.2 + pressure * 6.8 + detonation * 13.5) * (0.22 + pressure * 0.78)
           : 0;
-        const shakeX = floatX + Math.sin(time * (18 + pressure * 34)) * burstStrength;
-        const shakeY = floatY + Math.cos(time * (24 + pressure * 42)) * burstStrength * 0.62;
-        const beamOpacity = clamp((1 - dissolve * 0.98 + reform * 0.98) * (1 - rainProgress), 0, 1);
-        const beamScaleX = 1 + reform * 0.035 + detonation * 0.02;
-        const beamScaleY = 1 + reform * 0.2 + pressure * 0.48 + detonation * 0.92;
-        const beamAngle = -(reform * 5.5 + detonation * 7.5);
-        const performanceBlur = pressure * 1.8 + detonation * 5.8 + rainProgress * 2.4;
+        const shakeX = floatX + jitterX + Math.sin(time * (18 + pressure * 36)) * burstStrength;
+        const shakeY = floatY + jitterY + Math.cos(time * (24 + pressure * 44)) * burstStrength * 0.62;
+        const beamLift = burst > 0.001
+          ? -reform * Math.min(150, gate.clientHeight * 0.17) - detonation * Math.min(24, gate.clientHeight * 0.03)
+          : 0;
+        const beamScaleX = burst > 0.001
+          ? (reform > 0 ? 0.16 + reform * 0.84 : 1) * (1 + detonation * 0.08)
+          : 1;
+        const beamScaleY = burst > 0.001
+          ? 1 + reform * 0.32 + pressure * 0.62 + detonation * 1.12
+          : 1;
+        const beamAngle = floatAngle - reform * 8.5 - detonation * 10.5;
+        const fadeOut = phaseProgress(burst, 0.015, 0.13);
+        const beamVisibility = burst <= 0.001
+          ? 1
+          : clamp((1 - fadeOut) * (1 - reform) + reform, 0, 1);
+        const beamOpacity = clamp(beamVisibility * (1 - rainProgress), 0, 1);
+        const impactBlur = pressure * 2.4 + detonation * 7.6;
+        const performanceBlur = impactBlur * (1 - blurRecovery);
+        const crossPulse = 0.5 + 0.5 * Math.sin(time * (8.5 + crossFlash * 13) + Math.sin(time * 1.7));
+        const crossOpacity = Math.min(0.9, crossBuild * (1 - crossRelease) * (0.58 + crossPulse * 0.3) + releaseFlash * 0.22);
+        const crossScale = 0.62 + crossBuild * 0.3 + crossFlash * 0.12 - crossRelease * 0.08;
+        const crossRotation = -7 + crossBuild * 14 + Math.sin(time * (6 + crossFlash * 10)) * (0.8 + crossFlash * 2.2);
+        const crossShakeX = Math.sin(time * (12 + crossFlash * 18)) * (0.45 + crossFlash * 2.5);
+        const crossShakeY = Math.cos(time * (15 + crossFlash * 21)) * (0.4 + crossFlash * 2.1);
+        beamPose = { shakeX, shakeY, lift: beamLift, scaleX: beamScaleX, scaleY: beamScaleY, angle: beamAngle };
         meterShell?.style.setProperty("--kisara-beam-shake-x", `${shakeX.toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-shake-y", `${shakeY.toFixed(3)}px`);
+        meterShell?.style.setProperty("--kisara-beam-lift", `${beamLift.toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-expansion", beamScaleY.toFixed(4));
         meterShell?.style.setProperty("--kisara-beam-scale-x", beamScaleX.toFixed(4));
         meterShell?.style.setProperty("--kisara-beam-scale-y", beamScaleY.toFixed(4));
@@ -461,7 +496,15 @@ const gateStyle = [
         meterShell?.style.setProperty("--kisara-beam-glow", `${(pressure * 12 + detonation * 30).toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-brightness", (1 + pressure * 0.16 + detonation * 0.44).toFixed(3));
         gate.style.setProperty("--kisara-performance-blur", `${performanceBlur.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-cross-opacity", `${(smoothstep(clamp((burst - 0.025) / 0.16, 0, 1)) * (1 - smoothstep(clamp((burst - 0.13) / 0.14, 0, 1)))).toFixed(3)}`);
+        gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-build", crossBuild.toFixed(3));
+        gate.style.setProperty("--kisara-cross-flash", Math.min(1.4, crossFlash * (0.72 + crossPulse * 0.5) + releaseFlash * 1.35).toFixed(3));
+        gate.style.setProperty("--kisara-cross-scale", crossScale.toFixed(3));
+        gate.style.setProperty("--kisara-cross-rotation", `${crossRotation.toFixed(3)}deg`);
+        gate.style.setProperty("--kisara-cross-shake-x", `${crossShakeX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-cross-shake-y", `${crossShakeY.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-cross-blur", `${(0.25 + crossFlash * 1.4).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-cross-shadow", `${(6 + crossFlash * 16 + releaseFlash * 12).toFixed(3)}px`);
       };
 
       const drawEnergy = (timestamp) => {
@@ -473,18 +516,18 @@ const gateStyle = [
         const height = energyCanvasHeight;
         energyContext.clearRect(0, 0, width, height);
         drawScreenEnergy(timestamp);
-        const fill = energyProgress;
-        if (fill <= 0.001 || width <= 1 || height <= 1) return;
+        const fill = Math.max(energyProgress, 0.012);
+        if (width <= 1 || height <= 1) return;
 
         const time = timestamp / 1000;
         const centerY = height / 2;
         const reform = smoothstep(clamp((burstProgress - 0.15) / 0.29, 0, 1));
         const pressure = smoothstep(clamp((burstProgress - 0.22) / 0.52, 0, 1));
-        const detonation = smoothstep(clamp((burstProgress - 0.64) / 0.24, 0, 1));
-        const rainProgress = smoothstep(clamp((burstProgress - 0.82) / 0.18, 0, 1));
+        const detonation = phaseProgress(burstProgress, detonationStart, detonationEnd);
+        const rainProgress = phaseProgress(burstProgress, rainStart, 1);
         const startThickness = 0.8 + fill * 1.8;
         const endThickness = 2 + fill * 34 + reform * 5 + pressure * 10 + detonation * 17;
-        const intensity = 0.22 + fill * 0.78 + pressure * 0.12 + detonation * 0.24;
+        const intensity = 0.12 + fill * 0.88 + pressure * 0.12 + detonation * 0.24;
         const frontRadius = 5 + fill * 22 + pressure * 5 + detonation * 10;
         const frontX = clamp(width * fill, 3, Math.max(3, width - frontRadius * 2.2));
         const noseLength = Math.min(12, Math.max(1.5, frontX * 0.26));
@@ -559,55 +602,60 @@ const gateStyle = [
           context.stroke();
         }
 
-        const wakeOpacity = clamp(1 - smoothstep(clamp(burstProgress / 0.17, 0, 1)) * 0.82 - rainProgress * 0.7, 0, 1);
-        const localWakeLength = Math.max(22, 24 + fill * frontX * 0.48);
-        const localWakeSpread = 2 + fill * height * 0.34;
+        const wakeOpacity = clamp(1 - phaseProgress(burstProgress, 0.015, 0.14) * 0.82 - rainProgress * 0.7, 0, 1);
+        const localWakeLength = Math.max(24, 26 + fill * frontX * 0.56);
+        const localWakeSpread = 3 + fill * height * 0.28;
         if (wakeOpacity > 0.001) {
           for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
             const side = sideIndex === 0 ? -1 : 1;
             for (let ribbon = 0; ribbon < 2; ribbon += 1) {
               const ribbonSeed = randomSeed(sideIndex * 13 + ribbon + 4401);
-              context.globalAlpha = wakeOpacity * (0.38 - ribbon * 0.07) * intensity;
-              context.strokeStyle = ribbon === 0 ? "rgba(255, 236, 244, 0.82)" : "rgba(255, 119, 148, 0.58)";
-              context.lineWidth = 0.95 + fill * (0.95 - ribbon * 0.14);
+              context.globalAlpha = wakeOpacity * (0.22 - ribbon * 0.045) * intensity;
+              context.strokeStyle = ribbon === 0 ? "rgba(255, 236, 244, 0.64)" : "rgba(255, 119, 148, 0.42)";
+              context.lineWidth = 0.85 + fill * (0.85 - ribbon * 0.12);
+              context.lineCap = "round";
               context.shadowColor = side < 0 ? "rgba(196, 220, 255, 0.56)" : "rgba(255, 118, 151, 0.64)";
-              context.shadowBlur = 1.5 + fill * 5;
+              context.shadowBlur = 2 + fill * 5;
               context.beginPath();
-              for (let step = 0; step <= 12; step += 1) {
-                const travel = step / 12;
-                const x = frontX - travel * localWakeLength;
-                const y = centerY
-                  + side * Math.pow(travel, 0.72) * localWakeSpread * (0.58 + ribbon * 0.2 + ribbonSeed * 0.08)
-                  + Math.sin(time * (2.4 + ribbonSeed) + travel * 8 + ribbon) * (0.7 + fill * 2.2) * (1 - travel * 0.3);
-                if (step === 0) context.moveTo(x, y);
-                else context.lineTo(x, y);
-              }
+              context.moveTo(frontX, centerY);
+              context.bezierCurveTo(
+                frontX - localWakeLength * 0.12,
+                centerY + side * localWakeSpread * 0.04,
+                frontX - localWakeLength * 0.48,
+                centerY + side * localWakeSpread * (0.24 + ribbonSeed * 0.08),
+                frontX - localWakeLength,
+                centerY + side * localWakeSpread * (0.58 + ribbonSeed * 0.1)
+              );
               context.stroke();
               context.shadowBlur = 0;
             }
           }
 
-          const localWakeCount = 6 + Math.floor(fill * 78);
+          const localWakeCount = 10 + Math.floor(fill * 68);
           for (let index = 0; index < localWakeCount; index += 1) {
             const seed = randomSeed(index + 401);
             const drift = randomSeed(index + 701);
-            const side = index % 2 === 0 ? -1 : 1;
-            const speed = 0.12 + fill * (0.34 + seed * 0.52) + detonation * (0.24 + drift * 0.5);
-            const age = (time * speed + drift * 1.7) % 1;
+            const side = seed > 0.5 ? 1 : -1;
+            const speed = 0.08 + fill * (0.22 + seed * 0.38) + detonation * (0.18 + drift * 0.42);
+            const age = (time * speed + drift * 11.7 + index * 0.053) % 1;
             const travel = smoothstep(age);
-            const x = frontX - travel * localWakeLength;
-            const y = centerY
-              + side * Math.pow(travel, 0.72) * localWakeSpread * (0.24 + seed * 0.76)
-              + Math.sin(time * (2.1 + seed) + index) * (0.8 + fill * 2.4);
-            const alpha = Math.pow(Math.sin(age * Math.PI), 1.35) * (0.12 + seed * 0.52) * intensity * wakeOpacity;
+            const turbulence = Math.sin(time * (0.7 + seed) + age * 9 + index) * (0.8 + fill * 4.2) * (0.3 + travel * 0.7);
+            const x = frontX - travel * localWakeLength + turbulence * 0.24;
+            const y = centerY + side * Math.pow(travel, 0.68) * localWakeSpread * (0.12 + seed * 0.88) + turbulence;
+            const previousAge = Math.max(0, age - 0.05);
+            const previousTravel = smoothstep(previousAge);
+            const previousTurbulence = Math.sin(time * (0.7 + seed) + previousAge * 9 + index) * (0.8 + fill * 4.2) * (0.3 + previousTravel * 0.7);
+            const previousX = frontX - previousTravel * localWakeLength + previousTurbulence * 0.24;
+            const previousY = centerY + side * Math.pow(previousTravel, 0.68) * localWakeSpread * (0.12 + seed * 0.88) + previousTurbulence;
+            const alpha = Math.pow(Math.sin(age * Math.PI), 1.45) * (0.08 + seed * 0.34) * intensity * wakeOpacity;
             if (alpha <= 0.01) continue;
-            const streakX = 2 + fill * (3 + drift * 9);
             context.globalAlpha = alpha;
             context.strokeStyle = index % 5 === 0 ? "#ffffff" : "#ff91aa";
-            context.lineWidth = 0.5 + fill * (0.45 + seed * 0.7);
+            context.lineWidth = 0.4 + fill * (0.34 + seed * 0.58);
+            context.lineCap = "round";
             context.beginPath();
-            context.moveTo(x, y);
-            context.lineTo(x - streakX, y + side * (0.8 + fill * (1.5 + drift * 4)));
+            context.moveTo(previousX, previousY);
+            context.quadraticCurveTo(x - 1 - drift * 2, y, x, y);
             context.stroke();
           }
         }
@@ -648,13 +696,13 @@ const gateStyle = [
         }
         context.restore();
 
-        if (!reducedMotion && document.visibilityState === "visible" && energyProgress > 0.001) {
+        if (!reducedMotion && document.visibilityState === "visible" && pageMode !== "next") {
           energyFrame = window.requestAnimationFrame(drawEnergy);
         }
       };
 
       const startEnergyAnimation = () => {
-        if (!energyContext || energyProgress <= 0.001) return;
+        if (!energyContext || pageMode === "next") return;
         if (reducedMotion) {
           drawEnergy(performance.now());
           return;
@@ -662,12 +710,6 @@ const gateStyle = [
         if (!energyFrame && document.visibilityState === "visible") {
           energyFrame = window.requestAnimationFrame(drawEnergy);
         }
-      };
-
-      const stopEnergyAnimation = () => {
-        if (energyFrame) window.cancelAnimationFrame(energyFrame);
-        energyFrame = 0;
-        drawEnergy(performance.now());
       };
 
       const render = () => {
@@ -680,9 +722,9 @@ const gateStyle = [
           && Math.abs(burstVelocity) < 0.001;
         const tideVisible = fill > 0.0005;
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
-        const glossSweep = smoothstep(clamp(burstProgress / 0.52, 0, 1));
+        const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
         const glossPosition = -18 + glossSweep * 136;
-        const glossOpacity = Math.sin(glossSweep * Math.PI) * 0.98;
+        const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, 0.42)) * 0.98;
         const crestOpacity = fill <= 0.002 || fill >= 0.998
           ? 0
           : Math.min(0.92, 0.54 + Math.abs(velocity) * 42);
@@ -706,8 +748,7 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-brightness", (0.86 + reveal * 0.22).toFixed(3));
         energyProgress = fill;
         updateBurstPresentation(performance.now());
-        if (fill > 0.001) startEnergyAnimation();
-        else stopEnergyAnimation();
+        startEnergyAnimation();
         const burstPercent = Math.round(burstProgress * 100);
         const stage = burstComplete ? "released" : burstProgress > 0.001 ? "overcharge" : "contract";
         if (state && (percent !== renderedPercent || burstPercent !== renderedBurstPercent || stage !== renderedStage)) {
@@ -792,6 +833,10 @@ const gateStyle = [
         root.style.scrollBehavior = "auto";
         let current = window.scrollY;
         let velocity = 0;
+        let lastTimestamp = performance.now();
+        const stiffness = 38;
+        const dampingForce = 11.8;
+        const maxVelocity = clamp(Math.abs(destination - current) * 2.4, 620, 1900);
 
         const finish = () => {
           setScrollPosition(destination);
@@ -800,12 +845,15 @@ const gateStyle = [
           onComplete?.();
         };
 
-        const step = () => {
+        const step = (timestamp) => {
+          const deltaTime = clamp((timestamp - lastTimestamp) / 1000, 0.008, 0.034);
+          lastTimestamp = timestamp;
           const distance = destination - current;
-          velocity = (velocity + distance * 0.085) * 0.78;
-          current += velocity;
+          const acceleration = distance * stiffness - velocity * dampingForce;
+          velocity = clamp(velocity + acceleration * deltaTime, -maxVelocity, maxVelocity);
+          current += velocity * deltaTime;
           setScrollPosition(current);
-          if (Math.abs(distance) < 0.55 && Math.abs(velocity) < 0.55) {
+          if (Math.abs(distance) < 0.35 && Math.abs(velocity) < 8) {
             finish();
             return;
           }

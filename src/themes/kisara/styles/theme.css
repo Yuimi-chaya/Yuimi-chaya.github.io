@@ -245,6 +245,7 @@ a {
   --kisara-gloss-opacity: 0;
   --kisara-beam-shake-x: 0px;
   --kisara-beam-shake-y: 0px;
+  --kisara-beam-lift: 0px;
   --kisara-beam-expansion: 1;
   --kisara-beam-scale-x: 1;
   --kisara-beam-scale-y: 1;
@@ -254,6 +255,14 @@ a {
   --kisara-beam-brightness: 1;
   --kisara-performance-blur: 0px;
   --kisara-cross-opacity: 0;
+  --kisara-cross-build: 0;
+  --kisara-cross-flash: 0;
+  --kisara-cross-scale: 0.7;
+  --kisara-cross-rotation: 0deg;
+  --kisara-cross-shake-x: 0px;
+  --kisara-cross-shake-y: 0px;
+  --kisara-cross-blur: 0px;
+  --kisara-cross-shadow: 6px;
   --kisara-bg-blur: 0px;
   --kisara-bg-opacity: 1;
   --kisara-bg-saturation: 1;
@@ -422,6 +431,73 @@ a {
   transition: opacity 120ms linear;
 }
 
+.kisara-title-cross {
+  position: absolute;
+  z-index: 5;
+  inset: -22% -12%;
+  display: block;
+  pointer-events: none;
+  opacity: var(--kisara-cross-opacity);
+  transform: translate3d(var(--kisara-cross-shake-x), var(--kisara-cross-shake-y), 0)
+    scale(var(--kisara-cross-scale))
+    rotate(var(--kisara-cross-rotation));
+  transform-origin: 50% 50%;
+  background:
+    linear-gradient(
+      45deg,
+      transparent 46%,
+      rgba(4, 6, 20, 0.86) 47%,
+      rgba(4, 6, 20, 0.86) 49%,
+      rgba(255, 255, 255, 0.96) 49.4%,
+      #ffffff 50%,
+      rgba(255, 255, 255, 0.96) 50.6%,
+      rgba(4, 6, 20, 0.86) 51%,
+      rgba(4, 6, 20, 0.86) 53%,
+      transparent 54%
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 46%,
+      rgba(4, 6, 20, 0.86) 47%,
+      rgba(4, 6, 20, 0.86) 49%,
+      rgba(255, 255, 255, 0.96) 49.4%,
+      #ffffff 50%,
+      rgba(255, 255, 255, 0.96) 50.6%,
+      rgba(4, 6, 20, 0.86) 51%,
+      rgba(4, 6, 20, 0.86) 53%,
+      transparent 54%
+    );
+  filter: blur(var(--kisara-cross-blur))
+    drop-shadow(0 0 8px rgba(255, 255, 255, 0.72))
+    drop-shadow(0 0 24px rgba(255, 68, 105, 0.58));
+  box-shadow: 0 0 var(--kisara-cross-shadow) rgba(255, 255, 255, 0.46);
+  will-change: opacity, transform, filter;
+}
+
+.kisara-title-cross::before,
+.kisara-title-cross::after {
+  content: "";
+  position: absolute;
+  inset: -3%;
+  pointer-events: none;
+}
+
+.kisara-title-cross::before {
+  background:
+    linear-gradient(45deg, transparent 46%, rgba(3, 5, 18, 0.74) 47%, rgba(3, 5, 18, 0.74) 53%, transparent 54%),
+    linear-gradient(-45deg, transparent 46%, rgba(3, 5, 18, 0.74) 47%, rgba(3, 5, 18, 0.74) 53%, transparent 54%);
+  filter: blur(7px);
+  opacity: calc(0.16 + var(--kisara-cross-build) * 0.32);
+}
+
+.kisara-title-cross::after {
+  background:
+    linear-gradient(45deg, transparent 49%, #ffffff 49.5%, #ffffff 50.5%, transparent 51%),
+    linear-gradient(-45deg, transparent 49%, #ffffff 49.5%, #ffffff 50.5%, transparent 51%);
+  filter: blur(0.25px) drop-shadow(0 0 8px rgba(255, 255, 255, 0.9));
+  opacity: var(--kisara-cross-flash);
+}
+
 .kisara-title-crest {
   opacity: var(--kisara-crest-opacity, 0);
   background: linear-gradient(180deg, #ffe3e9 0%, #ffadc0 100%);
@@ -470,7 +546,7 @@ a {
   height: 68px;
   margin-top: 34px;
   isolation: isolate;
-  transform: translate3d(var(--kisara-beam-shake-x), var(--kisara-beam-shake-y), 0)
+  transform: translate3d(var(--kisara-beam-shake-x), calc(var(--kisara-beam-shake-y) + var(--kisara-beam-lift)), 0)
     rotate(var(--kisara-beam-angle))
     scaleX(var(--kisara-beam-scale-x))
     scaleY(var(--kisara-beam-scale-y));
