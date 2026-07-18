@@ -2,6 +2,8 @@
 import KisaraLayout from "../layouts/KisaraLayout.astro";
 import { getPublishedPosts } from "@/core/content/blog";
 import { getThemePath } from "@/core/themes/registry";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 const posts = (await getPublishedPosts()).slice(0, 3);
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -9,10 +11,22 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   month: "2-digit",
   day: "2-digit"
 });
+
+const backgroundExtensions = ["webp", "png", "jpg", "jpeg"];
+const activeBackgroundExtension = backgroundExtensions.find((extension) =>
+  existsSync(resolve(`public/themes/kisara/assets/gate-background.${extension}`))
+);
+const activeBackgroundUrl = activeBackgroundExtension
+  ? `/themes/kisara/assets/gate-background.${activeBackgroundExtension}`
+  : null;
+const gateStyle = [
+  "--kisara-fill: 0%",
+  `--kisara-gate-background-image: ${activeBackgroundUrl ? `url("${activeBackgroundUrl}")` : "none"}`
+].join("; ");
 ---
 
 <KisaraLayout title="Kisara | Yuimi Lab" description="Yuimi Lab 的 Kisara 视觉交互主题。">
-  <section class="kisara-gate" data-kisara-gate style="--kisara-fill: 0%;">
+  <section class="kisara-gate" data-kisara-gate style={gateStyle}>
     <div class="kisara-gate-axis" aria-hidden="true"></div>
     <p class="kisara-gate-index">YUIMI LAB / INTERACTION CHANNEL 03</p>
     <h1 class="kisara-title" aria-label="Kisara">

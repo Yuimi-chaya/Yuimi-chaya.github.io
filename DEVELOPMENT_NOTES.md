@@ -47,7 +47,7 @@
 - Fuyukawa Kagari theme assets: `public/themes/fuyukawa-kagari/assets/`, `public/themes/fuyukawa-kagari/music/`, Live2D CDN configuration, homepage background/avatars/brand images, About media, and the 404 visual.
 - External Fuyukawa Kagari runtime dependencies: jsDelivr Live2D packages, Cubism SDK, location/weather endpoints.
 - Kisara presentation assets: only a generated dark placeholder at `public/themes/kisara/assets/gate-background.jpg`. Root `kisara/` images remain user-owned source material and are intentionally unreferenced.
-- Kisara gate custom background slot: replace `public/themes/kisara/assets/gate-background.jpg` to compare artwork without editing the page or CSS; the theme also keeps a dark color fallback.
+- Kisara gate custom background slot: use the base name `public/themes/kisara/assets/gate-background` with `.webp`, `.png`, `.jpg`, or `.jpeg`. Build-time matching uses that order and the theme keeps a dark color fallback when none exists. Keep one custom format at a time when comparing artwork; the generated `.jpg` is the default placeholder.
 - Historical or unreferenced candidates remain untouched until a later cleanup request; absence of a current reference is not deletion approval.
 
 ## Migration Map
