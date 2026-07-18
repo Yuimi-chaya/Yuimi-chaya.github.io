@@ -23,6 +23,7 @@ const activeBackgroundUrl = findThemeAsset("gate-background");
 const activeFightUrl = findThemeAsset("fight");
 const gateStyle = [
   "--kisara-fill: 0%",
+  "--kisara-burst-progress: 0%",
   `--kisara-gate-background-image: ${activeBackgroundUrl ? `url("${activeBackgroundUrl}")` : "none"}`,
   `--kisara-fight-background-image: ${activeFightUrl ? `url("${activeFightUrl}")` : "none"}`
 ].join("; ");
@@ -34,12 +35,14 @@ const gateStyle = [
       <div class="kisara-gate-background kisara-gate-background-base"></div>
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
       <div class="kisara-gate-atmosphere"></div>
+      <canvas class="kisara-burst-canvas" data-kisara-burst-canvas width="1280" height="900"></canvas>
     </div>
     <p class="kisara-gate-index">YUIMI LAB / INTERACTION CHANNEL 03</p>
     <h1 class="kisara-title" aria-label="Kisara">
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
+      <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
     </h1>
     <div class="kisara-contract-meter" aria-hidden="true">
       <canvas class="kisara-energy-canvas" data-kisara-energy width="640" height="64"></canvas>
@@ -91,27 +94,39 @@ const gateStyle = [
 
       const energyCanvas = gate.querySelector("[data-kisara-energy]");
       const energyContext = energyCanvas?.getContext("2d");
+      const burstCanvas = gate.querySelector("[data-kisara-burst-canvas]");
+      const burstContext = burstCanvas?.getContext("2d");
+      const meterShell = gate.querySelector(".kisara-contract-meter");
       const state = gate.querySelector("[data-kisara-state]");
       const cue = gate.querySelector("[data-kisara-cue]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const fillDistance = 2100;
+      const burstDistance = 1650;
       const springStrength = 0.06;
+      const burstSpringStrength = 0.052;
       const damping = 0.76;
+      const burstDamping = 0.8;
       const settleDistance = 0.00035;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
       let progress = reducedMotion || window.scrollY > 2 ? 1 : 0;
       let targetProgress = progress;
       let velocity = 0;
+      let burstProgress = reducedMotion || window.scrollY > 2 ? 1 : 0;
+      let targetBurstProgress = burstProgress;
+      let burstVelocity = 0;
       let animationFrame = 0;
       let lastFrameTime = 0;
       let touchY = null;
       let touchId = null;
       let renderedPercent = -1;
+      let renderedBurstPercent = -1;
       let energyFrame = 0;
       let energyProgress = 0;
       let energyCanvasWidth = 0;
       let energyCanvasHeight = 0;
+      let burstCanvasWidth = 0;
+      let burstCanvasHeight = 0;
 
       const smoothstep = (value) => value * value * (3 - 2 * value);
       const randomSeed = (index) => {
@@ -136,22 +151,140 @@ const gateStyle = [
         energyCanvasHeight = height;
       };
 
+      const resizeBurstCanvas = () => {
+        if (!burstCanvas || !burstContext) return;
+        const rect = burstCanvas.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width));
+        const height = Math.max(1, Math.round(rect.height));
+        const devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        const pixelWidth = Math.max(1, Math.round(width * devicePixelRatio));
+        const pixelHeight = Math.max(1, Math.round(height * devicePixelRatio));
+        if (burstCanvas.width !== pixelWidth || burstCanvas.height !== pixelHeight) {
+          burstCanvas.width = pixelWidth;
+          burstCanvas.height = pixelHeight;
+          burstContext.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        }
+        burstCanvasWidth = width;
+        burstCanvasHeight = height;
+      };
+
+      const drawScreenEnergy = (timestamp) => {
+        if (!burstCanvas || !burstContext) return;
+        resizeBurstCanvas();
+        const width = burstCanvasWidth;
+        const height = burstCanvasHeight;
+        const context = burstContext;
+        context.clearRect(0, 0, width, height);
+        const fill = energyProgress;
+        const burst = burstProgress;
+        if (fill <= 0.001 || width <= 1 || height <= 1) return;
+
+        const time = timestamp / 1000;
+        const intensity = 0.22 + fill * 0.78;
+        context.save();
+        context.globalCompositeOperation = "lighter";
+
+        const ambientCount = 12 + Math.floor(fill * 168);
+        for (let index = 0; index < ambientCount; index += 1) {
+          const seedX = randomSeed(index + 1201);
+          const seedY = randomSeed(index + 1801);
+          const speed = 0.25 + seedX * (0.35 + fill * 1.1);
+          const x = (seedX * width + Math.sin(time * speed + index) * (4 + fill * 20) + width) % width;
+          const y = (seedY * height + Math.cos(time * (speed + 0.2) + index) * (3 + fill * 16) + height) % height;
+          const size = 0.45 + seedY * (0.7 + fill * 1.9);
+          const alpha = (0.025 + seedX * 0.14) * intensity;
+          context.globalAlpha = alpha;
+          context.fillStyle = fill > 0.56 && index % 3 !== 0 ? "#ff9caf" : "#c5d8ff";
+          context.beginPath();
+          context.arc(x, y, size, 0, Math.PI * 2);
+          context.fill();
+        }
+
+        if (burst > 0.001) {
+          const burstEase = smoothstep(burst);
+          const originX = width * 0.52;
+          const originY = height * 0.54;
+          const maxRadius = Math.hypot(width, height) * 1.14;
+          const pulse = Math.sin(clamp(burst, 0, 1) * Math.PI);
+          const shockRadius = Math.max(1, burstEase * maxRadius);
+
+          if (pulse > 0.001) {
+            const flash = context.createRadialGradient(originX, originY, 0, originX, originY, maxRadius * 0.78);
+            flash.addColorStop(0, `rgba(255, 239, 245, ${0.1 * pulse})`);
+            flash.addColorStop(0.28, `rgba(255, 105, 139, ${0.045 * pulse})`);
+            flash.addColorStop(1, "rgba(255, 73, 105, 0)");
+            context.globalAlpha = 1;
+            context.fillStyle = flash;
+            context.fillRect(0, 0, width, height);
+          }
+
+          for (let ring = 0; ring < 3; ring += 1) {
+            const ringRadius = shockRadius - ring * (18 + burstEase * 30);
+            if (ringRadius <= 0) continue;
+            context.globalAlpha = (0.16 - ring * 0.035) * intensity * (0.4 + burstEase * 0.6);
+            context.strokeStyle = ring % 2 === 0 ? "#ffb1c3" : "#d9e5ff";
+            context.lineWidth = 1 + burstEase * (2.5 - ring * 0.4);
+            context.beginPath();
+            context.ellipse(originX, originY, ringRadius, ringRadius * 0.48, -0.12, 0, Math.PI * 2);
+            context.stroke();
+          }
+
+          const burstCount = 12 + Math.floor(burstEase * 300);
+          for (let index = 0; index < burstCount; index += 1) {
+            const seed = randomSeed(index + 2401);
+            const speed = 0.12 + burstEase * (0.55 + seed * 1.4);
+            const age = (time * speed + seed * 1.9) % 1;
+            const angle = seed * Math.PI * 2 + Math.sin(time * (0.8 + seed) + index) * 0.18;
+            const radius = age * shockRadius;
+            const x = originX + Math.cos(angle) * radius;
+            const y = originY + Math.sin(angle) * radius * 0.7;
+            const alpha = (1 - age) * (0.14 + seed * 0.7) * intensity * (0.45 + burstEase * 0.75);
+            if (alpha <= 0.01) continue;
+            const streak = 2 + burstEase * (8 + seed * 24);
+            context.globalAlpha = alpha;
+            context.strokeStyle = index % 5 === 0 ? "#ffffff" : index % 2 === 0 ? "#ff8ea6" : "#c9dcff";
+            context.lineWidth = 0.45 + burstEase * (0.7 + seed * 1.3);
+            context.beginPath();
+            context.moveTo(x, y);
+            context.lineTo(x - Math.cos(angle) * streak, y - Math.sin(angle) * streak * 0.7);
+            context.stroke();
+          }
+        }
+        context.restore();
+      };
+
+      const updateBurstPresentation = (timestamp) => {
+        const burstEase = smoothstep(burstProgress);
+        const burstActive = burstProgress > 0.001 && burstProgress < 0.999;
+        const envelope = burstActive
+          ? 0.28 + 0.72 * Math.sin(Math.min(1, burstProgress) * Math.PI)
+          : 0;
+        const strength = (1.5 + burstProgress * 9) * envelope;
+        const time = timestamp / 1000;
+        meterShell?.style.setProperty("--kisara-beam-shake-x", `${(Math.sin(time * 46) * strength).toFixed(3)}px`);
+        meterShell?.style.setProperty("--kisara-beam-shake-y", `${(Math.cos(time * 61) * strength * 0.42).toFixed(3)}px`);
+        meterShell?.style.setProperty("--kisara-beam-expansion", (1 + burstEase * 0.72).toFixed(4));
+      };
+
       const drawEnergy = (timestamp) => {
         energyFrame = 0;
         if (!energyCanvas || !energyContext) return;
         resizeEnergyCanvas();
+        updateBurstPresentation(timestamp);
         const width = energyCanvasWidth;
         const height = energyCanvasHeight;
         energyContext.clearRect(0, 0, width, height);
+        drawScreenEnergy(timestamp);
         const fill = energyProgress;
         if (fill <= 0.001 || width <= 1 || height <= 1) return;
 
         const time = timestamp / 1000;
         const centerY = height / 2;
+        const burstEase = smoothstep(burstProgress);
         const startThickness = 0.8 + fill * 1.8;
-        const endThickness = 2 + fill * 34;
-        const intensity = 0.22 + fill * 0.78;
-        const frontRadius = 5 + fill * 22;
+        const endThickness = 2 + fill * 34 + burstEase * 18;
+        const intensity = 0.22 + fill * 0.78 + burstEase * 0.18;
+        const frontRadius = 5 + fill * 22 + burstEase * 12;
         const frontX = clamp(width * fill, 3, Math.max(3, width - frontRadius * 2.2));
         const noseLength = Math.min(12, Math.max(1.5, frontX * 0.26));
         const context = energyContext;
@@ -309,15 +442,24 @@ const gateStyle = [
       const render = () => {
         const fill = clamp(progress, 0, 1);
         const percent = Math.round(progress * 100);
-        const complete = targetProgress >= 0.9995 && fill >= 0.999 && Math.abs(velocity) < 0.001;
+        const fillComplete = targetProgress >= 0.9995 && fill >= 0.999 && Math.abs(velocity) < 0.001;
+        const burstComplete = fillComplete
+          && targetBurstProgress >= 0.9995
+          && burstProgress >= 0.999
+          && Math.abs(burstVelocity) < 0.001;
         const tideVisible = fill > 0.0005;
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
+        const glossPosition = -18 + clamp(burstProgress, 0, 1) * 136;
+        const glossOpacity = Math.sin(clamp(burstProgress, 0, 1) * Math.PI) * 0.96;
         const crestOpacity = fill <= 0.002 || fill >= 0.998
           ? 0
           : Math.min(0.92, 0.54 + Math.abs(velocity) * 42);
         const crestDrift = clamp(velocity * 820, -4.5, 4.5);
 
         gate.style.setProperty("--kisara-fill", `${(fill * 100).toFixed(3)}%`);
+        gate.style.setProperty("--kisara-burst-progress", `${(burstProgress * 100).toFixed(3)}%`);
+        gate.style.setProperty("--kisara-gloss-position", `${glossPosition.toFixed(3)}%`);
+        gate.style.setProperty("--kisara-gloss-opacity", glossOpacity.toFixed(3));
         gate.style.setProperty("--kisara-tide-opacity", tideVisible ? "1" : "0");
         gate.style.setProperty("--kisara-crest-opacity", crestOpacity.toFixed(3));
         gate.style.setProperty("--kisara-crest-drift", `${crestDrift.toFixed(3)}px`);
@@ -330,16 +472,29 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-scale", (1.06 - reveal * 0.06).toFixed(4));
         gate.style.setProperty("--kisara-fight-saturation", (0.84 + reveal * 0.36).toFixed(3));
         gate.style.setProperty("--kisara-fight-brightness", (0.86 + reveal * 0.22).toFixed(3));
+        updateBurstPresentation(performance.now());
         energyProgress = fill;
         if (fill > 0.001) startEnergyAnimation();
         else stopEnergyAnimation();
-        if (state && percent !== renderedPercent) {
-          state.textContent = `CONTRACT ${String(percent).padStart(3, "0")}%`;
+        const burstPercent = Math.round(burstProgress * 100);
+        if (state && (percent !== renderedPercent || burstPercent !== renderedBurstPercent)) {
+          state.textContent = burstProgress > 0.001 && !burstComplete
+            ? `OVERCHARGE ${String(burstPercent).padStart(3, "0")}%`
+            : `CONTRACT ${String(percent).padStart(3, "0")}%`;
           renderedPercent = percent;
+          renderedBurstPercent = burstPercent;
         }
-        gate.classList.toggle("is-complete", complete);
+        gate.classList.toggle("is-complete", fillComplete);
+        gate.classList.toggle("is-bursting", burstProgress > 0.001 && !burstComplete);
+        gate.classList.toggle("is-burst-complete", burstComplete);
         gate.classList.toggle("is-receding", velocity < -0.0003);
-        if (cue) cue.textContent = complete ? "CONTRACT ACCEPTED / CONTINUE" : "SCROLL / SIGN THE CONTRACT";
+        if (cue) {
+          cue.textContent = burstComplete
+            ? "SIGNAL RELEASED / CONTINUE"
+            : fillComplete
+              ? "OVERCHARGE / BREAK THE SEAL"
+              : "SCROLL / SIGN THE CONTRACT";
+        }
       };
 
       const animate = (timestamp) => {
@@ -351,12 +506,19 @@ const gateStyle = [
         const spring = (targetProgress - progress) * springStrength * frameRatio;
         velocity = (velocity + spring) * Math.pow(damping, frameRatio);
         progress = clamp(progress + velocity * frameRatio, 0, 1);
+        const burstSpring = (targetBurstProgress - burstProgress) * burstSpringStrength * frameRatio;
+        burstVelocity = (burstVelocity + burstSpring) * Math.pow(burstDamping, frameRatio);
+        burstProgress = clamp(burstProgress + burstVelocity * frameRatio, 0, 1);
 
         const settled = Math.abs(targetProgress - progress) < settleDistance
-          && Math.abs(velocity) < settleDistance;
+          && Math.abs(velocity) < settleDistance
+          && Math.abs(targetBurstProgress - burstProgress) < settleDistance
+          && Math.abs(burstVelocity) < settleDistance;
         if (settled) {
           progress = targetProgress;
           velocity = 0;
+          burstProgress = targetBurstProgress;
+          burstVelocity = 0;
           lastFrameTime = 0;
           render();
           return;
@@ -375,19 +537,38 @@ const gateStyle = [
 
       const addProgress = (delta) => {
         const boundedDelta = clamp(delta, -180, 180);
-        targetProgress = clamp(targetProgress + boundedDelta / fillDistance, 0, 1);
-        velocity += boundedDelta / fillDistance * 0.03;
+        const fillComplete = targetProgress >= 0.9995
+          && progress >= 0.999
+          && Math.abs(velocity) < 0.001;
+        const burstInProgress = targetBurstProgress > 0.0005 || burstProgress > 0.0005;
+        if ((delta > 0 && fillComplete) || (delta < 0 && burstInProgress)) {
+          targetBurstProgress = clamp(targetBurstProgress + boundedDelta / burstDistance, 0, 1);
+          burstVelocity += boundedDelta / burstDistance * 0.045;
+        } else {
+          targetProgress = clamp(targetProgress + boundedDelta / fillDistance, 0, 1);
+          velocity += boundedDelta / fillDistance * 0.03;
+        }
         startAnimation();
       };
 
-      const isComplete = () => targetProgress >= 0.9995
+      const isFillComplete = () => targetProgress >= 0.9995
         && progress >= 0.999
         && Math.abs(velocity) < 0.001;
+
+      const isComplete = () => isFillComplete()
+        && targetBurstProgress >= 0.9995
+        && burstProgress >= 0.999
+        && Math.abs(burstVelocity) < 0.001;
 
       const shouldCapture = (delta) => {
         if (window.scrollY > 2 || delta === 0) return false;
         if (delta > 0) return !isComplete();
-        return targetProgress > 0.0005 || progress > 0.0005 || Math.abs(velocity) > 0.0005;
+        return targetBurstProgress > 0.0005
+          || burstProgress > 0.0005
+          || Math.abs(burstVelocity) > 0.0005
+          || targetProgress > 0.0005
+          || progress > 0.0005
+          || Math.abs(velocity) > 0.0005;
       };
 
       const normalizeWheel = (event) => {
@@ -459,11 +640,15 @@ const gateStyle = [
         targetProgress = 1;
         progress = 1;
         velocity = 0;
+        targetBurstProgress = 1;
+        burstProgress = 1;
+        burstVelocity = 0;
         render();
       });
 
       window.addEventListener("resize", () => {
         resizeEnergyCanvas();
+        resizeBurstCanvas();
         startEnergyAnimation();
       }, { passive: true });
       document.addEventListener("visibilitychange", () => {
@@ -485,6 +670,9 @@ const gateStyle = [
         targetProgress = 1;
         progress = 1;
         velocity = 0;
+        targetBurstProgress = 1;
+        burstProgress = 1;
+        burstVelocity = 0;
         render();
       };
       window.addEventListener("pageshow", syncRestoredPosition);
