@@ -97,10 +97,12 @@ const gateStyle = [
       const burstCanvas = gate.querySelector("[data-kisara-burst-canvas]");
       const burstContext = burstCanvas?.getContext("2d");
       const meterShell = gate.querySelector(".kisara-contract-meter");
+      const opening = document.querySelector("#kisara-opening");
       const state = gate.querySelector("[data-kisara-state]");
       const cue = gate.querySelector("[data-kisara-cue]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
       const burstDistance = 1650;
       const springStrength = 0.06;
@@ -109,10 +111,10 @@ const gateStyle = [
       const burstDamping = 0.8;
       const settleDistance = 0.00035;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
-      let progress = reducedMotion || window.scrollY > 2 ? 1 : 0;
+      let progress = reducedMotion || restoredBelowGate ? 1 : 0;
       let targetProgress = progress;
       let velocity = 0;
-      let burstProgress = reducedMotion || window.scrollY > 2 ? 1 : 0;
+      let burstProgress = reducedMotion || restoredBelowGate ? 1 : 0;
       let targetBurstProgress = burstProgress;
       let burstVelocity = 0;
       let animationFrame = 0;
@@ -121,12 +123,16 @@ const gateStyle = [
       let touchId = null;
       let renderedPercent = -1;
       let renderedBurstPercent = -1;
+      let renderedStage = "";
       let energyFrame = 0;
       let energyProgress = 0;
       let energyCanvasWidth = 0;
       let energyCanvasHeight = 0;
       let burstCanvasWidth = 0;
       let burstCanvasHeight = 0;
+      let pageMode = restoredBelowGate ? "next" : "gate";
+      let scrollFrame = 0;
+      let restoreWindowOpen = true;
 
       const smoothstep = (value) => value * value * (3 - 2 * value);
       const randomSeed = (index) => {
@@ -194,19 +200,26 @@ const gateStyle = [
         );
         const originX = clamp(meterLeft + localFrontX, width * 0.08, width * 0.92);
         const originY = clamp(meterTop + meterHeight * 0.5, height * 0.18, height * 0.86);
-        const maxRadius = Math.hypot(width, height) * 1.12;
+        const burstOriginX = width * 0.5;
+        const burstOriginY = height * 0.56;
+        const maxRadius = Math.hypot(width, height) * 1.16;
+        const dissolve = smoothstep(clamp(burst / 0.16, 0, 1));
+        const reform = smoothstep(clamp((burst - 0.14) / 0.3, 0, 1));
+        const detonation = smoothstep(clamp((burst - 0.66) / 0.24, 0, 1));
+        const rainProgress = smoothstep(clamp((burst - 0.82) / 0.18, 0, 1));
+        const wakeOpacity = clamp(1 - dissolve * 0.78 - rainProgress * 0.72, 0, 1);
         context.save();
         context.globalCompositeOperation = "lighter";
 
-        const ambientCount = Math.floor((18 + fill * 108) * densityScale);
+        const ambientCount = Math.floor((14 + fill * 86) * densityScale);
         for (let index = 0; index < ambientCount; index += 1) {
           const seedX = randomSeed(index + 1201);
           const seedY = randomSeed(index + 1801);
           const speed = 0.25 + seedX * (0.35 + fill * 1.1);
           const x = (seedX * width + Math.sin(time * speed + index) * (4 + fill * 20) + width) % width;
           const y = (seedY * height + Math.cos(time * (speed + 0.2) + index) * (3 + fill * 16) + height) % height;
-          const size = 0.5 + seedY * (0.8 + fill * 2.2);
-          const alpha = (0.035 + seedX * 0.18) * intensity;
+          const size = 0.45 + seedY * (0.7 + fill * 1.8);
+          const alpha = (0.025 + seedX * 0.14) * intensity;
           context.globalAlpha = alpha;
           context.fillStyle = fill > 0.56 && index % 3 !== 0 ? "#ff9caf" : "#c5d8ff";
           context.beginPath();
@@ -214,125 +227,241 @@ const gateStyle = [
           context.fill();
         }
 
-        const chargeRadius = maxRadius * (0.13 + fill * 0.87);
-        const chargeCount = Math.floor((8 + fill * 184) * densityScale);
-        for (let index = 0; index < chargeCount; index += 1) {
-          const seed = randomSeed(index + 3201);
-          const drift = randomSeed(index + 3901);
-          const speed = 0.11 + fill * (0.36 + seed * 0.76);
-          const age = (time * speed + drift * 1.9) % 1;
-          const travel = Math.pow(age, 0.72);
-          const angle = seed * Math.PI * 2 + Math.sin(time * (0.62 + drift) + index) * 0.12;
-          const radius = travel * chargeRadius;
-          const x = originX + Math.cos(angle) * radius;
-          const y = originY + Math.sin(angle) * radius * 0.72;
-          if (x < -40 || x > width + 40 || y < -40 || y > height + 40) continue;
-          const life = Math.pow(Math.sin(age * Math.PI), 1.45);
-          const alpha = life * (0.045 + fill * 0.42) * (0.42 + drift * 0.72);
-          if (alpha <= 0.008) continue;
-          const streak = 1.5 + fill * (5 + drift * 20);
-          context.globalAlpha = alpha;
-          context.strokeStyle = index % 7 === 0 ? "#ffffff" : index % 3 === 0 ? "#b9d3ff" : "#ff8fa9";
-          context.lineWidth = 0.45 + fill * (0.55 + seed * 1.05);
-          context.beginPath();
-          context.moveTo(x, y);
-          context.lineTo(
-            x - Math.cos(angle) * streak,
-            y - Math.sin(angle) * streak * 0.72
-          );
-          context.stroke();
+        const wakeLength = Math.max(34, 34 + fill * (width * 0.76));
+        const wakeSpread = 8 + fill * (height * 0.52);
+        if (wakeOpacity > 0.001) {
+          for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
+            const side = sideIndex === 0 ? -1 : 1;
+            for (let ribbon = 0; ribbon < 3; ribbon += 1) {
+              const ribbonSeed = randomSeed(sideIndex * 17 + ribbon + 3301);
+              const ribbonSpread = 0.46 + ribbon * 0.16 + ribbonSeed * 0.08;
+              const gradient = context.createLinearGradient(
+                originX,
+                originY,
+                originX - wakeLength,
+                originY + side * wakeSpread * ribbonSpread
+              );
+              gradient.addColorStop(0, "rgba(255, 250, 252, 0.9)");
+              gradient.addColorStop(0.18, "rgba(255, 157, 181, 0.52)");
+              gradient.addColorStop(0.72, "rgba(180, 211, 255, 0.18)");
+              gradient.addColorStop(1, "rgba(180, 211, 255, 0)");
+              context.globalAlpha = wakeOpacity * (0.34 - ribbon * 0.06) * intensity;
+              context.strokeStyle = gradient;
+              context.lineWidth = 1.05 + fill * (1.25 - ribbon * 0.18);
+              context.shadowColor = side < 0 ? "rgba(196, 220, 255, 0.7)" : "rgba(255, 118, 151, 0.72)";
+              context.shadowBlur = 2 + fill * 8;
+              context.beginPath();
+              for (let step = 0; step <= 14; step += 1) {
+                const travel = step / 14;
+                const x = originX - travel * wakeLength;
+                const y = originY
+                  + side * Math.pow(travel, 0.74) * wakeSpread * ribbonSpread
+                  + Math.sin(time * (2.2 + ribbonSeed) + travel * 8.5 + ribbon) * (1 + fill * 4) * (1 - travel * 0.35);
+                if (step === 0) context.moveTo(x, y);
+                else context.lineTo(x, y);
+              }
+              context.stroke();
+              context.shadowBlur = 0;
+            }
+          }
+
+          const wakeCount = Math.floor((18 + fill * 226) * densityScale);
+          for (let index = 0; index < wakeCount; index += 1) {
+            const seed = randomSeed(index + 3201);
+            const drift = randomSeed(index + 3901);
+            const side = index % 2 === 0 ? -1 : 1;
+            const speed = 0.1 + fill * (0.28 + seed * 0.52) + detonation * (0.3 + drift * 0.7);
+            const age = (time * speed + drift * 1.9) % 1;
+            const travel = smoothstep(age);
+            const branch = Math.pow(travel, 0.72) * wakeSpread * (0.16 + seed * 0.84);
+            const x = originX
+              - travel * wakeLength
+              + Math.sin(time * (1.4 + drift) + index) * (1 + fill * 3.5);
+            const y = originY
+              + side * branch
+              + Math.sin(time * (2.1 + seed) + index) * (1.2 + fill * 5) * (1 - travel * 0.25);
+            if (x < -40 || x > width + 40 || y < -40 || y > height + 40) continue;
+            const life = Math.pow(Math.sin(age * Math.PI), 1.35);
+            const alpha = life * (0.035 + fill * 0.38) * (0.42 + drift * 0.74) * wakeOpacity;
+            if (alpha <= 0.008) continue;
+            const streakX = 1.8 + fill * (4 + drift * 16) + detonation * 5;
+            const streakY = side * (0.8 + fill * (2.5 + seed * 8));
+            context.globalAlpha = alpha;
+            context.strokeStyle = index % 8 === 0 ? "#ffffff" : index % 3 === 0 ? "#b9d3ff" : "#ff8fa9";
+            context.lineWidth = 0.45 + fill * (0.5 + seed * 0.9);
+            context.beginPath();
+            context.moveTo(x, y);
+            context.lineTo(x - streakX, y + streakY);
+            context.stroke();
+          }
         }
 
         if (burst > 0.001) {
+          const crossProgress = smoothstep(clamp((burst - 0.025) / 0.16, 0, 1));
+          const crossFade = 1 - smoothstep(clamp((burst - 0.13) / 0.14, 0, 1));
+          const crossOpacity = crossProgress * crossFade;
+          if (crossOpacity > 0.001) {
+            const crossRadius = 22 + crossProgress * Math.min(width, height) * 0.42;
+            context.save();
+            context.globalCompositeOperation = "source-over";
+            context.lineCap = "square";
+            context.globalAlpha = 0.24 * crossOpacity;
+            context.strokeStyle = "#080b1c";
+            context.lineWidth = 9 + crossProgress * 11;
+            context.beginPath();
+            context.moveTo(burstOriginX - crossRadius, burstOriginY - crossRadius);
+            context.lineTo(burstOriginX + crossRadius, burstOriginY + crossRadius);
+            context.moveTo(burstOriginX + crossRadius, burstOriginY - crossRadius);
+            context.lineTo(burstOriginX - crossRadius, burstOriginY + crossRadius);
+            context.stroke();
+            context.globalAlpha = 0.9 * crossOpacity;
+            context.strokeStyle = "#ffffff";
+            context.lineWidth = 1.1 + crossProgress * 1.8;
+            context.beginPath();
+            context.moveTo(burstOriginX - crossRadius, burstOriginY - crossRadius);
+            context.lineTo(burstOriginX + crossRadius, burstOriginY + crossRadius);
+            context.moveTo(burstOriginX + crossRadius, burstOriginY - crossRadius);
+            context.lineTo(burstOriginX - crossRadius, burstOriginY + crossRadius);
+            context.stroke();
+            context.restore();
+          }
+
           const pressure = smoothstep(clamp((burst - 0.08) / 0.6, 0, 1));
-          const detonation = smoothstep(clamp((burst - 0.62) / 0.38, 0, 1));
-          const compressionRadius = 54 + pressure * 170;
+          const compressionRadius = 46 + pressure * 190;
           const compression = context.createRadialGradient(
-            originX,
-            originY,
+            burstOriginX,
+            burstOriginY,
             0,
-            originX,
-            originY,
+            burstOriginX,
+            burstOriginY,
             compressionRadius
           );
-          compression.addColorStop(0, `rgba(255, 250, 252, ${0.1 + pressure * 0.12})`);
-          compression.addColorStop(0.28, `rgba(255, 92, 128, ${0.045 + pressure * 0.085})`);
+          compression.addColorStop(0, `rgba(255, 250, 252, ${0.08 + pressure * 0.13})`);
+          compression.addColorStop(0.28, `rgba(255, 92, 128, ${0.035 + pressure * 0.09})`);
           compression.addColorStop(1, "rgba(255, 73, 105, 0)");
           context.globalAlpha = 1;
           context.fillStyle = compression;
           context.fillRect(0, 0, width, height);
 
-          if (detonation <= 0.001) {
-            context.restore();
-            return;
-          }
+          if (detonation > 0.001) {
+            const pulse = Math.sin(detonation * Math.PI) * 0.9 + Math.pow(detonation, 6) * 0.34;
+            const shockRadius = Math.max(1, detonation * maxRadius);
+            if (pulse > 0.001) {
+              const flash = context.createRadialGradient(
+                burstOriginX,
+                burstOriginY,
+                0,
+                burstOriginX,
+                burstOriginY,
+                maxRadius * 0.8
+              );
+              flash.addColorStop(0, `rgba(255, 249, 252, ${0.22 * pulse})`);
+              flash.addColorStop(0.3, `rgba(255, 116, 149, ${0.085 * pulse})`);
+              flash.addColorStop(1, "rgba(255, 73, 105, 0)");
+              context.globalAlpha = 1;
+              context.fillStyle = flash;
+              context.fillRect(0, 0, width, height);
+            }
 
-          const pulse = Math.sin(detonation * Math.PI) * 0.88 + Math.pow(detonation, 6) * 0.32;
-          const shockRadius = Math.max(1, detonation * maxRadius);
-
-          if (pulse > 0.001) {
-            const flash = context.createRadialGradient(originX, originY, 0, originX, originY, maxRadius * 0.78);
-            flash.addColorStop(0, `rgba(255, 249, 252, ${0.24 * pulse})`);
-            flash.addColorStop(0.3, `rgba(255, 116, 149, ${0.09 * pulse})`);
-            flash.addColorStop(1, "rgba(255, 73, 105, 0)");
-            context.globalAlpha = 1;
-            context.fillStyle = flash;
+            context.globalAlpha = Math.pow(detonation, 5) * 0.06;
+            context.fillStyle = "#ff7894";
             context.fillRect(0, 0, width, height);
+
+            for (let ring = 0; ring < 3; ring += 1) {
+              const ringRadius = shockRadius - ring * (18 + detonation * 34);
+              if (ringRadius <= 0) continue;
+              context.globalAlpha = (0.2 - ring * 0.04) * intensity * (0.38 + detonation * 0.62);
+              context.strokeStyle = ring % 2 === 0 ? "#ffb1c3" : "#d9e5ff";
+              context.lineWidth = 1 + detonation * (3.4 - ring * 0.46);
+              context.beginPath();
+              context.ellipse(burstOriginX, burstOriginY, ringRadius, ringRadius * 0.72, -0.1, 0, Math.PI * 2);
+              context.stroke();
+            }
+
+            const burstCount = Math.floor((18 + detonation * 330) * densityScale);
+            for (let index = 0; index < burstCount; index += 1) {
+              const seed = randomSeed(index + 2401);
+              const speed = 0.12 + detonation * (0.62 + seed * 1.6);
+              const age = (time * speed + seed * 1.9) % 1;
+              const angle = seed * Math.PI * 2 + Math.sin(time * (0.8 + seed) + index) * 0.18;
+              const radius = age * shockRadius;
+              const x = burstOriginX + Math.cos(angle) * radius;
+              const y = burstOriginY + Math.sin(angle) * radius * 0.76;
+              const alpha = (1 - age) * (0.16 + seed * 0.76) * intensity * (0.4 + detonation * 0.86) * (1 - rainProgress);
+              if (alpha <= 0.01) continue;
+              const streak = 2 + detonation * (10 + seed * 30);
+              context.globalAlpha = alpha;
+              context.strokeStyle = index % 5 === 0 ? "#ffffff" : index % 2 === 0 ? "#ff8ea6" : "#c9dcff";
+              context.lineWidth = 0.5 + detonation * (0.8 + seed * 1.5);
+              context.beginPath();
+              context.moveTo(x, y);
+              context.lineTo(x - Math.cos(angle) * streak, y - Math.sin(angle) * streak * 0.76);
+              context.stroke();
+            }
           }
 
-          context.globalAlpha = Math.pow(detonation, 5) * 0.055;
-          context.fillStyle = "#ff7894";
-          context.fillRect(0, 0, width, height);
-
-          for (let ring = 0; ring < 3; ring += 1) {
-            const ringRadius = shockRadius - ring * (18 + detonation * 34);
-            if (ringRadius <= 0) continue;
-            context.globalAlpha = (0.2 - ring * 0.04) * intensity * (0.38 + detonation * 0.62);
-            context.strokeStyle = ring % 2 === 0 ? "#ffb1c3" : "#d9e5ff";
-            context.lineWidth = 1 + detonation * (3.4 - ring * 0.46);
-            context.beginPath();
-            context.ellipse(originX, originY, ringRadius, ringRadius * 0.68, -0.1, 0, Math.PI * 2);
-            context.stroke();
-          }
-
-          const burstCount = Math.floor((18 + detonation * 360) * densityScale);
-          for (let index = 0; index < burstCount; index += 1) {
-            const seed = randomSeed(index + 2401);
-            const speed = 0.12 + detonation * (0.62 + seed * 1.6);
-            const age = (time * speed + seed * 1.9) % 1;
-            const angle = seed * Math.PI * 2 + Math.sin(time * (0.8 + seed) + index) * 0.18;
-            const radius = age * shockRadius;
-            const x = originX + Math.cos(angle) * radius;
-            const y = originY + Math.sin(angle) * radius * 0.76;
-            const alpha = (1 - age) * (0.16 + seed * 0.76) * intensity * (0.4 + detonation * 0.86);
-            if (alpha <= 0.01) continue;
-            const streak = 2 + detonation * (10 + seed * 30);
-            context.globalAlpha = alpha;
-            context.strokeStyle = index % 5 === 0 ? "#ffffff" : index % 2 === 0 ? "#ff8ea6" : "#c9dcff";
-            context.lineWidth = 0.5 + detonation * (0.8 + seed * 1.5);
-            context.beginPath();
-            context.moveTo(x, y);
-            context.lineTo(x - Math.cos(angle) * streak, y - Math.sin(angle) * streak * 0.76);
-            context.stroke();
+          if (rainProgress > 0.001) {
+            const rainCount = Math.floor((14 + rainProgress * 280) * densityScale);
+            for (let index = 0; index < rainCount; index += 1) {
+              const seed = randomSeed(index + 5201);
+              const drift = randomSeed(index + 5801);
+              const speed = 0.16 + rainProgress * (0.34 + drift * 0.62);
+              const age = (time * speed + seed * 2.4) % 1;
+              const x = seed * width + Math.sin(time * (0.8 + drift) + index) * (8 + rainProgress * 24);
+              const y = -48 + age * (height + 96) + (1 - rainProgress) * burstOriginY * 0.42;
+              const length = 3 + rainProgress * (6 + drift * 18);
+              const alpha = (0.16 + drift * 0.68) * rainProgress * (0.48 + intensity * 0.52);
+              context.globalAlpha = alpha;
+              context.strokeStyle = index % 6 === 0 ? "#ffffff" : index % 2 === 0 ? "#ff9caf" : "#c9dcff";
+              context.lineWidth = 0.55 + rainProgress * (0.65 + seed * 1.1);
+              context.beginPath();
+              context.moveTo(x, y);
+              context.lineTo(x - 1 - drift * 4, y + length);
+              context.stroke();
+            }
           }
         }
         context.restore();
       };
 
       const updateBurstPresentation = (timestamp) => {
-        const pressure = smoothstep(clamp((burstProgress - 0.08) / 0.6, 0, 1));
-        const detonation = smoothstep(clamp((burstProgress - 0.62) / 0.38, 0, 1));
-        const burstActive = burstProgress > 0.001 && burstProgress < 0.999;
-        const envelope = burstActive
-          ? 0.22 + pressure * 0.78
-          : 0;
-        const strength = (1.1 + pressure * 8.4 + detonation * 5.6) * envelope * (1 - detonation * 0.34);
+        const fill = clamp(energyProgress, 0, 1);
+        const burst = clamp(burstProgress, 0, 1);
+        const dissolve = smoothstep(clamp(burst / 0.17, 0, 1));
+        const reform = smoothstep(clamp((burst - 0.15) / 0.29, 0, 1));
+        const pressure = smoothstep(clamp((burst - 0.22) / 0.52, 0, 1));
+        const detonation = smoothstep(clamp((burst - 0.64) / 0.24, 0, 1));
+        const rainProgress = smoothstep(clamp((burst - 0.82) / 0.18, 0, 1));
+        const burstActive = burst > 0.001 && burst < 0.999;
         const time = timestamp / 1000;
-        meterShell?.style.setProperty("--kisara-beam-shake-x", `${(Math.sin(time * 46) * strength).toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-shake-y", `${(Math.cos(time * 61) * strength * 0.42).toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-expansion", (1 + pressure * 0.42 + detonation * 0.52).toFixed(4));
-        meterShell?.style.setProperty("--kisara-beam-glow", `${(pressure * 14 + detonation * 28).toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-brightness", (1 + pressure * 0.16 + detonation * 0.42).toFixed(3));
+        const floatFrequency = 0.82 + fill * 1.9;
+        const floatAmplitudeX = fill > 0.001 ? 0.9 + fill * 4.8 : 0;
+        const floatAmplitudeY = fill > 0.001 ? 0.7 + fill * 3.6 : 0;
+        const floatX = Math.sin(time * floatFrequency) * floatAmplitudeX
+          + Math.cos(time * floatFrequency * 0.61 + 1.7) * floatAmplitudeX * 0.34;
+        const floatY = Math.cos(time * floatFrequency * 0.84 + 0.6) * floatAmplitudeY
+          + Math.sin(time * floatFrequency * 0.47) * floatAmplitudeY * 0.28;
+        const burstStrength = burstActive
+          ? (0.7 + pressure * 5.2 + detonation * 10.5) * (0.18 + pressure * 0.82)
+          : 0;
+        const shakeX = floatX + Math.sin(time * (18 + pressure * 34)) * burstStrength;
+        const shakeY = floatY + Math.cos(time * (24 + pressure * 42)) * burstStrength * 0.62;
+        const beamOpacity = clamp((1 - dissolve * 0.98 + reform * 0.98) * (1 - rainProgress), 0, 1);
+        const beamScaleX = 1 + reform * 0.035 + detonation * 0.02;
+        const beamScaleY = 1 + reform * 0.2 + pressure * 0.48 + detonation * 0.92;
+        const beamAngle = -(reform * 5.5 + detonation * 7.5);
+        const performanceBlur = pressure * 1.8 + detonation * 5.8 + rainProgress * 2.4;
+        meterShell?.style.setProperty("--kisara-beam-shake-x", `${shakeX.toFixed(3)}px`);
+        meterShell?.style.setProperty("--kisara-beam-shake-y", `${shakeY.toFixed(3)}px`);
+        meterShell?.style.setProperty("--kisara-beam-expansion", beamScaleY.toFixed(4));
+        meterShell?.style.setProperty("--kisara-beam-scale-x", beamScaleX.toFixed(4));
+        meterShell?.style.setProperty("--kisara-beam-scale-y", beamScaleY.toFixed(4));
+        meterShell?.style.setProperty("--kisara-beam-angle", `${beamAngle.toFixed(3)}deg`);
+        meterShell?.style.setProperty("--kisara-beam-opacity", beamOpacity.toFixed(3));
+        meterShell?.style.setProperty("--kisara-beam-glow", `${(pressure * 12 + detonation * 30).toFixed(3)}px`);
+        meterShell?.style.setProperty("--kisara-beam-brightness", (1 + pressure * 0.16 + detonation * 0.44).toFixed(3));
+        gate.style.setProperty("--kisara-performance-blur", `${performanceBlur.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-cross-opacity", `${(smoothstep(clamp((burst - 0.025) / 0.16, 0, 1)) * (1 - smoothstep(clamp((burst - 0.13) / 0.14, 0, 1)))).toFixed(3)}`);
       };
 
       const drawEnergy = (timestamp) => {
@@ -349,12 +478,14 @@ const gateStyle = [
 
         const time = timestamp / 1000;
         const centerY = height / 2;
-        const pressure = smoothstep(clamp((burstProgress - 0.08) / 0.6, 0, 1));
-        const detonation = smoothstep(clamp((burstProgress - 0.62) / 0.38, 0, 1));
+        const reform = smoothstep(clamp((burstProgress - 0.15) / 0.29, 0, 1));
+        const pressure = smoothstep(clamp((burstProgress - 0.22) / 0.52, 0, 1));
+        const detonation = smoothstep(clamp((burstProgress - 0.64) / 0.24, 0, 1));
+        const rainProgress = smoothstep(clamp((burstProgress - 0.82) / 0.18, 0, 1));
         const startThickness = 0.8 + fill * 1.8;
-        const endThickness = 2 + fill * 34 + pressure * 14 + detonation * 24;
+        const endThickness = 2 + fill * 34 + reform * 5 + pressure * 10 + detonation * 17;
         const intensity = 0.22 + fill * 0.78 + pressure * 0.12 + detonation * 0.24;
-        const frontRadius = 5 + fill * 22 + pressure * 8 + detonation * 16;
+        const frontRadius = 5 + fill * 22 + pressure * 5 + detonation * 10;
         const frontX = clamp(width * fill, 3, Math.max(3, width - frontRadius * 2.2));
         const noseLength = Math.min(12, Math.max(1.5, frontX * 0.26));
         const context = energyContext;
@@ -428,27 +559,57 @@ const gateStyle = [
           context.stroke();
         }
 
-        const diffuseCount = 3 + Math.floor(fill * 100);
-        for (let index = 0; index < diffuseCount; index += 1) {
-          const seed = randomSeed(index + 401);
-          const speed = 0.18 + fill * (0.42 + seed * 0.95);
-          const age = (time * speed + seed * 1.7) % 1;
-          const angle = seed * Math.PI * 2 + Math.sin(time * (1.2 + seed) + index) * 0.28;
-          const radius = age * (8 + fill * 102 + seed * 38);
-          const x = frontX + Math.cos(angle) * radius - age * fill * 16;
-          const y = centerY + Math.sin(angle) * radius * 0.56;
-          const alpha = (1 - age) * (0.12 + seed * 0.62) * intensity;
-          if (alpha <= 0.01) continue;
-          context.globalAlpha = alpha;
-          context.strokeStyle = index % 4 === 0 ? "#fff" : "#ff91aa";
-          context.lineWidth = 0.55 + fill * 1.1;
-          context.beginPath();
-          context.moveTo(x, y);
-          context.lineTo(
-            x - Math.cos(angle) * (3 + fill * (5 + seed * 12)),
-            y - Math.sin(angle) * (2 + fill * (3 + seed * 8))
-          );
-          context.stroke();
+        const wakeOpacity = clamp(1 - smoothstep(clamp(burstProgress / 0.17, 0, 1)) * 0.82 - rainProgress * 0.7, 0, 1);
+        const localWakeLength = Math.max(22, 24 + fill * frontX * 0.48);
+        const localWakeSpread = 2 + fill * height * 0.34;
+        if (wakeOpacity > 0.001) {
+          for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
+            const side = sideIndex === 0 ? -1 : 1;
+            for (let ribbon = 0; ribbon < 2; ribbon += 1) {
+              const ribbonSeed = randomSeed(sideIndex * 13 + ribbon + 4401);
+              context.globalAlpha = wakeOpacity * (0.38 - ribbon * 0.07) * intensity;
+              context.strokeStyle = ribbon === 0 ? "rgba(255, 236, 244, 0.82)" : "rgba(255, 119, 148, 0.58)";
+              context.lineWidth = 0.95 + fill * (0.95 - ribbon * 0.14);
+              context.shadowColor = side < 0 ? "rgba(196, 220, 255, 0.56)" : "rgba(255, 118, 151, 0.64)";
+              context.shadowBlur = 1.5 + fill * 5;
+              context.beginPath();
+              for (let step = 0; step <= 12; step += 1) {
+                const travel = step / 12;
+                const x = frontX - travel * localWakeLength;
+                const y = centerY
+                  + side * Math.pow(travel, 0.72) * localWakeSpread * (0.58 + ribbon * 0.2 + ribbonSeed * 0.08)
+                  + Math.sin(time * (2.4 + ribbonSeed) + travel * 8 + ribbon) * (0.7 + fill * 2.2) * (1 - travel * 0.3);
+                if (step === 0) context.moveTo(x, y);
+                else context.lineTo(x, y);
+              }
+              context.stroke();
+              context.shadowBlur = 0;
+            }
+          }
+
+          const localWakeCount = 6 + Math.floor(fill * 78);
+          for (let index = 0; index < localWakeCount; index += 1) {
+            const seed = randomSeed(index + 401);
+            const drift = randomSeed(index + 701);
+            const side = index % 2 === 0 ? -1 : 1;
+            const speed = 0.12 + fill * (0.34 + seed * 0.52) + detonation * (0.24 + drift * 0.5);
+            const age = (time * speed + drift * 1.7) % 1;
+            const travel = smoothstep(age);
+            const x = frontX - travel * localWakeLength;
+            const y = centerY
+              + side * Math.pow(travel, 0.72) * localWakeSpread * (0.24 + seed * 0.76)
+              + Math.sin(time * (2.1 + seed) + index) * (0.8 + fill * 2.4);
+            const alpha = Math.pow(Math.sin(age * Math.PI), 1.35) * (0.12 + seed * 0.52) * intensity * wakeOpacity;
+            if (alpha <= 0.01) continue;
+            const streakX = 2 + fill * (3 + drift * 9);
+            context.globalAlpha = alpha;
+            context.strokeStyle = index % 5 === 0 ? "#ffffff" : "#ff91aa";
+            context.lineWidth = 0.5 + fill * (0.45 + seed * 0.7);
+            context.beginPath();
+            context.moveTo(x, y);
+            context.lineTo(x - streakX, y + side * (0.8 + fill * (1.5 + drift * 4)));
+            context.stroke();
+          }
         }
 
         const frontGlow = context.createRadialGradient(frontX, centerY, 0, frontX, centerY, frontRadius * 1.7);
@@ -543,21 +704,24 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-scale", (1.06 - reveal * 0.06).toFixed(4));
         gate.style.setProperty("--kisara-fight-saturation", (0.84 + reveal * 0.36).toFixed(3));
         gate.style.setProperty("--kisara-fight-brightness", (0.86 + reveal * 0.22).toFixed(3));
-        updateBurstPresentation(performance.now());
         energyProgress = fill;
+        updateBurstPresentation(performance.now());
         if (fill > 0.001) startEnergyAnimation();
         else stopEnergyAnimation();
         const burstPercent = Math.round(burstProgress * 100);
-        if (state && (percent !== renderedPercent || burstPercent !== renderedBurstPercent)) {
-          state.textContent = burstProgress > 0.001 && !burstComplete
+        const stage = burstComplete ? "released" : burstProgress > 0.001 ? "overcharge" : "contract";
+        if (state && (percent !== renderedPercent || burstPercent !== renderedBurstPercent || stage !== renderedStage)) {
+          state.textContent = stage === "overcharge"
             ? `OVERCHARGE ${String(burstPercent).padStart(3, "0")}%`
             : `CONTRACT ${String(percent).padStart(3, "0")}%`;
           renderedPercent = percent;
           renderedBurstPercent = burstPercent;
+          renderedStage = stage;
         }
         gate.classList.toggle("is-complete", fillComplete);
         gate.classList.toggle("is-bursting", burstProgress > 0.001 && !burstComplete);
         gate.classList.toggle("is-burst-complete", burstComplete);
+        gate.classList.toggle("is-released", pageMode === "next");
         gate.classList.toggle("is-receding", velocity < -0.0003);
         if (cue) {
           cue.textContent = burstComplete
@@ -606,6 +770,86 @@ const gateStyle = [
         }
       };
 
+      const getNextPageTop = () => {
+        const openingRect = opening?.getBoundingClientRect();
+        return Math.max(1, Math.round((openingRect?.top ?? gate.getBoundingClientRect().height) + window.scrollY));
+      };
+
+      const setScrollPosition = (value) => {
+        window.scrollTo(0, clamp(value, 0, Math.max(0, document.documentElement.scrollHeight - window.innerHeight)));
+      };
+
+      const smoothScrollTo = (target, onComplete) => {
+        if (scrollFrame) return;
+        const destination = Math.max(0, target);
+        if (reducedMotion) {
+          setScrollPosition(destination);
+          onComplete?.();
+          return;
+        }
+        const root = document.documentElement;
+        const previousScrollBehavior = root.style.scrollBehavior;
+        root.style.scrollBehavior = "auto";
+        let current = window.scrollY;
+        let velocity = 0;
+
+        const finish = () => {
+          setScrollPosition(destination);
+          root.style.scrollBehavior = previousScrollBehavior;
+          scrollFrame = 0;
+          onComplete?.();
+        };
+
+        const step = () => {
+          const distance = destination - current;
+          velocity = (velocity + distance * 0.085) * 0.78;
+          current += velocity;
+          setScrollPosition(current);
+          if (Math.abs(distance) < 0.55 && Math.abs(velocity) < 0.55) {
+            finish();
+            return;
+          }
+          scrollFrame = window.requestAnimationFrame(step);
+        };
+
+        scrollFrame = window.requestAnimationFrame(step);
+      };
+
+      const resetGateState = () => {
+        if (animationFrame) window.cancelAnimationFrame(animationFrame);
+        animationFrame = 0;
+        lastFrameTime = 0;
+        targetProgress = 0;
+        progress = 0;
+        velocity = 0;
+        targetBurstProgress = 0;
+        burstProgress = 0;
+        burstVelocity = 0;
+        energyProgress = 0;
+        renderedPercent = -1;
+        renderedBurstPercent = -1;
+        renderedStage = "";
+        render();
+      };
+
+      const enterNextPage = () => {
+        if (scrollFrame) return;
+        pageMode = "snap";
+        smoothScrollTo(getNextPageTop(), () => {
+          pageMode = "next";
+          render();
+        });
+      };
+
+      const returnToGate = () => {
+        if (scrollFrame) return;
+        pageMode = "snap";
+        smoothScrollTo(0, () => {
+          pageMode = "gate";
+          resetGateState();
+        });
+      };
+
       const addProgress = (delta) => {
         const boundedDelta = clamp(delta, -180, 180);
         const fillComplete = targetProgress >= 0.9995
@@ -631,7 +875,7 @@ const gateStyle = [
         && burstProgress >= 0.999
         && Math.abs(burstVelocity) < 0.001;
 
-      const shouldCapture = (delta) => {
+      const shouldCaptureGate = (delta) => {
         if (window.scrollY > 2 || delta === 0) return false;
         if (delta > 0) return !isComplete();
         return targetBurstProgress > 0.0005
@@ -648,12 +892,34 @@ const gateStyle = [
         return event.deltaY;
       };
 
+      const handleDirectionalInput = (delta, event) => {
+        if (delta === 0) return;
+        if (scrollFrame) {
+          event.preventDefault();
+          return;
+        }
+        if (pageMode === "gate") {
+          if (window.scrollY > 2) return;
+          if (delta > 0 && isComplete()) {
+            event.preventDefault();
+            enterNextPage();
+            return;
+          }
+          if (!shouldCaptureGate(delta)) return;
+          event.preventDefault();
+          addProgress(delta);
+          return;
+        }
+        if (pageMode === "next" && delta < 0 && window.scrollY <= getNextPageTop() + Math.max(28, window.innerHeight * 0.08)) {
+          event.preventDefault();
+          returnToGate();
+        }
+      };
+
       window.addEventListener("wheel", (event) => {
         if (event.ctrlKey || event.metaKey) return;
         const delta = normalizeWheel(event);
-        if (!shouldCapture(delta)) return;
-        event.preventDefault();
-        addProgress(delta);
+        handleDirectionalInput(delta, event);
       }, { passive: false });
 
       window.addEventListener("keydown", (event) => {
@@ -666,12 +932,10 @@ const gateStyle = [
         if (["PageUp", "Home"].includes(event.key)) amount = -300;
         if (event.key === " ") amount = event.shiftKey ? -300 : 300;
         if (!amount) return;
-        if (!shouldCapture(amount)) return;
-        event.preventDefault();
-        addProgress(amount);
+        handleDirectionalInput(amount, event);
       });
 
-      gate.addEventListener("touchstart", (event) => {
+      window.addEventListener("touchstart", (event) => {
         if (event.touches.length !== 1) {
           touchY = null;
           touchId = null;
@@ -681,7 +945,7 @@ const gateStyle = [
         touchY = event.touches[0]?.clientY ?? null;
       }, { passive: true });
 
-      gate.addEventListener("touchmove", (event) => {
+      window.addEventListener("touchmove", (event) => {
         if (event.touches.length !== 1 || touchId === null) return;
         const touch = Array.from(event.touches).find((item) => item.identifier === touchId);
         const nextY = touch?.clientY ?? null;
@@ -689,22 +953,21 @@ const gateStyle = [
         const delta = touchY - nextY;
         touchY = nextY;
         const touchDelta = delta * 2.25;
-        if (!shouldCapture(touchDelta)) return;
-        event.preventDefault();
-        addProgress(touchDelta);
+        handleDirectionalInput(touchDelta, event);
       }, { passive: false });
 
-      gate.addEventListener("touchend", () => {
+      window.addEventListener("touchend", () => {
         touchY = null;
         touchId = null;
       }, { passive: true });
 
-      gate.addEventListener("touchcancel", () => {
+      window.addEventListener("touchcancel", () => {
         touchY = null;
         touchId = null;
       }, { passive: true });
 
-      skip?.addEventListener("click", () => {
+      skip?.addEventListener("click", (event) => {
+        event.preventDefault();
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
         animationFrame = 0;
         lastFrameTime = 0;
@@ -715,6 +978,7 @@ const gateStyle = [
         burstProgress = 1;
         burstVelocity = 0;
         render();
+        enterNextPage();
       });
 
       window.addEventListener("resize", () => {
@@ -732,9 +996,8 @@ const gateStyle = [
       });
 
       render();
-      let restoreWindowOpen = true;
       const syncRestoredPosition = () => {
-        if (!restoreWindowOpen || window.scrollY <= 2 || isComplete()) return;
+        if (!restoreWindowOpen || scrollFrame || pageMode !== "gate" || window.scrollY <= 2 || isComplete()) return;
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
         animationFrame = 0;
         lastFrameTime = 0;
@@ -744,6 +1007,7 @@ const gateStyle = [
         targetBurstProgress = 1;
         burstProgress = 1;
         burstVelocity = 0;
+        pageMode = "next";
         render();
       };
       window.addEventListener("pageshow", syncRestoredPosition);

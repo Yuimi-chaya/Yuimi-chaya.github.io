@@ -24,12 +24,12 @@
 - Multi-theme baseline commit: `d4e2a29 Add independent multi-theme architecture`.
 - Kisara color-mask prototype rollback commit: `97990c8 Add Kisara scroll mask theme prototype`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
-- Local state: the Kisara image transition, tapered energy beam, and reversible overcharge burst sequence are implemented and locally validated but not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
+- Local state: the Kisara image transition, boat-wake energy beam, and reversible overcharge burst sequence are implemented, browser-validated, and ready for the next user visual review; the latest working changes are not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
 - Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
 - Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
 - Preference key: `yuimi-theme-id-v1` with an allowlist and `fuyukawa-kagari` fallback.
-- Implementation state: three independent frontends are locally available. The Kisara prototype is awaiting user visual acceptance and has not been pushed.
+- Implementation state: three independent frontends are locally available. The Kisara prototype has passed the current local test/build/browser pass and is awaiting final visual acceptance; it has not been pushed.
 
 ## Architecture Decision
 
@@ -99,8 +99,8 @@
 ### Kisara Theme
 
 - Goal: establish a visual-interaction-first character theme before selecting final artwork.
-- Status: image transition, energy beam, and two-stage overcharge prototype implemented and browser-validated on desktop and `390x844` mobile; publication is pending.
-- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask, background transition, and crest continue smoothly between wheel events. The cold background gradually blurs and dims while the fight artwork fades in from blur to clarity. The lower contract display is a Canvas-only tapered energy beam with a thin origin, progressively widening body, integrated pointed front, and particles that fan from the beam nose across the full gate. After the red tide settles at 100%, captured input enters a second reversible overcharge stage: a diagonal blade-like gloss sweeps across `Kisara`, the beam shakes, brightens, and expands, then late-stage shock rings, flash, and radial particles detonate across the viewport. Document scrolling is released only after both stages settle at 100%.
+- Status: image transition, boat-wake energy beam, and two-stage overcharge prototype implemented and browser-validated on desktop and `390x844` mobile; publication is pending.
+- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask, background transition, and crest continue smoothly between wheel events. The cold background gradually blurs and dims while the fight artwork fades in from blur to clarity. The lower contract display is a Canvas-only tapered energy beam with a thin origin, progressively widening body, integrated pointed front, and particles that originate at the beam nose, split into two wake ribbons, and trail toward the rear like a fast boat cutting water. The beam also gains a subtle floating offset whose frequency and amplitude grow with charge. After the red tide settles at 100%, captured input enters a second reversible overcharge stage: a diagonal blade-like gloss sweeps across `Kisara`, the beam fades out and reforms centrally at an upward angle, then shakes, brightens, thickens without extending, and adds viewport blur, shock rings, and faster particles before breaking into full-screen particle rain. Document scrolling is released only after both stages settle at 100%; the next section and the return to the blue gate use damped smooth snapping.
 - Escape paths: reduced-motion users start completed, restored pages below the top are synchronized to completed, and an explicit `SKIP` link bypasses the gate.
 - Boundary: no root `kisara/` source image is imported, copied, staged, or published.
 - Local helper: root `preview-blog.bat` runs `npm run build` first and starts `npm run dev -- --host 127.0.0.1` only after a successful build.
@@ -118,19 +118,20 @@
 
 ## Immediate Next Actions
 
-1. Obtain user visual acceptance for the overcharge sequence, then tune particle density, flash strength, beam expansion, blur, or image positioning from feedback.
+1. Obtain user visual acceptance for the current wake-particle and overcharge sequence, then tune particle density, flash strength, beam expansion, blur, or image positioning from feedback.
 2. Add parallax, character cutouts, or puppet layers only after suitable source material is explicitly selected.
 3. Push the baseline and Kisara commits only when separately requested.
 
 ## Test and Validation Record
 
 - `npm test`: 3/3 Node tests passed for all theme IDs, canonical path stripping, and cross-theme article-context mapping.
-- `npm run build`: passed for the Kisara prototype; 36 static pages generated, sitemap created, Pagefind index created.
+- `npm run build`: passed after the current Kisara refinements; 36 static pages generated, sitemap created, Pagefind indexed 36 pages.
 - Sitemap: verified that `/themes/blank/` routes are excluded.
 - Resource boundary: verified no legacy `/assets/` or `/music/` runtime references and no Blank import/reference to Kagari internals or assets.
 - Desktop browser: verified both theme home pages, Blank article deep link, canonical/noindex, zero horizontal overflow, two-way switching, query/hash preservation, refresh persistence, browser back/forward, and no console warnings/errors.
 - Mobile browser at 390x844: verified both themes fit without horizontal overflow and both visible theme controls remain reachable.
 - Kisara browser validation: confirmed intermediate downward input raises the mask while `scrollY` remains `0`; normal-charge particles visibly fan across the full gate; the second stage sweeps the title gloss before pressure, expansion, shock rings, and the full-screen burst; and upward input first retracts the burst before lowering the red tide. At both stages settled to `100%`, the next downward wheel input scrolls into the full-width content band. Desktop and `390x844` mobile layouts have no horizontal overflow, and the browser console has no warnings or errors.
+- Latest Kisara browser validation: confirmed the wake ribbons and trailing particles are emitted from the beam nose toward the rear, charge-dependent floating motion is continuous, the overcharge beam reforms centrally without extending its length, thickens while shaking, dissolves into particle rain, and then releases damped section scrolling. Returning upward from the next section resets the gate to the blue `CONTRACT 000%` state on desktop and `390x844` mobile.
 - Accessibility: verified Kagari context menu opens with `Shift+F10`, focuses its first item, closes with Escape, becomes `visibility:hidden`, and returns focus outside the hidden menu.
 - Search: Pagefind query returned the canonical root article once and did not expose a duplicate Blank result.
 - Production 404: verified `/themes/blank/not-a-real-page/?x=1#lost` redirects to the Blank 404 with the original URL encoded in `from`.
@@ -173,6 +174,13 @@
 - Added a gate-sized Canvas particle field. Normal charging now sends radial streaks from the beam nose toward the full viewport, while detonation increases particle density, travel distance, speed, and brightness.
 - Kept reverse input symmetrical: upward input retracts the detonation and gloss before it can lower the original title tide.
 - Created safety rollback commit `d3333c0` before the final full-screen particle and staged-detonation refinement.
+
+### 2026-07-18 Kisara wake and release refinement
+
+- Replaced the remaining radial charge particles with two head-connected wake ribbons and rearward streaks so the diffusion reads as motion generated by the energy nose rather than decoration attached to the meter.
+- Added a continuous charge-dependent float before overcharge, then made the post-100% sequence dissolve and reform the beam in the center, tilt it upward, increase thickness and shake, blur the surrounding gate, and end in a full-screen particle rain without extending the beam's length.
+- Added damped snapping from the completed gate to `#kisara-opening`, and back to the top with a blue reset when the user scrolls upward from the next section.
+- Re-ran `npm test` (3/3) and `npm run build` (36 pages, sitemap, Pagefind) after the final Canvas/CSS adjustments.
 
 ### 2026-07-18 Multi-theme implementation
 

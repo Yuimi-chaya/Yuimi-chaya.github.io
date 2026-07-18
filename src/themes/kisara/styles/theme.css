@@ -246,8 +246,14 @@ a {
   --kisara-beam-shake-x: 0px;
   --kisara-beam-shake-y: 0px;
   --kisara-beam-expansion: 1;
+  --kisara-beam-scale-x: 1;
+  --kisara-beam-scale-y: 1;
+  --kisara-beam-angle: 0deg;
+  --kisara-beam-opacity: 1;
   --kisara-beam-glow: 0px;
   --kisara-beam-brightness: 1;
+  --kisara-performance-blur: 0px;
+  --kisara-cross-opacity: 0;
   --kisara-bg-blur: 0px;
   --kisara-bg-opacity: 1;
   --kisara-bg-saturation: 1;
@@ -294,20 +300,21 @@ a {
 .kisara-gate-background-base {
   background-image: var(--kisara-gate-background-image);
   opacity: var(--kisara-bg-opacity);
-  filter: blur(var(--kisara-bg-blur)) saturate(var(--kisara-bg-saturation)) brightness(var(--kisara-bg-brightness));
+  filter: blur(calc(var(--kisara-bg-blur) + var(--kisara-performance-blur))) saturate(var(--kisara-bg-saturation)) brightness(var(--kisara-bg-brightness));
   transform: scale(1.045);
 }
 
 .kisara-gate-background-fight {
   background-image: var(--kisara-fight-background-image);
   opacity: var(--kisara-fight-opacity);
-  filter: blur(var(--kisara-fight-blur)) saturate(var(--kisara-fight-saturation)) brightness(var(--kisara-fight-brightness));
+  filter: blur(calc(var(--kisara-fight-blur) + var(--kisara-performance-blur))) saturate(var(--kisara-fight-saturation)) brightness(var(--kisara-fight-brightness));
   transform: scale(var(--kisara-fight-scale));
 }
 
 .kisara-gate-atmosphere {
   z-index: 0;
   background: linear-gradient(180deg, rgba(7, 10, 31, 0.34), rgba(7, 10, 31, 0.58));
+  filter: blur(var(--kisara-performance-blur));
 }
 
 .kisara-burst-canvas {
@@ -464,11 +471,18 @@ a {
   margin-top: 34px;
   isolation: isolate;
   transform: translate3d(var(--kisara-beam-shake-x), var(--kisara-beam-shake-y), 0)
-    scale(var(--kisara-beam-expansion));
-  transform-origin: left center;
+    rotate(var(--kisara-beam-angle))
+    scaleX(var(--kisara-beam-scale-x))
+    scaleY(var(--kisara-beam-scale-y));
+  transform-origin: center center;
+  opacity: var(--kisara-beam-opacity);
   filter: brightness(var(--kisara-beam-brightness))
     drop-shadow(0 0 var(--kisara-beam-glow) rgba(255, 92, 128, 0.72));
-  will-change: transform;
+  will-change: transform, opacity, filter;
+}
+
+.kisara-gate > :not(.kisara-contract-meter):not(.kisara-gate-visual) {
+  filter: blur(var(--kisara-performance-blur));
 }
 
 .kisara-energy-canvas {
