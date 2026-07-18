@@ -24,7 +24,7 @@
 - Multi-theme baseline commit: `d4e2a29 Add independent multi-theme architecture`.
 - Kisara color-mask prototype rollback commit: `97990c8 Add Kisara scroll mask theme prototype`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
-- Local state: the Kisara image-transition and energy-meter interaction is implemented and locally validated but not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `XP/`, `kisara/`, `showcase-output/`).
+- Local state: the Kisara image-transition and tapered energy-beam interaction is implemented and locally validated but not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
 - Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
 - Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
@@ -100,7 +100,7 @@
 
 - Goal: establish a visual-interaction-first character theme before selecting final artwork.
 - Status: image-transition and energy-meter prototype implemented and browser-validated on desktop and `390x844` mobile; publication is pending.
-- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask, background transition, and crest continue smoothly between wheel events. The cold background gradually blurs and dims while the fight artwork fades in from blur to clarity. The lower contract meter grows in thickness and drives a Canvas energy beam, particles, and bright front. Document scrolling is released only after the visible level settles at 100%.
+- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask, background transition, and crest continue smoothly between wheel events. The cold background gradually blurs and dims while the fight artwork fades in from blur to clarity. The lower contract display is a Canvas-only tapered energy beam with a thin origin, progressively widening body, integrated pointed front, and outward-diffusing particles; it has no ruler ticks or fixed progress-track frame. Document scrolling is released only after the visible level settles at 100%.
 - Escape paths: reduced-motion users start completed, restored pages below the top are synchronized to completed, and an explicit `SKIP` link bypasses the gate.
 - Boundary: no root `kisara/` source image is imported, copied, staged, or published.
 - Local helper: root `preview-blog.bat` runs `npm run build` first and starts `npm run dev -- --host 127.0.0.1` only after a successful build.
@@ -159,6 +159,12 @@
 - Replaced the single gate background with independent cold and fight image layers. The existing reversible tide progress now controls opacity, blur, scale, saturation, and brightness continuously in both directions.
 - Rebuilt the contract meter as a growing energy beam with a Canvas wave, moving particles, rays, and a glowing front; the animation pauses when the document is hidden and degrades to a static frame for reduced-motion users.
 - Removed the gate pseudo-decoration/background arrangement that could expose a rectangular dark frame around the masked title; title mask sizing and alpha behavior are now explicit.
+
+### 2026-07-18 Kisara tapered beam refinement
+
+- Removed the ruler-like track, tick marks, DOM fill bar, and detached front orb after visual review.
+- Reworked the Canvas display into a cone-like beam whose width increases continuously from its origin to a pointed energy nose. Particle count, spread, and speed increase with charge, while the front glow remains integrated with the beam rather than clipped at the canvas edge.
+- Removed the remaining gate center axis so the background no longer presents the original cross-shaped frame.
 
 ### 2026-07-18 Multi-theme implementation
 

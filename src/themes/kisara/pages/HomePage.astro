@@ -35,19 +35,14 @@ const gateStyle = [
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
       <div class="kisara-gate-atmosphere"></div>
     </div>
-    <div class="kisara-gate-axis" aria-hidden="true"></div>
     <p class="kisara-gate-index">YUIMI LAB / INTERACTION CHANNEL 03</p>
     <h1 class="kisara-title" aria-label="Kisara">
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
     </h1>
-    <div class="kisara-contract-meter" data-kisara-meter-shell aria-hidden="true">
-      <div class="kisara-contract-track">
-        <span class="kisara-contract-fill" data-kisara-meter></span>
-      </div>
+    <div class="kisara-contract-meter" aria-hidden="true">
       <canvas class="kisara-energy-canvas" data-kisara-energy width="640" height="64"></canvas>
-      <span class="kisara-energy-front" data-kisara-energy-front></span>
     </div>
     <p class="kisara-contract-state" data-kisara-state>CONTRACT 000%</p>
     <p class="kisara-scroll-cue" data-kisara-cue>SCROLL / SIGN THE CONTRACT</p>
@@ -94,8 +89,6 @@ const gateStyle = [
       if (!gate || gate.dataset.bound === "true") return;
       gate.dataset.bound = "true";
 
-      const meter = gate.querySelector("[data-kisara-meter]");
-      const meterShell = gate.querySelector("[data-kisara-meter-shell]");
       const energyCanvas = gate.querySelector("[data-kisara-energy]");
       const energyContext = energyCanvas?.getContext("2d");
       const state = gate.querySelector("[data-kisara-state]");
@@ -154,73 +147,138 @@ const gateStyle = [
         if (fill <= 0.001 || width <= 1 || height <= 1) return;
 
         const time = timestamp / 1000;
-        const frontX = clamp(width * fill, 2, width);
         const centerY = height / 2;
-        const intensity = 0.3 + fill * 0.7;
+        const startThickness = 0.8 + fill * 1.8;
+        const endThickness = 2 + fill * 34;
+        const intensity = 0.22 + fill * 0.78;
+        const frontRadius = 5 + fill * 22;
+        const frontX = clamp(width * fill, 3, Math.max(3, width - frontRadius * 2.2));
+        const noseLength = Math.min(12, Math.max(1.5, frontX * 0.26));
         const context = energyContext;
+        const thicknessAt = (x, scale = 1) =>
+          (startThickness + (endThickness - startThickness) * clamp(x / frontX, 0, 1)) * scale;
         context.save();
         context.globalCompositeOperation = "lighter";
 
-        for (let layer = 0; layer < 3; layer += 1) {
-          const amplitude = 1.2 + fill * (5 + layer * 2);
+        const drawCone = (scale, alpha, blur) => {
           const gradient = context.createLinearGradient(0, 0, frontX, 0);
-          gradient.addColorStop(0, "rgba(114, 158, 255, 0.12)");
-          gradient.addColorStop(Math.max(0.1, fill * 0.65), "rgba(185, 205, 255, 0.7)");
-          gradient.addColorStop(0.86, "rgba(255, 105, 139, 0.92)");
-          gradient.addColorStop(1, "rgba(255, 245, 249, 1)");
+          gradient.addColorStop(0, "rgba(103, 151, 255, 0.04)");
+          gradient.addColorStop(Math.max(0.12, fill * 0.56), "rgba(161, 196, 255, 0.36)");
+          gradient.addColorStop(0.82, "rgba(255, 100, 137, 0.76)");
+          gradient.addColorStop(1, "rgba(255, 248, 251, 0.98)");
+          context.beginPath();
+          context.moveTo(0, centerY - startThickness * scale / 2);
+          context.lineTo(frontX - noseLength, centerY - endThickness * scale / 2);
+          context.quadraticCurveTo(frontX - noseLength * 0.16, centerY - endThickness * scale * 0.18, frontX, centerY);
+          context.quadraticCurveTo(frontX - noseLength * 0.16, centerY + endThickness * scale * 0.18, frontX - noseLength, centerY + endThickness * scale / 2);
+          context.lineTo(0, centerY + startThickness * scale / 2);
+          context.closePath();
+          context.globalAlpha = alpha * intensity;
+          context.fillStyle = gradient;
+          context.shadowColor = "rgba(255, 84, 120, 0.84)";
+          context.shadowBlur = blur + fill * 12;
+          context.fill();
+        };
+
+        drawCone(2.1, 0.16, 12);
+        drawCone(1.35, 0.24, 8);
+        drawCone(1, 0.72, 4);
+
+        for (let layer = 0; layer < 4; layer += 1) {
+          const gradient = context.createLinearGradient(0, 0, frontX, 0);
+          gradient.addColorStop(0, "rgba(130, 174, 255, 0.22)");
+          gradient.addColorStop(0.72, "rgba(255, 166, 188, 0.78)");
+          gradient.addColorStop(1, "rgba(255, 255, 255, 1)");
           context.beginPath();
           for (let x = 0; x <= frontX; x += 4) {
+            const localThickness = thicknessAt(x, 0.82);
             const wave = Math.sin(x * (0.035 + layer * 0.009) - time * (4.6 + layer * 1.8))
-              * amplitude
-              + Math.sin(x * 0.09 + time * 3.2 + layer) * amplitude * 0.28;
-            const y = centerY + wave + (layer - 1) * (1.5 + fill * 2);
+              * localThickness * 0.42
+              + Math.sin(x * 0.09 + time * 3.2 + layer) * localThickness * 0.18;
+            const y = centerY + wave + (layer - 1.5) * (0.9 + fill * 1.4);
             if (x === 0) context.moveTo(x, y);
             else context.lineTo(x, y);
           }
+          context.globalAlpha = (layer === 1 || layer === 2 ? 0.82 : 0.36) * intensity;
           context.strokeStyle = gradient;
-          context.lineWidth = (1.2 + fill * 5.5) * (layer === 1 ? 1 : 0.42);
-          context.shadowColor = layer === 1 ? "rgba(255, 86, 119, 0.96)" : "rgba(135, 174, 255, 0.72)";
-          context.shadowBlur = 4 + fill * 15;
+          context.lineWidth = layer === 1 || layer === 2 ? 1.1 + fill * 2.6 : 0.7 + fill * 1.2;
+          context.shadowColor = layer === 1 ? "rgba(255, 91, 123, 0.94)" : "rgba(160, 195, 255, 0.78)";
+          context.shadowBlur = 3 + fill * 12;
           context.stroke();
         }
 
-        const particleCount = 5 + Math.floor(fill * 68);
-        for (let index = 0; index < particleCount; index += 1) {
+        const trailCount = 3 + Math.floor(fill * 38);
+        for (let index = 0; index < trailCount; index += 1) {
           const seed = randomSeed(index + 1);
           const speed = 18 + seed * 66;
           const x = (time * speed + seed * Math.max(frontX, 1)) % Math.max(frontX, 1);
-          const spread = 3 + fill * (8 + seed * 15);
-          const y = centerY + Math.sin(time * (2 + seed * 3) + index) * spread;
+          const localThickness = thicknessAt(x, 0.7);
+          const y = centerY + Math.sin(time * (2 + seed * 3) + index) * localThickness * 0.55;
           const size = 0.7 + seed * (0.9 + fill * 1.8);
-          const alpha = (0.18 + seed * 0.62) * intensity;
+          const alpha = (0.16 + seed * 0.56) * intensity;
           context.globalAlpha = alpha;
           context.strokeStyle = index % 3 === 0 ? "#fff6fa" : "#ff8da5";
           context.lineWidth = size;
           context.beginPath();
           context.moveTo(x, y);
-          context.lineTo(x - 4 - seed * (5 + fill * 12), y - (seed - 0.5) * 4);
+          context.lineTo(x - 4 - seed * (5 + fill * 12), y - (seed - 0.5) * 3);
           context.stroke();
         }
 
-        const frontRadius = 7 + fill * 24;
-        const frontGlow = context.createRadialGradient(frontX, centerY, 0, frontX, centerY, frontRadius);
-        frontGlow.addColorStop(0, `rgba(255, 255, 255, ${0.95 * intensity})`);
-        frontGlow.addColorStop(0.18, `rgba(255, 221, 231, ${0.78 * intensity})`);
-        frontGlow.addColorStop(0.55, `rgba(255, 73, 105, ${0.5 * intensity})`);
+        const diffuseCount = 3 + Math.floor(fill * 100);
+        for (let index = 0; index < diffuseCount; index += 1) {
+          const seed = randomSeed(index + 401);
+          const speed = 0.18 + fill * (0.42 + seed * 0.95);
+          const age = (time * speed + seed * 1.7) % 1;
+          const angle = seed * Math.PI * 2 + Math.sin(time * (1.2 + seed) + index) * 0.28;
+          const radius = age * (8 + fill * 102 + seed * 38);
+          const x = frontX + Math.cos(angle) * radius - age * fill * 16;
+          const y = centerY + Math.sin(angle) * radius * 0.56;
+          const alpha = (1 - age) * (0.12 + seed * 0.62) * intensity;
+          if (alpha <= 0.01) continue;
+          context.globalAlpha = alpha;
+          context.strokeStyle = index % 4 === 0 ? "#fff" : "#ff91aa";
+          context.lineWidth = 0.55 + fill * 1.1;
+          context.beginPath();
+          context.moveTo(x, y);
+          context.lineTo(
+            x - Math.cos(angle) * (3 + fill * (5 + seed * 12)),
+            y - Math.sin(angle) * (2 + fill * (3 + seed * 8))
+          );
+          context.stroke();
+        }
+
+        const frontGlow = context.createRadialGradient(frontX, centerY, 0, frontX, centerY, frontRadius * 1.7);
+        frontGlow.addColorStop(0, `rgba(255, 255, 255, ${0.92 * intensity})`);
+        frontGlow.addColorStop(0.2, `rgba(255, 230, 237, ${0.74 * intensity})`);
+        frontGlow.addColorStop(0.56, `rgba(255, 73, 105, ${0.42 * intensity})`);
         frontGlow.addColorStop(1, "rgba(255, 73, 105, 0)");
         context.globalAlpha = 1;
         context.fillStyle = frontGlow;
-        context.fillRect(frontX - frontRadius, centerY - frontRadius, frontRadius * 2, frontRadius * 2);
+        context.beginPath();
+        context.arc(frontX, centerY, frontRadius * 1.7, 0, Math.PI * 2);
+        context.fill();
 
-        for (let ray = 0; ray < 4 + Math.floor(fill * 8); ray += 1) {
+        context.beginPath();
+        context.moveTo(frontX - frontRadius * 1.9, centerY);
+        context.lineTo(frontX - frontRadius * 0.28, centerY - frontRadius);
+        context.quadraticCurveTo(frontX + frontRadius * 0.35, centerY, frontX - frontRadius * 0.28, centerY + frontRadius);
+        context.closePath();
+        context.globalAlpha = 0.62 + fill * 0.38;
+        context.fillStyle = "rgba(255, 126, 150, 0.74)";
+        context.shadowColor = "rgba(255, 67, 104, 0.98)";
+        context.shadowBlur = 8 + fill * 22;
+        context.fill();
+
+        for (let ray = 0; ray < 3 + Math.floor(fill * 10); ray += 1) {
           const raySeed = randomSeed(ray + 101);
-          const rayLength = 8 + raySeed * (14 + fill * 36);
-          const rayY = centerY + (raySeed - 0.5) * (8 + fill * 24);
+          const rayLength = 8 + raySeed * (14 + fill * 42);
+          const rayY = centerY + (raySeed - 0.5) * (8 + fill * 28);
           context.globalAlpha = (0.24 + raySeed * 0.42) * intensity;
           context.strokeStyle = ray % 2 === 0 ? "#fff" : "#ff7891";
           context.lineWidth = 0.7 + fill * 1.2;
           context.beginPath();
-          context.moveTo(frontX, rayY);
+          context.moveTo(frontX - frontRadius * 0.16, rayY);
           context.lineTo(frontX - rayLength, rayY + (raySeed - 0.5) * 5);
           context.stroke();
         }
@@ -272,13 +330,6 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-scale", (1.06 - reveal * 0.06).toFixed(4));
         gate.style.setProperty("--kisara-fight-saturation", (0.84 + reveal * 0.36).toFixed(3));
         gate.style.setProperty("--kisara-fight-brightness", (0.86 + reveal * 0.22).toFixed(3));
-        meter?.style.setProperty("--meter-scale", fill.toFixed(5));
-        meterShell?.style.setProperty("--meter-thickness", `${(6 + fill * 28).toFixed(2)}px`);
-        meterShell?.style.setProperty("--meter-track-height", `${(2 + fill * 7).toFixed(2)}px`);
-        meterShell?.style.setProperty("--meter-progress", `${(fill * 100).toFixed(3)}%`);
-        meterShell?.style.setProperty("--meter-front-size", `${(10 + fill * 32).toFixed(2)}px`);
-        meterShell?.style.setProperty("--meter-front-opacity", fill > 0.002 ? (0.55 + fill * 0.45).toFixed(3) : "0");
-        meterShell?.style.setProperty("--meter-tick-opacity", (0.12 + fill * 0.28).toFixed(3));
         energyProgress = fill;
         if (fill > 0.001) startEnergyAnimation();
         else stopEnergyAnimation();
