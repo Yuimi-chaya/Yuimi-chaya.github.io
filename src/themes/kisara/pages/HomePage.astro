@@ -126,14 +126,15 @@ const gateStyle = [
       const damping = 0.76;
       const burstDamping = 0.86;
       const settleDistance = 0.00035;
-      const crossStart = 0.02;
-      const crossBuildEnd = 0.24;
-      const crossFlashEnd = 0.43;
-      const crossEnd = 0.59;
-      const reformEnd = 0.78;
-      const detonationStart = 0.82;
-      const detonationEnd = 0.93;
-      const rainStart = 0.95;
+      const glossFadeEnd = 0.42;
+      const crossStart = 0.46;
+      const crossBuildEnd = 0.58;
+      const crossFlashEnd = 0.72;
+      const crossEnd = 0.82;
+      const reformEnd = 0.9;
+      const detonationStart = 0.88;
+      const detonationEnd = 0.97;
+      const rainStart = 0.985;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
       let progress = reducedMotion || restoredBelowGate ? 1 : 0;
       let targetProgress = progress;
@@ -146,8 +147,8 @@ const gateStyle = [
       let touchY = null;
       let touchId = null;
       let renderedPercent = -1;
-      let renderedBurstPercent = -1;
       let renderedStage = "";
+      let renderedGlitchTick = -1;
       let energyFrame = 0;
       let energyProgress = 0;
       let energyCanvasWidth = 0;
@@ -157,6 +158,8 @@ const gateStyle = [
       let pageMode = restoredBelowGate ? "next" : "gate";
       let scrollFrame = 0;
       let restoreWindowOpen = true;
+      let poseTimestamp = 0;
+      let chargeInstability = 0;
       let beamPose = {
         shakeX: 0,
         shakeY: 0,
@@ -171,6 +174,26 @@ const gateStyle = [
       const randomSeed = (index) => {
         const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
         return value - Math.floor(value);
+      };
+      const glitchAlphabet = "0123456789XZ!?/#@$%&<>";
+      const makeGlitchState = (timestamp, burst, released) => {
+        const tick = Math.floor(timestamp / 72);
+        const patterns = released
+          ? ["SIGNAL RELEASED", "CORE WITHOUT LIMIT", "CHANNEL UNBOUND", "OUTPUT OVERRUN"]
+          : ["SYSTEM UNSTABLE", "KISARA OVERFLOW", "CONTRACT BREACH", "RED TIDE RISING"];
+        const pattern = patterns[Math.floor(randomSeed(tick + 8401) * patterns.length)];
+        const corrupted = pattern.split("").map((character, index) => {
+          if (character === " " || randomSeed(tick * 31 + index + 8417) < 0.62) return character;
+          const glyphIndex = Math.floor(randomSeed(tick * 47 + index + 8461) * glitchAlphabet.length);
+          return glitchAlphabet[glyphIndex];
+        }).join("");
+        const code = Math.floor(randomSeed(tick + 8521) * 0xffffff).toString(16).toUpperCase().padStart(6, "0");
+        const noise = Array.from({ length: 4 }, (_, index) => {
+          const glyphIndex = Math.floor(randomSeed(tick * 59 + index + 8591) * glitchAlphabet.length);
+          return glitchAlphabet[glyphIndex];
+        }).join("");
+        const phase = burst > 0.72 ? "// BREAK" : "// OVRFLW";
+        return `${corrupted} ${phase} ${code} ${noise}`;
       };
 
       const resizeEnergyCanvas = () => {
@@ -250,6 +273,7 @@ const gateStyle = [
         const reform = phaseProgress(burst, crossEnd, reformEnd);
         const pressure = phaseProgress(burst, 0.7, 0.94);
         const detonation = phaseProgress(burst, detonationStart, detonationEnd);
+        const detonationRush = 1 - Math.pow(1 - detonation, 2.6);
         const rainProgress = phaseProgress(burst, rainStart, 1);
         const wakeOpacity = clamp(1 - dissolve * 0.78 - rainProgress * 0.72, 0, 1);
         context.save();
@@ -345,7 +369,7 @@ const gateStyle = [
         }
 
         if (burst > 0.001) {
-          const compressionRadius = 46 + pressure * 190;
+          const compressionRadius = 46 + pressure * 190 + detonationRush * 220;
           const compression = context.createRadialGradient(
             burstOriginX,
             burstOriginY,
@@ -362,8 +386,8 @@ const gateStyle = [
           context.fillRect(0, 0, width, height);
 
           if (detonation > 0.001) {
-            const pulse = Math.sin(detonation * Math.PI) * 0.9 + Math.pow(detonation, 6) * 0.34;
-            const shockRadius = Math.max(1, detonation * maxRadius);
+            const pulse = Math.sin(detonation * Math.PI) * 0.86 + Math.pow(detonationRush, 5) * 0.48;
+            const shockRadius = Math.max(1, detonationRush * maxRadius);
             if (pulse > 0.001) {
               const flash = context.createRadialGradient(
                 burstOriginX,
@@ -386,31 +410,31 @@ const gateStyle = [
             context.fillRect(0, 0, width, height);
 
             for (let ring = 0; ring < 3; ring += 1) {
-              const ringRadius = shockRadius - ring * (18 + detonation * 34);
+              const ringRadius = shockRadius - ring * (18 + detonationRush * 34);
               if (ringRadius <= 0) continue;
-              context.globalAlpha = (0.2 - ring * 0.04) * intensity * (0.38 + detonation * 0.62);
+              context.globalAlpha = (0.2 - ring * 0.04) * intensity * (0.38 + detonationRush * 0.62);
               context.strokeStyle = ring % 2 === 0 ? "#ffb1c3" : "#d9e5ff";
-              context.lineWidth = 1 + detonation * (3.4 - ring * 0.46);
+              context.lineWidth = 1 + detonationRush * (3.8 - ring * 0.46);
               context.beginPath();
               context.ellipse(burstOriginX, burstOriginY, ringRadius, ringRadius * 0.72, -0.1, 0, Math.PI * 2);
               context.stroke();
             }
 
-            const burstCount = Math.floor((18 + detonation * 330) * densityScale);
+            const burstCount = Math.floor((18 + detonationRush * 460) * densityScale);
             for (let index = 0; index < burstCount; index += 1) {
               const seed = randomSeed(index + 2401);
-              const speed = 0.12 + detonation * (0.62 + seed * 1.6);
+              const speed = 0.18 + detonationRush * (1.02 + seed * 2.8);
               const age = (time * speed + seed * 1.9) % 1;
               const angle = seed * Math.PI * 2 + Math.sin(time * (0.8 + seed) + index) * 0.18;
               const radius = age * shockRadius;
               const x = burstOriginX + Math.cos(angle) * radius;
               const y = burstOriginY + Math.sin(angle) * radius * 0.76;
-              const alpha = (1 - age) * (0.16 + seed * 0.76) * intensity * (0.4 + detonation * 0.86) * (1 - rainProgress);
+              const alpha = (1 - age) * (0.16 + seed * 0.76) * intensity * (0.4 + detonationRush * 0.86) * (1 - rainProgress);
               if (alpha <= 0.01) continue;
-              const streak = 2 + detonation * (10 + seed * 30);
+              const streak = 2 + detonationRush * (16 + seed * 48);
               context.globalAlpha = alpha;
               context.strokeStyle = index % 5 === 0 ? "#ffffff" : index % 2 === 0 ? "#ff8ea6" : "#c9dcff";
-              context.lineWidth = 0.5 + detonation * (0.8 + seed * 1.5);
+              context.lineWidth = 0.5 + detonationRush * (1 + seed * 1.8);
               context.beginPath();
               context.moveTo(x, y);
               context.lineTo(x - Math.cos(angle) * streak, y - Math.sin(angle) * streak * 0.76);
@@ -442,7 +466,7 @@ const gateStyle = [
         context.restore();
       };
 
-      const updateBurstPresentation = (timestamp) => {
+      const updateBurstPresentation = (timestamp, advanceCharge = true) => {
         const fill = clamp(energyProgress, 0, 1);
         const burst = clamp(burstProgress, 0, 1);
         const crossBuildLinear = clamp((burst - crossStart) / (crossBuildEnd - crossStart), 0, 1);
@@ -455,47 +479,70 @@ const gateStyle = [
         const reform = phaseProgress(burst, crossEnd, reformEnd);
         const pressure = phaseProgress(burst, 0.7, 0.94);
         const detonation = phaseProgress(burst, detonationStart, detonationEnd);
+        const detonationRush = 1 - Math.pow(1 - detonation, 2.6);
         const rainProgress = phaseProgress(burst, rainStart, 1);
         const blurRecovery = phaseProgress(burst, 0.9, 1);
         const burstActive = burst > 0.001 && burst < 0.999;
         const time = timestamp / 1000;
-        const instability = 0.42 + Math.pow(fill, 0.64) * 1.55;
-        const floatFrequency = 0.62 + fill * 2.8;
-        const floatAmplitudeX = 1.7 + instability * 5.8;
-        const floatAmplitudeY = 1.35 + instability * 4.5;
+        if (advanceCharge) {
+          const frameSeconds = poseTimestamp
+            ? clamp((timestamp - poseTimestamp) / 1000, 0.008, 0.06)
+            : 1 / 60;
+          poseTimestamp = timestamp;
+          const instabilityTarget = Math.pow(fill, 0.86);
+          chargeInstability += (instabilityTarget - chargeInstability) * (1 - Math.exp(-frameSeconds * 5.4));
+        }
+        const instability = 0.28 + chargeInstability * 1.72;
+        const floatFrequency = 0.68 + chargeInstability * 1.9;
+        const floatAmplitudeX = 1.6 + instability * 5.5;
+        const floatAmplitudeY = 1.25 + instability * 4.25;
         const floatX = Math.sin(time * floatFrequency) * floatAmplitudeX
           + Math.cos(time * floatFrequency * 0.61 + 1.7) * floatAmplitudeX * 0.42
-          + Math.sin(time * (0.37 + fill * 0.7) + 2.4) * floatAmplitudeX * 0.24;
+          + Math.sin(time * (0.37 + chargeInstability * 0.7) + 2.4) * floatAmplitudeX * 0.24;
         const floatY = Math.cos(time * floatFrequency * 0.84 + 0.6) * floatAmplitudeY
           + Math.sin(time * floatFrequency * 0.47) * floatAmplitudeY * 0.36
-          + Math.cos(time * (0.29 + fill * 0.58) + 0.9) * floatAmplitudeY * 0.22;
-        const floatAngle = Math.sin(time * (0.58 + fill * 1.8) + 1.2) * (0.28 + instability * 0.86)
-          + Math.cos(time * (0.31 + fill * 0.9)) * (0.16 + instability * 0.42);
-        const jitterAmount = 0.24 + Math.pow(fill, 0.76) * 2.8;
-        const jitterX = Math.sin(time * (7.5 + fill * 13) + 0.7) * jitterAmount;
-        const jitterY = Math.cos(time * (9.2 + fill * 16) + 1.5) * jitterAmount * 0.62;
+          + Math.cos(time * (0.29 + chargeInstability * 0.58) + 0.9) * floatAmplitudeY * 0.22;
+        const floatAngle = Math.sin(time * (0.58 + chargeInstability * 1.8) + 1.2) * (0.28 + instability * 0.86)
+          + Math.cos(time * (0.31 + chargeInstability * 0.9)) * (0.16 + instability * 0.42);
+        const jitterAmount = 0.14 + chargeInstability * 1.55;
+        const jitterX = Math.sin(time * (8.4 + chargeInstability * 8.8) + 0.7) * jitterAmount;
+        const jitterY = Math.cos(time * (10.1 + chargeInstability * 10.6) + 1.5) * jitterAmount * 0.62;
         const burstStrength = burstActive
-          ? (1.2 + pressure * 6.8 + detonation * 13.5) * (0.22 + pressure * 0.78)
+          ? (1.1 + pressure * 6.2 + detonationRush * 22) * (0.2 + pressure * 0.8)
           : 0;
-        const shakeX = floatX + jitterX + Math.sin(time * (18 + pressure * 36)) * burstStrength;
-        const shakeY = floatY + jitterY + Math.cos(time * (24 + pressure * 44)) * burstStrength * 0.62;
+        const detonationShakeX = detonationRush > 0.001
+          ? Math.sin(time * (42 + detonationRush * 58)) * (1.4 + detonationRush * 11)
+            + Math.cos(time * (27 + detonationRush * 42) + 0.8) * detonationRush * 4.5
+          : 0;
+        const detonationShakeY = detonationRush > 0.001
+          ? Math.cos(time * (49 + detonationRush * 64) + 1.2) * (1 + detonationRush * 8)
+            + Math.sin(time * (31 + detonationRush * 48)) * detonationRush * 3.2
+          : 0;
+        const shakeX = floatX + jitterX
+          + Math.sin(time * (18 + pressure * 36 + detonationRush * 34)) * burstStrength
+          + detonationShakeX;
+        const shakeY = floatY + jitterY
+          + Math.cos(time * (24 + pressure * 44 + detonationRush * 42)) * burstStrength * 0.62
+          + detonationShakeY;
         const beamLift = burst > 0.001
-          ? -reform * Math.min(150, gate.clientHeight * 0.17) - detonation * Math.min(24, gate.clientHeight * 0.03)
+          ? -reform * Math.min(150, gate.clientHeight * 0.17) - detonationRush * Math.min(38, gate.clientHeight * 0.05)
           : 0;
         const beamScaleX = burst > 0.001
-          ? (reform > 0 ? 0.16 + reform * 0.84 : 1) * (1 + detonation * 0.08)
+          ? (reform > 0 ? 0.16 + reform * 0.84 : 1) * (1 + detonationRush * 0.12)
           : 1;
         const beamScaleY = burst > 0.001
-          ? 1 + reform * 0.32 + pressure * 0.62 + detonation * 1.12
+          ? 1 + reform * 0.32 + pressure * 0.62 + detonationRush * 1.6
           : 1;
-        const beamAngle = floatAngle - reform * 8.5 - detonation * 10.5;
+        const beamAngle = floatAngle - reform * 8.5 - detonationRush * 17;
         const fadeOut = phaseProgress(burst, 0.015, 0.13);
         const beamVisibility = burst <= 0.001
           ? 1
           : clamp((1 - fadeOut) * (1 - reform) + reform, 0, 1);
         const beamOpacity = clamp(beamVisibility * (1 - rainProgress), 0, 1);
-        const impactBlur = pressure * 2.4 + detonation * 7.6;
-        const performanceBlur = impactBlur * (1 - blurRecovery);
+        const preBlastBlur = phaseProgress(burst, glossFadeEnd, crossStart + 0.04)
+          * (1 - phaseProgress(burst, crossEnd, reformEnd)) * 4.8;
+        const impactBlur = pressure * 2.2 + detonationRush * 11;
+        const performanceBlur = preBlastBlur + impactBlur * (1 - blurRecovery);
         const crossPulse = 0.5 + 0.5 * Math.sin(time * (10 + crossFlash * 19) + Math.sin(time * 2.1));
         const crossStrobe = clamp(crossFlash * (0.42 + crossPulse * 0.64) + releaseFlash * 1.18, 0, 1.35);
         const crossRayProgress = clamp(crossBuild * (1 - crossCollapse), 0, 1);
@@ -531,8 +578,8 @@ const gateStyle = [
         meterShell?.style.setProperty("--kisara-beam-scale-y", beamScaleY.toFixed(4));
         meterShell?.style.setProperty("--kisara-beam-angle", `${beamAngle.toFixed(3)}deg`);
         meterShell?.style.setProperty("--kisara-beam-opacity", beamOpacity.toFixed(3));
-        meterShell?.style.setProperty("--kisara-beam-glow", `${(pressure * 12 + detonation * 30).toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-brightness", (1 + pressure * 0.16 + detonation * 0.44).toFixed(3));
+        meterShell?.style.setProperty("--kisara-beam-glow", `${(pressure * 12 + detonationRush * 45).toFixed(3)}px`);
+        meterShell?.style.setProperty("--kisara-beam-brightness", (1 + pressure * 0.16 + detonationRush * 0.62).toFixed(3));
         gate.style.setProperty("--kisara-performance-blur", `${performanceBlur.toFixed(3)}px`);
         gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
         gate.style.setProperty("--kisara-cross-ray-progress", crossRayProgress.toFixed(4));
@@ -553,11 +600,28 @@ const gateStyle = [
         gate.style.setProperty("--kisara-cross-blur", `${(0.08 + crossStrobe * 0.42 + releaseFlash * 0.5).toFixed(3)}px`);
       };
 
+      const updateGlitchState = (timestamp) => {
+        if (!state) return;
+        const fillComplete = targetProgress >= 0.9995 && progress >= 0.999 && Math.abs(velocity) < 0.001;
+        if (!fillComplete) {
+          renderedGlitchTick = -1;
+          return;
+        }
+        const tick = Math.floor(timestamp / 72);
+        if (tick === renderedGlitchTick) return;
+        const burstComplete = targetBurstProgress >= 0.9995
+          && burstProgress >= 0.999
+          && Math.abs(burstVelocity) < 0.001;
+        state.textContent = makeGlitchState(timestamp, burstProgress, burstComplete);
+        renderedGlitchTick = tick;
+      };
+
       const drawEnergy = (timestamp) => {
         energyFrame = 0;
         if (!energyCanvas || !energyContext) return;
         resizeEnergyCanvas();
         updateBurstPresentation(timestamp);
+        updateGlitchState(timestamp);
         const width = energyCanvasWidth;
         const height = energyCanvasHeight;
         energyContext.clearRect(0, 0, width, height);
@@ -570,11 +634,12 @@ const gateStyle = [
         const reform = smoothstep(clamp((burstProgress - 0.15) / 0.29, 0, 1));
         const pressure = smoothstep(clamp((burstProgress - 0.22) / 0.52, 0, 1));
         const detonation = phaseProgress(burstProgress, detonationStart, detonationEnd);
+        const detonationRush = 1 - Math.pow(1 - detonation, 2.6);
         const rainProgress = phaseProgress(burstProgress, rainStart, 1);
         const startThickness = 0.8 + fill * 1.8;
-        const endThickness = 2 + fill * 34 + reform * 5 + pressure * 10 + detonation * 17;
-        const intensity = 0.12 + fill * 0.88 + pressure * 0.12 + detonation * 0.24;
-        const frontRadius = 5 + fill * 22 + pressure * 5 + detonation * 10;
+        const endThickness = 2 + fill * 34 + reform * 5 + pressure * 10 + detonationRush * 25;
+        const intensity = 0.12 + fill * 0.88 + pressure * 0.12 + detonationRush * 0.3;
+        const frontRadius = 5 + fill * 22 + pressure * 5 + detonationRush * 14;
         const frontX = clamp(width * fill, 3, Math.max(3, width - frontRadius * 2.2));
         const noseLength = Math.min(12, Math.max(1.5, frontX * 0.26));
         const context = energyContext;
@@ -682,7 +747,7 @@ const gateStyle = [
             const seed = randomSeed(index + 401);
             const drift = randomSeed(index + 701);
             const side = seed > 0.5 ? 1 : -1;
-            const speed = 0.08 + fill * (0.22 + seed * 0.38) + detonation * (0.18 + drift * 0.42);
+            const speed = 0.08 + fill * (0.22 + seed * 0.38) + detonationRush * (0.24 + drift * 0.54);
             const age = (time * speed + drift * 11.7 + index * 0.053) % 1;
             const travel = smoothstep(age);
             const turbulence = Math.sin(time * (0.7 + seed) + age * 9 + index) * (0.8 + fill * 4.2) * (0.3 + travel * 0.7);
@@ -740,6 +805,21 @@ const gateStyle = [
           context.lineTo(frontX - rayLength, rayY + (raySeed - 0.5) * 5);
           context.stroke();
         }
+
+        const tailMaskLength = Math.max(frontX / 3, 18);
+        const tailFade = context.createLinearGradient(0, 0, tailMaskLength, 0);
+        tailFade.addColorStop(0, "rgba(0, 0, 0, 0)");
+        tailFade.addColorStop(0.14, "rgba(0, 0, 0, 0.04)");
+        tailFade.addColorStop(0.3, "rgba(0, 0, 0, 0.58)");
+        tailFade.addColorStop(0.4, "rgba(0, 0, 0, 0.96)");
+        tailFade.addColorStop(0.48, "rgba(0, 0, 0, 1)");
+        tailFade.addColorStop(1, "rgba(0, 0, 0, 1)");
+        context.globalCompositeOperation = "destination-in";
+        context.globalAlpha = 1;
+        context.shadowBlur = 0;
+        context.shadowColor = "transparent";
+        context.fillStyle = tailFade;
+        context.fillRect(0, 0, width, height);
         context.restore();
 
         if (!reducedMotion && document.visibilityState === "visible" && pageMode !== "next") {
@@ -770,7 +850,7 @@ const gateStyle = [
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
         const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
         const glossPosition = -18 + glossSweep * 136;
-        const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, 0.42)) * 0.98;
+        const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
         const crestOpacity = fill <= 0.002 || fill >= 0.998
           ? 0
           : Math.min(0.92, 0.54 + Math.abs(velocity) * 42);
@@ -793,17 +873,17 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-saturation", (0.84 + reveal * 0.36).toFixed(3));
         gate.style.setProperty("--kisara-fight-brightness", (0.86 + reveal * 0.22).toFixed(3));
         energyProgress = fill;
-        updateBurstPresentation(performance.now());
+        updateBurstPresentation(performance.now(), false);
         startEnergyAnimation();
-        const burstPercent = Math.round(burstProgress * 100);
-        const stage = burstComplete ? "released" : burstProgress > 0.001 ? "overcharge" : "contract";
-        if (state && (percent !== renderedPercent || burstPercent !== renderedBurstPercent || stage !== renderedStage)) {
-          state.textContent = stage === "overcharge"
-            ? `OVERCHARGE ${String(burstPercent).padStart(3, "0")}%`
+        const stage = fillComplete ? "glitch" : "contract";
+        const glitchTick = fillComplete ? Math.floor(performance.now() / 72) : -1;
+        if (state && (percent !== renderedPercent || stage !== renderedStage || glitchTick !== renderedGlitchTick)) {
+          state.textContent = fillComplete
+            ? makeGlitchState(performance.now(), burstProgress, burstComplete)
             : `CONTRACT ${String(percent).padStart(3, "0")}%`;
           renderedPercent = percent;
-          renderedBurstPercent = burstPercent;
           renderedStage = stage;
+          renderedGlitchTick = glitchTick;
         }
         gate.classList.toggle("is-complete", fillComplete);
         gate.classList.toggle("is-bursting", burstProgress > 0.001 && !burstComplete);
@@ -920,9 +1000,11 @@ const gateStyle = [
         burstProgress = 0;
         burstVelocity = 0;
         energyProgress = 0;
+        poseTimestamp = 0;
+        chargeInstability = 0;
         renderedPercent = -1;
-        renderedBurstPercent = -1;
         renderedStage = "";
+        renderedGlitchTick = -1;
         render();
       };
 

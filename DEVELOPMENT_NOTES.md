@@ -24,12 +24,12 @@
 - Multi-theme baseline commit: `d4e2a29 Add independent multi-theme architecture`.
 - Kisara color-mask prototype rollback commit: `97990c8 Add Kisara scroll mask theme prototype`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
-- Local state: the Kisara image transition, softened boat-wake energy beam, procedural title-level pre-blast warning, and reversible overcharge burst sequence are implemented and browser-validated on desktop and mobile-sized viewports; the latest working baseline remains local and is not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
+- Local state: the Kisara image transition, continuous-charge beam motion, post-gloss procedural warning, transparent beam-tail fade, accelerated overcharge burst, and persistent glitch status are implemented and browser-validated on desktop and mobile-sized viewports; the latest working baseline remains local and is not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
 - Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
 - Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
 - Preference key: `yuimi-theme-id-v1` with an allowlist and `fuyukawa-kagari` fallback.
-- Implementation state: three independent frontends are locally available. The Kisara prototype has passed the current local test/build/browser pass and is awaiting final visual acceptance; it has not been pushed.
+- Implementation state: three independent frontends are locally available. The Kisara refinement has passed the current local test/build/browser pass and is awaiting final visual acceptance; it has not been pushed.
 
 ## Architecture Decision
 
@@ -99,8 +99,8 @@
 ### Kisara Theme
 
 - Goal: establish a visual-interaction-first character theme before selecting final artwork.
-- Status: image transition, softened boat-wake energy beam, and two-stage overcharge prototype implemented and browser-validated at `1280x720` and a mobile-sized `461x551` viewport; publication is pending.
-- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask, background transition, and crest continue smoothly between wheel events. The cold background gradually blurs and dims while the fight artwork fades in from blur to clarity. The lower contract display is a Canvas-only tapered energy beam with a thin origin, progressively widening body, and a softer wake: curved low-alpha ribbons and lifecycle-based particles emit from the nose, split naturally, and trail toward the rear instead of forming rigid symmetric lines. The beam has visible multi-frequency float, rotation, and jitter from the first non-zero charge, with instability increasing toward release. After the red tide settles at 100%, the title gloss leads into a procedural DOM warning: a black/white core emits four unequal tapered rays, broken shards, and sparks; the assembly rotates and strobes, collapses sharply back into the core, then emits a short radial shock flash. The warning has no full-box background or rectangular shadow, and every warning layer reaches zero before the Canvas beam is allowed to regrow. The beam then reforms larger and near the gate center at an upward angle, thickens without extending, and keeps the screen-burst origin mathematically tied to its moving head. Detonation blur and shock particles peak at the head, then finish before a slower particle rain begins; surrounding blur recovers to zero during the rain. Document scrolling is released only after both stages settle at 100%; the next section and the return to the blue gate use a time-scaled damped spring rather than a distance-proportional jump.
+- Status: image transition, softened boat-wake energy beam, two-stage overcharge prototype, and the latest timing/motion refinement are implemented and browser-validated at `1280x720` and a mobile-sized `461x551` viewport; publication is pending.
+- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask, background transition, and crest continue smoothly between wheel events. The cold background gradually blurs and dims while the fight artwork fades in from blur to clarity. The lower contract display is a Canvas-only tapered energy beam with a thin origin, progressively widening body, and a softer wake: curved low-alpha ribbons and lifecycle-based particles emit from the nose, split naturally, and trail toward the rear instead of forming rigid symmetric lines. Normal-charge instability now eases toward the current charge instead of jumping at wheel segments. The narrow rear third of the beam is composited through a transparent tail mask. After the red tide settles at 100%, the title gloss finishes first; a short pre-warning blur then precedes the procedural DOM warning. The warning has a black/white core, four unequal tapered rays, broken shards, and sparks; it rotates and strobes, collapses sharply back into the core, then emits a short radial shock flash. Every warning layer reaches zero before the Canvas beam regrows. The reformed beam thickens and accelerates into a faster detonation with stronger head-anchored rings and particles, then becomes a slower particle rain while blur recovers. The lower state text shows `CONTRACT 000%` through the first charge and switches to continuously changing machine-glitch output instead of replaying a second percentage counter. Document scrolling is released only after both stages settle at 100%; the next section and the return to the blue gate use a time-scaled damped spring rather than a distance-proportional jump.
 - Escape paths: reduced-motion users start completed, restored pages below the top are synchronized to completed, and an explicit `SKIP` link bypasses the gate.
 - Boundary: no root `kisara/` source image is imported, copied, staged, or published.
 - Local helper: root `preview-blog.bat` runs `npm run build` first and starts `npm run dev -- --host 127.0.0.1` only after a successful build.
@@ -118,7 +118,7 @@
 
 ## Immediate Next Actions
 
-1. Obtain user visual acceptance for the current wake-particle and overcharge sequence, then tune particle density, flash strength, beam expansion, blur, or image positioning from feedback.
+1. Obtain user visual acceptance for the current continuous-charge, warning, tail-fade, and overcharge sequence, then tune particle density, flash strength, beam expansion, blur, or image positioning from feedback.
 2. Add parallax, character cutouts, or puppet layers only after suitable source material is explicitly selected.
 3. Push the baseline and Kisara commits only when separately requested.
 
@@ -133,6 +133,7 @@
 - Kisara browser validation: confirmed intermediate downward input raises the mask while `scrollY` remains `0`; normal-charge particles visibly fan across the full gate; the second stage sweeps the title gloss before pressure, expansion, shock rings, and the full-screen burst; and upward input first retracts the burst before lowering the red tide. At both stages settled to `100%`, the next downward wheel input scrolls into the full-width content band. Desktop and `390x844` mobile layouts have no horizontal overflow, and the browser console has no warnings or errors.
 - Latest Kisara browser validation: confirmed the wake ribbons and trailing particles are emitted from the beam nose toward the rear, charge-dependent floating motion is continuous, the overcharge beam reforms centrally without extending its length, thickens while shaking, dissolves into particle rain, and then releases damped section scrolling. Returning upward from the next section resets the gate to the blue `CONTRACT 000%` state on desktop and `390x844` mobile.
 - Current Kisara warning validation: at `1280x720` and `461x551`, the procedural rays extend from the title center, rotate without forming a fixed X logo, collapse into the core, and hand off to a center shock ring. At `OVERCHARGE 064%`, warning opacity, ray length, and ring opacity were all `0` while the reformed beam had begun at partial opacity, confirming the warning cannot overlap the beam regrowth. Both viewports had no positive horizontal overflow, and the browser warning/error log was empty.
+- Latest Kisara refinement validation: at `1280x720` and `461x551`, charge movement stayed continuous during rapid input, the gloss opacity reached `0` before the warning variables became non-zero, performance blur reached about `4.8px` before warning build, the beam tail remained composited from transparent to opaque across its rear third, and detonation reached stronger scale/angle/glow values without positive horizontal overflow. After the first `CONTRACT 100%`, the status changed to continuously varying glitch text; both viewports released damped document scrolling after `100%`, and page console logs remained empty.
 - Accessibility: verified Kagari context menu opens with `Shift+F10`, focuses its first item, closes with Escape, becomes `visibility:hidden`, and returns focus outside the hidden menu.
 - Search: Pagefind query returned the canonical root article once and did not expose a duplicate Blank result.
 - Production 404: verified `/themes/blank/not-a-real-page/?x=1#lost` redirects to the Blank 404 with the original URL encoded in `from`.
@@ -197,6 +198,15 @@
 - Changed the warning motion to a fast center-out extension, progress-driven rotation and strobe, late nonlinear collapse, core flash, and radial release pulse before the energy beam reforms.
 - Fixed two broad title selectors (`.kisara-title span` and `.kisara-gate.is-complete .kisara-title span`) that were clipping the effect backgrounds to empty text and overriding every child transform; both now target only the direct text layers.
 - Revalidated `npm test` (3/3), `npm run build` (36 pages, sitemap, Pagefind), desktop and mobile-sized layouts, phase ordering, zero positive horizontal overflow, and an empty browser warning/error log.
+
+### 2026-07-18 Kisara charge continuity and runaway status refinement
+
+- Smoothed the normal-charge instability through a frame-time state so rapid wheel input no longer chains the strongest per-segment shake into repetitive vertical twitching.
+- Moved the procedural warning after the title gloss and added a short background-blur prelude before the warning appears.
+- Added a Canvas destination-in tail mask that fades the narrow rear third of the energy beam to transparent without changing its head position.
+- Reworked detonation motion with nonlinear reach, faster head-anchored particle/ring travel, stronger beam shake, and larger late-stage thickness/brightness.
+- Replaced the second `OVERCHARGE 000%→100%` counter with persistent deterministic glitch output that continues updating after the first contract reaches `100%`.
+- Revalidated `npm test` (3/3), `npm run build` (36 pages, sitemap, Pagefind), desktop `1280x720`, mobile `461x551`, zero positive horizontal overflow, release scrolling, and an empty page console warning/error log.
 
 ### 2026-07-18 Multi-theme implementation
 
