@@ -1,5 +1,6 @@
 :root {
   --kisara-gate-background-image: none;
+  --kisara-fight-background-image: none;
   --kisara-gate-background-position: center;
   color-scheme: dark;
   font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
@@ -239,6 +240,15 @@ a {
 
 .kisara-gate {
   --kisara-fill: 0%;
+  --kisara-bg-blur: 0px;
+  --kisara-bg-opacity: 1;
+  --kisara-bg-saturation: 1;
+  --kisara-bg-brightness: 1;
+  --kisara-fight-opacity: 0;
+  --kisara-fight-blur: 16px;
+  --kisara-fight-scale: 1.06;
+  --kisara-fight-saturation: 0.92;
+  --kisara-fight-brightness: 0.9;
   position: relative;
   display: grid;
   place-items: center;
@@ -248,43 +258,51 @@ a {
   overflow: hidden;
   isolation: isolate;
   background-color: #111636;
-  background-image:
-    linear-gradient(90deg, transparent 49.9%, rgba(142, 169, 238, 0.1) 50%, transparent 50.1%),
-    linear-gradient(0deg, transparent 49.9%, rgba(142, 169, 238, 0.08) 50%, transparent 50.1%),
-    linear-gradient(180deg, rgba(7, 10, 31, 0.34), rgba(7, 10, 31, 0.58)),
-    var(--kisara-gate-background-image);
-  background-position: center, center, center, var(--kisara-gate-background-position);
-  background-size: cover;
-  background-repeat: no-repeat;
 }
 
-.kisara-gate::before,
-.kisara-gate::after {
-  content: "";
+.kisara-gate-visual,
+.kisara-gate-background,
+.kisara-gate-atmosphere {
   position: absolute;
-  z-index: -1;
+  inset: 0;
   pointer-events: none;
 }
 
-.kisara-gate::before {
-  width: 52vw;
-  height: 1px;
-  left: -6vw;
-  bottom: 23%;
-  background: rgba(255, 73, 105, 0.5);
-  transform: rotate(-17deg);
-  transform-origin: left;
+.kisara-gate-visual {
+  z-index: -2;
+  overflow: hidden;
+  background: #111636;
 }
 
-.kisara-gate::after {
-  right: -10vw;
-  top: 17%;
-  width: 42vw;
-  height: 42vw;
-  max-width: 560px;
-  max-height: 560px;
-  border: 1px solid rgba(145, 177, 255, 0.2);
-  border-radius: 50%;
+.kisara-gate-background {
+  inset: -24px;
+  background-position: var(--kisara-gate-background-position);
+  background-size: cover;
+  background-repeat: no-repeat;
+  will-change: opacity, filter, transform;
+}
+
+.kisara-gate-background-base {
+  background-image: var(--kisara-gate-background-image);
+  opacity: var(--kisara-bg-opacity);
+  filter: blur(var(--kisara-bg-blur)) saturate(var(--kisara-bg-saturation)) brightness(var(--kisara-bg-brightness));
+  transform: scale(1.045);
+}
+
+.kisara-gate-background-fight {
+  background-image: var(--kisara-fight-background-image);
+  opacity: var(--kisara-fight-opacity);
+  filter: blur(var(--kisara-fight-blur)) saturate(var(--kisara-fight-saturation)) brightness(var(--kisara-fight-brightness));
+  transform: scale(var(--kisara-fight-scale));
+}
+
+.kisara-gate-atmosphere {
+  background-image:
+    linear-gradient(90deg, transparent 49.9%, rgba(142, 169, 238, 0.1) 50%, transparent 50.1%),
+    linear-gradient(0deg, transparent 49.9%, rgba(142, 169, 238, 0.08) 50%, transparent 50.1%),
+    linear-gradient(180deg, rgba(7, 10, 31, 0.34), rgba(7, 10, 31, 0.58));
+  background-size: cover;
+  mix-blend-mode: normal;
 }
 
 .kisara-gate-axis {
@@ -327,11 +345,13 @@ a {
   grid-area: 1 / 1;
   display: block;
   color: transparent;
+  -webkit-text-fill-color: transparent;
+  background-color: transparent;
   -webkit-text-stroke: 2px rgba(235, 239, 255, 0.24);
   background-clip: text;
   -webkit-background-clip: text;
-  filter: drop-shadow(0 12px 30px rgba(5, 8, 28, 0.4));
-  transition: filter 260ms ease, transform 260ms ease;
+  text-shadow: 0 12px 30px rgba(5, 8, 28, 0.4);
+  transition: text-shadow 260ms ease, transform 260ms ease;
 }
 
 .kisara-title-base {
@@ -343,6 +363,12 @@ a {
   pointer-events: none;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
 }
 
 .kisara-title-tide {
@@ -372,7 +398,7 @@ a {
   opacity: var(--kisara-crest-opacity, 0);
   background: linear-gradient(180deg, #ffe3e9 0%, #ffadc0 100%);
   transform: translateX(var(--kisara-crest-drift, 0px));
-  filter: drop-shadow(0 0 9px rgba(255, 119, 148, 0.52));
+  text-shadow: 0 0 9px rgba(255, 119, 148, 0.52);
   -webkit-mask-image: linear-gradient(
     45deg,
     transparent 0%,
@@ -397,7 +423,7 @@ a {
 
 .kisara-gate.is-complete .kisara-title span {
   transform: translateY(-3px);
-  filter: drop-shadow(0 14px 34px rgba(255, 54, 95, 0.2));
+  text-shadow: 0 14px 34px rgba(255, 54, 95, 0.2);
 }
 
 .kisara-gate.is-complete .kisara-title-tide {
@@ -411,20 +437,69 @@ a {
 }
 
 .kisara-contract-meter {
+  position: relative;
   width: min(540px, 72vw);
-  height: 2px;
+  height: var(--meter-thickness, 6px);
   margin-top: 46px;
-  overflow: hidden;
-  background: rgba(145, 177, 255, 0.23);
+  isolation: isolate;
 }
 
-.kisara-contract-meter span {
+.kisara-contract-track {
+  position: absolute;
+  inset: 50% 0 auto;
+  height: var(--meter-track-height, 2px);
+  overflow: hidden;
+  border: 1px solid rgba(210, 224, 255, 0.26);
+  border-radius: 999px;
+  background: rgba(11, 17, 49, 0.7);
+  box-shadow: 0 0 12px rgba(125, 163, 255, 0.16);
+  transform: translateY(-50%);
+}
+
+.kisara-contract-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, rgba(224, 234, 255, 0.42) 0 1px, transparent 1px 18px);
+  opacity: var(--meter-tick-opacity, 0.12);
+}
+
+.kisara-contract-fill {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  background: #ff4969;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6f9dff 0%, #b4caff 28%, #ff9aae 72%, #ff365f 100%);
+  box-shadow: 0 0 8px rgba(255, 73, 105, 0.72), 0 0 22px rgba(255, 73, 105, 0.46);
   transform: scaleX(var(--meter-scale, 0));
   transform-origin: left;
+}
+
+.kisara-energy-canvas {
+  position: absolute;
+  z-index: 2;
+  inset: -20px -5px;
+  width: calc(100% + 10px);
+  height: calc(100% + 40px);
+  pointer-events: none;
+}
+
+.kisara-energy-front {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: var(--meter-progress, 0%);
+  width: var(--meter-front-size, 10px);
+  height: var(--meter-front-size, 10px);
+  border-radius: 50%;
+  opacity: var(--meter-front-opacity, 0);
+  background: radial-gradient(circle, #fff 0 12%, #ffdce5 28%, #ff6681 54%, transparent 72%);
+  box-shadow: 0 0 8px #fff, 0 0 20px #ff4969, 0 0 42px rgba(255, 73, 105, 0.82);
+  transform: translate(-50%, -50%);
+  transition: opacity 120ms linear;
+  pointer-events: none;
 }
 
 .kisara-contract-state {

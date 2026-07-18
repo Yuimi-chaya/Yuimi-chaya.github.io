@@ -13,20 +13,28 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
 });
 
 const backgroundExtensions = ["webp", "png", "jpg", "jpeg"];
-const activeBackgroundExtension = backgroundExtensions.find((extension) =>
-  existsSync(resolve(`public/themes/kisara/assets/gate-background.${extension}`))
-);
-const activeBackgroundUrl = activeBackgroundExtension
-  ? `/themes/kisara/assets/gate-background.${activeBackgroundExtension}`
-  : null;
+const findThemeAsset = (baseName: string) => {
+  const extension = backgroundExtensions.find((candidate) =>
+    existsSync(resolve(`public/themes/kisara/assets/${baseName}.${candidate}`))
+  );
+  return extension ? `/themes/kisara/assets/${baseName}.${extension}` : null;
+};
+const activeBackgroundUrl = findThemeAsset("gate-background");
+const activeFightUrl = findThemeAsset("fight");
 const gateStyle = [
   "--kisara-fill: 0%",
-  `--kisara-gate-background-image: ${activeBackgroundUrl ? `url("${activeBackgroundUrl}")` : "none"}`
+  `--kisara-gate-background-image: ${activeBackgroundUrl ? `url("${activeBackgroundUrl}")` : "none"}`,
+  `--kisara-fight-background-image: ${activeFightUrl ? `url("${activeFightUrl}")` : "none"}`
 ].join("; ");
 ---
 
 <KisaraLayout title="Kisara | Yuimi Lab" description="Yuimi Lab 的 Kisara 视觉交互主题。">
   <section class="kisara-gate" data-kisara-gate style={gateStyle}>
+    <div class="kisara-gate-visual" aria-hidden="true">
+      <div class="kisara-gate-background kisara-gate-background-base"></div>
+      <div class="kisara-gate-background kisara-gate-background-fight"></div>
+      <div class="kisara-gate-atmosphere"></div>
+    </div>
     <div class="kisara-gate-axis" aria-hidden="true"></div>
     <p class="kisara-gate-index">YUIMI LAB / INTERACTION CHANNEL 03</p>
     <h1 class="kisara-title" aria-label="Kisara">
@@ -34,8 +42,12 @@ const gateStyle = [
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
     </h1>
-    <div class="kisara-contract-meter" aria-hidden="true">
-      <span data-kisara-meter></span>
+    <div class="kisara-contract-meter" data-kisara-meter-shell aria-hidden="true">
+      <div class="kisara-contract-track">
+        <span class="kisara-contract-fill" data-kisara-meter></span>
+      </div>
+      <canvas class="kisara-energy-canvas" data-kisara-energy width="640" height="64"></canvas>
+      <span class="kisara-energy-front" data-kisara-energy-front></span>
     </div>
     <p class="kisara-contract-state" data-kisara-state>CONTRACT 000%</p>
     <p class="kisara-scroll-cue" data-kisara-cue>SCROLL / SIGN THE CONTRACT</p>
@@ -83,6 +95,9 @@ const gateStyle = [
       gate.dataset.bound = "true";
 
       const meter = gate.querySelector("[data-kisara-meter]");
+      const meterShell = gate.querySelector("[data-kisara-meter-shell]");
+      const energyCanvas = gate.querySelector("[data-kisara-energy]");
+      const energyContext = energyCanvas?.getContext("2d");
       const state = gate.querySelector("[data-kisara-state]");
       const cue = gate.querySelector("[data-kisara-cue]");
       const skip = gate.querySelector("[data-kisara-skip]");
@@ -100,12 +115,145 @@ const gateStyle = [
       let touchY = null;
       let touchId = null;
       let renderedPercent = -1;
+      let energyFrame = 0;
+      let energyProgress = 0;
+      let energyCanvasWidth = 0;
+      let energyCanvasHeight = 0;
+
+      const smoothstep = (value) => value * value * (3 - 2 * value);
+      const randomSeed = (index) => {
+        const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
+        return value - Math.floor(value);
+      };
+
+      const resizeEnergyCanvas = () => {
+        if (!energyCanvas || !energyContext) return;
+        const rect = energyCanvas.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width));
+        const height = Math.max(1, Math.round(rect.height));
+        const devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        const pixelWidth = Math.max(1, Math.round(width * devicePixelRatio));
+        const pixelHeight = Math.max(1, Math.round(height * devicePixelRatio));
+        if (energyCanvas.width !== pixelWidth || energyCanvas.height !== pixelHeight) {
+          energyCanvas.width = pixelWidth;
+          energyCanvas.height = pixelHeight;
+          energyContext.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        }
+        energyCanvasWidth = width;
+        energyCanvasHeight = height;
+      };
+
+      const drawEnergy = (timestamp) => {
+        energyFrame = 0;
+        if (!energyCanvas || !energyContext) return;
+        resizeEnergyCanvas();
+        const width = energyCanvasWidth;
+        const height = energyCanvasHeight;
+        energyContext.clearRect(0, 0, width, height);
+        const fill = energyProgress;
+        if (fill <= 0.001 || width <= 1 || height <= 1) return;
+
+        const time = timestamp / 1000;
+        const frontX = clamp(width * fill, 2, width);
+        const centerY = height / 2;
+        const intensity = 0.3 + fill * 0.7;
+        const context = energyContext;
+        context.save();
+        context.globalCompositeOperation = "lighter";
+
+        for (let layer = 0; layer < 3; layer += 1) {
+          const amplitude = 1.2 + fill * (5 + layer * 2);
+          const gradient = context.createLinearGradient(0, 0, frontX, 0);
+          gradient.addColorStop(0, "rgba(114, 158, 255, 0.12)");
+          gradient.addColorStop(Math.max(0.1, fill * 0.65), "rgba(185, 205, 255, 0.7)");
+          gradient.addColorStop(0.86, "rgba(255, 105, 139, 0.92)");
+          gradient.addColorStop(1, "rgba(255, 245, 249, 1)");
+          context.beginPath();
+          for (let x = 0; x <= frontX; x += 4) {
+            const wave = Math.sin(x * (0.035 + layer * 0.009) - time * (4.6 + layer * 1.8))
+              * amplitude
+              + Math.sin(x * 0.09 + time * 3.2 + layer) * amplitude * 0.28;
+            const y = centerY + wave + (layer - 1) * (1.5 + fill * 2);
+            if (x === 0) context.moveTo(x, y);
+            else context.lineTo(x, y);
+          }
+          context.strokeStyle = gradient;
+          context.lineWidth = (1.2 + fill * 5.5) * (layer === 1 ? 1 : 0.42);
+          context.shadowColor = layer === 1 ? "rgba(255, 86, 119, 0.96)" : "rgba(135, 174, 255, 0.72)";
+          context.shadowBlur = 4 + fill * 15;
+          context.stroke();
+        }
+
+        const particleCount = 5 + Math.floor(fill * 68);
+        for (let index = 0; index < particleCount; index += 1) {
+          const seed = randomSeed(index + 1);
+          const speed = 18 + seed * 66;
+          const x = (time * speed + seed * Math.max(frontX, 1)) % Math.max(frontX, 1);
+          const spread = 3 + fill * (8 + seed * 15);
+          const y = centerY + Math.sin(time * (2 + seed * 3) + index) * spread;
+          const size = 0.7 + seed * (0.9 + fill * 1.8);
+          const alpha = (0.18 + seed * 0.62) * intensity;
+          context.globalAlpha = alpha;
+          context.strokeStyle = index % 3 === 0 ? "#fff6fa" : "#ff8da5";
+          context.lineWidth = size;
+          context.beginPath();
+          context.moveTo(x, y);
+          context.lineTo(x - 4 - seed * (5 + fill * 12), y - (seed - 0.5) * 4);
+          context.stroke();
+        }
+
+        const frontRadius = 7 + fill * 24;
+        const frontGlow = context.createRadialGradient(frontX, centerY, 0, frontX, centerY, frontRadius);
+        frontGlow.addColorStop(0, `rgba(255, 255, 255, ${0.95 * intensity})`);
+        frontGlow.addColorStop(0.18, `rgba(255, 221, 231, ${0.78 * intensity})`);
+        frontGlow.addColorStop(0.55, `rgba(255, 73, 105, ${0.5 * intensity})`);
+        frontGlow.addColorStop(1, "rgba(255, 73, 105, 0)");
+        context.globalAlpha = 1;
+        context.fillStyle = frontGlow;
+        context.fillRect(frontX - frontRadius, centerY - frontRadius, frontRadius * 2, frontRadius * 2);
+
+        for (let ray = 0; ray < 4 + Math.floor(fill * 8); ray += 1) {
+          const raySeed = randomSeed(ray + 101);
+          const rayLength = 8 + raySeed * (14 + fill * 36);
+          const rayY = centerY + (raySeed - 0.5) * (8 + fill * 24);
+          context.globalAlpha = (0.24 + raySeed * 0.42) * intensity;
+          context.strokeStyle = ray % 2 === 0 ? "#fff" : "#ff7891";
+          context.lineWidth = 0.7 + fill * 1.2;
+          context.beginPath();
+          context.moveTo(frontX, rayY);
+          context.lineTo(frontX - rayLength, rayY + (raySeed - 0.5) * 5);
+          context.stroke();
+        }
+        context.restore();
+
+        if (!reducedMotion && document.visibilityState === "visible" && energyProgress > 0.001) {
+          energyFrame = window.requestAnimationFrame(drawEnergy);
+        }
+      };
+
+      const startEnergyAnimation = () => {
+        if (!energyContext || energyProgress <= 0.001) return;
+        if (reducedMotion) {
+          drawEnergy(performance.now());
+          return;
+        }
+        if (!energyFrame && document.visibilityState === "visible") {
+          energyFrame = window.requestAnimationFrame(drawEnergy);
+        }
+      };
+
+      const stopEnergyAnimation = () => {
+        if (energyFrame) window.cancelAnimationFrame(energyFrame);
+        energyFrame = 0;
+        drawEnergy(performance.now());
+      };
 
       const render = () => {
         const fill = clamp(progress, 0, 1);
         const percent = Math.round(progress * 100);
         const complete = targetProgress >= 0.9995 && fill >= 0.999 && Math.abs(velocity) < 0.001;
         const tideVisible = fill > 0.0005;
+        const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
         const crestOpacity = fill <= 0.002 || fill >= 0.998
           ? 0
           : Math.min(0.92, 0.54 + Math.abs(velocity) * 42);
@@ -115,7 +263,25 @@ const gateStyle = [
         gate.style.setProperty("--kisara-tide-opacity", tideVisible ? "1" : "0");
         gate.style.setProperty("--kisara-crest-opacity", crestOpacity.toFixed(3));
         gate.style.setProperty("--kisara-crest-drift", `${crestDrift.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-bg-blur", `${(reveal * 12).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-bg-opacity", (0.98 - reveal * 0.66).toFixed(3));
+        gate.style.setProperty("--kisara-bg-saturation", (1 - reveal * 0.26).toFixed(3));
+        gate.style.setProperty("--kisara-bg-brightness", (1 - reveal * 0.14).toFixed(3));
+        gate.style.setProperty("--kisara-fight-opacity", (reveal * 0.98).toFixed(3));
+        gate.style.setProperty("--kisara-fight-blur", `${((1 - reveal) * 15).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-fight-scale", (1.06 - reveal * 0.06).toFixed(4));
+        gate.style.setProperty("--kisara-fight-saturation", (0.84 + reveal * 0.36).toFixed(3));
+        gate.style.setProperty("--kisara-fight-brightness", (0.86 + reveal * 0.22).toFixed(3));
         meter?.style.setProperty("--meter-scale", fill.toFixed(5));
+        meterShell?.style.setProperty("--meter-thickness", `${(6 + fill * 28).toFixed(2)}px`);
+        meterShell?.style.setProperty("--meter-track-height", `${(2 + fill * 7).toFixed(2)}px`);
+        meterShell?.style.setProperty("--meter-progress", `${(fill * 100).toFixed(3)}%`);
+        meterShell?.style.setProperty("--meter-front-size", `${(10 + fill * 32).toFixed(2)}px`);
+        meterShell?.style.setProperty("--meter-front-opacity", fill > 0.002 ? (0.55 + fill * 0.45).toFixed(3) : "0");
+        meterShell?.style.setProperty("--meter-tick-opacity", (0.12 + fill * 0.28).toFixed(3));
+        energyProgress = fill;
+        if (fill > 0.001) startEnergyAnimation();
+        else stopEnergyAnimation();
         if (state && percent !== renderedPercent) {
           state.textContent = `CONTRACT ${String(percent).padStart(3, "0")}%`;
           renderedPercent = percent;
@@ -243,6 +409,19 @@ const gateStyle = [
         progress = 1;
         velocity = 0;
         render();
+      });
+
+      window.addEventListener("resize", () => {
+        resizeEnergyCanvas();
+        startEnergyAnimation();
+      }, { passive: true });
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          if (energyFrame) window.cancelAnimationFrame(energyFrame);
+          energyFrame = 0;
+          return;
+        }
+        startEnergyAnimation();
       });
 
       render();

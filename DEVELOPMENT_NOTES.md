@@ -24,7 +24,7 @@
 - Multi-theme baseline commit: `d4e2a29 Add independent multi-theme architecture`.
 - Kisara color-mask prototype rollback commit: `97990c8 Add Kisara scroll mask theme prototype`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
-- Local state: the Kisara interaction prototype is implemented and locally validated but not pushed. Untracked user materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `XP/`, `kisara/`, `showcase-output/`).
+- Local state: the Kisara image-transition and energy-meter interaction is implemented and locally validated but not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
 - Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
 - Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
@@ -46,8 +46,8 @@
 - Shared content assets: `public/blog-assets/`, `public/blog-covers/`, Markdown content images.
 - Fuyukawa Kagari theme assets: `public/themes/fuyukawa-kagari/assets/`, `public/themes/fuyukawa-kagari/music/`, Live2D CDN configuration, homepage background/avatars/brand images, About media, and the 404 visual.
 - External Fuyukawa Kagari runtime dependencies: jsDelivr Live2D packages, Cubism SDK, location/weather endpoints.
-- Kisara presentation assets: only a generated dark placeholder at `public/themes/kisara/assets/gate-background.jpg`. Root `kisara/` images remain user-owned source material and are intentionally unreferenced.
-- Kisara gate custom background slot: use the base name `public/themes/kisara/assets/gate-background` with `.webp`, `.png`, `.jpg`, or `.jpeg`. Build-time matching uses that order and the theme keeps a dark color fallback when none exists. Keep one custom format at a time when comparing artwork; the generated `.jpg` is the default placeholder.
+- Kisara presentation assets: the user-selected cold background is at `public/themes/kisara/assets/gate-background.jpg`; the explicitly selected fight artwork is at `public/themes/kisara/assets/fight.jpg`. Root `kisara/` images remain user-owned source material and are intentionally not referenced directly.
+- Kisara gate asset matching: the base names `gate-background` and `fight` accept `.webp`, `.png`, `.jpg`, or `.jpeg`, in that priority order. Keep one custom format per base name when comparing artwork.
 - Historical or unreferenced candidates remain untouched until a later cleanup request; absence of a current reference is not deletion approval.
 
 ## Migration Map
@@ -99,8 +99,8 @@
 ### Kisara Theme
 
 - Goal: establish a visual-interaction-first character theme before selecting final artwork.
-- Status: prototype implemented and browser-validated on desktop and `390x844` mobile.
-- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask and crest continue smoothly between wheel events. Document scrolling is released only after the visible level settles at 100%.
+- Status: image-transition and energy-meter prototype implemented and browser-validated on desktop and `390x844` mobile; publication is pending.
+- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask, background transition, and crest continue smoothly between wheel events. The cold background gradually blurs and dims while the fight artwork fades in from blur to clarity. The lower contract meter grows in thickness and drives a Canvas energy beam, particles, and bright front. Document scrolling is released only after the visible level settles at 100%.
 - Escape paths: reduced-motion users start completed, restored pages below the top are synchronized to completed, and an explicit `SKIP` link bypasses the gate.
 - Boundary: no root `kisara/` source image is imported, copied, staged, or published.
 - Local helper: root `preview-blog.bat` runs `npm run build` first and starts `npm run dev -- --host 127.0.0.1` only after a successful build.
@@ -118,7 +118,7 @@
 
 ## Immediate Next Actions
 
-1. Obtain user visual acceptance for the Kisara color-only scroll mask and tune fill distance or typography from that feedback.
+1. Obtain user visual acceptance for the image-transition and energy-meter treatment, then tune blur, image positioning, or energy density from feedback.
 2. Add parallax, character cutouts, or puppet layers only after suitable source material is explicitly selected.
 3. Push the baseline and Kisara commits only when separately requested.
 
@@ -152,6 +152,13 @@
 - Replaced direct per-wheel percentage steps with a reversible target/visible/velocity state model, a damped frame-time animation loop, a soft red mask edge, and a narrow moving tide crest.
 - Kept all root `kisara/` image sources untouched and outside the published theme.
 - Created the architecture rollback point `d4e2a29` before starting the prototype.
+
+### 2026-07-18 Kisara image transition and energy meter
+
+- Copied the explicitly selected `kisara/fight.jpg` into the theme-owned public asset slot without modifying the original source directory.
+- Replaced the single gate background with independent cold and fight image layers. The existing reversible tide progress now controls opacity, blur, scale, saturation, and brightness continuously in both directions.
+- Rebuilt the contract meter as a growing energy beam with a Canvas wave, moving particles, rays, and a glowing front; the animation pauses when the document is hidden and degrades to a static frame for reduced-motion users.
+- Removed the gate pseudo-decoration/background arrangement that could expose a rectangular dark frame around the masked title; title mask sizing and alpha behavior are now explicit.
 
 ### 2026-07-18 Multi-theme implementation
 
