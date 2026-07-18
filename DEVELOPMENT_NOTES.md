@@ -24,7 +24,7 @@
 - Multi-theme baseline commit: `d4e2a29 Add independent multi-theme architecture`.
 - Kisara color-mask prototype rollback commit: `97990c8 Add Kisara scroll mask theme prototype`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
-- Local state: the Kisara image-transition and tapered energy-beam interaction is implemented and locally validated but not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `XP/`, `kisara/`, `showcase-output/`).
+- Local state: the Kisara image transition, tapered energy beam, and reversible overcharge burst sequence are implemented and locally validated but not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
 - Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
 - Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
@@ -36,7 +36,7 @@
 - Shared layer: content collections, article queries, site metadata, category labels, SEO inputs, and theme registry/path helpers.
 - Fuyukawa Kagari layer: existing pages, layouts, theme CSS at `src/themes/fuyukawa-kagari/styles/theme.css`, navigation presentation, footer copy, Sakura, pig scrollbar, tool dock, music player, Live2D, notice, weather/IP signal, Canvas tag rain, and related assets.
 - Blank layer: independent document layout, navigation, pages, article presentation, CSS, context menu, and visible theme return control. It does not load Kagari CSS, assets, remote Live2D, music, weather, or notice runtime.
-- Kisara layer: independent dark visual-interaction frontend with a reversible blue-to-red diagonal title tide controlled by captured vertical input. It owns its layout, pages, CSS, mobile navigation, context menu, and runtime, and currently references no character images.
+- Kisara layer: independent dark visual-interaction frontend with a reversible blue-to-red diagonal title tide controlled by captured vertical input. It owns its layout, pages, CSS, mobile navigation, context menu, runtime, and theme-owned background slots under `public/themes/kisara/assets/`.
 - Switching: map the current canonical pathname into the target theme, preserve query/hash, persist the target ID, then perform a full-document navigation. Explicit user switches use history-preserving `assign`; automatic preference restoration uses `replace`; browser history traversal adopts the restored page's theme.
 - SEO: alternate theme routes use `noindex,follow`; sitemap excludes `/themes/` routes.
 - 404: the single GitHub Pages root 404 performs an early client redirect for unknown `/themes/blank/*` paths to `/themes/blank/404/`, carrying the original URL in `from`.
@@ -99,8 +99,8 @@
 ### Kisara Theme
 
 - Goal: establish a visual-interaction-first character theme before selecting final artwork.
-- Status: image-transition and energy-meter prototype implemented and browser-validated on desktop and `390x844` mobile; publication is pending.
-- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask, background transition, and crest continue smoothly between wheel events. The cold background gradually blurs and dims while the fight artwork fades in from blur to clarity. The lower contract display is a Canvas-only tapered energy beam with a thin origin, progressively widening body, integrated pointed front, and outward-diffusing particles; it has no ruler ticks or fixed progress-track frame. Document scrolling is released only after the visible level settles at 100%.
+- Status: image transition, energy beam, and two-stage overcharge prototype implemented and browser-validated on desktop and `390x844` mobile; publication is pending.
+- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask, background transition, and crest continue smoothly between wheel events. The cold background gradually blurs and dims while the fight artwork fades in from blur to clarity. The lower contract display is a Canvas-only tapered energy beam with a thin origin, progressively widening body, integrated pointed front, and particles that fan from the beam nose across the full gate. After the red tide settles at 100%, captured input enters a second reversible overcharge stage: a diagonal blade-like gloss sweeps across `Kisara`, the beam shakes, brightens, and expands, then late-stage shock rings, flash, and radial particles detonate across the viewport. Document scrolling is released only after both stages settle at 100%.
 - Escape paths: reduced-motion users start completed, restored pages below the top are synchronized to completed, and an explicit `SKIP` link bypasses the gate.
 - Boundary: no root `kisara/` source image is imported, copied, staged, or published.
 - Local helper: root `preview-blog.bat` runs `npm run build` first and starts `npm run dev -- --host 127.0.0.1` only after a successful build.
@@ -118,7 +118,7 @@
 
 ## Immediate Next Actions
 
-1. Obtain user visual acceptance for the image-transition and energy-meter treatment, then tune blur, image positioning, or energy density from feedback.
+1. Obtain user visual acceptance for the overcharge sequence, then tune particle density, flash strength, beam expansion, blur, or image positioning from feedback.
 2. Add parallax, character cutouts, or puppet layers only after suitable source material is explicitly selected.
 3. Push the baseline and Kisara commits only when separately requested.
 
@@ -130,7 +130,7 @@
 - Resource boundary: verified no legacy `/assets/` or `/music/` runtime references and no Blank import/reference to Kagari internals or assets.
 - Desktop browser: verified both theme home pages, Blank article deep link, canonical/noindex, zero horizontal overflow, two-way switching, query/hash preservation, refresh persistence, browser back/forward, and no console warnings/errors.
 - Mobile browser at 390x844: verified both themes fit without horizontal overflow and both visible theme controls remain reachable.
-- Kisara browser validation: confirmed intermediate downward input raises the mask while `scrollY` remains `0`, reverse input lowers it continuously, and returning to the top after normal page scrolling allows the next upward input to recede from 100%. At settled `100%`, the next downward input scrolls into the full-width content band. Desktop and `390x844` mobile layouts have no horizontal overflow.
+- Kisara browser validation: confirmed intermediate downward input raises the mask while `scrollY` remains `0`; normal-charge particles visibly fan across the full gate; the second stage sweeps the title gloss before pressure, expansion, shock rings, and the full-screen burst; and upward input first retracts the burst before lowering the red tide. At both stages settled to `100%`, the next downward wheel input scrolls into the full-width content band. Desktop and `390x844` mobile layouts have no horizontal overflow, and the browser console has no warnings or errors.
 - Accessibility: verified Kagari context menu opens with `Shift+F10`, focuses its first item, closes with Escape, becomes `visibility:hidden`, and returns focus outside the hidden menu.
 - Search: Pagefind query returned the canonical root article once and did not expose a duplicate Blank result.
 - Production 404: verified `/themes/blank/not-a-real-page/?x=1#lost` redirects to the Blank 404 with the original URL encoded in `from`.
@@ -165,6 +165,14 @@
 - Removed the ruler-like track, tick marks, DOM fill bar, and detached front orb after visual review.
 - Reworked the Canvas display into a cone-like beam whose width increases continuously from its origin to a pointed energy nose. Particle count, spread, and speed increase with charge, while the front glow remains integrated with the beam rather than clipped at the canvas edge.
 - Removed the remaining gate center axis so the background no longer presents the original cross-shaped frame.
+
+### 2026-07-18 Kisara overcharge burst sequence
+
+- Added a second reversible captured-input stage after the red title tide reaches 100%; normal document scrolling remains locked until this stage also settles at 100%.
+- Added a diagonal blade-gloss pass across the title, progressively stronger beam shake, bloom, and expansion, followed by late-stage viewport shock rings and flash.
+- Added a gate-sized Canvas particle field. Normal charging now sends radial streaks from the beam nose toward the full viewport, while detonation increases particle density, travel distance, speed, and brightness.
+- Kept reverse input symmetrical: upward input retracts the detonation and gloss before it can lower the original title tide.
+- Created safety rollback commit `d3333c0` before the final full-screen particle and staged-detonation refinement.
 
 ### 2026-07-18 Multi-theme implementation
 

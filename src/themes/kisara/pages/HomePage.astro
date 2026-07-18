@@ -181,18 +181,32 @@ const gateStyle = [
 
         const time = timestamp / 1000;
         const intensity = 0.22 + fill * 0.78;
+        const densityScale = width < 640 ? 0.68 : width < 960 ? 0.84 : 1;
+        const meterWidth = meterShell?.clientWidth || Math.min(620, width * 0.78);
+        const meterHeight = meterShell?.clientHeight || 68;
+        const meterLeft = meterShell?.offsetLeft ?? (width - meterWidth) / 2;
+        const meterTop = meterShell?.offsetTop ?? height * 0.58;
+        const localFrontRadius = 5 + fill * 22;
+        const localFrontX = clamp(
+          meterWidth * fill,
+          3,
+          Math.max(3, meterWidth - localFrontRadius * 2.2)
+        );
+        const originX = clamp(meterLeft + localFrontX, width * 0.08, width * 0.92);
+        const originY = clamp(meterTop + meterHeight * 0.5, height * 0.18, height * 0.86);
+        const maxRadius = Math.hypot(width, height) * 1.12;
         context.save();
         context.globalCompositeOperation = "lighter";
 
-        const ambientCount = 12 + Math.floor(fill * 168);
+        const ambientCount = Math.floor((18 + fill * 108) * densityScale);
         for (let index = 0; index < ambientCount; index += 1) {
           const seedX = randomSeed(index + 1201);
           const seedY = randomSeed(index + 1801);
           const speed = 0.25 + seedX * (0.35 + fill * 1.1);
           const x = (seedX * width + Math.sin(time * speed + index) * (4 + fill * 20) + width) % width;
           const y = (seedY * height + Math.cos(time * (speed + 0.2) + index) * (3 + fill * 16) + height) % height;
-          const size = 0.45 + seedY * (0.7 + fill * 1.9);
-          const alpha = (0.025 + seedX * 0.14) * intensity;
+          const size = 0.5 + seedY * (0.8 + fill * 2.2);
+          const alpha = (0.035 + seedX * 0.18) * intensity;
           context.globalAlpha = alpha;
           context.fillStyle = fill > 0.56 && index % 3 !== 0 ? "#ff9caf" : "#c5d8ff";
           context.beginPath();
@@ -200,53 +214,105 @@ const gateStyle = [
           context.fill();
         }
 
+        const chargeRadius = maxRadius * (0.13 + fill * 0.87);
+        const chargeCount = Math.floor((8 + fill * 184) * densityScale);
+        for (let index = 0; index < chargeCount; index += 1) {
+          const seed = randomSeed(index + 3201);
+          const drift = randomSeed(index + 3901);
+          const speed = 0.11 + fill * (0.36 + seed * 0.76);
+          const age = (time * speed + drift * 1.9) % 1;
+          const travel = Math.pow(age, 0.72);
+          const angle = seed * Math.PI * 2 + Math.sin(time * (0.62 + drift) + index) * 0.12;
+          const radius = travel * chargeRadius;
+          const x = originX + Math.cos(angle) * radius;
+          const y = originY + Math.sin(angle) * radius * 0.72;
+          if (x < -40 || x > width + 40 || y < -40 || y > height + 40) continue;
+          const life = Math.pow(Math.sin(age * Math.PI), 1.45);
+          const alpha = life * (0.045 + fill * 0.42) * (0.42 + drift * 0.72);
+          if (alpha <= 0.008) continue;
+          const streak = 1.5 + fill * (5 + drift * 20);
+          context.globalAlpha = alpha;
+          context.strokeStyle = index % 7 === 0 ? "#ffffff" : index % 3 === 0 ? "#b9d3ff" : "#ff8fa9";
+          context.lineWidth = 0.45 + fill * (0.55 + seed * 1.05);
+          context.beginPath();
+          context.moveTo(x, y);
+          context.lineTo(
+            x - Math.cos(angle) * streak,
+            y - Math.sin(angle) * streak * 0.72
+          );
+          context.stroke();
+        }
+
         if (burst > 0.001) {
-          const burstEase = smoothstep(burst);
-          const originX = width * 0.52;
-          const originY = height * 0.54;
-          const maxRadius = Math.hypot(width, height) * 1.14;
-          const pulse = Math.sin(clamp(burst, 0, 1) * Math.PI);
-          const shockRadius = Math.max(1, burstEase * maxRadius);
+          const pressure = smoothstep(clamp((burst - 0.08) / 0.6, 0, 1));
+          const detonation = smoothstep(clamp((burst - 0.62) / 0.38, 0, 1));
+          const compressionRadius = 54 + pressure * 170;
+          const compression = context.createRadialGradient(
+            originX,
+            originY,
+            0,
+            originX,
+            originY,
+            compressionRadius
+          );
+          compression.addColorStop(0, `rgba(255, 250, 252, ${0.1 + pressure * 0.12})`);
+          compression.addColorStop(0.28, `rgba(255, 92, 128, ${0.045 + pressure * 0.085})`);
+          compression.addColorStop(1, "rgba(255, 73, 105, 0)");
+          context.globalAlpha = 1;
+          context.fillStyle = compression;
+          context.fillRect(0, 0, width, height);
+
+          if (detonation <= 0.001) {
+            context.restore();
+            return;
+          }
+
+          const pulse = Math.sin(detonation * Math.PI) * 0.88 + Math.pow(detonation, 6) * 0.32;
+          const shockRadius = Math.max(1, detonation * maxRadius);
 
           if (pulse > 0.001) {
             const flash = context.createRadialGradient(originX, originY, 0, originX, originY, maxRadius * 0.78);
-            flash.addColorStop(0, `rgba(255, 239, 245, ${0.1 * pulse})`);
-            flash.addColorStop(0.28, `rgba(255, 105, 139, ${0.045 * pulse})`);
+            flash.addColorStop(0, `rgba(255, 249, 252, ${0.24 * pulse})`);
+            flash.addColorStop(0.3, `rgba(255, 116, 149, ${0.09 * pulse})`);
             flash.addColorStop(1, "rgba(255, 73, 105, 0)");
             context.globalAlpha = 1;
             context.fillStyle = flash;
             context.fillRect(0, 0, width, height);
           }
 
+          context.globalAlpha = Math.pow(detonation, 5) * 0.055;
+          context.fillStyle = "#ff7894";
+          context.fillRect(0, 0, width, height);
+
           for (let ring = 0; ring < 3; ring += 1) {
-            const ringRadius = shockRadius - ring * (18 + burstEase * 30);
+            const ringRadius = shockRadius - ring * (18 + detonation * 34);
             if (ringRadius <= 0) continue;
-            context.globalAlpha = (0.16 - ring * 0.035) * intensity * (0.4 + burstEase * 0.6);
+            context.globalAlpha = (0.2 - ring * 0.04) * intensity * (0.38 + detonation * 0.62);
             context.strokeStyle = ring % 2 === 0 ? "#ffb1c3" : "#d9e5ff";
-            context.lineWidth = 1 + burstEase * (2.5 - ring * 0.4);
+            context.lineWidth = 1 + detonation * (3.4 - ring * 0.46);
             context.beginPath();
-            context.ellipse(originX, originY, ringRadius, ringRadius * 0.48, -0.12, 0, Math.PI * 2);
+            context.ellipse(originX, originY, ringRadius, ringRadius * 0.68, -0.1, 0, Math.PI * 2);
             context.stroke();
           }
 
-          const burstCount = 12 + Math.floor(burstEase * 300);
+          const burstCount = Math.floor((18 + detonation * 360) * densityScale);
           for (let index = 0; index < burstCount; index += 1) {
             const seed = randomSeed(index + 2401);
-            const speed = 0.12 + burstEase * (0.55 + seed * 1.4);
+            const speed = 0.12 + detonation * (0.62 + seed * 1.6);
             const age = (time * speed + seed * 1.9) % 1;
             const angle = seed * Math.PI * 2 + Math.sin(time * (0.8 + seed) + index) * 0.18;
             const radius = age * shockRadius;
             const x = originX + Math.cos(angle) * radius;
-            const y = originY + Math.sin(angle) * radius * 0.7;
-            const alpha = (1 - age) * (0.14 + seed * 0.7) * intensity * (0.45 + burstEase * 0.75);
+            const y = originY + Math.sin(angle) * radius * 0.76;
+            const alpha = (1 - age) * (0.16 + seed * 0.76) * intensity * (0.4 + detonation * 0.86);
             if (alpha <= 0.01) continue;
-            const streak = 2 + burstEase * (8 + seed * 24);
+            const streak = 2 + detonation * (10 + seed * 30);
             context.globalAlpha = alpha;
             context.strokeStyle = index % 5 === 0 ? "#ffffff" : index % 2 === 0 ? "#ff8ea6" : "#c9dcff";
-            context.lineWidth = 0.45 + burstEase * (0.7 + seed * 1.3);
+            context.lineWidth = 0.5 + detonation * (0.8 + seed * 1.5);
             context.beginPath();
             context.moveTo(x, y);
-            context.lineTo(x - Math.cos(angle) * streak, y - Math.sin(angle) * streak * 0.7);
+            context.lineTo(x - Math.cos(angle) * streak, y - Math.sin(angle) * streak * 0.76);
             context.stroke();
           }
         }
@@ -254,16 +320,19 @@ const gateStyle = [
       };
 
       const updateBurstPresentation = (timestamp) => {
-        const burstEase = smoothstep(burstProgress);
+        const pressure = smoothstep(clamp((burstProgress - 0.08) / 0.6, 0, 1));
+        const detonation = smoothstep(clamp((burstProgress - 0.62) / 0.38, 0, 1));
         const burstActive = burstProgress > 0.001 && burstProgress < 0.999;
         const envelope = burstActive
-          ? 0.28 + 0.72 * Math.sin(Math.min(1, burstProgress) * Math.PI)
+          ? 0.22 + pressure * 0.78
           : 0;
-        const strength = (1.5 + burstProgress * 9) * envelope;
+        const strength = (1.1 + pressure * 8.4 + detonation * 5.6) * envelope * (1 - detonation * 0.34);
         const time = timestamp / 1000;
         meterShell?.style.setProperty("--kisara-beam-shake-x", `${(Math.sin(time * 46) * strength).toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-shake-y", `${(Math.cos(time * 61) * strength * 0.42).toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-expansion", (1 + burstEase * 0.72).toFixed(4));
+        meterShell?.style.setProperty("--kisara-beam-expansion", (1 + pressure * 0.42 + detonation * 0.52).toFixed(4));
+        meterShell?.style.setProperty("--kisara-beam-glow", `${(pressure * 14 + detonation * 28).toFixed(3)}px`);
+        meterShell?.style.setProperty("--kisara-beam-brightness", (1 + pressure * 0.16 + detonation * 0.42).toFixed(3));
       };
 
       const drawEnergy = (timestamp) => {
@@ -280,11 +349,12 @@ const gateStyle = [
 
         const time = timestamp / 1000;
         const centerY = height / 2;
-        const burstEase = smoothstep(burstProgress);
+        const pressure = smoothstep(clamp((burstProgress - 0.08) / 0.6, 0, 1));
+        const detonation = smoothstep(clamp((burstProgress - 0.62) / 0.38, 0, 1));
         const startThickness = 0.8 + fill * 1.8;
-        const endThickness = 2 + fill * 34 + burstEase * 18;
-        const intensity = 0.22 + fill * 0.78 + burstEase * 0.18;
-        const frontRadius = 5 + fill * 22 + burstEase * 12;
+        const endThickness = 2 + fill * 34 + pressure * 14 + detonation * 24;
+        const intensity = 0.22 + fill * 0.78 + pressure * 0.12 + detonation * 0.24;
+        const frontRadius = 5 + fill * 22 + pressure * 8 + detonation * 16;
         const frontX = clamp(width * fill, 3, Math.max(3, width - frontRadius * 2.2));
         const noseLength = Math.min(12, Math.max(1.5, frontX * 0.26));
         const context = energyContext;
@@ -449,8 +519,9 @@ const gateStyle = [
           && Math.abs(burstVelocity) < 0.001;
         const tideVisible = fill > 0.0005;
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
-        const glossPosition = -18 + clamp(burstProgress, 0, 1) * 136;
-        const glossOpacity = Math.sin(clamp(burstProgress, 0, 1) * Math.PI) * 0.96;
+        const glossSweep = smoothstep(clamp(burstProgress / 0.52, 0, 1));
+        const glossPosition = -18 + glossSweep * 136;
+        const glossOpacity = Math.sin(glossSweep * Math.PI) * 0.98;
         const crestOpacity = fill <= 0.002 || fill >= 0.998
           ? 0
           : Math.min(0.92, 0.54 + Math.abs(velocity) * 42);
