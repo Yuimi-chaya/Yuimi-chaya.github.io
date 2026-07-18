@@ -15,11 +15,15 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   <section class="kisara-gate" data-kisara-gate style="--kisara-fill: 0%;">
     <div class="kisara-gate-axis" aria-hidden="true"></div>
     <p class="kisara-gate-index">YUIMI LAB / INTERACTION CHANNEL 03</p>
-    <h1 class="kisara-title" aria-label="Kisara"><span aria-hidden="true">Kisara</span></h1>
+    <h1 class="kisara-title" aria-label="Kisara">
+      <span class="kisara-title-base" aria-hidden="true">Kisara</span>
+      <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
+      <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
+    </h1>
     <div class="kisara-contract-meter" aria-hidden="true">
       <span data-kisara-meter></span>
     </div>
-    <p class="kisara-contract-state" data-kisara-state aria-live="polite">CONTRACT 000%</p>
+    <p class="kisara-contract-state" data-kisara-state>CONTRACT 000%</p>
     <p class="kisara-scroll-cue" data-kisara-cue>SCROLL / SIGN THE CONTRACT</p>
     <a class="kisara-gate-skip" href="#kisara-opening" data-kisara-skip>SKIP</a>
   </section>
@@ -69,26 +73,92 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
       const cue = gate.querySelector("[data-kisara-cue]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const fillDistance = 1500;
+      const fillDistance = 2100;
+      const springStrength = 0.06;
+      const damping = 0.76;
+      const settleDistance = 0.00035;
+      const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
       let progress = reducedMotion || window.scrollY > 2 ? 1 : 0;
+      let targetProgress = progress;
+      let velocity = 0;
+      let animationFrame = 0;
+      let lastFrameTime = 0;
       let touchY = null;
+      let touchId = null;
+      let renderedPercent = -1;
 
       const render = () => {
+        const fill = clamp(progress, 0, 1);
         const percent = Math.round(progress * 100);
-        gate.style.setProperty("--kisara-fill", `${percent}%`);
-        meter?.style.setProperty("--meter-fill", `${percent}%`);
-        if (state) state.textContent = `CONTRACT ${String(percent).padStart(3, "0")}%`;
-        gate.classList.toggle("is-complete", progress >= 1);
-        if (cue) cue.textContent = progress >= 1 ? "CONTRACT ACCEPTED / CONTINUE" : "SCROLL / SIGN THE CONTRACT";
+        const complete = targetProgress >= 0.9995 && fill >= 0.999 && Math.abs(velocity) < 0.001;
+        const tideVisible = fill > 0.0005;
+        const crestOpacity = fill <= 0.002 || fill >= 0.998
+          ? 0
+          : Math.min(0.92, 0.54 + Math.abs(velocity) * 42);
+        const crestDrift = clamp(velocity * 820, -4.5, 4.5);
+
+        gate.style.setProperty("--kisara-fill", `${(fill * 100).toFixed(3)}%`);
+        gate.style.setProperty("--kisara-tide-opacity", tideVisible ? "1" : "0");
+        gate.style.setProperty("--kisara-crest-opacity", crestOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-crest-drift", `${crestDrift.toFixed(3)}px`);
+        meter?.style.setProperty("--meter-scale", fill.toFixed(5));
+        if (state && percent !== renderedPercent) {
+          state.textContent = `CONTRACT ${String(percent).padStart(3, "0")}%`;
+          renderedPercent = percent;
+        }
+        gate.classList.toggle("is-complete", complete);
+        gate.classList.toggle("is-receding", velocity < -0.0003);
+        if (cue) cue.textContent = complete ? "CONTRACT ACCEPTED / CONTINUE" : "SCROLL / SIGN THE CONTRACT";
+      };
+
+      const animate = (timestamp) => {
+        animationFrame = 0;
+        const frameRatio = lastFrameTime
+          ? clamp((timestamp - lastFrameTime) / 16.667, 0.5, 3)
+          : 1;
+        lastFrameTime = timestamp;
+        const spring = (targetProgress - progress) * springStrength * frameRatio;
+        velocity = (velocity + spring) * Math.pow(damping, frameRatio);
+        progress = clamp(progress + velocity * frameRatio, 0, 1);
+
+        const settled = Math.abs(targetProgress - progress) < settleDistance
+          && Math.abs(velocity) < settleDistance;
+        if (settled) {
+          progress = targetProgress;
+          velocity = 0;
+          lastFrameTime = 0;
+          render();
+          return;
+        }
+
+        render();
+        animationFrame = window.requestAnimationFrame(animate);
+      };
+
+      const startAnimation = () => {
+        if (!animationFrame) {
+          lastFrameTime = 0;
+          animationFrame = window.requestAnimationFrame(animate);
+        }
       };
 
       const addProgress = (delta) => {
-        if (progress >= 1 || delta <= 0) return;
-        progress = Math.min(1, progress + Math.min(delta, 140) / fillDistance);
-        render();
+        const boundedDelta = clamp(delta, -180, 180);
+        targetProgress = clamp(targetProgress + boundedDelta / fillDistance, 0, 1);
+        velocity += boundedDelta / fillDistance * 0.03;
+        startAnimation();
       };
 
-      const shouldCapture = () => window.scrollY <= 2 && progress < 1;
+      const isComplete = () => targetProgress >= 0.9995
+        && progress >= 0.999
+        && Math.abs(velocity) < 0.001;
+
+      const shouldCapture = (delta) => {
+        if (window.scrollY > 2 || delta === 0) return false;
+        if (delta > 0) return !isComplete();
+        return targetProgress > 0.0005 || progress > 0.0005 || Math.abs(velocity) > 0.0005;
+      };
+
       const normalizeWheel = (event) => {
         if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return event.deltaY * 16;
         if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return event.deltaY * window.innerHeight;
@@ -98,53 +168,91 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
       window.addEventListener("wheel", (event) => {
         if (event.ctrlKey || event.metaKey) return;
         const delta = normalizeWheel(event);
-        if (delta <= 0 || !shouldCapture()) return;
+        if (!shouldCapture(delta)) return;
         event.preventDefault();
         addProgress(delta);
       }, { passive: false });
 
       window.addEventListener("keydown", (event) => {
-        if (!shouldCapture()) return;
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         if (event.target instanceof Element && event.target.closest("a, button, input, select, textarea, [contenteditable='true']")) return;
-        const amount = event.key === "ArrowDown" ? 120 : ["PageDown", " ", "End"].includes(event.key) ? 280 : 0;
+        let amount = 0;
+        if (event.key === "ArrowDown") amount = 130;
+        if (event.key === "ArrowUp") amount = -130;
+        if (["PageDown", "End"].includes(event.key)) amount = 300;
+        if (["PageUp", "Home"].includes(event.key)) amount = -300;
+        if (event.key === " ") amount = event.shiftKey ? -300 : 300;
         if (!amount) return;
+        if (!shouldCapture(amount)) return;
         event.preventDefault();
         addProgress(amount);
       });
 
       gate.addEventListener("touchstart", (event) => {
+        if (event.touches.length !== 1) {
+          touchY = null;
+          touchId = null;
+          return;
+        }
+        touchId = event.touches[0]?.identifier ?? null;
         touchY = event.touches[0]?.clientY ?? null;
       }, { passive: true });
 
       gate.addEventListener("touchmove", (event) => {
-        const nextY = event.touches[0]?.clientY ?? null;
+        if (event.touches.length !== 1 || touchId === null) return;
+        const touch = Array.from(event.touches).find((item) => item.identifier === touchId);
+        const nextY = touch?.clientY ?? null;
         if (touchY === null || nextY === null) return;
         const delta = touchY - nextY;
         touchY = nextY;
-        if (delta <= 0 || !shouldCapture()) return;
+        const touchDelta = delta * 2.25;
+        if (!shouldCapture(touchDelta)) return;
         event.preventDefault();
-        addProgress(delta * 2.4);
+        addProgress(touchDelta);
       }, { passive: false });
 
       gate.addEventListener("touchend", () => {
         touchY = null;
+        touchId = null;
+      }, { passive: true });
+
+      gate.addEventListener("touchcancel", () => {
+        touchY = null;
+        touchId = null;
       }, { passive: true });
 
       skip?.addEventListener("click", () => {
+        if (animationFrame) window.cancelAnimationFrame(animationFrame);
+        animationFrame = 0;
+        lastFrameTime = 0;
+        targetProgress = 1;
         progress = 1;
+        velocity = 0;
         render();
       });
 
       render();
+      let restoreWindowOpen = true;
       const syncRestoredPosition = () => {
-        if (window.scrollY <= 2 || progress >= 1) return;
+        if (!restoreWindowOpen || window.scrollY <= 2 || isComplete()) return;
+        if (animationFrame) window.cancelAnimationFrame(animationFrame);
+        animationFrame = 0;
+        lastFrameTime = 0;
+        targetProgress = 1;
         progress = 1;
+        velocity = 0;
         render();
       };
       window.addEventListener("pageshow", syncRestoredPosition);
       window.addEventListener("scroll", syncRestoredPosition, { passive: true });
-      window.requestAnimationFrame(() => window.requestAnimationFrame(syncRestoredPosition));
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        syncRestoredPosition();
+        window.setTimeout(() => {
+          syncRestoredPosition();
+          restoreWindowOpen = false;
+          window.removeEventListener("scroll", syncRestoredPosition);
+        }, 420);
+      }));
     })();
   </script>
 </KisaraLayout>

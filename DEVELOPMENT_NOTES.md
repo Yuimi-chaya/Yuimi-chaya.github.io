@@ -13,6 +13,7 @@
 - Keep shared article content, covers, and article attachments outside theme namespaces.
 - A non-default theme must own its layouts, pages, CSS, runtime, and presentation assets; it must not import Fuyukawa Kagari theme internals.
 - Cross-theme navigation must use a full document navigation so `ClientRouter`, theme CSS, and global listeners cannot leak across themes.
+- Before every new functional edit, verify that the tracked workspace has a clear Git rollback commit. If the previous functional work is still uncommitted, create a scoped safety commit before changing code; never include the untracked user source-material directories in that checkpoint.
 - Windows/PowerShell rules, UTF-8 preservation, minimal edits, and non-destructive Git rules from `AGENTS.md` apply.
 
 ## Current Snapshot
@@ -21,6 +22,7 @@
 - Remote: `https://github.com/Yuimi-chaya/Yuimi-chaya.github.io.git`
 - Branch: `main`
 - Multi-theme baseline commit: `d4e2a29 Add independent multi-theme architecture`.
+- Kisara color-mask prototype rollback commit: `97990c8 Add Kisara scroll mask theme prototype`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
 - Local state: the Kisara interaction prototype is implemented and locally validated but not pushed. Untracked user materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
@@ -34,7 +36,7 @@
 - Shared layer: content collections, article queries, site metadata, category labels, SEO inputs, and theme registry/path helpers.
 - Fuyukawa Kagari layer: existing pages, layouts, theme CSS at `src/themes/fuyukawa-kagari/styles/theme.css`, navigation presentation, footer copy, Sakura, pig scrollbar, tool dock, music player, Live2D, notice, weather/IP signal, Canvas tag rain, and related assets.
 - Blank layer: independent document layout, navigation, pages, article presentation, CSS, context menu, and visible theme return control. It does not load Kagari CSS, assets, remote Live2D, music, weather, or notice runtime.
-- Kisara layer: independent dark visual-interaction frontend with a blue-to-red diagonal title mask controlled by captured downward scroll. It owns its layout, pages, CSS, mobile navigation, context menu, and runtime, and currently references no character images.
+- Kisara layer: independent dark visual-interaction frontend with a reversible blue-to-red diagonal title tide controlled by captured vertical input. It owns its layout, pages, CSS, mobile navigation, context menu, and runtime, and currently references no character images.
 - Switching: map the current canonical pathname into the target theme, preserve query/hash, persist the target ID, then perform a full-document navigation. Explicit user switches use history-preserving `assign`; automatic preference restoration uses `replace`; browser history traversal adopts the restored page's theme.
 - SEO: alternate theme routes use `noindex,follow`; sitemap excludes `/themes/` routes.
 - 404: the single GitHub Pages root 404 performs an early client redirect for unknown `/themes/blank/*` paths to `/themes/blank/404/`, carrying the original URL in `from`.
@@ -97,7 +99,7 @@
 
 - Goal: establish a visual-interaction-first character theme before selecting final artwork.
 - Status: prototype implemented and browser-validated on desktop and `390x844` mobile.
-- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input fills `Kisara` from blue to red along a bottom-left to top-right diagonal; document scrolling is released only at 100%.
+- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask and crest continue smoothly between wheel events. Document scrolling is released only after the visible level settles at 100%.
 - Escape paths: reduced-motion users start completed, restored pages below the top are synchronized to completed, and an explicit `SKIP` link bypasses the gate.
 - Boundary: no root `kisara/` source image is imported, copied, staged, or published.
 
@@ -126,7 +128,7 @@
 - Resource boundary: verified no legacy `/assets/` or `/music/` runtime references and no Blank import/reference to Kagari internals or assets.
 - Desktop browser: verified both theme home pages, Blank article deep link, canonical/noindex, zero horizontal overflow, two-way switching, query/hash preservation, refresh persistence, browser back/forward, and no console warnings/errors.
 - Mobile browser at 390x844: verified both themes fit without horizontal overflow and both visible theme controls remain reachable.
-- Kisara browser validation: confirmed intermediate scroll input changes the mask while `scrollY` remains `0`; at `100%` the next wheel input scrolls into the full-width content band. Desktop and `390x844` mobile layouts have no horizontal overflow.
+- Kisara browser validation: confirmed intermediate downward input raises the mask while `scrollY` remains `0`, reverse input lowers it continuously, and returning to the top after normal page scrolling allows the next upward input to recede from 100%. At settled `100%`, the next downward input scrolls into the full-width content band. Desktop and `390x844` mobile layouts have no horizontal overflow.
 - Accessibility: verified Kagari context menu opens with `Shift+F10`, focuses its first item, closes with Escape, becomes `visibility:hidden`, and returns focus outside the hidden menu.
 - Search: Pagefind query returned the canonical root article once and did not expose a duplicate Blank result.
 - Production 404: verified `/themes/blank/not-a-real-page/?x=1#lost` redirects to the Blank 404 with the original URL encoded in `from`.
@@ -145,6 +147,7 @@
 
 - Registered `kisara` at `/themes/kisara/` with independent routes, layout, pages, CSS, mobile navigation, theme controls, canonical/noindex behavior, and themed 404 handling.
 - Implemented a color-only homepage gate: `Kisara` starts blue and fills red diagonally from bottom-left to top-right as downward input accumulates.
+- Replaced direct per-wheel percentage steps with a reversible target/visible/velocity state model, a damped frame-time animation loop, a soft red mask edge, and a narrow moving tide crest.
 - Kept all root `kisara/` image sources untouched and outside the published theme.
 - Created the architecture rollback point `d4e2a29` before starting the prototype.
 
