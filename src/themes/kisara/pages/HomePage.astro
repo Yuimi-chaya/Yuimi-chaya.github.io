@@ -43,7 +43,22 @@ const gateStyle = [
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
       <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
-      <i class="kisara-title-cross" aria-hidden="true"></i>
+      <i class="kisara-title-cross" aria-hidden="true">
+        <span class="kisara-cross-ring"></span>
+        <span class="kisara-cross-ray kisara-cross-ray-north"></span>
+        <span class="kisara-cross-ray kisara-cross-ray-east"></span>
+        <span class="kisara-cross-ray kisara-cross-ray-south"></span>
+        <span class="kisara-cross-ray kisara-cross-ray-west"></span>
+        <span class="kisara-cross-shard kisara-cross-shard-a"></span>
+        <span class="kisara-cross-shard kisara-cross-shard-b"></span>
+        <span class="kisara-cross-shard kisara-cross-shard-c"></span>
+        <span class="kisara-cross-shard kisara-cross-shard-d"></span>
+        <span class="kisara-cross-spark kisara-cross-spark-a"></span>
+        <span class="kisara-cross-spark kisara-cross-spark-b"></span>
+        <span class="kisara-cross-spark kisara-cross-spark-c"></span>
+        <span class="kisara-cross-spark kisara-cross-spark-d"></span>
+        <span class="kisara-cross-core"></span>
+      </i>
     </h1>
     <div class="kisara-contract-meter" aria-hidden="true">
       <canvas class="kisara-energy-canvas" data-kisara-energy width="640" height="64"></canvas>
@@ -111,9 +126,9 @@ const gateStyle = [
       const damping = 0.76;
       const burstDamping = 0.86;
       const settleDistance = 0.00035;
-      const crossStart = 0.025;
-      const crossBuildEnd = 0.28;
-      const crossFlashEnd = 0.46;
+      const crossStart = 0.02;
+      const crossBuildEnd = 0.24;
+      const crossFlashEnd = 0.43;
       const crossEnd = 0.59;
       const reformEnd = 0.78;
       const detonationStart = 0.82;
@@ -430,10 +445,13 @@ const gateStyle = [
       const updateBurstPresentation = (timestamp) => {
         const fill = clamp(energyProgress, 0, 1);
         const burst = clamp(burstProgress, 0, 1);
-        const crossBuild = phaseProgress(burst, crossStart, crossBuildEnd);
-        const crossFlash = phaseProgress(burst, crossBuildEnd, crossFlashEnd);
-        const crossRelease = phaseProgress(burst, crossFlashEnd, crossEnd);
-        const releaseFlash = Math.sin(crossRelease * Math.PI);
+        const crossBuildLinear = clamp((burst - crossStart) / (crossBuildEnd - crossStart), 0, 1);
+        const crossFlashLinear = clamp((burst - crossBuildEnd) / (crossFlashEnd - crossBuildEnd), 0, 1);
+        const crossReleaseLinear = clamp((burst - crossFlashEnd) / (crossEnd - crossFlashEnd), 0, 1);
+        const crossBuild = 1 - Math.pow(1 - crossBuildLinear, 3.2);
+        const crossFlash = smoothstep(crossFlashLinear);
+        const crossCollapse = Math.pow(crossReleaseLinear, 3.4);
+        const releaseFlash = Math.pow(Math.sin(crossReleaseLinear * Math.PI), 1.45);
         const reform = phaseProgress(burst, crossEnd, reformEnd);
         const pressure = phaseProgress(burst, 0.7, 0.94);
         const detonation = phaseProgress(burst, detonationStart, detonationEnd);
@@ -478,12 +496,32 @@ const gateStyle = [
         const beamOpacity = clamp(beamVisibility * (1 - rainProgress), 0, 1);
         const impactBlur = pressure * 2.4 + detonation * 7.6;
         const performanceBlur = impactBlur * (1 - blurRecovery);
-        const crossPulse = 0.5 + 0.5 * Math.sin(time * (8.5 + crossFlash * 13) + Math.sin(time * 1.7));
-        const crossOpacity = Math.min(0.9, crossBuild * (1 - crossRelease) * (0.58 + crossPulse * 0.3) + releaseFlash * 0.22);
-        const crossScale = 0.62 + crossBuild * 0.3 + crossFlash * 0.12 - crossRelease * 0.08;
-        const crossRotation = -7 + crossBuild * 14 + Math.sin(time * (6 + crossFlash * 10)) * (0.8 + crossFlash * 2.2);
-        const crossShakeX = Math.sin(time * (12 + crossFlash * 18)) * (0.45 + crossFlash * 2.5);
-        const crossShakeY = Math.cos(time * (15 + crossFlash * 21)) * (0.4 + crossFlash * 2.1);
+        const crossPulse = 0.5 + 0.5 * Math.sin(time * (10 + crossFlash * 19) + Math.sin(time * 2.1));
+        const crossStrobe = clamp(crossFlash * (0.42 + crossPulse * 0.64) + releaseFlash * 1.18, 0, 1.35);
+        const crossRayProgress = clamp(crossBuild * (1 - crossCollapse), 0, 1);
+        const crossRayBreath = 0.72 + crossBuild * 0.28 + crossStrobe * 0.22;
+        const crossRingProgress = crossReleaseLinear;
+        const crossRingOpacity = clamp(releaseFlash * (0.68 + crossPulse * 0.32), 0, 1);
+        const crossShardProgress = clamp((crossBuild * 0.46 + crossFlash * 0.54) * (1 - crossCollapse), 0, 1);
+        const crossShardOpacity = clamp(crossFlash * (0.24 + crossPulse * 0.62) * (1 - crossReleaseLinear) + releaseFlash * 0.28, 0, 1);
+        const crossSparkProgress = clamp(crossFlash * (1 - crossReleaseLinear) + releaseFlash * 0.26, 0, 1);
+        const crossSparkOpacity = clamp(Math.sin(crossFlashLinear * Math.PI) * 0.82 * (1 - crossReleaseLinear) + releaseFlash * 0.34, 0, 1);
+        const crossSparkDistance = crossSparkProgress * Math.min(168, gate.clientWidth * 0.14);
+        const crossCoreOpacity = clamp(crossBuild * 0.52 + crossFlash * 0.2 + releaseFlash * 0.98, 0, 1);
+        const crossCoreScale = 0.16 + crossBuild * 0.46 + crossFlash * 0.14 + releaseFlash * 0.76 + crossCollapse * 0.12;
+        const crossOpacity = clamp(
+          crossBuild * (1 - crossReleaseLinear) * (0.68 + crossPulse * 0.24) + releaseFlash * 0.86,
+          0,
+          1
+        );
+        const crossScale = 0.68 + crossBuild * 0.22 + crossFlash * 0.08 - crossCollapse * 0.14 + releaseFlash * 0.12;
+        const crossRotation = -18
+          + crossBuild * 44
+          + crossFlashLinear * 104
+          + crossReleaseLinear * 68
+          + Math.sin(time * (8 + crossFlash * 18)) * (0.7 + crossStrobe * 3.8);
+        const crossShakeX = Math.sin(time * (16 + crossFlash * 28)) * (0.35 + crossStrobe * 2.6 + releaseFlash * 2.2);
+        const crossShakeY = Math.cos(time * (19 + crossFlash * 31)) * (0.3 + crossStrobe * 2.1 + releaseFlash * 1.8);
         beamPose = { shakeX, shakeY, lift: beamLift, scaleX: beamScaleX, scaleY: beamScaleY, angle: beamAngle };
         meterShell?.style.setProperty("--kisara-beam-shake-x", `${shakeX.toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-shake-y", `${shakeY.toFixed(3)}px`);
@@ -497,14 +535,22 @@ const gateStyle = [
         meterShell?.style.setProperty("--kisara-beam-brightness", (1 + pressure * 0.16 + detonation * 0.44).toFixed(3));
         gate.style.setProperty("--kisara-performance-blur", `${performanceBlur.toFixed(3)}px`);
         gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-build", crossBuild.toFixed(3));
-        gate.style.setProperty("--kisara-cross-flash", Math.min(1.4, crossFlash * (0.72 + crossPulse * 0.5) + releaseFlash * 1.35).toFixed(3));
+        gate.style.setProperty("--kisara-cross-ray-progress", crossRayProgress.toFixed(4));
+        gate.style.setProperty("--kisara-cross-ray-breath", crossRayBreath.toFixed(3));
+        gate.style.setProperty("--kisara-cross-core-scale", crossCoreScale.toFixed(3));
+        gate.style.setProperty("--kisara-cross-core-opacity", crossCoreOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-ring-progress", crossRingProgress.toFixed(3));
+        gate.style.setProperty("--kisara-cross-ring-opacity", crossRingOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-shard-progress", crossShardProgress.toFixed(4));
+        gate.style.setProperty("--kisara-cross-shard-opacity", crossShardOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-spark-opacity", crossSparkOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-spark-distance", `${crossSparkDistance.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-cross-strobe", crossStrobe.toFixed(3));
         gate.style.setProperty("--kisara-cross-scale", crossScale.toFixed(3));
         gate.style.setProperty("--kisara-cross-rotation", `${crossRotation.toFixed(3)}deg`);
         gate.style.setProperty("--kisara-cross-shake-x", `${crossShakeX.toFixed(3)}px`);
         gate.style.setProperty("--kisara-cross-shake-y", `${crossShakeY.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-cross-blur", `${(0.25 + crossFlash * 1.4).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-cross-shadow", `${(6 + crossFlash * 16 + releaseFlash * 12).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-cross-blur", `${(0.08 + crossStrobe * 0.42 + releaseFlash * 0.5).toFixed(3)}px`);
       };
 
       const drawEnergy = (timestamp) => {
