@@ -20,20 +20,21 @@
 - Repository: `C:\Users\a1234\Desktop\个人博客`
 - Remote: `https://github.com/Yuimi-chaya/Yuimi-chaya.github.io.git`
 - Branch: `main`
-- Surveyed HEAD: `a98ac14 Fix blog timeline and dock player fit`
+- Multi-theme baseline commit: `d4e2a29 Add independent multi-theme architecture`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
-- Dirty state: the multi-theme migration is uncommitted and includes modified/deleted legacy paths plus new `src/core/`, `src/themes/`, `src/pages/themes/`, `public/themes/`, `tests/`, and this note. Untracked user materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `XP/`, `kisara/`, `showcase-output/`).
+- Local state: the Kisara interaction prototype is implemented and locally validated but not pushed. Untracked user materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
-- Available theme IDs: `fuyukawa-kagari`, `blank`.
-- Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...` and canonicalizes to the matching root URL.
+- Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
+- Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
 - Preference key: `yuimi-theme-id-v1` with an allowlist and `fuyukawa-kagari` fallback.
-- Implementation state: complete and locally validated; not committed or pushed.
+- Implementation state: three independent frontends are locally available. The Kisara prototype is awaiting user visual acceptance and has not been pushed.
 
 ## Architecture Decision
 
 - Shared layer: content collections, article queries, site metadata, category labels, SEO inputs, and theme registry/path helpers.
 - Fuyukawa Kagari layer: existing pages, layouts, theme CSS at `src/themes/fuyukawa-kagari/styles/theme.css`, navigation presentation, footer copy, Sakura, pig scrollbar, tool dock, music player, Live2D, notice, weather/IP signal, Canvas tag rain, and related assets.
 - Blank layer: independent document layout, navigation, pages, article presentation, CSS, context menu, and visible theme return control. It does not load Kagari CSS, assets, remote Live2D, music, weather, or notice runtime.
+- Kisara layer: independent dark visual-interaction frontend with a blue-to-red diagonal title mask controlled by captured downward scroll. It owns its layout, pages, CSS, mobile navigation, context menu, and runtime, and currently references no character images.
 - Switching: map the current canonical pathname into the target theme, preserve query/hash, persist the target ID, then perform a full-document navigation. Explicit user switches use history-preserving `assign`; automatic preference restoration uses `replace`; browser history traversal adopts the restored page's theme.
 - SEO: alternate theme routes use `noindex,follow`; sitemap excludes `/themes/` routes.
 - 404: the single GitHub Pages root 404 performs an early client redirect for unknown `/themes/blank/*` paths to `/themes/blank/404/`, carrying the original URL in `from`.
@@ -43,6 +44,7 @@
 - Shared content assets: `public/blog-assets/`, `public/blog-covers/`, Markdown content images.
 - Fuyukawa Kagari theme assets: `public/themes/fuyukawa-kagari/assets/`, `public/themes/fuyukawa-kagari/music/`, Live2D CDN configuration, homepage background/avatars/brand images, About media, and the 404 visual.
 - External Fuyukawa Kagari runtime dependencies: jsDelivr Live2D packages, Cubism SDK, location/weather endpoints.
+- Kisara presentation assets: none in the prototype. Root `kisara/` images remain user-owned source material and are intentionally unreferenced.
 - Historical or unreferenced candidates remain untouched until a later cleanup request; absence of a current reference is not deletion approval.
 
 ## Migration Map
@@ -91,6 +93,14 @@
 - Coverage: home, blog list, article detail, About, Projects, Games, and themed 404 on desktop and 390px mobile.
 - Boundary: no import from `src/themes/fuyukawa-kagari/` and no `/themes/fuyukawa-kagari/` asset reference.
 
+### Kisara Theme
+
+- Goal: establish a visual-interaction-first character theme before selecting final artwork.
+- Status: prototype implemented and browser-validated on desktop and `390x844` mobile.
+- Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input fills `Kisara` from blue to red along a bottom-left to top-right diagonal; document scrolling is released only at 100%.
+- Escape paths: reduced-motion users start completed, restored pages below the top are synchronized to completed, and an explicit `SKIP` link bypasses the gate.
+- Boundary: no root `kisara/` source image is imported, copied, staged, or published.
+
 ## Known Risks
 
 - `ClientRouter`, `transition:persist`, and global event listeners can retain Kagari runtime state; cross-theme switches therefore require full navigation.
@@ -100,21 +110,23 @@
 - `npm test` currently covers registry allowlisting and path mapping only. Browser behaviors are manually verified; no browser test runner is configured.
 - No `astro check` script or `@astrojs/check` dependency exists. It was not installed because this task does not authorize new tooling installation without confirmation.
 - Unknown Blank paths rely on JavaScript to move from the single GitHub Pages 404 to the Blank 404. Normal Blank pages remain readable without JavaScript.
+- Kisara's scroll gate intentionally uses global wheel/touch/keyboard listeners on its homepage. Future interaction work must keep browser zoom shortcuts, focused controls, restored scroll positions, reduced motion, and a visible mobile navigation path working.
 
 ## Immediate Next Actions
 
-1. Obtain user visual acceptance for the new Blank theme and theme controls.
-2. Commit and push the complete migration scope only when separately requested; include `public/themes/fuyukawa-kagari/` so moved resources are not omitted.
-3. Start a future character theme from the documented third-theme checklist rather than importing Kagari internals.
+1. Obtain user visual acceptance for the Kisara color-only scroll mask and tune fill distance or typography from that feedback.
+2. Add parallax, character cutouts, or puppet layers only after suitable source material is explicitly selected.
+3. Push the baseline and Kisara commits only when separately requested.
 
 ## Test and Validation Record
 
-- `npm test`: 3/3 Node tests passed for theme IDs, canonical path stripping, and article-context mapping.
-- `npm run build`: passed after the final implementation changes; 24 static pages generated, sitemap created, Pagefind index created.
+- `npm test`: 3/3 Node tests passed for all theme IDs, canonical path stripping, and cross-theme article-context mapping.
+- `npm run build`: passed for the Kisara prototype; 36 static pages generated, sitemap created, Pagefind index created.
 - Sitemap: verified that `/themes/blank/` routes are excluded.
 - Resource boundary: verified no legacy `/assets/` or `/music/` runtime references and no Blank import/reference to Kagari internals or assets.
 - Desktop browser: verified both theme home pages, Blank article deep link, canonical/noindex, zero horizontal overflow, two-way switching, query/hash preservation, refresh persistence, browser back/forward, and no console warnings/errors.
 - Mobile browser at 390x844: verified both themes fit without horizontal overflow and both visible theme controls remain reachable.
+- Kisara browser validation: confirmed intermediate scroll input changes the mask while `scrollY` remains `0`; at `100%` the next wheel input scrolls into the full-width content band. Desktop and `390x844` mobile layouts have no horizontal overflow.
 - Accessibility: verified Kagari context menu opens with `Shift+F10`, focuses its first item, closes with Escape, becomes `visibility:hidden`, and returns focus outside the hidden menu.
 - Search: Pagefind query returned the canonical root article once and did not expose a duplicate Blank result.
 - Production 404: verified `/themes/blank/not-a-real-page/?x=1#lost` redirects to the Blank 404 with the original URL encoded in `from`.
@@ -125,8 +137,16 @@
 - B note review: found stale dirty-state, asset-path, status, test, and next-action entries. All were corrected in this note.
 - C logic review: found the missing Blank unknown-path fallback, inaccessible/hidden-focus Kagari theme menu, and broken history semantics from `location.replace`. All three were implemented and browser-verified. Its browser-test-suite suggestion remains deferred because no browser runner exists.
 - D final review: found incomplete Blank keyboard focus handling and missing migration/third-theme recovery notes. Both were corrected. A targeted re-review found no remaining blocker or important issue and marked the implementation deliverable. The no-JavaScript 404 limitation remains documented; the root 404 now also exposes a direct Blank link.
+- Kisara interaction review: found missing skip behavior, browser zoom interception, focused-control keyboard interception, hidden mobile navigation, narrow-viewport menu clipping, scroll-restore drift, and alternate-theme 404 matching gaps. These were addressed before final validation.
 
 ## Engineering History
+
+### 2026-07-18 Kisara interaction prototype
+
+- Registered `kisara` at `/themes/kisara/` with independent routes, layout, pages, CSS, mobile navigation, theme controls, canonical/noindex behavior, and themed 404 handling.
+- Implemented a color-only homepage gate: `Kisara` starts blue and fills red diagonally from bottom-left to top-right as downward input accumulates.
+- Kept all root `kisara/` image sources untouched and outside the published theme.
+- Created the architecture rollback point `d4e2a29` before starting the prototype.
 
 ### 2026-07-18 Multi-theme implementation
 

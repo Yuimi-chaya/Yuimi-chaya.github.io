@@ -1,0 +1,30 @@
+---
+import KisaraLayout from "../layouts/KisaraLayout.astro";
+import { getPublishedPosts } from "@/core/content/blog";
+import { getThemePath } from "@/core/themes/registry";
+import { categoryLabel } from "@/lib/site";
+
+const posts = await getPublishedPosts();
+const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" });
+---
+
+<KisaraLayout title="Blog | Kisara" description="Yuimi Lab 的文章记录。">
+  <section class="kisara-page-lead">
+    <p class="kisara-section-index">TRANSMISSION ARCHIVE</p>
+    <h1>Blog</h1>
+    <p>开发记录、部署笔记，以及一路留下的兴趣信号。</p>
+  </section>
+  <div class="kisara-record-list">
+    {posts.map((post, index) => (
+      <a href={getThemePath("kisara", `/blog/${post.id}/`)}>
+        <span>{String(index + 1).padStart(2, "0")}</span>
+        <div>
+          <small>{categoryLabel[post.data.category]} / {dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}</small>
+          <h2>{post.data.title}</h2>
+          <p>{post.data.description}</p>
+        </div>
+        <i aria-hidden="true">↗</i>
+      </a>
+    ))}
+  </div>
+</KisaraLayout>

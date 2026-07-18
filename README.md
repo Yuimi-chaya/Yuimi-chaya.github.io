@@ -49,6 +49,7 @@ category: "tech"
 - 根路径入口：`src/pages/`
 - Fuyukawa Kagari 主题：`src/themes/fuyukawa-kagari/`
 - Blank 主题：`src/themes/blank/`
+- Kisara 视觉交互主题：`src/themes/kisara/`
 - 共享内容与主题注册：`src/core/`
 - 本地视觉资产生成：`scripts/generate-assets.mjs`
 - Kagari 静态资源：`public/themes/fuyukawa-kagari/`

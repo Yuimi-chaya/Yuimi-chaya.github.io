@@ -21,11 +21,13 @@ const {
 } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 const themedNotFoundRedirectScript = `(() => {
-  const blankPrefix = "/themes/blank/";
-  if (!window.location.pathname.startsWith(blankPrefix)) return;
-  if (window.location.pathname === "/themes/blank/404/") return;
+  const themeMatch = window.location.pathname.match(/^\\/themes\\/(blank|kisara)(?:\\/|$)/);
+  if (!themeMatch) return;
+  const themeId = themeMatch[1];
+  const notFoundPath = "/themes/" + themeId + "/404/";
+  if (window.location.pathname === notFoundPath) return;
   const original = window.location.pathname + window.location.search + window.location.hash;
-  window.location.replace("/themes/blank/404/?from=" + encodeURIComponent(original));
+  window.location.replace(notFoundPath + "?from=" + encodeURIComponent(original));
 })();`;
 ---
 
@@ -148,14 +150,18 @@ const themedNotFoundRedirectScript = `(() => {
           <span class="context-theme-mark" aria-hidden="true">○</span>
           Blank
         </button>
+        <button type="button" data-theme-select="kisara" aria-pressed="false">
+          <span class="context-theme-mark" aria-hidden="true">○</span>
+          Kisara
+        </button>
       </div>
     </nav>
     <button
       class="theme-quick-switch"
       type="button"
-      data-theme-select="blank"
-      aria-label="切换到 Blank 主题"
-      title="切换到 Blank 主题"
+      data-theme-select="kisara"
+      aria-label="切换到 Kisara 主题"
+      title="切换到 Kisara 主题"
     >
       <Icon name="tabler:palette" aria-hidden="true" />
     </button>

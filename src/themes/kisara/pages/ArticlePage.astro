@@ -1,0 +1,29 @@
+---
+import KisaraLayout from "../layouts/KisaraLayout.astro";
+import { categoryLabel } from "@/lib/site";
+
+const { frontmatter } = Astro.props;
+const headings = (Astro.props.headings ?? []).filter((heading) => heading.depth >= 2 && heading.depth <= 3);
+const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" })
+  .format(frontmatter.updatedDate ?? frontmatter.pubDate);
+---
+
+<KisaraLayout title={`${frontmatter.title} | Kisara`} description={frontmatter.description}>
+  <div class="kisara-article-shell">
+    <article>
+      <header class="kisara-article-header">
+        <p class="kisara-section-index">{categoryLabel[frontmatter.category]} / {date}</p>
+        <h1>{frontmatter.title}</h1>
+        <p>{frontmatter.description}</p>
+        <div>{frontmatter.tags.map((tag: string) => <span>#{tag}</span>)}</div>
+      </header>
+      <div class="kisara-prose"><slot /></div>
+    </article>
+    {headings.length > 0 && (
+      <aside class="kisara-toc" aria-label="文章目录">
+        <strong>ON THIS PAGE</strong>
+        {headings.map((heading) => <a class={`depth-${heading.depth}`} href={`#${heading.slug}`}>{heading.text}</a>)}
+      </aside>
+    )}
+  </div>
+</KisaraLayout>

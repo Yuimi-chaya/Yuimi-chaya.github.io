@@ -1,0 +1,16 @@
+---
+import { render } from "astro:content";
+import { getPublishedPostPaths } from "@/core/content/blog";
+import { ArticlePage } from "@/themes/kisara";
+
+export async function getStaticPaths() {
+  return getPublishedPostPaths();
+}
+
+const { post } = Astro.props;
+const { Content, headings } = await render(post);
+---
+
+<ArticlePage frontmatter={post.data} headings={headings}>
+  <Content />
+</ArticlePage>

@@ -1,0 +1,162 @@
+---
+import "../styles/theme.css";
+import { Icon } from "astro-icon/components";
+import ThemePreferenceGate from "@/core/themes/ThemePreferenceGate.astro";
+import { getCanonicalPath, getThemePath, themes } from "@/core/themes/registry";
+import { site } from "@/lib/site";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = `${site.title} | Kisara`, description = site.description } = Astro.props;
+const canonicalPath = getCanonicalPath(Astro.url.pathname);
+const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
+const navItems = site.nav.map((item) => ({
+  ...item,
+  href: getThemePath("kisara", item.href)
+}));
+const themeOptions = themes.map((theme) => ({
+  ...theme,
+  href: getThemePath(theme.id, canonicalPath)
+}));
+---
+
+<!doctype html>
+<html lang="zh-CN" data-theme="kisara">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#111636" />
+    <meta name="robots" content="noindex,follow" />
+    <link rel="canonical" href={canonical} />
+    <ThemePreferenceGate currentTheme="kisara" />
+    <title>{title}</title>
+  </head>
+  <body data-pagefind-ignore>
+    <a class="kisara-skip-link" href="#kisara-main">跳到正文</a>
+    <header class="kisara-header">
+      <a class="kisara-brand" href={getThemePath("kisara", "/")} aria-label="Kisara 主题首页">
+        <span class="kisara-brand-mark" aria-hidden="true"></span>
+        <span><strong>YUIMI LAB</strong><small>KISARA / 03</small></span>
+      </a>
+      <nav class="kisara-nav" aria-label="Kisara theme navigation">
+        {navItems.map((item) => <a href={item.href}>{item.label}</a>)}
+      </nav>
+      <button class="kisara-theme-button" type="button" data-kisara-theme-button aria-label="选择主题" title="选择主题" aria-expanded="false">
+        <Icon name="tabler:palette" aria-hidden="true" />
+      </button>
+    </header>
+
+    <div class="kisara-theme-panel" data-kisara-theme-panel hidden>
+      <span>SELECT THEME</span>
+      {themeOptions.map((theme) => (
+        <button type="button" data-theme-select={theme.id} aria-pressed={theme.id === "kisara" ? "true" : "false"}>
+          <i aria-hidden="true"></i>
+          {theme.label}
+        </button>
+      ))}
+    </div>
+
+    <main id="kisara-main" class="kisara-main">
+      <slot />
+    </main>
+
+    <footer class="kisara-footer">
+      <span>© 2026 喝益胃 / Yuimi Lab</span>
+      <span>CONTRACT CHANNEL 03 / KISARA</span>
+    </footer>
+
+    <nav class="kisara-context-menu" data-kisara-context-menu hidden aria-label="Kisara 主题快捷菜单">
+      <span>THEME CHANNEL</span>
+      {themeOptions.map((theme) => (
+        <button type="button" data-theme-select={theme.id} aria-pressed={theme.id === "kisara" ? "true" : "false"}>
+          <i aria-hidden="true"></i>
+          {theme.label}
+        </button>
+      ))}
+      <hr />
+      <button type="button" data-kisara-action="top">回到顶部</button>
+      <button type="button" data-kisara-action="home">Kisara 首页</button>
+    </nav>
+
+    <script is:inline>
+      (() => {
+        const panel = document.querySelector("[data-kisara-theme-panel]");
+        const panelButton = document.querySelector("[data-kisara-theme-button]");
+        const menu = document.querySelector("[data-kisara-context-menu]");
+        let returnFocus = null;
+
+        const closePanel = () => {
+          if (panel) panel.hidden = true;
+          panelButton?.setAttribute("aria-expanded", "false");
+        };
+
+        const closeMenu = () => {
+          if (!menu || menu.hidden) return;
+          const restore = menu.contains(document.activeElement);
+          menu.hidden = true;
+          if (restore && returnFocus instanceof HTMLElement) returnFocus.focus({ preventScroll: true });
+        };
+
+        const showMenu = (x, y, focusFirst = false) => {
+          if (!menu) return;
+          returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : panelButton;
+          menu.hidden = false;
+          menu.style.left = "0px";
+          menu.style.top = "0px";
+          const rect = menu.getBoundingClientRect();
+          menu.style.left = `${Math.max(12, Math.min(x, window.innerWidth - rect.width - 12))}px`;
+          menu.style.top = `${Math.max(12, Math.min(y, window.innerHeight - rect.height - 12))}px`;
+          if (focusFirst) menu.querySelector("button")?.focus({ preventScroll: true });
+        };
+
+        panelButton?.addEventListener("click", () => {
+          if (!panel) return;
+          const opening = panel.hidden;
+          panel.hidden = !opening;
+          panelButton.setAttribute("aria-expanded", String(opening));
+        });
+
+        window.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+          closePanel();
+          showMenu(event.clientX, event.clientY);
+        });
+
+        window.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            closePanel();
+            closeMenu();
+          }
+          if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
+            event.preventDefault();
+            const rect = document.activeElement?.getBoundingClientRect?.();
+            showMenu(rect ? rect.left + 24 : window.innerWidth / 2, rect ? rect.top + 24 : window.innerHeight / 2, true);
+          }
+        });
+
+        document.addEventListener("click", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const themeButton = target?.closest("[data-theme-select]");
+          if (themeButton) {
+            closePanel();
+            closeMenu();
+            window.__yuimiTheme?.select(themeButton.dataset.themeSelect);
+            return;
+          }
+
+          const action = target?.closest("[data-kisara-action]")?.dataset.kisaraAction;
+          if (action === "top") window.scrollTo({ top: 0, behavior: "smooth" });
+          if (action === "home") window.location.href = "/themes/kisara/";
+          if (action) closeMenu();
+
+          if (!target?.closest("[data-kisara-theme-panel]") && !target?.closest("[data-kisara-theme-button]")) closePanel();
+          if (!target?.closest("[data-kisara-context-menu]")) closeMenu();
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,150 @@
+---
+import KisaraLayout from "../layouts/KisaraLayout.astro";
+import { getPublishedPosts } from "@/core/content/blog";
+import { getThemePath } from "@/core/themes/registry";
+
+const posts = (await getPublishedPosts()).slice(0, 3);
+const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+---
+
+<KisaraLayout title="Kisara | Yuimi Lab" description="Yuimi Lab 的 Kisara 视觉交互主题。">
+  <section class="kisara-gate" data-kisara-gate style="--kisara-fill: 0%;">
+    <div class="kisara-gate-axis" aria-hidden="true"></div>
+    <p class="kisara-gate-index">YUIMI LAB / INTERACTION CHANNEL 03</p>
+    <h1 class="kisara-title" aria-label="Kisara"><span aria-hidden="true">Kisara</span></h1>
+    <div class="kisara-contract-meter" aria-hidden="true">
+      <span data-kisara-meter></span>
+    </div>
+    <p class="kisara-contract-state" data-kisara-state aria-live="polite">CONTRACT 000%</p>
+    <p class="kisara-scroll-cue" data-kisara-cue>SCROLL / SIGN THE CONTRACT</p>
+    <a class="kisara-gate-skip" href="#kisara-opening" data-kisara-skip>SKIP</a>
+  </section>
+
+  <section id="kisara-opening" class="kisara-opening" aria-labelledby="kisara-opening-title">
+    <div class="kisara-opening-inner">
+      <p class="kisara-section-index">AFTER THE SIGNATURE / 001</p>
+      <h2 id="kisara-opening-title">The signal continues below.</h2>
+      <div class="kisara-opening-grid">
+        <p>视觉、交互与技术记录沿着同一条契约线继续展开。</p>
+        <nav aria-label="Kisara theme shortcuts">
+          <a href={getThemePath("kisara", "/blog/")}><span>01</span>READ THE LOG</a>
+          <a href={getThemePath("kisara", "/projects/")}><span>02</span>OPEN THE LAB</a>
+          <a href={getThemePath("kisara", "/about/")}><span>03</span>TRACE YUIMI</a>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <section class="kisara-latest" aria-labelledby="kisara-latest-title">
+    <div class="kisara-section-heading">
+      <p class="kisara-section-index">RECENT TRANSMISSIONS / 002</p>
+      <h2 id="kisara-latest-title">Latest notes</h2>
+    </div>
+    <div class="kisara-transmission-list">
+      {posts.map((post, index) => (
+        <a href={getThemePath("kisara", `/blog/${post.id}/`)}>
+          <span>{String(index + 1).padStart(2, "0")}</span>
+          <div>
+            <time datetime={post.data.pubDate.toISOString()}>{dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}</time>
+            <h3>{post.data.title}</h3>
+          </div>
+          <i aria-hidden="true">↗</i>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <script is:inline>
+    (() => {
+      const gate = document.querySelector("[data-kisara-gate]");
+      if (!gate || gate.dataset.bound === "true") return;
+      gate.dataset.bound = "true";
+
+      const meter = gate.querySelector("[data-kisara-meter]");
+      const state = gate.querySelector("[data-kisara-state]");
+      const cue = gate.querySelector("[data-kisara-cue]");
+      const skip = gate.querySelector("[data-kisara-skip]");
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const fillDistance = 1500;
+      let progress = reducedMotion || window.scrollY > 2 ? 1 : 0;
+      let touchY = null;
+
+      const render = () => {
+        const percent = Math.round(progress * 100);
+        gate.style.setProperty("--kisara-fill", `${percent}%`);
+        meter?.style.setProperty("--meter-fill", `${percent}%`);
+        if (state) state.textContent = `CONTRACT ${String(percent).padStart(3, "0")}%`;
+        gate.classList.toggle("is-complete", progress >= 1);
+        if (cue) cue.textContent = progress >= 1 ? "CONTRACT ACCEPTED / CONTINUE" : "SCROLL / SIGN THE CONTRACT";
+      };
+
+      const addProgress = (delta) => {
+        if (progress >= 1 || delta <= 0) return;
+        progress = Math.min(1, progress + Math.min(delta, 140) / fillDistance);
+        render();
+      };
+
+      const shouldCapture = () => window.scrollY <= 2 && progress < 1;
+      const normalizeWheel = (event) => {
+        if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return event.deltaY * 16;
+        if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return event.deltaY * window.innerHeight;
+        return event.deltaY;
+      };
+
+      window.addEventListener("wheel", (event) => {
+        if (event.ctrlKey || event.metaKey) return;
+        const delta = normalizeWheel(event);
+        if (delta <= 0 || !shouldCapture()) return;
+        event.preventDefault();
+        addProgress(delta);
+      }, { passive: false });
+
+      window.addEventListener("keydown", (event) => {
+        if (!shouldCapture()) return;
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.target instanceof Element && event.target.closest("a, button, input, select, textarea, [contenteditable='true']")) return;
+        const amount = event.key === "ArrowDown" ? 120 : ["PageDown", " ", "End"].includes(event.key) ? 280 : 0;
+        if (!amount) return;
+        event.preventDefault();
+        addProgress(amount);
+      });
+
+      gate.addEventListener("touchstart", (event) => {
+        touchY = event.touches[0]?.clientY ?? null;
+      }, { passive: true });
+
+      gate.addEventListener("touchmove", (event) => {
+        const nextY = event.touches[0]?.clientY ?? null;
+        if (touchY === null || nextY === null) return;
+        const delta = touchY - nextY;
+        touchY = nextY;
+        if (delta <= 0 || !shouldCapture()) return;
+        event.preventDefault();
+        addProgress(delta * 2.4);
+      }, { passive: false });
+
+      gate.addEventListener("touchend", () => {
+        touchY = null;
+      }, { passive: true });
+
+      skip?.addEventListener("click", () => {
+        progress = 1;
+        render();
+      });
+
+      render();
+      const syncRestoredPosition = () => {
+        if (window.scrollY <= 2 || progress >= 1) return;
+        progress = 1;
+        render();
+      };
+      window.addEventListener("pageshow", syncRestoredPosition);
+      window.addEventListener("scroll", syncRestoredPosition, { passive: true });
+      window.requestAnimationFrame(() => window.requestAnimationFrame(syncRestoredPosition));
+    })();
+  </script>
+</KisaraLayout>
