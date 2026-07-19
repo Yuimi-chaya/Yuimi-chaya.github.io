@@ -1708,7 +1708,7 @@ const gateStyle = [
         absorptionVeil.addColorStop(0.48, "rgba(3,1,10,0.46)");
         absorptionVeil.addColorStop(0.8, "rgba(11,3,22,0.16)");
         absorptionVeil.addColorStop(1, "rgba(8,2,18,0)");
-        context.globalAlpha = opacity * (0.34 + gravity * 0.12 + compression * 0.08);
+        context.globalAlpha = opacity * (0.44 + gravity * 0.13 + compression * 0.08);
         context.fillStyle = absorptionVeil;
         context.fill(buildVoidPath(1.42, 0.84, 1.52));
 
@@ -1731,20 +1731,58 @@ const gateStyle = [
           cloudGradient.addColorStop(0.42, "rgba(1,0,6,0.62)");
           cloudGradient.addColorStop(0.74, "rgba(7,2,16,0.2)");
           cloudGradient.addColorStop(1, "rgba(9,3,18,0)");
-          context.globalAlpha = opacity * (0.18 + seed * 0.13 + compression * 0.05);
+          context.globalAlpha = opacity * (0.23 + seed * 0.17 + compression * 0.055);
           context.fillStyle = cloudGradient;
           context.fillRect(-cloudRadius, -cloudRadius, cloudRadius * 2, cloudRadius * 2);
           context.restore();
         }
 
+        context.save();
+        context.globalCompositeOperation = "source-over";
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        for (let channel = 0; channel < 3; channel += 1) {
+          const seed = randomSeed(channel + 19841);
+          const direction = channel % 2 === 0 ? 1 : -1;
+          const baseAngle = seed * fullTurn
+            + time * (0.1 + seed * 0.07) * direction;
+          const points = [];
+          const segments = 7;
+          for (let segment = 0; segment <= segments; segment += 1) {
+            const unit = segment / segments;
+            const distance = radius * collapseScale * (
+              0.1 + unit * (0.72 + seed * 0.42)
+            );
+            const angle = baseAngle
+              + direction * unit * (0.42 + seed * 0.38)
+              + Math.sin(unit * Math.PI * 1.7 - time * 0.74 + channel) * 0.08;
+            points.push({
+              x: driftX + Math.cos(angle) * distance,
+              y: driftY + Math.sin(angle) * distance * (0.64 + seed * 0.08)
+            });
+          }
+          const channelPath = createSmoothCanvasPath(points);
+          context.globalAlpha = opacity * (0.13 + gravity * 0.07) * (1 - compression * 0.32);
+          context.strokeStyle = "rgba(0,0,4,0.84)";
+          context.lineWidth = radius * (0.13 + seed * 0.055) * collapseScale;
+          context.shadowColor = "rgba(0,0,5,0.72)";
+          context.shadowBlur = radius * (0.16 + seed * 0.08) * parameters.shadowQuality;
+          context.stroke(channelPath);
+        }
+        context.restore();
+
         for (let depth = 0; depth < 3; depth += 1) {
-          const depthScale = [0.43, 0.31, 0.21][depth];
+          const depthScale = [0.54, 0.41, 0.29][depth];
           context.save();
           context.translate(
             Math.sin(time * (0.46 + depth * 0.09) + depth * 2.1)
-              * radius * 0.018 * (1 - compression),
+              * radius * 0.022 * (1 - compression),
             Math.cos(time * (0.41 + depth * 0.08) + depth * 1.6)
-              * radius * 0.014 * (1 - compression)
+              * radius * 0.017 * (1 - compression)
+          );
+          context.rotate(
+            Math.sin(time * (0.22 + depth * 0.035) + depth * 1.9)
+              * (0.09 + depth * 0.025) * (1 - compression * 0.72)
           );
           context.globalAlpha = opacity * (0.84 + depth * 0.055);
           if (depth === 0) {
@@ -1763,7 +1801,7 @@ const gateStyle = [
           } else {
             context.fillStyle = depth === 2 ? "rgba(0,0,1,0.998)" : "rgba(0,0,3,0.97)";
           }
-          context.fill(buildVoidPath(depthScale, depth * 2.37 + 0.6, 1.48 - depth * 0.18));
+          context.fill(buildVoidPath(depthScale, depth * 2.37 + 0.6, 1.7 - depth * 0.2));
           context.restore();
         }
         context.restore();
