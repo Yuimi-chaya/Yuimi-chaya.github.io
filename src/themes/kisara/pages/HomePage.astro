@@ -413,16 +413,14 @@ const gateStyle = [
 
           vec3 sampleScene(vec2 uv) {
             vec2 baseUv = coverUv(uv, uBaseSize, 1.045);
-            float fightScale = mix(1.06, 1.0, uReveal);
-            vec2 fightUv = coverUv(uv, uFightSize, fightScale);
+            vec2 fightUv = coverUv(uv, uFightSize, 1.0);
             vec3 baseColor = texture(uBaseTexture, baseUv).rgb;
             vec3 fightColor = texture(uFightTexture, fightUv).rgb;
             baseColor = adjustSceneColor(baseColor, 1.0 - uReveal * 0.26, 1.0 - uReveal * 0.14);
             fightColor = adjustSceneColor(fightColor, 0.84 + uReveal * 0.36, 0.86 + uReveal * 0.22);
-            float baseOpacity = 0.98 - uReveal * 0.66;
-            float fightOpacity = uReveal * 0.98;
-            vec3 layered = baseColor * baseOpacity;
-            return mix(layered, fightColor, fightOpacity);
+            vec3 sceneColor = mix(baseColor, fightColor, smoothstep(0.0, 1.0, uReveal));
+            float atmosphere = mix(0.58, 0.34, clamp(uv.y, 0.0, 1.0));
+            return mix(sceneColor, vec3(0.027, 0.039, 0.122), atmosphere);
           }
 
           void main() {
@@ -431,53 +429,86 @@ const gateStyle = [
             point.x *= aspect;
             float radius = length(point);
             vec2 direction = point / max(radius, 0.0001);
-            vec2 tangent = vec2(-direction.y, direction.x);
             float core = max(uCoreRadius, 0.004);
-            float massRadius = max(core, 0.052 - uCrush * 0.018);
-            float outsideCore = smoothstep(core * 0.96, core * 1.24, radius);
-            float gravityFalloff = 1.0 - smoothstep(core * 1.12, max(uLensRadius, core * 3.2), radius);
-            gravityFalloff *= outsideCore;
+            float gravityStrength = clamp(
+              uGravity * (0.74 + uCollapse * 0.24 + uCrush * 0.16),
+              0.0,
+              1.24
+            );
+            float massRadius = max(
+              core,
+              0.044 + uCollapse * 0.009 + uCrush * 0.01
+            );
+            float lensReach = min(max(uLensRadius, massRadius * 3.2), 0.28);
+            float outsideCore = smoothstep(core * 0.98, core * 1.22, radius);
+            float reachProgress = smoothstep(core * 1.15, lensReach, radius);
+            float radialReach = (1.0 - reachProgress) * (1.0 - reachProgress);
+            float gravityField = outsideCore * radialReach;
 
-            float inverseRadius = (massRadius * massRadius)
-              / max(radius * radius, massRadius * massRadius * 0.46);
-            float bend = min(
-              0.09,
-              inverseRadius * uGravity * (0.027 + uCollapse * 0.018 + uCrush * 0.026)
-            ) * gravityFalloff;
+            // Keep the primary image monotonic so the background bends as one
+            // continuous surface without becoming a circular portal.
+            float einsteinRadius = massRadius * (
+              1.04
+              + gravityStrength * 0.42
+              + uCollapse * 0.12
+              + uCrush * 0.12
+            );
+            float inverseRadius = max(radius, massRadius * 0.54);
+            float lensPull = (einsteinRadius * einsteinRadius)
+              / (radius * radius + core * core * 2.25)
+              * gravityStrength;
+            lensPull = min(lensPull, 0.55);
+            float primaryRadius = radius / (1.0 + lensPull * gravityField);
+
+            float criticalRadius = einsteinRadius * sqrt(max(gravityStrength, 0.02));
+            float ringWidth = max(massRadius * (0.18 - uCrush * 0.025), 0.006);
+            float causticDistance = (radius - criticalRadius) / ringWidth;
+            float caustic = exp(-causticDistance * causticDistance)
+              * gravityField
+              * gravityStrength;
 
             float waveWidth = max(uShockWidth, 0.006);
             float waveCoordinate = (radius - uShockRadius) / waveWidth;
             float waveEnvelope = exp(-waveCoordinate * waveCoordinate);
-            float waveDisplacement = -waveCoordinate * waveEnvelope * uShockStrength * 0.082;
-            float radialRipple = sin(radius / max(core, 0.012) * 3.1 - uTime * 0.52)
-              * gravityFalloff * uGravity * (0.0012 + uCollapse * 0.0018);
-            float spin = sin(radius / max(core, 0.012) * 2.4 + uTime * 0.18)
-              * gravityFalloff * uGravity * (0.0014 + uCollapse * 0.0024);
+            float waveDisplacement = -waveCoordinate
+              * waveEnvelope
+              * uShockStrength
+              * (0.005 + waveWidth * 0.045);
+            float fieldBreath = sin(
+              (radius - core) / max(lensReach - core, 0.01) * 12.0 - uTime * 0.72
+            ) * gravityField * uCollapse * 0.00075;
+
+            float frameDrag = massRadius / inverseRadius
+              * gravityField
+              * uCollapse
+              * gravityStrength
+              * 0.016;
+            float dragCos = cos(frameDrag);
+            float dragSin = sin(frameDrag);
+            vec2 lensedDirection = vec2(
+              direction.x * dragCos - direction.y * dragSin,
+              direction.x * dragSin + direction.y * dragCos
+            );
 
             float edgeFade = smoothstep(0.0, 0.055, vUv.x)
               * smoothstep(0.0, 0.055, vUv.y)
               * smoothstep(0.0, 0.055, 1.0 - vUv.x)
               * smoothstep(0.0, 0.055, 1.0 - vUv.y);
-            vec2 displacedPoint = point
-              + direction * (bend + waveDisplacement + radialRipple) * edgeFade
-              + tangent * spin * edgeFade;
+            vec2 lensedPoint = lensedDirection * (
+              primaryRadius + waveDisplacement + fieldBreath
+            );
+            vec2 displacedPoint = mix(point, lensedPoint, edgeFade);
             vec2 displacedUv = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
 
-            float chroma = (
-              gravityFalloff * uGravity * 0.0012
-              + waveEnvelope * uShockStrength * 0.0046
-            ) * edgeFade;
-            vec2 chromaOffset = direction * chroma / vec2(aspect, 1.0);
-            vec3 centerColor = sampleScene(displacedUv);
-            vec3 positiveColor = sampleScene(displacedUv + chromaOffset);
-            vec3 negativeColor = sampleScene(displacedUv - chromaOffset);
-            vec3 color = vec3(positiveColor.r, centerColor.g, negativeColor.b);
+            vec3 color = sampleScene(displacedUv);
+            color *= 1.0 + caustic * 0.035 + waveEnvelope * uShockStrength * 0.014;
 
-            float lensMask = max(
-              gravityFalloff * clamp(uGravity * 0.92, 0.0, 1.0),
-              waveEnvelope * uShockStrength
+            float horizon = 1.0 - smoothstep(core * 0.98, core * 1.04, radius);
+            color = mix(color, vec3(0.0), horizon);
+            float alpha = max(
+              clamp(uOpacity, 0.0, 1.0),
+              horizon * smoothstep(0.05, 0.15, gravityStrength)
             );
-            float alpha = clamp(lensMask * uOpacity * edgeFade, 0.0, 1.0);
             outputColor = vec4(color * alpha, alpha);
           }
         `;
@@ -1409,32 +1440,29 @@ const gateStyle = [
           context.globalCompositeOperation = "source-over";
           const horizonRadiusX = coreRadius * 1.08;
           const horizonRadiusY = coreRadius * (1.02 - collapseDepth * 0.16 - crushCompression * 0.1);
-          const eventHorizon = context.createRadialGradient(
-            -coreRadius * 0.08,
-            -coreRadius * 0.1,
-            coreRadius * 0.02,
-            0,
-            0,
-            coreRadius * 1.12
-          );
-          eventHorizon.addColorStop(0, "rgba(0, 0, 2, 1)");
-          eventHorizon.addColorStop(0.7, "rgba(0, 0, 3, 1)");
-          eventHorizon.addColorStop(0.9, "rgba(3, 0, 8, 1)");
-          eventHorizon.addColorStop(1, "rgba(34, 3, 28, 0.42)");
-          context.globalAlpha = blackHoleOpacity;
-          context.fillStyle = eventHorizon;
+          const horizonOpacity = clamp(blackHoleOpacity * 1.45, 0, 1);
+          context.globalAlpha = horizonOpacity;
+          context.fillStyle = "rgba(0, 0, 0, 1)";
           context.beginPath();
           context.ellipse(0, 0, horizonRadiusX, horizonRadiusY, 0, 0, Math.PI * 2);
           context.fill();
 
           context.globalCompositeOperation = "lighter";
-          context.globalAlpha = blackHoleOpacity * (0.76 + gravityLock * 0.22);
-          context.strokeStyle = "rgba(255, 211, 226, 0.92)";
-          context.lineWidth = 1 + gravityLock * 1.4;
+          context.globalAlpha = blackHoleOpacity * (0.34 + gravityLock * 0.12);
+          context.strokeStyle = "rgba(255, 166, 195, 0.7)";
+          context.lineWidth = 0.65 + gravityLock * 0.72;
           context.shadowColor = "rgba(255, 66, 123, 0.96)";
-          context.shadowBlur = 8 + gravityLock * 13;
+          context.shadowBlur = 5 + gravityLock * 8;
           context.beginPath();
-          context.arc(0, 0, coreRadius * 1.1, 0, Math.PI * 2);
+          context.ellipse(
+            0,
+            0,
+            horizonRadiusX * 1.02,
+            horizonRadiusY * 1.02,
+            0,
+            0,
+            Math.PI * 2
+          );
           context.stroke();
 
           for (let band = 0; band < 3; band += 1) {
@@ -1489,6 +1517,24 @@ const gateStyle = [
             context.ellipse(0, 0, diskRadius * (0.96 + seed * 0.16), diskRadius * diskFlatten, 0, phase, phase + span);
             context.stroke();
           }
+
+          // Keep the event horizon optically empty even when foreground disk
+          // streaks and orbit highlights cross its silhouette.
+          context.globalCompositeOperation = "source-over";
+          context.globalAlpha = horizonOpacity;
+          context.shadowBlur = 0;
+          context.fillStyle = "rgba(0, 0, 0, 1)";
+          context.beginPath();
+          context.ellipse(
+            0,
+            0,
+            horizonRadiusX,
+            horizonRadiusY,
+            0,
+            0,
+            Math.PI * 2
+          );
+          context.fill();
           context.restore();
 
           context.save();
@@ -2096,10 +2142,13 @@ const gateStyle = [
         const preBlastBlur = phaseProgress(burst, glossFadeEnd, crossStart + 0.04)
           * (1 - phaseProgress(burst, crossEnd, reformEnd)) * 4.8;
         const gravityBlur = phaseProgress(burst, crossEnd, 0.86)
-          * (1 - phaseProgress(burst, detonationEnd, 1)) * 4.6;
+          * (1 - phaseProgress(burst, detonationEnd, 1)) * 1.9;
         const shockwavePulse = Math.sin(shockwaveLinear * Math.PI);
         const collapsePulse = Math.sin(collapse * Math.PI);
-        const impactBlur = pressure * 1.25 + collapseDepth * 2.7 + shockwavePulse * 3.8 + detonationRush * 7.4;
+        const impactBlur = pressure * 0.58
+          + collapseDepth * 1.35
+          + shockwavePulse * 2.55
+          + detonationRush * 5.8;
         const performanceBlur = preBlastBlur + gravityBlur + impactBlur * (1 - blurRecovery);
         const gravityScreen = phaseProgress(burst, crossEnd, 0.874)
           * (1 - phaseProgress(burst, detonationEnd, 1));
