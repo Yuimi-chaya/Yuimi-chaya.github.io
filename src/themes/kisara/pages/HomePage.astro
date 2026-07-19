@@ -400,19 +400,6 @@ const gateStyle = [
           uniform float uShockWidth;
           uniform float uCoreRadius;
           uniform float uLensRadius;
-          uniform vec2 uFaceCenter;
-          uniform vec2 uFaceRadius;
-          uniform vec2 uHairCenter;
-          uniform vec2 uHairRadius;
-          uniform vec2 uBodyCenter;
-          uniform vec2 uBodyRadius;
-          uniform vec2 uWingCenter;
-          uniform vec2 uWingRadius;
-          uniform vec2 uWeaponCenter;
-          uniform vec2 uWeaponRadius;
-          uniform vec2 uTitleCenter;
-          uniform vec2 uTitleRadius;
-          uniform float uTitleWarp;
           uniform float uTime;
 
           vec2 coverUv(vec2 uv, vec2 imageSize, float scale) {
@@ -435,11 +422,6 @@ const gateStyle = [
             return mix(vec3(luminance), color, saturation) * brightness;
           }
 
-          float ellipseMask(vec2 uv, vec2 center, vec2 radius, float innerEdge, float outerEdge) {
-            float distanceFromCenter = length((uv - center) / max(radius, vec2(0.001)));
-            return 1.0 - smoothstep(innerEdge, outerEdge, distanceFromCenter);
-          }
-
           vec3 sampleScene(vec2 uv) {
             vec2 baseUv = coverUv(uv, uBaseSize, 1.045);
             vec2 fightUv = coverUv(uv, uFightSize, 1.0);
@@ -458,64 +440,44 @@ const gateStyle = [
             point.x *= aspect;
             float radius = length(point);
             vec2 direction = point / max(radius, 0.0001);
+            vec2 tangent = vec2(-direction.y, direction.x);
             float core = max(uCoreRadius, 0.004);
             float gravityStrength = clamp(
-              uGravity * (0.74 + uCollapse * 0.24 + uCrush * 0.16),
+              uGravity * (0.68 + uCollapse * 0.2 + uCrush * 0.12),
               0.0,
-              1.24
+              1.12
             );
             float massRadius = max(
               core,
               0.044 + uCollapse * 0.009 + uCrush * 0.01
             );
-            float lensReach = min(max(uLensRadius, massRadius * 4.2), 0.78);
+            float lensReach = min(max(uLensRadius, massRadius * 4.0), 0.76);
             float outsideCore = smoothstep(core * 0.98, core * 1.22, radius);
             float reachProgress = smoothstep(core * 1.15, lensReach, radius);
-            float radialReach = pow(max(0.0, 1.0 - reachProgress), 1.16);
+            float radialReach = pow(max(0.0, 1.0 - reachProgress), 1.32);
             float gravityField = outsideCore * radialReach;
+            float sideDistance = abs(vUv.x - 0.5);
+            float sideMask = smoothstep(0.166, 0.225, sideDistance);
+            float sideDepth = smoothstep(0.18, 0.5, sideDistance);
+            float distortionField = gravityField
+              * sideMask
+              * (0.62 + sideDepth * 0.58);
 
-            vec2 faceMetric = (vUv - uFaceCenter) / max(uFaceRadius, vec2(0.001));
-            float faceDistance = length(faceMetric);
-            float faceProtection = 1.0 - smoothstep(0.68, 1.08, faceDistance);
-            float subjectHalo = smoothstep(0.82, 1.08, faceDistance)
-              * (1.0 - smoothstep(2.1, 3.45, faceDistance));
-            float hairMask = ellipseMask(vUv, uHairCenter, uHairRadius, 0.54, 1.18);
-            float bodyMask = ellipseMask(vUv, uBodyCenter, uBodyRadius, 0.52, 1.16);
-            float wingMask = ellipseMask(vUv, uWingCenter, uWingRadius, 0.5, 1.14);
-            float weaponMask = ellipseMask(vUv, uWeaponCenter, uWeaponRadius, 0.5, 1.12);
-            float featureBoost = max(
-              hairMask * 1.22,
-              max(bodyMask * 0.82, max(wingMask * 1.16, weaponMask * 1.34))
-            );
-            vec2 titleMetric = (vUv - uTitleCenter) / max(uTitleRadius, vec2(0.001));
-            float titlePriority = (
-              1.0 - smoothstep(0.58, 1.32, length(titleMetric))
-            ) * uTitleWarp;
-            float regionalWeight = clamp(
-              0.34 + subjectHalo * 0.76 + featureBoost * 1.28 + titlePriority * 1.22,
-              0.0,
-              2.18
-            );
-            float distortionField = clamp(gravityField * regionalWeight, 0.0, 1.72)
-              * (1.0 - faceProtection * 0.985);
-
-            // Keep the primary image monotonic so the background bends as one
-            // continuous surface without becoming a circular portal.
             float einsteinRadius = massRadius * (
-              1.04
-              + gravityStrength * 0.42
-              + uCollapse * 0.12
-              + uCrush * 0.12
+              1.0
+              + gravityStrength * 0.34
+              + uCollapse * 0.1
+              + uCrush * 0.08
             );
             float inverseRadius = max(radius, massRadius * 0.54);
             float lensPull = (einsteinRadius * einsteinRadius)
-              / (radius * radius + core * core * 1.72)
+              / (radius * radius + core * core * 2.15)
               * gravityStrength;
-            lensPull = min(lensPull, 0.86);
-            float primaryRadius = radius / (1.0 + lensPull * distortionField * 0.92);
+            lensPull = min(lensPull, 0.64);
+            float primaryRadius = radius / (1.0 + lensPull * distortionField * 0.86);
 
             float criticalRadius = einsteinRadius * sqrt(max(gravityStrength, 0.02));
-            float ringWidth = max(massRadius * (0.18 - uCrush * 0.025), 0.006);
+            float ringWidth = max(massRadius * 0.2, 0.007);
             float causticDistance = (radius - criticalRadius) / ringWidth;
             float caustic = exp(-causticDistance * causticDistance)
               * distortionField
@@ -527,52 +489,29 @@ const gateStyle = [
             float waveDisplacement = -waveCoordinate
               * waveEnvelope
               * uShockStrength
-              * (0.012 + waveWidth * 0.08)
-              * clamp(0.64 + featureBoost * 0.7 + titlePriority * 0.58, 0.0, 2.0)
-              * (1.0 - faceProtection * 0.96);
+              * (0.009 + waveWidth * 0.065)
+              * sideMask;
             float fieldBreath = sin(
-              (radius - core) / max(lensReach - core, 0.01) * 13.0 - uTime * 0.88
-            ) * distortionField * uCollapse * (0.0012 + featureBoost * 0.0013);
+              (radius - core) / max(lensReach - core, 0.01) * 9.0 - uTime * 0.56
+            ) * distortionField * uCollapse * 0.00085;
 
             float frameDrag = massRadius / inverseRadius
               * distortionField
               * uCollapse
               * gravityStrength
-              * (0.078 + featureBoost * 0.052 + uCrush * 0.04);
+              * (0.044 + uCrush * 0.03);
             float dragCos = cos(frameDrag);
             float dragSin = sin(frameDrag);
             vec2 lensedDirection = vec2(
               direction.x * dragCos - direction.y * dragSin,
               direction.x * dragSin + direction.y * dragCos
             );
-            vec2 tangent = vec2(-direction.y, direction.x);
-            float criticalBand = exp(-pow(
-              (radius - criticalRadius) / max(ringWidth * 3.2, 0.012),
-              2.0
-            ));
-            float tangentialDrag = (
-              0.004
-              + uCollapse * 0.014
-              + uCrush * 0.019
-            ) * gravityStrength
-              * gravityField
-              * (0.48 + criticalBand * 1.22)
-              * (0.72 + featureBoost * 0.82 + titlePriority * 0.44)
-              * (1.0 - faceProtection * 0.98);
-            float tidalStretch = (
-              0.004
-              + uCollapse * 0.012
-              + uCrush * 0.019
-            ) * gravityStrength
-              * gravityField
-              * featureBoost
-              * (0.65 + abs(direction.x * 0.72 - direction.y * 0.69));
-            float subjectArc = tanh((direction.x * 0.82 - direction.y * 0.58) * 2.2)
-              * (0.003 + uCollapse * 0.01 + uCrush * 0.015)
+            float sideSweep = sin(vUv.y * 5.4 - uTime * 0.34)
+              * (0.002 + uCollapse * 0.0045 + uCrush * 0.006)
               * gravityStrength
               * gravityField
-              * featureBoost
-              * (1.0 - faceProtection * 0.98);
+              * sideMask
+              * sign(vUv.x - 0.5);
 
             float edgeFade = smoothstep(0.0, 0.055, vUv.x)
               * smoothstep(0.0, 0.055, vUv.y)
@@ -580,34 +519,19 @@ const gateStyle = [
               * smoothstep(0.0, 0.055, 1.0 - vUv.y);
             vec2 lensedPoint = lensedDirection * (
               primaryRadius + waveDisplacement + fieldBreath
-            ) + tangent * (tangentialDrag + subjectArc) + direction * tidalStretch;
+            ) + tangent * sideSweep;
             vec2 displacedPoint = mix(point, lensedPoint, edgeFade);
             vec2 displacedUv = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
-            displacedUv = mix(displacedUv, vUv, faceProtection * 0.985);
+            displacedUv = mix(vUv, displacedUv, sideMask);
 
             vec3 color = sampleScene(displacedUv);
-            vec2 refractionOffset = vec2(tangent.x / aspect, tangent.y)
-              * (0.0025 + uCollapse * 0.006 + uCrush * 0.008)
-              * gravityStrength
-              * gravityField
-              * featureBoost
-              * (1.0 - faceProtection * 0.99);
-            vec3 refractedColor = sampleScene(displacedUv + refractionOffset);
-            float refractionMix = clamp(
-              featureBoost
-                * gravityStrength
-                * (criticalBand * 0.2 + waveEnvelope * uShockStrength * 0.18),
-              0.0,
-              0.32
-            );
-            color = mix(color, refractedColor, refractionMix);
-            color *= 1.0 + caustic * 0.075 + waveEnvelope * uShockStrength * 0.028;
+            color *= 1.0 + caustic * 0.045 + waveEnvelope * uShockStrength * sideMask * 0.018;
 
             float horizon = 1.0 - smoothstep(core * 0.98, core * 1.04, radius);
-            color = mix(color, vec3(0.0), horizon);
+            color = mix(color, vec3(0.0), horizon * sideMask);
             float alpha = max(
               clamp(uOpacity, 0.0, 1.0),
-              horizon * smoothstep(0.05, 0.15, gravityStrength)
+              horizon * sideMask * smoothstep(0.05, 0.15, gravityStrength)
             );
             outputColor = vec4(color * alpha, alpha);
           }
@@ -698,19 +622,6 @@ const gateStyle = [
           shockWidth: gl.getUniformLocation(program, "uShockWidth"),
           coreRadius: gl.getUniformLocation(program, "uCoreRadius"),
           lensRadius: gl.getUniformLocation(program, "uLensRadius"),
-          faceCenter: gl.getUniformLocation(program, "uFaceCenter"),
-          faceRadius: gl.getUniformLocation(program, "uFaceRadius"),
-          hairCenter: gl.getUniformLocation(program, "uHairCenter"),
-          hairRadius: gl.getUniformLocation(program, "uHairRadius"),
-          bodyCenter: gl.getUniformLocation(program, "uBodyCenter"),
-          bodyRadius: gl.getUniformLocation(program, "uBodyRadius"),
-          wingCenter: gl.getUniformLocation(program, "uWingCenter"),
-          wingRadius: gl.getUniformLocation(program, "uWingRadius"),
-          weaponCenter: gl.getUniformLocation(program, "uWeaponCenter"),
-          weaponRadius: gl.getUniformLocation(program, "uWeaponRadius"),
-          titleCenter: gl.getUniformLocation(program, "uTitleCenter"),
-          titleRadius: gl.getUniformLocation(program, "uTitleRadius"),
-          titleWarp: gl.getUniformLocation(program, "uTitleWarp"),
           time: gl.getUniformLocation(program, "uTime")
         };
         let cssWidth = 0;
@@ -735,26 +646,6 @@ const gateStyle = [
           gl.viewport(0, 0, pixelWidth, pixelHeight);
         };
 
-        const mapImageRegionToViewport = (centerX, centerY, radiusX, radiusY, image) => {
-          const viewportAspect = cssWidth / Math.max(1, cssHeight);
-          const imageAspect = image.width / Math.max(1, image.height);
-          let visibleWidth = 1;
-          let visibleHeight = 1;
-          if (imageAspect > viewportAspect) {
-            visibleWidth = viewportAspect / imageAspect;
-          } else {
-            visibleHeight = imageAspect / viewportAspect;
-          }
-          const screenCenterX = 0.5 + (centerX - 0.5) / visibleWidth;
-          const screenCenterY = 0.5 + (centerY - 0.5) / visibleHeight;
-          return {
-            centerX: screenCenterX,
-            centerY: 1 - screenCenterY,
-            radiusX: Math.max(0.01, radiusX / visibleWidth),
-            radiusY: Math.max(0.01, radiusY / visibleHeight)
-          };
-        };
-
         const clear = () => {
           spaceLensCanvas.style.opacity = "0";
           spaceLensCanvas.dataset.active = "false";
@@ -764,41 +655,6 @@ const gateStyle = [
 
         const draw = (parameters) => {
           resize();
-          const faceRegion = mapImageRegionToViewport(
-            0.532,
-            0.37,
-            0.095,
-            0.155,
-            fightTexture
-          );
-          const hairRegion = mapImageRegionToViewport(
-            0.41,
-            0.32,
-            0.285,
-            0.3,
-            fightTexture
-          );
-          const bodyRegion = mapImageRegionToViewport(
-            0.535,
-            0.65,
-            0.235,
-            0.35,
-            fightTexture
-          );
-          const wingRegion = mapImageRegionToViewport(
-            0.285,
-            0.58,
-            0.29,
-            0.47,
-            fightTexture
-          );
-          const weaponRegion = mapImageRegionToViewport(
-            0.735,
-            0.5,
-            0.205,
-            0.48,
-            fightTexture
-          );
           gl.clearColor(0, 0, 0, 0);
           gl.clear(gl.COLOR_BUFFER_BIT);
           gl.useProgram(program);
@@ -823,19 +679,6 @@ const gateStyle = [
           gl.uniform1f(uniforms.shockWidth, parameters.shockWidth);
           gl.uniform1f(uniforms.coreRadius, parameters.coreRadius);
           gl.uniform1f(uniforms.lensRadius, parameters.lensRadius);
-          gl.uniform2f(uniforms.faceCenter, faceRegion.centerX, faceRegion.centerY);
-          gl.uniform2f(uniforms.faceRadius, faceRegion.radiusX, faceRegion.radiusY);
-          gl.uniform2f(uniforms.hairCenter, hairRegion.centerX, hairRegion.centerY);
-          gl.uniform2f(uniforms.hairRadius, hairRegion.radiusX, hairRegion.radiusY);
-          gl.uniform2f(uniforms.bodyCenter, bodyRegion.centerX, bodyRegion.centerY);
-          gl.uniform2f(uniforms.bodyRadius, bodyRegion.radiusX, bodyRegion.radiusY);
-          gl.uniform2f(uniforms.wingCenter, wingRegion.centerX, wingRegion.centerY);
-          gl.uniform2f(uniforms.wingRadius, wingRegion.radiusX, wingRegion.radiusY);
-          gl.uniform2f(uniforms.weaponCenter, weaponRegion.centerX, weaponRegion.centerY);
-          gl.uniform2f(uniforms.weaponRadius, weaponRegion.radiusX, weaponRegion.radiusY);
-          gl.uniform2f(uniforms.titleCenter, parameters.titleCenterX, parameters.titleCenterY);
-          gl.uniform2f(uniforms.titleRadius, parameters.titleRadiusX, parameters.titleRadiusY);
-          gl.uniform1f(uniforms.titleWarp, parameters.titleWarp);
           gl.uniform1f(uniforms.time, parameters.time);
           gl.drawArrays(gl.TRIANGLES, 0, 3);
           spaceLensCanvas.style.opacity = "1";
@@ -913,79 +756,57 @@ const gateStyle = [
             vec2 direction = point / max(radius, 0.001);
             vec2 tangent = vec2(-direction.y, direction.x);
             float core = max(uCoreRadius, 10.0);
-            float reach = max(uLensRadius, core * 4.6);
-            float outsideCore = smoothstep(core * 0.72, core * 1.08, radius);
-            float field = outsideCore * pow(
-              max(0.0, 1.0 - smoothstep(core * 0.82, reach, radius)),
-              1.18
-            );
+            float reach = max(uLensRadius, core * 4.2);
+            vec2 normalizedPoint = point / max(uResolution * 0.5, vec2(1.0));
+            float horizontalEnvelope = 1.0 - smoothstep(0.72, 1.08, abs(normalizedPoint.x));
+            float verticalEnvelope = 1.0 - smoothstep(0.58, 1.08, abs(normalizedPoint.y));
+            float field = horizontalEnvelope * verticalEnvelope;
             float pressure = clamp(
-              uStrength * (0.72 + uGravity * 0.5 + uCollapse * 0.42 + uCrush * 0.34),
+              uStrength * (0.58 + uGravity * 0.26 + uCollapse * 0.22 + uCrush * 0.16),
               0.0,
-              1.8
+              1.16
             );
-            float criticalRadius = core * (1.42 + uGravity * 0.32 + uCollapse * 0.28);
-            float criticalBand = exp(-pow(
-              (radius - criticalRadius) / max(core * 0.78, 8.0),
+            float orbitRadius = core * (1.75 + uCollapse * 0.2);
+            float orbitBand = exp(-pow(
+              (radius - orbitRadius) / max(core * 1.15, 12.0),
               2.0
             ));
-
-            float radialPull = (
-              12.0
-              + uGravity * 24.0
-              + uCollapse * 38.0
-              + uCrush * 58.0
-            ) * field * pressure * (0.54 + criticalBand * 0.82);
-            float swirlPull = (
-              10.0
-              + uGravity * 19.0
-              + uCollapse * 42.0
-              + uCrush * 68.0
-            ) * field * pressure * (0.32 + criticalBand * 1.18);
-
-            vec2 tidalAxis = normalize(vec2(0.84, 0.54));
-            float axialPosition = dot(direction, tidalAxis);
-            float tidalPull = (
-              10.0
-              + uCollapse * 34.0
-              + uCrush * 52.0
-            ) * field * pressure * axialPosition;
-            float sideArc = tanh(point.x / max(reach * 0.42, 1.0))
-              * (12.0 + uGravity * 16.0 + uCollapse * 32.0 + uCrush * 44.0)
+            float sideBend = sin(normalizedPoint.x * 2.55)
+              * (5.0 + uGravity * 5.0 + uCollapse * 9.0 + uCrush * 11.0)
               * field
               * pressure;
-            float verticalFold = sin(
-              clamp(point.y / max(reach, 1.0), -1.0, 1.0) * 2.4
-              + uTime * 0.42
-            ) * (4.0 + uCollapse * 12.0 + uCrush * 18.0)
+            float ribbonShear = normalizedPoint.y
+              * (5.0 + uCollapse * 8.0 + uCrush * 9.0)
+              * field
+              * pressure
+              * (0.5 + abs(normalizedPoint.x) * 0.5);
+            float orbitBend = (4.0 + uCollapse * 8.0 + uCrush * 10.0)
+              * orbitBand
               * field
               * pressure;
             float breathing = sin(
-              radius * 0.052
-              - uTime * 2.1
-              + atan(direction.y, direction.x) * 2.4
-            ) * field * pressure * (1.2 + uCollapse * 2.6);
+              normalizedPoint.x * 4.0 - uTime * 0.66
+            ) * field * pressure * (0.7 + uCollapse * 1.1);
 
             float waveWidth = max(uShockWidth, 5.0);
             float waveCoordinate = (radius - uShockRadius) / waveWidth;
             float waveEnvelope = exp(-waveCoordinate * waveCoordinate);
             float shockPull = -waveCoordinate * waveEnvelope
               * uShockStrength
-              * (18.0 + waveWidth * 0.34);
+              * (7.0 + waveWidth * 0.12);
 
             vec2 sourcePixel = pixel
-              + direction * (radialPull + shockPull + breathing)
-              + tangent * swirlPull
-              + tidalAxis * tidalPull
-              + vec2(verticalFold * 0.42, sideArc + verticalFold);
+              + vec2(ribbonShear + breathing, sideBend)
+              + tangent * orbitBend
+              + direction * shockPull;
             vec2 sourceUv = sourcePixel / uResolution;
             float edge = smoothstep(0.0, 0.025, sourceUv.x)
               * smoothstep(0.0, 0.025, sourceUv.y)
               * smoothstep(0.0, 0.025, 1.0 - sourceUv.x)
               * smoothstep(0.0, 0.025, 1.0 - sourceUv.y);
             vec4 titleColor = texture(uTitleTexture, clamp(sourceUv, vec2(0.001), vec2(0.999)));
-            float caustic = criticalBand * field * pressure;
-            titleColor.rgb *= 1.0 + caustic * 0.22 + waveEnvelope * uShockStrength * 0.16;
+            float caustic = orbitBand * field * pressure;
+            titleColor.rgb *= 1.0 + caustic * 0.12 + waveEnvelope * uShockStrength * 0.08;
             float alpha = titleColor.a * edge * clamp(uOpacity, 0.0, 1.0);
             outputColor = vec4(titleColor.rgb * edge * uOpacity, alpha);
           }
@@ -2778,42 +2599,11 @@ const gateStyle = [
           ? smoothstep(clamp((titleWarp - 0.025) / 0.56, 0, 1))
           : 0;
         const titleLensStrengthScale = gate.clientWidth < 640
-          ? 0.08
+          ? 0.58
           : gate.clientWidth < 900
             ? 0.72
-            : 1;
+            : 0.82;
         const titleBlur = performanceBlur * (1 - titleLensOpacity * 0.74);
-        let lensTitleCenterX = 0.5;
-        let lensTitleCenterY = 0.5;
-        let lensTitleRadiusX = 0.32;
-        let lensTitleRadiusY = 0.16;
-        if (title && lensOpacity > 0.001) {
-          const lensGateRect = gate.getBoundingClientRect();
-          const lensTitleRect = title.getBoundingClientRect();
-          lensTitleCenterX = clamp(
-            (lensTitleRect.left + lensTitleRect.width * 0.5 - lensGateRect.left)
-              / Math.max(1, lensGateRect.width),
-            0,
-            1
-          );
-          lensTitleCenterY = clamp(
-            1 - (
-              lensTitleRect.top + lensTitleRect.height * 0.5 - lensGateRect.top
-            ) / Math.max(1, lensGateRect.height),
-            0,
-            1
-          );
-          lensTitleRadiusX = clamp(
-            lensTitleRect.width / Math.max(1, lensGateRect.width) * 0.56,
-            0.12,
-            0.48
-          );
-          lensTitleRadiusY = clamp(
-            lensTitleRect.height / Math.max(1, lensGateRect.height) * 0.7,
-            0.08,
-            0.24
-          );
-        }
         let titleLensCenterX = titleLensCanvas?.clientWidth * 0.5 || 0;
         let titleLensCenterY = titleLensCanvas?.clientHeight * 0.5 || 0;
         if (titleLensCanvas && title) {
@@ -2894,11 +2684,6 @@ const gateStyle = [
           shockWidth: Math.max(8, lensShockWidthPixels * 0.56) / gateHeight,
           coreRadius: lensCoreRadius / gateHeight,
           lensRadius,
-          titleCenterX: lensTitleCenterX,
-          titleCenterY: lensTitleCenterY,
-          titleRadiusX: lensTitleRadiusX,
-          titleRadiusY: lensTitleRadiusY,
-          titleWarp,
           time: timestamp / 1000
         });
         drawTitleLens(timestamp, {
