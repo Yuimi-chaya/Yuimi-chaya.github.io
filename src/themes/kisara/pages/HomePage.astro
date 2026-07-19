@@ -54,6 +54,13 @@ const gateStyle = [
         height="900"
       ></canvas>
       <div class="kisara-gate-atmosphere"></div>
+      <canvas
+        class="kisara-post-release-canvas"
+        data-kisara-post-release-canvas
+        data-fight-src={activeFightUrl ?? ""}
+        width="1280"
+        height="900"
+      ></canvas>
     </div>
     <canvas class="kisara-burst-canvas" data-kisara-burst-canvas width="1280" height="900" aria-hidden="true"></canvas>
     <div class="kisara-screen-impact" aria-hidden="true"></div>
@@ -63,6 +70,7 @@ const gateStyle = [
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
       <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
+      <span class="kisara-title-data-stream" aria-hidden="true">Kisara</span>
       <canvas
         class="kisara-title-lens-canvas"
         data-kisara-title-lens
@@ -206,6 +214,9 @@ const gateStyle = [
       const burstContext = burstCanvas?.getContext("2d");
       const spaceLensCanvas = gate.querySelector("[data-kisara-space-lens]");
       const titleLensCanvas = gate.querySelector("[data-kisara-title-lens]");
+      const postReleaseCanvas = gate.querySelector("[data-kisara-post-release-canvas]");
+      const postReleaseContext = postReleaseCanvas?.getContext("2d", { alpha: true });
+      const fightBackground = gate.querySelector(".kisara-gate-background-fight");
       const meterShell = gate.querySelector(".kisara-contract-meter");
       const title = gate.querySelector(".kisara-title");
       const cross = gate.querySelector(".kisara-title-cross");
@@ -262,6 +273,9 @@ const gateStyle = [
       let energyCanvasHeight = 0;
       let burstCanvasWidth = 0;
       let burstCanvasHeight = 0;
+      let postReleaseCanvasWidth = 0;
+      let postReleaseCanvasHeight = 0;
+      let postReleasePixelRatio = 1;
       let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
       let renderQuality = 1;
       let renderCostEma = 0;
@@ -349,6 +363,7 @@ const gateStyle = [
       const orbitParticles = [];
       const burstParticles = [];
       const rainParticles = [];
+      const postReleaseParticles = [];
 
       const smoothstep = (value) => value * value * (3 - 2 * value);
       const phaseProgress = (value, start, end) => smoothstep(clamp((value - start) / (end - start), 0, 1));
@@ -420,6 +435,548 @@ const gateStyle = [
         return path;
       };
       const nextParticleRandom = () => randomSeed((particleSerial += 1) * 1.61803398875 + 0.37);
+
+      const postReleaseSources = [
+        { x: 0.4845, y: 0.338, kind: "eye", angle: -0.16, strength: 1 },
+        { x: 0.5585, y: 0.336, kind: "eye", angle: 0.08, strength: 0.96 },
+        { x: 0.592, y: 0.055, kind: "blade", angle: 0.88, strength: 1.12 }
+      ];
+      let fightImageWidth = 1920;
+      let fightImageHeight = 1080;
+      let postReleaseActive = false;
+      let postReleaseFrame = 0;
+      let postReleaseLastTimestamp = 0;
+      let postReleaseStartedAt = 0;
+      let postReleaseX = 0;
+      let postReleaseY = 0;
+      let postReleaseTargetX = 0;
+      let postReleaseTargetY = 0;
+      let postReleaseVelocityX = 0;
+      let postReleaseMaxX = 14;
+      let postReleaseMaxY = 4;
+      let postReleasePointerX = null;
+      let postReleasePointerAccumulator = 0;
+      let postReleaseDirection = 0;
+      let postReleaseDirectionChangedAt = 0;
+      let postReleaseJourney = null;
+      let postReleaseEmissionBudget = 0;
+      let postReleaseAmbientBudget = 0;
+      let postReleaseSourceIndex = 0;
+      let postReleaseParticleSerial = 0;
+      let postReleaseLayout = {
+        layerLeft: -24,
+        layerTop: -24,
+        layerWidth: 0,
+        layerHeight: 0,
+        imageScale: 1,
+        imageLeft: 0,
+        imageTop: 0
+      };
+      const precisePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+      const nextPostReleaseRandom = () => randomSeed((postReleaseParticleSerial += 1) * 2.41421356237 + 0.71);
+
+      const clearPostReleaseCanvas = () => {
+        if (!postReleaseCanvas || !postReleaseContext) return;
+        postReleaseContext.setTransform(1, 0, 0, 1, 0, 0);
+        postReleaseContext.clearRect(0, 0, postReleaseCanvas.width, postReleaseCanvas.height);
+        postReleaseContext.setTransform(postReleasePixelRatio, 0, 0, postReleasePixelRatio, 0, 0);
+      };
+
+      const refreshPostReleaseLayout = () => {
+        const width = Math.max(1, gate.clientWidth);
+        const height = Math.max(1, gate.clientHeight);
+        const layerWidth = Math.max(width, fightBackground?.offsetWidth || width + 48);
+        const layerHeight = Math.max(height, fightBackground?.offsetHeight || height + 48);
+        const layerLeft = fightBackground?.offsetLeft ?? (width - layerWidth) * 0.5;
+        const layerTop = fightBackground?.offsetTop ?? (height - layerHeight) * 0.5;
+        const imageScale = Math.max(
+          layerWidth / Math.max(1, fightImageWidth),
+          layerHeight / Math.max(1, fightImageHeight)
+        );
+        const renderedWidth = fightImageWidth * imageScale;
+        const renderedHeight = fightImageHeight * imageScale;
+        const horizontalBleed = Math.max(0, (layerWidth - width) * 0.5);
+        const verticalBleed = Math.max(0, (layerHeight - height) * 0.5);
+        postReleaseMaxX = Math.min(width < 640 ? 8 : 14, Math.max(0, horizontalBleed - 6));
+        postReleaseMaxY = Math.min(width < 640 ? 2.5 : 4, Math.max(0, verticalBleed - 7));
+        postReleaseTargetX = clamp(postReleaseTargetX, -postReleaseMaxX, postReleaseMaxX);
+        postReleaseX = clamp(postReleaseX, -postReleaseMaxX, postReleaseMaxX);
+        postReleaseTargetY = clamp(postReleaseTargetY, -postReleaseMaxY, postReleaseMaxY);
+        postReleaseY = clamp(postReleaseY, -postReleaseMaxY, postReleaseMaxY);
+        postReleaseLayout = {
+          layerLeft,
+          layerTop,
+          layerWidth,
+          layerHeight,
+          imageScale,
+          imageLeft: layerLeft + (layerWidth - renderedWidth) * 0.5,
+          imageTop: layerTop + (layerHeight - renderedHeight) * 0.5
+        };
+      };
+
+      const resizePostReleaseCanvas = (force = false) => {
+        if (!postReleaseCanvas || !postReleaseContext) return;
+        const width = Math.max(1, Math.round(gate.clientWidth));
+        const height = Math.max(1, Math.round(gate.clientHeight));
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, width < 640 ? 1.18 : 1.45);
+        const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
+        const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
+        if (
+          force
+          || postReleaseCanvasWidth !== width
+          || postReleaseCanvasHeight !== height
+          || Math.abs(postReleasePixelRatio - pixelRatio) > 0.01
+        ) {
+          postReleaseCanvas.width = pixelWidth;
+          postReleaseCanvas.height = pixelHeight;
+          postReleaseCanvasWidth = width;
+          postReleaseCanvasHeight = height;
+          postReleasePixelRatio = pixelRatio;
+          clearPostReleaseCanvas();
+        }
+        refreshPostReleaseLayout();
+      };
+
+      const mapPostReleaseSource = (source) => ({
+        x: postReleaseLayout.imageLeft
+          + source.x * fightImageWidth * postReleaseLayout.imageScale
+          + postReleaseX,
+        y: postReleaseLayout.imageTop
+          + source.y * fightImageHeight * postReleaseLayout.imageScale
+          + postReleaseY,
+        scale: postReleaseLayout.imageScale
+      });
+
+      const drawPostReleaseBloom = (context, x, y, radiusX, radiusY, rotation, alpha) => {
+        context.save();
+        context.translate(x, y);
+        context.rotate(rotation);
+        context.scale(Math.max(0.001, radiusX), Math.max(0.001, radiusY));
+        const gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1);
+        gradient.addColorStop(0, `rgba(255, 255, 255, ${0.9 * alpha})`);
+        gradient.addColorStop(0.16, `rgba(255, 221, 236, ${0.78 * alpha})`);
+        gradient.addColorStop(0.42, `rgba(255, 83, 151, ${0.38 * alpha})`);
+        gradient.addColorStop(1, "rgba(255, 31, 118, 0)");
+        context.fillStyle = gradient;
+        context.beginPath();
+        context.arc(0, 0, 1, 0, fullTurn);
+        context.fill();
+        context.restore();
+      };
+
+      const drawPostReleaseTrail = (context, source, point, motionDirection, speed, alpha) => {
+        const direction = motionDirection || postReleaseDirection || 1;
+        const trailLength = source.kind === "blade"
+          ? 18 + Math.min(54, speed * 0.32)
+          : 7 + Math.min(32, speed * 0.22);
+        const tailX = -direction * trailLength;
+        const tailY = source.kind === "blade"
+          ? -direction * trailLength * 0.18
+          : (source.angle * trailLength * 0.2);
+        const gradient = context.createLinearGradient(
+          point.x + tailX,
+          point.y + tailY,
+          point.x,
+          point.y
+        );
+        gradient.addColorStop(0, "rgba(255, 52, 139, 0)");
+        gradient.addColorStop(0.48, `rgba(255, 83, 157, ${0.18 * alpha})`);
+        gradient.addColorStop(0.84, `rgba(255, 203, 231, ${0.62 * alpha})`);
+        gradient.addColorStop(1, `rgba(255, 255, 255, ${0.9 * alpha})`);
+        context.save();
+        context.strokeStyle = gradient;
+        context.lineCap = "round";
+        context.lineWidth = source.kind === "blade"
+          ? Math.max(1.2, point.scale * 2.3)
+          : Math.max(0.8, point.scale * 1.35);
+        context.beginPath();
+        context.moveTo(point.x + tailX, point.y + tailY);
+        context.quadraticCurveTo(
+          point.x + tailX * 0.38,
+          point.y + tailY * 0.24 - source.angle * 4,
+          point.x,
+          point.y
+        );
+        context.stroke();
+        context.restore();
+      };
+
+      const drawPostReleaseHighlights = (context, timestamp, intro) => {
+        const time = timestamp / 1000;
+        const speed = Math.abs(postReleaseVelocityX);
+        const motionDirection = Math.abs(postReleaseVelocityX) > 1.2
+          ? Math.sign(postReleaseVelocityX)
+          : postReleaseDirection;
+        context.save();
+        context.globalCompositeOperation = "lighter";
+        for (let index = 0; index < postReleaseSources.length; index += 1) {
+          const source = postReleaseSources[index];
+          const point = mapPostReleaseSource(source);
+          if (
+            point.x < -90
+            || point.x > postReleaseCanvasWidth + 90
+            || point.y < -90
+            || point.y > postReleaseCanvasHeight + 90
+          ) continue;
+          const pulse = 0.88 + Math.sin(time * (3.4 + index * 0.28) + index * 1.7) * 0.12;
+          const movementLift = clamp(speed / 120, 0, 1) * 0.24;
+          const alpha = intro * source.strength * (pulse + movementLift);
+          if (source.kind === "eye") {
+            const glowScale = clamp(point.scale, 0.58, 1.35);
+            drawPostReleaseBloom(
+              context,
+              point.x,
+              point.y,
+              13.5 * glowScale,
+              9.5 * glowScale,
+              source.angle,
+              alpha * 0.36
+            );
+            drawPostReleaseBloom(
+              context,
+              point.x - 0.6 * glowScale,
+              point.y - 1.4 * glowScale,
+              3.1 * glowScale,
+              5.7 * glowScale,
+              source.angle,
+              alpha * 0.82
+            );
+            drawPostReleaseTrail(context, source, point, motionDirection, speed, alpha * 0.72);
+            context.fillStyle = `rgba(255, 255, 255, ${0.72 * alpha})`;
+            context.beginPath();
+            context.arc(
+              point.x - 1.15 * glowScale,
+              point.y - 2.25 * glowScale,
+              Math.max(0.65, 1.15 * glowScale),
+              0,
+              fullTurn
+            );
+            context.fill();
+          } else {
+            const glowScale = clamp(point.scale, 0.62, 1.4);
+            drawPostReleaseBloom(
+              context,
+              point.x,
+              point.y,
+              24 * glowScale,
+              9 * glowScale,
+              source.angle,
+              alpha * 0.42
+            );
+            context.save();
+            context.translate(point.x, point.y);
+            context.rotate(source.angle);
+            const bladeGradient = context.createLinearGradient(-30 * glowScale, 0, 34 * glowScale, 0);
+            bladeGradient.addColorStop(0, "rgba(255, 76, 158, 0)");
+            bladeGradient.addColorStop(0.36, `rgba(255, 123, 186, ${0.22 * alpha})`);
+            bladeGradient.addColorStop(0.68, `rgba(255, 239, 248, ${0.72 * alpha})`);
+            bladeGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+            context.strokeStyle = bladeGradient;
+            context.lineCap = "round";
+            context.lineWidth = Math.max(1.1, 2.4 * glowScale);
+            context.beginPath();
+            context.moveTo(-30 * glowScale, 0);
+            context.quadraticCurveTo(0, -1.8 * glowScale, 34 * glowScale, 0.5 * glowScale);
+            context.stroke();
+            context.restore();
+            drawPostReleaseTrail(context, source, point, motionDirection, speed, alpha * 0.8);
+          }
+        }
+        context.restore();
+      };
+
+      const spawnPostReleaseParticle = (source, point, direction, speed, ambient = false) => {
+        if (postReleaseParticles.length >= (postReleaseCanvasWidth < 640 ? 52 : 92)) return;
+        const randomA = nextPostReleaseRandom();
+        const randomB = nextPostReleaseRandom();
+        const randomC = nextPostReleaseRandom();
+        const ejectionDirection = direction || postReleaseDirection || (randomA > 0.5 ? 1 : -1);
+        const power = ambient
+          ? 24 + randomB * 24
+          : 52 + Math.min(150, speed * 0.68) + randomB * 44;
+        const verticalBias = source.kind === "blade" ? 0.18 : -0.08;
+        const velocityX = -ejectionDirection * power * (0.72 + randomA * 0.5);
+        const velocityY = power * ((randomC - 0.5) * 0.58 + verticalBias);
+        const history = 0.012 + randomA * 0.012;
+        postReleaseParticles.push({
+          x: point.x + (randomA - 0.5) * (source.kind === "blade" ? 9 : 4),
+          y: point.y + (randomB - 0.5) * (source.kind === "blade" ? 6 : 4),
+          previousX: point.x - velocityX * history,
+          previousY: point.y - velocityY * history,
+          velocityX,
+          velocityY,
+          age: 0,
+          life: ambient ? 0.72 + randomC * 0.48 : 0.58 + randomC * 0.72,
+          size: (source.kind === "blade" ? 1.05 : 0.78) + randomB * 1.25,
+          hue: source.kind === "blade" ? 338 + randomA * 12 : 326 + randomA * 18
+        });
+      };
+
+      const updatePostReleaseParticles = (context, frameSeconds, speed, intro) => {
+        const activeDirection = Math.abs(postReleaseVelocityX) > 1.2
+          ? Math.sign(postReleaseVelocityX)
+          : postReleaseDirection;
+        if (precisePointer && speed > 2) {
+          postReleaseEmissionBudget += frameSeconds * (5 + Math.min(29, speed * 0.2));
+        }
+        postReleaseAmbientBudget += frameSeconds * 1.35 * intro;
+        while (postReleaseEmissionBudget >= 1) {
+          postReleaseEmissionBudget -= 1;
+          const source = postReleaseSources[postReleaseSourceIndex % postReleaseSources.length];
+          postReleaseSourceIndex += 1;
+          spawnPostReleaseParticle(source, mapPostReleaseSource(source), activeDirection, speed, false);
+        }
+        while (postReleaseAmbientBudget >= 1) {
+          postReleaseAmbientBudget -= 1;
+          const source = postReleaseSources[postReleaseSourceIndex % postReleaseSources.length];
+          postReleaseSourceIndex += 1;
+          spawnPostReleaseParticle(source, mapPostReleaseSource(source), activeDirection, speed, true);
+        }
+
+        context.save();
+        context.globalCompositeOperation = "lighter";
+        for (let index = postReleaseParticles.length - 1; index >= 0; index -= 1) {
+          const particle = postReleaseParticles[index];
+          particle.age += frameSeconds;
+          if (particle.age >= particle.life) {
+            postReleaseParticles[index] = postReleaseParticles[postReleaseParticles.length - 1];
+            postReleaseParticles.pop();
+            continue;
+          }
+          particle.previousX = particle.x;
+          particle.previousY = particle.y;
+          particle.x += particle.velocityX * frameSeconds;
+          particle.y += particle.velocityY * frameSeconds;
+          const drag = Math.exp(-1.45 * frameSeconds);
+          particle.velocityX *= drag;
+          particle.velocityY = particle.velocityY * drag - 5.5 * frameSeconds;
+          const lifeProgress = particle.age / particle.life;
+          const alpha = Math.sin(lifeProgress * Math.PI) * intro;
+          const trailLength = clamp(Math.hypot(particle.velocityX, particle.velocityY) * 0.035, 3, 12);
+          const magnitude = Math.max(1, Math.hypot(particle.velocityX, particle.velocityY));
+          const tailX = particle.x - particle.velocityX / magnitude * trailLength;
+          const tailY = particle.y - particle.velocityY / magnitude * trailLength;
+          const gradient = context.createLinearGradient(tailX, tailY, particle.x, particle.y);
+          gradient.addColorStop(0, `hsla(${particle.hue}, 100%, 68%, 0)`);
+          gradient.addColorStop(0.72, `hsla(${particle.hue}, 100%, 72%, ${0.36 * alpha})`);
+          gradient.addColorStop(1, `rgba(255, 246, 252, ${0.84 * alpha})`);
+          context.strokeStyle = gradient;
+          context.lineWidth = Math.max(0.55, particle.size * (1 - lifeProgress * 0.38));
+          context.lineCap = "round";
+          context.beginPath();
+          context.moveTo(tailX, tailY);
+          context.lineTo(particle.x, particle.y);
+          context.stroke();
+          context.fillStyle = `rgba(255, 223, 239, ${0.68 * alpha})`;
+          context.beginPath();
+          context.arc(particle.x, particle.y, Math.max(0.45, particle.size * 0.46), 0, fullTurn);
+          context.fill();
+        }
+        context.restore();
+      };
+
+      const updatePostReleaseDataStream = (intro) => {
+        if (!postReleaseJourney) {
+          gate.style.setProperty("--kisara-data-stream-opacity", "0");
+          return;
+        }
+        const distance = postReleaseJourney.endX - postReleaseJourney.startX;
+        const progress = Math.abs(distance) < 0.01
+          ? 1
+          : clamp((postReleaseX - postReleaseJourney.startX) / distance, 0, 1);
+        const eased = smoothstep(progress);
+        const fromRight = postReleaseJourney.direction > 0;
+        const position = fromRight ? 116 - eased * 134 : -16 + eased * 134;
+        const visibility = Math.pow(Math.sin(clamp(progress, 0, 1) * Math.PI), 0.58);
+        gate.style.setProperty("--kisara-data-stream-position", `${position.toFixed(3)}%`);
+        gate.style.setProperty("--kisara-data-stream-phase", `${(eased * 86 * (fromRight ? -1 : 1)).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-data-stream-opacity", (visibility * intro * 0.92).toFixed(3));
+        gate.classList.toggle("is-data-stream-from-right", fromRight);
+        gate.classList.toggle("is-data-stream-from-left", !fromRight);
+        if (progress >= 0.999 && Math.abs(postReleaseTargetX - postReleaseX) < 0.08) {
+          postReleaseJourney = null;
+          gate.style.setProperty("--kisara-data-stream-opacity", "0");
+        }
+      };
+
+      const drawPostRelease = (timestamp) => {
+        postReleaseFrame = 0;
+        if (
+          !postReleaseActive
+          || pageMode !== "gate"
+          || document.visibilityState !== "visible"
+          || !postReleaseContext
+        ) return;
+        const motionPending = Math.abs(postReleaseTargetX - postReleaseX) > 0.03
+          || Math.abs(postReleaseTargetY - postReleaseY) > 0.03
+          || Boolean(postReleaseJourney);
+        const minimumFrameInterval = motionPending ? 1000 / 60 : 1000 / 30;
+        if (
+          postReleaseLastTimestamp
+          && timestamp - postReleaseLastTimestamp < minimumFrameInterval * 0.9
+        ) {
+          postReleaseFrame = window.requestAnimationFrame(drawPostRelease);
+          return;
+        }
+        if (postReleaseCanvasWidth <= 1 || postReleaseCanvasHeight <= 1) resizePostReleaseCanvas();
+        const frameSeconds = postReleaseLastTimestamp
+          ? clamp((timestamp - postReleaseLastTimestamp) / 1000, 0.008, 0.045)
+          : 1 / 60;
+        postReleaseLastTimestamp = timestamp;
+        const previousX = postReleaseX;
+        const response = 1 - Math.exp(-frameSeconds * 6.8);
+        postReleaseX += (postReleaseTargetX - postReleaseX) * response;
+        postReleaseY += (postReleaseTargetY - postReleaseY) * (1 - Math.exp(-frameSeconds * 5.4));
+        postReleaseVelocityX = (postReleaseX - previousX) / Math.max(0.001, frameSeconds);
+        const intro = reducedMotion
+          ? 1
+          : smoothstep(clamp((timestamp - postReleaseStartedAt) / 880, 0, 1));
+        gate.style.setProperty("--kisara-post-parallax-x", `${postReleaseX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-post-parallax-y", `${postReleaseY.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-post-release-opacity", intro.toFixed(3));
+        updatePostReleaseDataStream(intro);
+        clearPostReleaseCanvas();
+        drawPostReleaseHighlights(postReleaseContext, timestamp, intro);
+        updatePostReleaseParticles(
+          postReleaseContext,
+          frameSeconds,
+          Math.abs(postReleaseVelocityX),
+          intro
+        );
+        if (!reducedMotion) postReleaseFrame = window.requestAnimationFrame(drawPostRelease);
+      };
+
+      const startPostReleaseAnimation = () => {
+        if (
+          postReleaseFrame
+          || !postReleaseActive
+          || pageMode !== "gate"
+          || document.visibilityState !== "visible"
+          || !postReleaseContext
+        ) return;
+        postReleaseLastTimestamp = 0;
+        if (reducedMotion) {
+          drawPostRelease(performance.now());
+          return;
+        }
+        postReleaseFrame = window.requestAnimationFrame(drawPostRelease);
+      };
+
+      const stopPostReleaseAnimation = (reset = false) => {
+        if (postReleaseFrame) window.cancelAnimationFrame(postReleaseFrame);
+        postReleaseFrame = 0;
+        postReleaseLastTimestamp = 0;
+        if (!reset) return;
+        postReleaseX = 0;
+        postReleaseY = 0;
+        postReleaseTargetX = 0;
+        postReleaseTargetY = 0;
+        postReleaseVelocityX = 0;
+        postReleasePointerX = null;
+        postReleasePointerAccumulator = 0;
+        postReleaseDirection = 0;
+        postReleaseDirectionChangedAt = 0;
+        postReleaseJourney = null;
+        postReleaseEmissionBudget = 0;
+        postReleaseAmbientBudget = 0;
+        postReleaseSourceIndex = 0;
+        postReleaseParticleSerial = 0;
+        postReleaseParticles.length = 0;
+        gate.style.setProperty("--kisara-post-parallax-x", "0px");
+        gate.style.setProperty("--kisara-post-parallax-y", "0px");
+        gate.style.setProperty("--kisara-post-release-opacity", "0");
+        gate.style.setProperty("--kisara-data-stream-opacity", "0");
+        gate.classList.remove("is-data-stream-from-right", "is-data-stream-from-left");
+        clearPostReleaseCanvas();
+      };
+
+      const setPostReleaseActive = (active) => {
+        if (postReleaseActive === active) return;
+        postReleaseActive = active;
+        gate.classList.toggle("is-post-release", active);
+        if (!active) {
+          stopPostReleaseAnimation(true);
+          return;
+        }
+        resizePostReleaseCanvas(true);
+        postReleaseStartedAt = performance.now();
+        startPostReleaseAnimation();
+      };
+
+      const beginPostReleaseJourney = (direction, timestamp) => {
+        if (!postReleaseActive || !precisePointer || reducedMotion || direction === 0) return;
+        const destination = direction * postReleaseMaxX;
+        if (
+          direction === postReleaseDirection
+          && Math.abs(postReleaseTargetX - destination) < 0.01
+        ) return;
+        if (
+          direction !== postReleaseDirection
+          && timestamp - postReleaseDirectionChangedAt < 110
+        ) return;
+        postReleaseDirection = direction;
+        postReleaseDirectionChangedAt = timestamp;
+        postReleaseTargetX = destination;
+        postReleaseJourney = {
+          direction,
+          startX: postReleaseX,
+          endX: destination
+        };
+        gate.classList.toggle("is-data-stream-from-right", direction > 0);
+        gate.classList.toggle("is-data-stream-from-left", direction < 0);
+        startPostReleaseAnimation();
+      };
+
+      const handlePostReleasePointer = (event) => {
+        if (
+          !postReleaseActive
+          || pageMode !== "gate"
+          || !precisePointer
+          || reducedMotion
+          || window.scrollY > 2
+        ) return;
+        const gateRect = gate.getBoundingClientRect();
+        if (
+          event.clientX < gateRect.left
+          || event.clientX > gateRect.right
+          || event.clientY < gateRect.top
+          || event.clientY > gateRect.bottom
+        ) return;
+        postReleaseTargetY = clamp(
+          ((event.clientY - gateRect.top) / Math.max(1, gateRect.height) - 0.5) * 2 * postReleaseMaxY,
+          -postReleaseMaxY,
+          postReleaseMaxY
+        );
+        if (postReleasePointerX === null) {
+          postReleasePointerX = event.clientX;
+          return;
+        }
+        const deltaX = event.clientX - postReleasePointerX;
+        postReleasePointerX = event.clientX;
+        if (Math.abs(deltaX) < 0.15) return;
+        if (
+          postReleasePointerAccumulator !== 0
+          && Math.sign(postReleasePointerAccumulator) !== Math.sign(deltaX)
+        ) postReleasePointerAccumulator *= 0.32;
+        postReleasePointerAccumulator = clamp(postReleasePointerAccumulator + deltaX, -24, 24);
+        if (Math.abs(postReleasePointerAccumulator) < 7) return;
+        const direction = Math.sign(postReleasePointerAccumulator);
+        postReleasePointerAccumulator = 0;
+        beginPostReleaseJourney(direction, event.timeStamp || performance.now());
+      };
+
+      const fightSource = postReleaseCanvas?.dataset.fightSrc;
+      if (fightSource) {
+        const fightImage = new Image();
+        fightImage.decoding = "async";
+        fightImage.addEventListener("load", () => {
+          fightImageWidth = Math.max(1, fightImage.naturalWidth || fightImageWidth);
+          fightImageHeight = Math.max(1, fightImage.naturalHeight || fightImageHeight);
+          refreshPostReleaseLayout();
+          if (postReleaseActive) startPostReleaseAnimation();
+        }, { once: true });
+        fightImage.src = fightSource;
+      }
 
       const createSpaceLensRenderer = async () => {
         if (!spaceLensCanvas || reducedMotion) return null;
@@ -3978,6 +4535,7 @@ const gateStyle = [
         gate.classList.toggle("is-burst-complete", burstComplete);
         gate.classList.toggle("is-released", pageMode === "next");
         gate.classList.toggle("is-receding", velocity < -0.0003);
+        setPostReleaseActive(burstComplete && pageMode === "gate");
         if (cue) {
           cue.textContent = burstAutoplay
             ? "AUTOMATIC RELEASE / STAND BY"
@@ -4141,7 +4699,7 @@ const gateStyle = [
         renderQuality = Math.max(renderQuality, 0.88);
         renderCostEma = 0;
         lastQualityAdjustment = 0;
-        lightningCoreLastPaintTimestamp = 0;
+        singularityFieldLastPaintTimestamp = 0;
         energyFlowTimestamp = 0;
         energyFlowPhase = 0;
         beamHeadTimestamp = 0;
@@ -4193,6 +4751,7 @@ const gateStyle = [
       const enterNextPage = () => {
         if (scrollFrame) return;
         pageMode = "snap";
+        setPostReleaseActive(false);
         let resetApplied = false;
         gate.classList.remove("is-color-resetting");
         smoothScrollTo(getNextPageTop(), () => {
@@ -4231,7 +4790,7 @@ const gateStyle = [
           screenParticleTimestamp = 0;
           lastEnergyPaintTimestamp = 0;
           renderCostEma = 0;
-          lightningCoreLastPaintTimestamp = 0;
+          singularityFieldLastPaintTimestamp = 0;
           energyFlowTimestamp = 0;
           energyFlowPhase = 0;
           beamHeadTimestamp = 0;
@@ -4361,6 +4920,14 @@ const gateStyle = [
         touchId = null;
       }, { passive: true });
 
+      window.addEventListener("pointermove", handlePostReleasePointer, { passive: true });
+      document.addEventListener("pointerleave", () => {
+        postReleasePointerX = null;
+        postReleasePointerAccumulator = 0;
+        postReleaseTargetX = 0;
+        postReleaseTargetY = 0;
+      }, { passive: true });
+
       skip?.addEventListener("click", (event) => {
         event.preventDefault();
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
@@ -4385,9 +4952,11 @@ const gateStyle = [
         lastTitleLensPaintTimestamp = 0;
         resizeEnergyCanvas(true);
         resizeBurstCanvas(true);
+        resizePostReleaseCanvas(true);
         spaceLensRenderer?.resize();
         titleLensRenderer?.resize();
         startEnergyAnimation();
+        startPostReleaseAnimation();
       };
       const scheduleLayoutSizeRefresh = () => {
         if (layoutResizeFrame) return;
@@ -4401,7 +4970,7 @@ const gateStyle = [
         ? new ResizeObserver(scheduleLayoutSizeRefresh)
         : null;
       if (layoutResizeObserver) {
-        for (const target of [gate, meterShell, title, energyCanvas, burstCanvas]) {
+        for (const target of [gate, meterShell, title, energyCanvas, burstCanvas, postReleaseCanvas]) {
           if (target) layoutResizeObserver.observe(target);
         }
       }
@@ -4418,12 +4987,14 @@ const gateStyle = [
           beamHeadTimestamp = 0;
           lastSpaceLensPaintTimestamp = 0;
           lastTitleLensPaintTimestamp = 0;
+          stopPostReleaseAnimation();
           spaceLensRenderer?.clear();
           titleLensRenderer?.clear();
           gate.style.setProperty("--kisara-title-source-opacity", "1");
           return;
         }
         startEnergyAnimation();
+        startPostReleaseAnimation();
       });
 
       render();
