@@ -63,6 +63,9 @@ const gateStyle = [
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
       <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
+      <span class="kisara-title-warp kisara-title-warp-upper" aria-hidden="true">Kisara</span>
+      <span class="kisara-title-warp kisara-title-warp-middle" aria-hidden="true">Kisara</span>
+      <span class="kisara-title-warp kisara-title-warp-lower" aria-hidden="true">Kisara</span>
       <i class="kisara-title-cross" aria-hidden="true">
         <span class="kisara-cross-ring"></span>
         <span class="kisara-cross-ray kisara-cross-ray-north"></span>
@@ -389,6 +392,11 @@ const gateStyle = [
           uniform float uShockWidth;
           uniform float uCoreRadius;
           uniform float uLensRadius;
+          uniform vec2 uFaceCenter;
+          uniform vec2 uFaceRadius;
+          uniform vec2 uTitleCenter;
+          uniform vec2 uTitleRadius;
+          uniform float uTitleWarp;
           uniform float uTime;
 
           vec2 coverUv(vec2 uv, vec2 imageSize, float scale) {
@@ -445,6 +453,23 @@ const gateStyle = [
             float radialReach = (1.0 - reachProgress) * (1.0 - reachProgress);
             float gravityField = outsideCore * radialReach;
 
+            vec2 faceMetric = (vUv - uFaceCenter) / max(uFaceRadius, vec2(0.001));
+            float faceDistance = length(faceMetric);
+            float faceProtection = 1.0 - smoothstep(0.72, 1.28, faceDistance);
+            float subjectHalo = smoothstep(0.88, 1.22, faceDistance)
+              * (1.0 - smoothstep(2.15, 3.2, faceDistance));
+            vec2 titleMetric = (vUv - uTitleCenter) / max(uTitleRadius, vec2(0.001));
+            float titlePriority = (
+              1.0 - smoothstep(0.58, 1.32, length(titleMetric))
+            ) * uTitleWarp;
+            float regionalWeight = clamp(
+              0.28 + subjectHalo * 0.82 + titlePriority * 1.2,
+              0.0,
+              1.48
+            );
+            float distortionField = clamp(gravityField * regionalWeight, 0.0, 1.0)
+              * (1.0 - faceProtection * 0.96);
+
             // Keep the primary image monotonic so the background bends as one
             // continuous surface without becoming a circular portal.
             float einsteinRadius = massRadius * (
@@ -458,13 +483,13 @@ const gateStyle = [
               / (radius * radius + core * core * 2.25)
               * gravityStrength;
             lensPull = min(lensPull, 0.55);
-            float primaryRadius = radius / (1.0 + lensPull * gravityField);
+            float primaryRadius = radius / (1.0 + lensPull * distortionField);
 
             float criticalRadius = einsteinRadius * sqrt(max(gravityStrength, 0.02));
             float ringWidth = max(massRadius * (0.18 - uCrush * 0.025), 0.006);
             float causticDistance = (radius - criticalRadius) / ringWidth;
             float caustic = exp(-causticDistance * causticDistance)
-              * gravityField
+              * distortionField
               * gravityStrength;
 
             float waveWidth = max(uShockWidth, 0.006);
@@ -473,13 +498,15 @@ const gateStyle = [
             float waveDisplacement = -waveCoordinate
               * waveEnvelope
               * uShockStrength
-              * (0.005 + waveWidth * 0.045);
+              * (0.005 + waveWidth * 0.045)
+              * clamp(0.48 + subjectHalo * 0.52 + titlePriority * 0.5, 0.0, 1.35)
+              * (1.0 - faceProtection * 0.9);
             float fieldBreath = sin(
               (radius - core) / max(lensReach - core, 0.01) * 12.0 - uTime * 0.72
-            ) * gravityField * uCollapse * 0.00075;
+            ) * distortionField * uCollapse * 0.00075;
 
             float frameDrag = massRadius / inverseRadius
-              * gravityField
+              * distortionField
               * uCollapse
               * gravityStrength
               * 0.016;
@@ -598,6 +625,11 @@ const gateStyle = [
           shockWidth: gl.getUniformLocation(program, "uShockWidth"),
           coreRadius: gl.getUniformLocation(program, "uCoreRadius"),
           lensRadius: gl.getUniformLocation(program, "uLensRadius"),
+          faceCenter: gl.getUniformLocation(program, "uFaceCenter"),
+          faceRadius: gl.getUniformLocation(program, "uFaceRadius"),
+          titleCenter: gl.getUniformLocation(program, "uTitleCenter"),
+          titleRadius: gl.getUniformLocation(program, "uTitleRadius"),
+          titleWarp: gl.getUniformLocation(program, "uTitleWarp"),
           time: gl.getUniformLocation(program, "uTime")
         };
         let cssWidth = 0;
@@ -622,6 +654,26 @@ const gateStyle = [
           gl.viewport(0, 0, pixelWidth, pixelHeight);
         };
 
+        const mapImageRegionToViewport = (centerX, centerY, radiusX, radiusY, image) => {
+          const viewportAspect = cssWidth / Math.max(1, cssHeight);
+          const imageAspect = image.width / Math.max(1, image.height);
+          let visibleWidth = 1;
+          let visibleHeight = 1;
+          if (imageAspect > viewportAspect) {
+            visibleWidth = viewportAspect / imageAspect;
+          } else {
+            visibleHeight = imageAspect / viewportAspect;
+          }
+          const screenCenterX = 0.5 + (centerX - 0.5) / visibleWidth;
+          const screenCenterY = 0.5 + (centerY - 0.5) / visibleHeight;
+          return {
+            centerX: screenCenterX,
+            centerY: 1 - screenCenterY,
+            radiusX: Math.max(0.01, radiusX / visibleWidth),
+            radiusY: Math.max(0.01, radiusY / visibleHeight)
+          };
+        };
+
         const clear = () => {
           spaceLensCanvas.style.opacity = "0";
           spaceLensCanvas.dataset.active = "false";
@@ -631,6 +683,13 @@ const gateStyle = [
 
         const draw = (parameters) => {
           resize();
+          const faceRegion = mapImageRegionToViewport(
+            0.532,
+            0.37,
+            0.105,
+            0.185,
+            fightTexture
+          );
           gl.clearColor(0, 0, 0, 0);
           gl.clear(gl.COLOR_BUFFER_BIT);
           gl.useProgram(program);
@@ -655,6 +714,11 @@ const gateStyle = [
           gl.uniform1f(uniforms.shockWidth, parameters.shockWidth);
           gl.uniform1f(uniforms.coreRadius, parameters.coreRadius);
           gl.uniform1f(uniforms.lensRadius, parameters.lensRadius);
+          gl.uniform2f(uniforms.faceCenter, faceRegion.centerX, faceRegion.centerY);
+          gl.uniform2f(uniforms.faceRadius, faceRegion.radiusX, faceRegion.radiusY);
+          gl.uniform2f(uniforms.titleCenter, parameters.titleCenterX, parameters.titleCenterY);
+          gl.uniform2f(uniforms.titleRadius, parameters.titleRadiusX, parameters.titleRadiusY);
+          gl.uniform1f(uniforms.titleWarp, parameters.titleWarp);
           gl.uniform1f(uniforms.time, parameters.time);
           gl.drawArrays(gl.TRIANGLES, 0, 3);
           spaceLensCanvas.style.opacity = "1";
@@ -2216,6 +2280,51 @@ const gateStyle = [
         const lensRadius = gateShortSide
           * (0.22 + gravityPressure * 0.13 + collapseDepth * 0.06)
           / gateHeight;
+        const titleWarpFade = 1 - phaseProgress(burst, detonationStart - 0.004, detonationEnd);
+        const titleWarp = clamp(
+          (
+            gravityScreen * 0.58
+              + gravityPressure * 0.44
+              + collapseDepth * 0.72
+              + crushCompression * 0.46
+          ) * titleWarpFade,
+          0,
+          1
+        );
+        const titleWarpDrift = Math.sin(motionPhases.gravityX * 1.54) * titleWarp * 4.6;
+        const titleWarpTilt = Math.cos(motionPhases.gravityY * 1.38) * titleWarp * 1.9;
+        const titleBlur = performanceBlur * (1 - titleWarp * 0.52);
+        let lensTitleCenterX = 0.5;
+        let lensTitleCenterY = 0.5;
+        let lensTitleRadiusX = 0.32;
+        let lensTitleRadiusY = 0.16;
+        if (title && lensOpacity > 0.001) {
+          const lensGateRect = gate.getBoundingClientRect();
+          const lensTitleRect = title.getBoundingClientRect();
+          lensTitleCenterX = clamp(
+            (lensTitleRect.left + lensTitleRect.width * 0.5 - lensGateRect.left)
+              / Math.max(1, lensGateRect.width),
+            0,
+            1
+          );
+          lensTitleCenterY = clamp(
+            1 - (
+              lensTitleRect.top + lensTitleRect.height * 0.5 - lensGateRect.top
+            ) / Math.max(1, lensGateRect.height),
+            0,
+            1
+          );
+          lensTitleRadiusX = clamp(
+            lensTitleRect.width / Math.max(1, lensGateRect.width) * 0.56,
+            0.12,
+            0.48
+          );
+          lensTitleRadiusY = clamp(
+            lensTitleRect.height / Math.max(1, lensGateRect.height) * 0.7,
+            0.08,
+            0.24
+          );
+        }
         const crossPulse = 0.5 + 0.5 * Math.sin(
           motionPhases.crossPulse + Math.sin(motionPhases.crossPulseMod)
         );
@@ -2274,6 +2383,10 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-shift-x", `${(gravityDriftX * 1.65).toFixed(3)}px`);
         gate.style.setProperty("--kisara-fight-shift-y", `${(gravityDriftY * 1.45).toFixed(3)}px`);
         gate.style.setProperty("--kisara-gravity-scale", gravityScale.toFixed(4));
+        gate.style.setProperty("--kisara-title-warp", titleWarp.toFixed(4));
+        gate.style.setProperty("--kisara-title-warp-drift", `${titleWarpDrift.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-title-warp-tilt", `${titleWarpTilt.toFixed(3)}deg`);
+        gate.style.setProperty("--kisara-title-blur", `${titleBlur.toFixed(3)}px`);
         drawSpaceLens(timestamp, {
           centerX: clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1),
           centerY: clamp(1 - warpOriginY / gateHeight, 0, 1),
@@ -2287,6 +2400,11 @@ const gateStyle = [
           shockWidth: Math.max(8, lensShockWidthPixels * 0.56) / gateHeight,
           coreRadius: lensCoreRadius / gateHeight,
           lensRadius,
+          titleCenterX: lensTitleCenterX,
+          titleCenterY: lensTitleCenterY,
+          titleRadiusX: lensTitleRadiusX,
+          titleRadiusY: lensTitleRadiusY,
+          titleWarp,
           time: timestamp / 1000
         });
         gate.style.setProperty("--kisara-chromatic-shift", `${chromaticShift.toFixed(3)}px`);
