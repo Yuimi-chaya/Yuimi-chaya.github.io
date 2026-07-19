@@ -1741,69 +1741,73 @@ const gateStyle = [
         context.globalCompositeOperation = "source-over";
         context.lineCap = "round";
         context.lineJoin = "round";
-        for (let channel = 0; channel < 3; channel += 1) {
-          const seed = randomSeed(channel + 19841);
-          const direction = channel % 2 === 0 ? 1 : -1;
-          const baseAngle = seed * fullTurn
-            + time * (0.1 + seed * 0.07) * direction;
+        const armRotation = time * (0.17 + gravity * 0.11) * (1 - compression * 0.58);
+        for (let arm = 0; arm < 3; arm += 1) {
+          const seed = randomSeed(arm + 19841);
+          const baseAngle = arm / 3 * fullTurn + armRotation + (seed - 0.5) * 0.34;
           const points = [];
-          const segments = 7;
+          const segments = parameters.mobile ? 7 : 9;
           for (let segment = 0; segment <= segments; segment += 1) {
             const unit = segment / segments;
             const distance = radius * collapseScale * (
-              0.1 + unit * (0.72 + seed * 0.42)
+              0.06 + unit * (0.86 + seed * 0.24)
             );
             const angle = baseAngle
-              + direction * unit * (0.42 + seed * 0.38)
-              + Math.sin(unit * Math.PI * 1.7 - time * 0.74 + channel) * 0.08;
+              + unit * (1.22 + gravity * 0.76 + seed * 0.34)
+              + Math.sin(unit * Math.PI * 1.8 - time * 0.62 + arm) * 0.075;
             points.push({
               x: driftX + Math.cos(angle) * distance,
-              y: driftY + Math.sin(angle) * distance * (0.64 + seed * 0.08)
+              y: driftY + Math.sin(angle) * distance * (0.62 + seed * 0.09)
             });
           }
-          const channelPath = createSmoothCanvasPath(points);
-          context.globalAlpha = opacity * (0.13 + gravity * 0.07) * (1 - compression * 0.32);
-          context.strokeStyle = "rgba(0,0,4,0.84)";
-          context.lineWidth = radius * (0.13 + seed * 0.055) * collapseScale;
-          context.shadowColor = "rgba(0,0,5,0.72)";
-          context.shadowBlur = radius * (0.16 + seed * 0.08) * parameters.shadowQuality;
-          context.stroke(channelPath);
+          for (let segment = 0; segment < points.length - 1; segment += 1) {
+            const unit = segment / (points.length - 1);
+            const start = points[segment];
+            const end = points[segment + 1];
+            const widthEnvelope = Math.pow(1 - unit, 0.72);
+            context.globalAlpha = opacity
+              * (0.1 + widthEnvelope * (0.32 + gravity * 0.08))
+              * (1 - compression * 0.18);
+            context.strokeStyle = segment % 3 === 0
+              ? "rgba(0,0,2,0.96)"
+              : "rgba(1,0,5,0.9)";
+            context.lineWidth = radius * collapseScale * (
+              0.035 + widthEnvelope * (0.24 + seed * 0.035)
+            );
+            context.shadowColor = "rgba(0,0,4,0.82)";
+            context.shadowBlur = radius
+              * (0.08 + widthEnvelope * 0.12)
+              * parameters.shadowQuality;
+            context.beginPath();
+            context.moveTo(start.x, start.y);
+            context.lineTo(end.x, end.y);
+            context.stroke();
+          }
         }
         context.restore();
 
-        for (let depth = 0; depth < 3; depth += 1) {
-          const depthScale = [0.54, 0.41, 0.29][depth];
-          context.save();
-          context.translate(
-            Math.sin(time * (0.46 + depth * 0.09) + depth * 2.1)
-              * radius * 0.022 * (1 - compression),
-            Math.cos(time * (0.41 + depth * 0.08) + depth * 1.6)
-              * radius * 0.017 * (1 - compression)
-          );
-          context.rotate(
-            Math.sin(time * (0.22 + depth * 0.035) + depth * 1.9)
-              * (0.09 + depth * 0.025) * (1 - compression * 0.72)
-          );
-          context.globalAlpha = opacity * (0.84 + depth * 0.055);
-          if (depth === 0) {
-            const throatMist = context.createRadialGradient(
-              0,
-              0,
-              0,
-              0,
-              0,
-              radius * depthScale * collapseScale
-            );
-            throatMist.addColorStop(0, "rgba(0,0,1,0.99)");
-            throatMist.addColorStop(0.58, "rgba(0,0,4,0.9)");
-            throatMist.addColorStop(1, "rgba(7,2,15,0)");
-            context.fillStyle = throatMist;
-          } else {
-            context.fillStyle = depth === 2 ? "rgba(0,0,1,0.998)" : "rgba(0,0,3,0.97)";
-          }
-          context.fill(buildVoidPath(depthScale, depth * 2.37 + 0.6, 1.7 - depth * 0.2));
-          context.restore();
-        }
+        context.save();
+        context.translate(
+          driftX + Math.sin(time * 0.47) * radius * 0.012 * (1 - compression),
+          driftY + Math.cos(time * 0.39) * radius * 0.01 * (1 - compression)
+        );
+        context.rotate(
+          -time * 0.11 * (1 - compression * 0.7)
+          + Math.sin(time * 0.31) * 0.08
+        );
+        context.scale(
+          1.18 + Math.sin(time * 0.73) * 0.08 * (1 - compression),
+          0.74 + Math.cos(time * 0.61) * 0.055 * (1 - compression)
+        );
+        context.globalCompositeOperation = "source-over";
+        context.globalAlpha = opacity * (0.92 + compression * 0.06);
+        context.fillStyle = "rgba(0,0,1,0.998)";
+        context.fill(buildVoidPath(0.21, 1.24, 2.35));
+        context.translate(radius * 0.025 * (1 - compression), -radius * 0.012);
+        context.globalAlpha = opacity * 0.88;
+        context.fillStyle = "rgba(0,0,4,0.96)";
+        context.fill(buildVoidPath(0.13, 3.67, 2.7));
+        context.restore();
         context.restore();
 
         context.save();
