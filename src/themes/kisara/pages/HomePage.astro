@@ -182,11 +182,13 @@ const gateStyle = [
         angle: 0
       };
       let screenParticleTimestamp = 0;
+      let lastEnergyPaintTimestamp = 0;
       let particleSerial = 0;
       let wakeEmissionBudget = 0;
       let orbitEmissionBudget = 0;
       let rainEmissionBudget = 0;
       let burstWaveMask = 0;
+      let wakePrimed = false;
       const wakeParticles = [];
       const orbitParticles = [];
       const burstParticles = [];
@@ -309,53 +311,77 @@ const gateStyle = [
         context.save();
         context.globalCompositeOperation = "lighter";
 
-        const ambientCount = Math.floor((10 + fill * 34) * densityScale);
-        for (let index = 0; index < ambientCount; index += 1) {
-          const seedX = randomSeed(index + 1201);
-          const seedY = randomSeed(index + 1801);
-          const speed = 0.18 + seedX * (0.28 + fill * 0.56);
-          const x = (seedX * width + Math.sin(time * speed + index) * (5 + fill * 17) + width) % width;
-          const y = (seedY * height + Math.cos(time * (speed + 0.17) + index) * (4 + fill * 13) + height) % height;
-          const size = 0.42 + seedY * (0.6 + fill * 1.25);
-          context.globalAlpha = (0.018 + seedX * 0.085) * intensity * wakeOpacity;
-          context.fillStyle = fill > 0.56 && index % 3 !== 0 ? "#ff9caf" : "#c5d8ff";
-          context.beginPath();
-          context.arc(x, y, size, 0, Math.PI * 2);
-          context.fill();
+        if (wakeOpacity > 0.001) {
+          const ambientCount = Math.floor((10 + fill * 34) * densityScale);
+          for (let index = 0; index < ambientCount; index += 1) {
+            const seedX = randomSeed(index + 1201);
+            const seedY = randomSeed(index + 1801);
+            const speed = 0.18 + seedX * (0.28 + fill * 0.56);
+            const x = (seedX * width + Math.sin(time * speed + index) * (5 + fill * 17) + width) % width;
+            const y = (seedY * height + Math.cos(time * (speed + 0.17) + index) * (4 + fill * 13) + height) % height;
+            const size = 0.42 + seedY * (0.6 + fill * 1.25);
+            context.globalAlpha = (0.018 + seedX * 0.085) * intensity * wakeOpacity;
+            context.fillStyle = fill > 0.56 && index % 3 !== 0 ? "#ff9caf" : "#c5d8ff";
+            context.beginPath();
+            context.arc(x, y, size, 0, Math.PI * 2);
+            context.fill();
+          }
         }
 
-        const wakeLimit = width < 640 ? 132 : 248;
+        if (fill <= 0.018) wakePrimed = false;
+        const wakeLimit = width < 640 ? 190 : 320;
+        const forwardX = Math.cos(angleRadians);
+        const forwardY = Math.sin(angleRadians);
+        const normalX = -forwardY;
+        const normalY = forwardX;
+        const spawnWakeParticle = (launchBoost = 1, primed = false) => {
+          const side = nextParticleRandom() > 0.5 ? 1 : -1;
+          const backSpeed = (68 + fill * 184 + nextParticleRandom() * 84) * launchBoost;
+          const sideSpeed = side * (18 + fill * 108)
+            * (0.46 + nextParticleRandom() * 0.92)
+            * Math.sqrt(launchBoost);
+          const velocityX = -forwardX * backSpeed + normalX * sideSpeed;
+          const velocityY = -forwardY * backSpeed + normalY * sideSpeed;
+          const startGap = 2 + localFrontRadius * 0.3;
+          const startX = originX - forwardX * startGap;
+          const startY = originY - forwardY * startGap;
+          const warmup = primed ? nextParticleRandom() * (0.1 + fill * 0.34) : 0;
+          wakeParticles.push({
+            x: startX + velocityX * warmup * 0.58,
+            y: startY + velocityY * warmup * 0.58,
+            previousX: startX,
+            previousY: startY,
+            velocityX,
+            velocityY,
+            age: warmup,
+            jetLife: 0.78 + nextParticleRandom() * 0.82,
+            coastLife: 1.65 + nextParticleRandom() * 1.8,
+            life: 8.6 + nextParticleRandom() * 6.4,
+            size: 0.58 + nextParticleRandom() * (1 + fill * 1.48),
+            phase: nextParticleRandom() * Math.PI * 2,
+            curl: (nextParticleRandom() - 0.5) * 2,
+            tint: Math.floor(nextParticleRandom() * 5)
+          });
+        };
+
         if (!reducedMotion && wakeOpacity > 0.02 && fill > 0.025 && burst < 0.02) {
-          wakeEmissionBudget += frameSeconds * (6 + fill * 44) * densityScale;
+          if (!wakePrimed) {
+            wakePrimed = true;
+            const primeCount = width < 640 ? 22 : width < 960 ? 30 : 38;
+            for (let index = 0; index < primeCount && wakeParticles.length < wakeLimit; index += 1) {
+              spawnWakeParticle(1.18 + nextParticleRandom() * 0.34, true);
+            }
+          }
+          wakeEmissionBudget += frameSeconds * (12 + fill * 58) * densityScale;
           while (wakeEmissionBudget >= 1 && wakeParticles.length < wakeLimit) {
             wakeEmissionBudget -= 1;
-            const side = nextParticleRandom() > 0.5 ? 1 : -1;
-            const backSpeed = 46 + fill * 142 + nextParticleRandom() * 52;
-            const sideSpeed = side * (12 + fill * 76) * (0.42 + nextParticleRandom() * 0.8);
-            const forwardX = Math.cos(angleRadians);
-            const forwardY = Math.sin(angleRadians);
-            const normalX = -forwardY;
-            const normalY = forwardX;
-            wakeParticles.push({
-              x: originX - forwardX * (2 + localFrontRadius * 0.28),
-              y: originY - forwardY * (2 + localFrontRadius * 0.28),
-              previousX: originX,
-              previousY: originY,
-              velocityX: -forwardX * backSpeed + normalX * sideSpeed,
-              velocityY: -forwardY * backSpeed + normalY * sideSpeed,
-              age: 0,
-              jetLife: 0.62 + nextParticleRandom() * 0.68,
-              coastLife: 1.3 + nextParticleRandom() * 1.45,
-              life: 7.2 + nextParticleRandom() * 5.8,
-              size: 0.55 + nextParticleRandom() * (0.9 + fill * 1.35),
-              phase: nextParticleRandom() * Math.PI * 2,
-              curl: (nextParticleRandom() - 0.5) * 2,
-              tint: Math.floor(nextParticleRandom() * 5)
-            });
+            spawnWakeParticle(1 + fill * 0.16);
           }
         } else {
           wakeEmissionBudget = Math.min(wakeEmissionBudget, 0.95);
         }
+
+        if (wakeOpacity <= 0.001 && wakeParticles.length) wakeParticles.length = 0;
 
         for (let index = wakeParticles.length - 1; index >= 0; index -= 1) {
           const particle = wakeParticles[index];
@@ -402,7 +428,8 @@ const gateStyle = [
           const lifeRatio = particle.age / particle.life;
           const fadeIn = smoothstep(clamp(particle.age / 0.14, 0, 1));
           const fadeOut = 1 - smoothstep(clamp((lifeRatio - 0.74) / 0.26, 0, 1));
-          const alpha = fadeIn * fadeOut * (inJet ? 0.68 : inCoast ? 0.54 : 0.42) * intensity;
+          const alpha = fadeIn * fadeOut * (inJet ? 0.68 : inCoast ? 0.54 : 0.42)
+            * intensity * wakeOpacity;
           if (alpha <= 0.004) continue;
 
           context.globalAlpha = alpha;
@@ -783,7 +810,7 @@ const gateStyle = [
           }
         }
 
-        if (detonationLinear > 0.001) {
+        if (detonationLinear > 0.001 && detonationLinear < 0.9995) {
           const inversionFlash = Math.exp(-Math.pow((detonationLinear - 0.12) / 0.075, 2));
           const ruptureFlash = Math.exp(-Math.pow((detonationLinear - 0.38) / 0.16, 2)) * 0.72;
           const flashStrength = clamp(inversionFlash + ruptureFlash, 0, 1.24);
@@ -955,6 +982,8 @@ const gateStyle = [
           );
         }
 
+        context.shadowBlur = 0;
+        context.shadowColor = "transparent";
         for (let index = burstParticles.length - 1; index >= 0; index -= 1) {
           const particle = burstParticles[index];
           particle.age += frameSeconds;
@@ -1057,6 +1086,8 @@ const gateStyle = [
           rainEmissionBudget = Math.min(rainEmissionBudget, 0.95);
         }
 
+        context.shadowBlur = 0;
+        context.shadowColor = "transparent";
         for (let index = rainParticles.length - 1; index >= 0; index -= 1) {
           const particle = rainParticles[index];
           particle.age += frameSeconds;
@@ -1323,6 +1354,35 @@ const gateStyle = [
       const drawEnergy = (timestamp) => {
         energyFrame = 0;
         if (!energyCanvas || !energyContext) return;
+        const releaseSettled = burstAutoplayComplete
+          && burstProgress >= 0.999
+          && targetBurstProgress >= 0.9995;
+        const residualParticleCount = wakeParticles.length
+          + orbitParticles.length
+          + burstParticles.length
+          + rainParticles.length;
+        const staticRelease = releaseSettled && residualParticleCount === 0;
+        const minimumFrameInterval = releaseSettled
+          ? (staticRelease ? 84 : 34)
+          : 0;
+        if (
+          minimumFrameInterval > 0
+          && lastEnergyPaintTimestamp > 0
+          && timestamp - lastEnergyPaintTimestamp < minimumFrameInterval
+        ) {
+          if (!reducedMotion && document.visibilityState === "visible" && pageMode === "gate") {
+            energyFrame = window.requestAnimationFrame(drawEnergy);
+          }
+          return;
+        }
+        lastEnergyPaintTimestamp = timestamp;
+        if (staticRelease) {
+          updateGlitchState(timestamp);
+          if (!reducedMotion && document.visibilityState === "visible" && pageMode === "gate") {
+            energyFrame = window.requestAnimationFrame(drawEnergy);
+          }
+          return;
+        }
         resizeEnergyCanvas();
         updateBurstPresentation(timestamp);
         updateGlitchState(timestamp);
@@ -1475,6 +1535,39 @@ const gateStyle = [
           context.lineWidth = strand === 3 || strand === 4 ? 1 + fill * 2.2 : 0.52 + fill * 0.82;
           context.lineCap = "round";
           context.stroke();
+        }
+
+        const fragmentCount = width < 420 ? 9 : 15;
+        for (let fragment = 0; fragment < fragmentCount; fragment += 1) {
+          const seed = randomSeed(fragment + 11401);
+          const travel = (time * (0.34 + seed * 0.22) + seed * 1.73) % 1;
+          const wrapFade = smoothstep(clamp(travel / 0.12, 0, 1))
+            * (1 - smoothstep(clamp((travel - 0.82) / 0.18, 0, 1)));
+          const x = bodyEndX * (0.06 + travel * 0.9);
+          const localThickness = thicknessAt(x) * 0.78;
+          const spiralPhase = travel * Math.PI * (5.4 + seed * 2.8)
+            - time * (3.1 + seed * 1.7)
+            + seed * Math.PI * 2;
+          const depth = 0.5 + Math.cos(spiralPhase) * 0.5;
+          const y = centerY + Math.sin(spiralPhase) * localThickness * (0.28 + seed * 0.18);
+          const size = (0.72 + fill * 1.5) * (0.62 + seed * 0.72) * (0.72 + depth * 0.42);
+          context.save();
+          context.translate(x, y);
+          context.rotate(0.18 + Math.sin(spiralPhase) * 0.52 + seed * 0.38);
+          context.globalAlpha = localBeamOpacity * intensity * wrapFade * (0.2 + depth * 0.62);
+          context.fillStyle = fragment % 4 === 0
+            ? "#ffffff"
+            : fragment % 2 === 0
+              ? "#ffacc0"
+              : "#bfd6ff";
+          context.beginPath();
+          context.moveTo(size * 1.75, 0);
+          context.lineTo(-size * 0.42, size * 0.7);
+          context.lineTo(-size * 1.08, 0);
+          context.lineTo(-size * 0.42, -size * 0.7);
+          context.closePath();
+          context.fill();
+          context.restore();
         }
 
         const headCoreX = frontX - frontRadius * 0.48;
@@ -1731,11 +1824,13 @@ const gateStyle = [
         poseAtRest = true;
         chargeInstability = 0;
         screenParticleTimestamp = 0;
+        lastEnergyPaintTimestamp = 0;
         particleSerial = 0;
         wakeEmissionBudget = 0;
         orbitEmissionBudget = 0;
         rainEmissionBudget = 0;
         burstWaveMask = 0;
+        wakePrimed = false;
         wakeParticles.length = 0;
         orbitParticles.length = 0;
         burstParticles.length = 0;
@@ -1933,6 +2028,7 @@ const gateStyle = [
       });
 
       window.addEventListener("resize", () => {
+        lastEnergyPaintTimestamp = 0;
         resizeEnergyCanvas();
         resizeBurstCanvas();
         startEnergyAnimation();
@@ -1942,6 +2038,7 @@ const gateStyle = [
           if (energyFrame) window.cancelAnimationFrame(energyFrame);
           energyFrame = 0;
           screenParticleTimestamp = 0;
+          lastEnergyPaintTimestamp = 0;
           return;
         }
         startEnergyAnimation();
