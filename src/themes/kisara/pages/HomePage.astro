@@ -266,13 +266,10 @@ const gateStyle = [
       let renderQuality = 1;
       let renderCostEma = 0;
       let lastQualityAdjustment = 0;
-      const lightningCoreCanvas = document.createElement("canvas");
-      const lightningCoreContext = lightningCoreCanvas.getContext("2d", { alpha: true });
-      const lightningTrailCanvas = document.createElement("canvas");
-      const lightningTrailContext = lightningTrailCanvas.getContext("2d", { alpha: true });
-      let lightningFieldImageData = null;
-      let lightningCoreBufferSize = 0;
-      let lightningCoreLastPaintTimestamp = 0;
+      const singularityFieldCanvas = document.createElement("canvas");
+      const singularityFieldContext = singularityFieldCanvas.getContext("2d", { alpha: true });
+      let singularityFieldImageData = null;
+      let singularityFieldLastPaintTimestamp = 0;
       let spaceLensRenderer = null;
       let spaceLensInitGeneration = 0;
       let lastSpaceLensPaintTimestamp = 0;
@@ -401,6 +398,25 @@ const gateStyle = [
           const last = points[points.length - 1];
           path.lineTo(last.x, last.y);
         }
+        return path;
+      };
+      const createClosedCanvasPath = (points) => {
+        const path = new Path2D();
+        if (points.length < 3) return path;
+        const last = points[points.length - 1];
+        const first = points[0];
+        path.moveTo((last.x + first.x) * 0.5, (last.y + first.y) * 0.5);
+        for (let index = 0; index < points.length; index += 1) {
+          const current = points[index];
+          const next = points[(index + 1) % points.length];
+          path.quadraticCurveTo(
+            current.x,
+            current.y,
+            (current.x + next.x) * 0.5,
+            (current.y + next.y) * 0.5
+          );
+        }
+        path.closePath();
         return path;
       };
       const nextParticleRandom = () => randomSeed((particleSerial += 1) * 1.61803398875 + 0.37);
@@ -1443,173 +1459,75 @@ const gateStyle = [
         }
       };
 
-      const paintLightningCore = (timestamp, parameters) => {
-        if (!lightningCoreContext || !lightningTrailContext || parameters.activity <= 0.001) return false;
+      const paintSingularityField = (context, timestamp, parameters) => {
+        if (
+          !singularityFieldContext
+          || parameters.activity <= 0.001
+          || parameters.opacity <= 0.001
+        ) return false;
+
         const quality = clamp(parameters.quality, 0.7, 1);
-        const targetSize = parameters.mobile
-          ? (quality < 0.8 ? 128 : 144)
-          : (quality < 0.8 ? 160 : 192);
+        const activity = clamp(parameters.activity, 0, 1.35);
+        const opacity = clamp(parameters.opacity, 0, 1);
+        const compression = clamp(parameters.compression, 0, 1);
+        const gravity = clamp(parameters.gravity, 0, 1);
+        const radius = Math.max(5, parameters.radius);
+        const time = timestamp / 1000;
         const fieldTargetSize = parameters.mobile
-          ? (quality < 0.8 ? 64 : 76)
-          : (quality < 0.8 ? 80 : 96);
-        if (lightningCoreBufferSize !== targetSize) {
-          lightningCoreBufferSize = targetSize;
-          lightningCoreCanvas.width = targetSize;
-          lightningCoreCanvas.height = targetSize;
-          lightningCoreLastPaintTimestamp = 0;
-        }
-        if (lightningTrailCanvas.width !== fieldTargetSize) {
-          lightningTrailCanvas.width = fieldTargetSize;
-          lightningTrailCanvas.height = fieldTargetSize;
-          lightningFieldImageData = lightningTrailContext.createImageData(
+          ? (quality < 0.8 ? 68 : 80)
+          : (quality < 0.8 ? 88 : 108);
+
+        if (singularityFieldCanvas.width !== fieldTargetSize) {
+          singularityFieldCanvas.width = fieldTargetSize;
+          singularityFieldCanvas.height = fieldTargetSize;
+          singularityFieldImageData = singularityFieldContext.createImageData(
             fieldTargetSize,
             fieldTargetSize
           );
+          singularityFieldLastPaintTimestamp = 0;
         }
+
         const minimumInterval = parameters.mobile
           ? 1000 / 30
           : quality < 0.8
             ? 1000 / 36
             : 1000 / 45;
-        const paintGap = lightningCoreLastPaintTimestamp > 0
-          ? timestamp - lightningCoreLastPaintTimestamp
+        const paintGap = singularityFieldLastPaintTimestamp > 0
+          ? timestamp - singularityFieldLastPaintTimestamp
           : Number.POSITIVE_INFINITY;
-        if (paintGap < minimumInterval) return true;
-        lightningCoreLastPaintTimestamp = timestamp;
+        const electricPulse = 0.5
+          + Math.sin(time * (4.7 + activity * 2.4)) * 0.23
+          + Math.sin(time * 10.9 + 1.7) * 0.11;
 
-        const context = lightningCoreContext;
-        const size = lightningCoreBufferSize;
-        const center = size * 0.5;
-        const radius = size * 0.27;
-        const time = timestamp / 1000;
-        const activity = clamp(parameters.activity, 0, 1.35);
-        const compression = clamp(parameters.compression, 0, 1);
-        const electricPulse = 0.5 + Math.sin(time * (5.4 + activity * 2.8)) * 0.26
-          + Math.sin(time * 11.7 + 1.4) * 0.12;
-        context.setTransform(1, 0, 0, 1, 0, 0);
-        context.clearRect(0, 0, size, size);
-        context.save();
-        context.translate(center, center);
-        context.rotate(Math.sin(time * 0.73) * 0.08);
-        context.scale(
-          1 + Math.sin(time * 1.63) * 0.022 * (1 - compression),
-          1 + Math.cos(time * 1.37) * 0.018 * (1 - compression)
-        );
-
-        const outerGlow = context.createRadialGradient(
-          -radius * 0.18,
-          -radius * 0.2,
-          radius * 0.08,
-          0,
-          0,
-          radius * 1.55
-        );
-        outerGlow.addColorStop(0, "rgba(183, 126, 255, 0.2)");
-        outerGlow.addColorStop(0.32, "rgba(255, 70, 137, 0.18)");
-        outerGlow.addColorStop(0.68, "rgba(113, 151, 255, 0.08)");
-        outerGlow.addColorStop(1, "rgba(80, 104, 255, 0)");
-        context.globalCompositeOperation = "lighter";
-        context.globalAlpha = activity * (0.48 + electricPulse * 0.18);
-        context.fillStyle = outerGlow;
-        context.fillRect(-size * 0.5, -size * 0.5, size, size);
-
-        const sphereBody = context.createRadialGradient(
-          -radius * 0.28,
-          -radius * 0.3,
-          radius * 0.03,
-          radius * 0.04,
-          radius * 0.04,
-          radius * 1.04
-        );
-        sphereBody.addColorStop(0, "rgba(116, 74, 164, 0.78)");
-        sphereBody.addColorStop(0.2, "rgba(34, 10, 58, 0.96)");
-        sphereBody.addColorStop(0.5, "rgba(2, 0, 10, 0.995)");
-        sphereBody.addColorStop(0.72, "rgba(22, 4, 46, 0.92)");
-        sphereBody.addColorStop(0.88, "rgba(126, 26, 118, 0.54)");
-        sphereBody.addColorStop(0.96, "rgba(255, 85, 151, 0.14)");
-        sphereBody.addColorStop(1, "rgba(255, 85, 151, 0)");
-        context.globalCompositeOperation = "source-over";
-        context.globalAlpha = 0.88 + activity * 0.1;
-        context.fillStyle = sphereBody;
-        context.beginPath();
-        context.arc(0, 0, radius, 0, fullTurn);
-        context.fill();
-
-        const voidRadius = radius * (0.27 - compression * 0.045);
-        const voidOffsetX = Math.sin(time * 1.37) * radius * 0.028 * (1 - compression);
-        const voidOffsetY = Math.cos(time * 1.11) * radius * 0.024 * (1 - compression);
-        const voidGradient = context.createRadialGradient(
-          voidOffsetX,
-          voidOffsetY,
-          0,
-          voidOffsetX,
-          voidOffsetY,
-          voidRadius
-        );
-        voidGradient.addColorStop(0, "rgba(0, 0, 2, 0.995)");
-        voidGradient.addColorStop(0.46, "rgba(0, 0, 5, 0.95)");
-        voidGradient.addColorStop(0.78, "rgba(5, 1, 15, 0.68)");
-        voidGradient.addColorStop(1, "rgba(22, 7, 36, 0)");
-        context.globalCompositeOperation = "source-over";
-        context.globalAlpha = 0.9 + compression * 0.07;
-        context.fillStyle = voidGradient;
-        context.fillRect(-voidRadius, -voidRadius, voidRadius * 2, voidRadius * 2);
-
-        context.globalCompositeOperation = "lighter";
-        for (let lobe = 0; lobe < 3; lobe += 1) {
-          const lobePhase = time * (0.82 + lobe * 0.21) + lobe * 2.7;
-          const lobeX = Math.cos(lobePhase) * radius * (0.16 + lobe * 0.04);
-          const lobeY = Math.sin(lobePhase * 1.13) * radius * (0.18 + lobe * 0.015);
-          const lobeRadius = radius * (0.44 + lobe * 0.07);
-          const plasmaLobe = context.createRadialGradient(
-            lobeX,
-            lobeY,
-            0,
-            lobeX,
-            lobeY,
-            lobeRadius
-          );
-          plasmaLobe.addColorStop(
-            0,
-            lobe === 0
-              ? "rgba(255, 75, 151, 0.36)"
-              : lobe === 1
-                ? "rgba(119, 153, 255, 0.32)"
-                : "rgba(190, 91, 255, 0.25)"
-          );
-          plasmaLobe.addColorStop(
-            0.42,
-            lobe === 0
-              ? "rgba(178, 56, 177, 0.16)"
-              : lobe === 1
-                ? "rgba(103, 108, 224, 0.15)"
-                : "rgba(128, 60, 179, 0.12)"
-          );
-          plasmaLobe.addColorStop(1, "rgba(69, 31, 105, 0)");
-          context.globalAlpha = activity * (0.64 + electricPulse * 0.1) * (1 - compression * 0.42);
-          context.fillStyle = plasmaLobe;
-          context.fillRect(
-            lobeX - lobeRadius,
-            lobeY - lobeRadius,
-            lobeRadius * 2,
-            lobeRadius * 2
-          );
-        }
-
-        const fieldContext = lightningTrailContext;
-        const fieldSize = lightningTrailCanvas.width;
-        const fieldImageData = lightningFieldImageData;
-        if (fieldImageData) {
-          const pixels = fieldImageData.data;
+        if (paintGap >= minimumInterval && singularityFieldImageData) {
+          singularityFieldLastPaintTimestamp = timestamp;
+          const fieldSize = singularityFieldCanvas.width;
+          const pixels = singularityFieldImageData.data;
           const inverseHalfSize = 2 / fieldSize;
-          const fieldTime = time * (1 + activity * 0.16);
+          const fieldTime = time * (0.92 + activity * 0.18);
           let offset = 0;
+
           for (let y = 0; y < fieldSize; y += 1) {
             const normalizedY = (y + 0.5) * inverseHalfSize - 1;
             for (let x = 0; x < fieldSize; x += 1) {
               const normalizedX = (x + 0.5) * inverseHalfSize - 1;
-              const radialDistance = Math.hypot(normalizedX, normalizedY);
-              if (radialDistance >= 1.035) {
+              const stretchedX = normalizedX * 0.88;
+              const stretchedY = normalizedY * 1.16;
+              const angle = Math.atan2(stretchedY, stretchedX);
+              const baseRadius = Math.hypot(stretchedX, stretchedY);
+              const boundary = 0.95
+                + Math.sin(angle * 3 - fieldTime * 0.72) * 0.07
+                + Math.sin(angle * 7 + fieldTime * 1.08) * 0.035
+                + Math.cos(angle * 11 - fieldTime * 1.42) * 0.018;
+              const fieldRadius = baseRadius / Math.max(0.74, boundary);
+              const outerMask = 1 - smoothstep(clamp((fieldRadius - 0.72) / 0.31, 0, 1));
+              const throatRadius = 0.12
+                + (1 - compression) * 0.045
+                + Math.sin(angle * 4 + fieldTime * 0.64) * 0.012;
+              const innerMask = smoothstep(clamp((fieldRadius - throatRadius) / 0.22, 0, 1));
+              const fieldMask = outerMask * innerMask;
+
+              if (fieldMask <= 0.0005) {
                 pixels[offset] = 0;
                 pixels[offset + 1] = 0;
                 pixels[offset + 2] = 0;
@@ -1618,212 +1536,227 @@ const gateStyle = [
                 continue;
               }
 
-              const angle = Math.atan2(normalizedY, normalizedX);
-              const warpX = normalizedX
-                + Math.sin(normalizedY * 5.2 + fieldTime * 1.12) * 0.13
-                + Math.sin(angle * 3 - fieldTime * 0.74) * 0.045;
-              const warpY = normalizedY
-                + Math.cos(normalizedX * 4.7 - fieldTime * 0.96) * 0.12
-                + Math.cos(angle * 2 + fieldTime * 0.62) * 0.04;
-              const currentA = Math.sin(warpX * 11.6 + fieldTime * 2.1)
-                + Math.sin(warpY * 9.4 - fieldTime * 1.72) * 0.82;
-              const currentB = Math.sin(
-                (warpX * 0.74 + warpY * 1.28) * 14.3
-                - fieldTime * 1.28
-                + Math.sin(angle * 2.4 + fieldTime * 0.58) * 0.78
+              const warpX = stretchedX
+                + Math.sin(stretchedY * 5.4 + fieldTime * 1.2) * 0.12
+                + Math.sin(angle * 3 - fieldTime * 0.66) * 0.055;
+              const warpY = stretchedY
+                + Math.cos(stretchedX * 4.8 - fieldTime) * 0.11
+                + Math.cos(angle * 2 + fieldTime * 0.58) * 0.05;
+              const spiralA = Math.sin(
+                angle * 5.0
+                + fieldRadius * (17.5 + gravity * 5.5)
+                - fieldTime * (2.15 + gravity * 1.2)
+                + Math.sin(warpX * 5.2 - warpY * 3.6) * 0.72
               );
-              const currentC = Math.cos(
-                (warpX * 1.36 - warpY * 0.62) * 10.8
-                + fieldTime * 1.56
-                + radialDistance * 7.2
+              const spiralB = Math.sin(
+                angle * -3.0
+                + fieldRadius * 24.0
+                + fieldTime * 1.72
+                + Math.sin(angle * 4 + fieldTime * 0.8) * 0.64
+              );
+              const crossCurrent = Math.cos(
+                warpX * 10.8
+                - warpY * 8.7
+                + fieldTime * 1.38
+                + fieldRadius * 6.2
               );
               const ridgeA = Math.pow(
-                Math.max(0, 1 - Math.abs(currentA * 0.54 + currentB * 0.46 - 0.08) / 0.48),
-                3.2
+                Math.max(0, 1 - Math.abs(spiralA * 0.7 + spiralB * 0.3 - 0.08) / 0.38),
+                3.4
               );
               const ridgeB = Math.pow(
-                Math.max(0, 1 - Math.abs(currentB * 0.66 - currentC * 0.34 + 0.14) / 0.42),
-                3.6
+                Math.max(0, 1 - Math.abs(spiralB * 0.56 - crossCurrent * 0.44 + 0.12) / 0.34),
+                3.8
               );
-              const edgeUnit = clamp((1.035 - radialDistance) / 0.19, 0, 1);
-              const sphereMask = edgeUnit * edgeUnit * (3 - 2 * edgeUnit);
-              const centerUnit = clamp((radialDistance - 0.055) / 0.3, 0, 1);
-              const centerMask = 0.28 + centerUnit * centerUnit * (3 - 2 * centerUnit) * 0.72;
-              const mist = (0.5 + Math.sin(
-                warpX * 5.3 - warpY * 4.6 + fieldTime * 0.9
-              ) * 0.5) * 0.16;
-              const electric = Math.max(ridgeA, ridgeB * 0.86);
+              const mist = (
+                0.5
+                + Math.sin(warpX * 4.6 + warpY * 3.9 - fieldTime * 0.82) * 0.5
+              ) * (0.11 + gravity * 0.045);
+              const electric = Math.max(ridgeA, ridgeB * 0.9);
               const brightness = clamp(
                 (electric * 0.92 + mist)
-                * sphereMask
-                * centerMask
-                * (0.78 + electricPulse * 0.18)
-                * (1 - compression * 0.38),
+                * fieldMask
+                * (0.72 + electricPulse * 0.22)
+                * (1 - compression * 0.24),
                 0,
                 1
               );
-              const hue = 0.5 + Math.sin(
-                angle * 2.1 + fieldTime * 0.72 + currentC * 0.8
-              ) * 0.5;
-              pixels[offset] = Math.round(126 + hue * 112 + electric * 18);
-              pixels[offset + 1] = Math.round(52 + electric * 94 + (1 - hue) * 22);
-              pixels[offset + 2] = Math.round(202 + (1 - hue) * 49 + electric * 4);
-              pixels[offset + 3] = Math.round(255 * brightness * activity * 0.76);
+              const hue = 0.5
+                + Math.sin(angle * 2.2 + fieldTime * 0.64 + crossCurrent * 0.8) * 0.5;
+              const whiteHeat = Math.pow(electric, 4) * (0.28 + gravity * 0.26);
+
+              pixels[offset] = Math.round(136 + hue * 103 + whiteHeat * 20);
+              pixels[offset + 1] = Math.round(45 + electric * 96 + whiteHeat * 72);
+              pixels[offset + 2] = Math.round(196 + (1 - hue) * 54 + whiteHeat * 5);
+              pixels[offset + 3] = Math.round(255 * brightness * activity * 0.78);
               offset += 4;
             }
           }
-          fieldContext.setTransform(1, 0, 0, 1, 0, 0);
-          fieldContext.globalCompositeOperation = "source-over";
-          fieldContext.globalAlpha = 1;
-          fieldContext.putImageData(fieldImageData, 0, 0);
 
-          const fieldDisplaySize = radius * 2.16;
-          context.globalCompositeOperation = "lighter";
-          context.globalAlpha = activity * (0.82 + electricPulse * 0.12);
-          context.imageSmoothingEnabled = true;
-          context.drawImage(
-            lightningTrailCanvas,
-            -fieldDisplaySize * 0.5,
-            -fieldDisplaySize * 0.5,
-            fieldDisplaySize,
-            fieldDisplaySize
-          );
+          singularityFieldContext.setTransform(1, 0, 0, 1, 0, 0);
+          singularityFieldContext.globalCompositeOperation = "source-over";
+          singularityFieldContext.globalAlpha = 1;
+          singularityFieldContext.putImageData(singularityFieldImageData, 0, 0);
         }
 
-        const filamentCount = Math.max(
-          3,
-          Math.floor((parameters.mobile ? 4 : 5) * quality)
-        );
-        const chargeNodes = [];
-        for (let node = 0; node < filamentCount + 2; node += 1) {
-          const seed = randomSeed(node + 19421);
-          const orbitSeed = (node * 0.61803398875 + 0.29) % 1;
-          const direction = node % 2 === 0 ? 1 : -1;
-          const angle = seed * fullTurn + time * (0.18 + seed * 0.22) * direction;
-          const orbitRadius = radius
-            * (0.24 + orbitSeed * 0.44)
-            * (1 - compression * 0.24)
-            * (1 + Math.sin(time * (0.82 + seed * 0.34) + node) * 0.08);
-          chargeNodes.push({
-            x: Math.cos(angle) * orbitRadius
-              + Math.sin(time * 1.9 + node * 1.7) * radius * 0.014,
-            y: Math.sin(angle * 1.03 + seed * 0.7)
-              * orbitRadius
-              * (0.68 + seed * 0.16)
-              + Math.cos(time * 1.67 + node) * radius * 0.012
-          });
-        }
-
+        const fieldWidth = radius * (4.25 + gravity * 0.42);
+        const fieldHeight = radius * (3.18 + gravity * 0.26);
         context.save();
-        context.beginPath();
-        context.arc(0, 0, radius * 0.92, 0, fullTurn);
-        context.clip();
         context.globalCompositeOperation = "lighter";
-        for (let node = 0; node < chargeNodes.length; node += 1) {
-          const charge = chargeNodes[node];
-          const seed = randomSeed(node + 19643);
-          const glowRadius = radius * (0.035 + seed * 0.025)
-            * (0.78 + electricPulse * 0.24);
-          const chargeGlow = context.createRadialGradient(
-            charge.x,
-            charge.y,
-            0,
-            charge.x,
-            charge.y,
-            glowRadius
-          );
-          chargeGlow.addColorStop(0, "rgba(245, 249, 255, 0.72)");
-          chargeGlow.addColorStop(0.26, node % 2 === 0
-            ? "rgba(255, 107, 176, 0.48)"
-            : "rgba(151, 182, 255, 0.46)");
-          chargeGlow.addColorStop(1, "rgba(122, 61, 177, 0)");
-          context.globalAlpha = activity * (0.26 + electricPulse * 0.1);
-          context.fillStyle = chargeGlow;
-          context.fillRect(
-            charge.x - glowRadius,
-            charge.y - glowRadius,
-            glowRadius * 2,
-            glowRadius * 2
-          );
-        }
+        context.globalAlpha = opacity * activity * (0.72 + electricPulse * 0.16);
+        context.imageSmoothingEnabled = true;
+        context.rotate(Math.sin(time * 0.38) * 0.026 * (1 - compression));
+        context.drawImage(
+          singularityFieldCanvas,
+          -fieldWidth * 0.5,
+          -fieldHeight * 0.5,
+          fieldWidth,
+          fieldHeight
+        );
         context.restore();
 
-        const tendrilSlots = parameters.mobile ? 2 : 3;
+        const ribbonCount = Math.max(4, Math.floor((parameters.mobile ? 5 : 7) * quality));
+        context.save();
         context.globalCompositeOperation = "lighter";
         context.lineCap = "round";
         context.lineJoin = "round";
-        for (let tendril = 0; tendril < tendrilSlots; tendril += 1) {
-          const seed = randomSeed(tendril + 19681);
-          const pulse = 0.5 + Math.sin(
-            time * (1.3 + seed * 0.58) + seed * fullTurn + tendril * 1.7
-          ) * 0.5;
-          const spark = smoothstep(clamp((pulse - 0.66) / 0.34, 0, 1));
-          if (spark <= 0.015) continue;
-          const source = chargeNodes[(tendril * 2 + 1) % chargeNodes.length];
-          const sourceAngle = Math.atan2(source.y, source.x)
-            + (seed - 0.5) * 0.62
-            + Math.sin(time * 0.72 + tendril) * 0.12;
-          const reach = radius
-            * (1.12 + spark * (0.16 + activity * 0.09))
-            * (1 - compression * 0.56);
+        for (let ribbon = 0; ribbon < ribbonCount; ribbon += 1) {
+          const seed = randomSeed(ribbon + 19421);
+          const direction = ribbon % 2 === 0 ? 1 : -1;
+          const baseAngle = seed * fullTurn + time * (0.12 + seed * 0.1) * direction;
           const points = [];
-          const segments = 6;
+          const segments = parameters.mobile ? 8 : 10;
           for (let segment = 0; segment <= segments; segment += 1) {
             const unit = segment / segments;
-            const envelope = Math.sin(unit * Math.PI);
-            const distance = radius * 0.55 + (reach - radius * 0.55) * unit;
-            const bend = Math.sin(
-              unit * Math.PI * 1.4 + time * (2.2 + seed) + tendril * 2.4
-            ) * radius * 0.065 * envelope;
+            const distance = radius * (
+              0.42
+              + unit * (1.72 + seed * 0.7 + gravity * 0.34)
+            ) * (1 - compression * (0.32 + unit * 0.22));
+            const curl = direction * (
+              unit * (1.06 + seed * 0.72 + gravity * 0.64)
+              + unit * unit * (0.48 + gravity * 0.58)
+            );
+            const wave = Math.sin(
+              unit * Math.PI * (2.1 + seed)
+              - time * (1.2 + seed * 0.8)
+              + ribbon
+            ) * 0.075 * Math.sin(unit * Math.PI);
+            const angle = baseAngle + curl + wave;
             points.push({
-              x: source.x * (1 - unit)
-                + Math.cos(sourceAngle) * distance * unit
-                - Math.sin(sourceAngle) * bend,
-              y: source.y * (1 - unit)
-                + Math.sin(sourceAngle) * distance * unit
-                + Math.cos(sourceAngle) * bend
+              x: Math.cos(angle) * distance,
+              y: Math.sin(angle) * distance * (0.68 + seed * 0.1)
             });
           }
-          const tendrilPath = createSmoothCanvasPath(points);
-          context.globalAlpha = activity * spark * 0.14 * (1 - compression * 0.56);
-          context.strokeStyle = "rgba(255, 68, 153, 0.82)";
-          context.lineWidth = 3.4;
-          context.shadowColor = "rgba(255, 54, 143, 0.8)";
-          context.shadowBlur = 7 * quality;
-          context.stroke(tendrilPath);
-          context.globalAlpha = activity * spark * 0.34 * (1 - compression * 0.42);
-          context.strokeStyle = "rgba(220, 233, 255, 0.82)";
-          context.lineWidth = 0.46;
+
+          const path = createSmoothCanvasPath(points);
+          const pulse = 0.56 + Math.sin(time * (2.2 + seed) + ribbon * 1.7) * 0.44;
+          context.globalAlpha = opacity * activity * (0.045 + pulse * 0.07) * (1 - compression * 0.5);
+          context.strokeStyle = ribbon % 3 === 0
+            ? "rgba(183, 210, 255, 0.86)"
+            : "rgba(255, 72, 145, 0.86)";
+          context.lineWidth = 2.2 + gravity * 1.4;
+          context.shadowColor = context.strokeStyle;
+          context.shadowBlur = (6 + gravity * 8) * parameters.shadowQuality;
+          context.stroke(path);
+          context.globalAlpha *= 2.25;
+          context.strokeStyle = ribbon % 3 === 0
+            ? "rgba(231, 241, 255, 0.92)"
+            : "rgba(255, 190, 216, 0.9)";
+          context.lineWidth = 0.42 + gravity * 0.22;
           context.shadowBlur = 0;
-          context.stroke(tendrilPath);
+          context.stroke(path);
+        }
+        context.restore();
+
+        const collapseScale = 1 - compression * 0.58;
+        const driftX = Math.sin(time * 0.74) * radius * 0.028 * (1 - compression);
+        const driftY = Math.cos(time * 0.61) * radius * 0.022 * (1 - compression);
+        const buildVoidPath = (scale, phaseOffset) => {
+          const points = [];
+          const pointCount = parameters.mobile ? 14 : 18;
+          const radiusX = radius * scale * collapseScale;
+          const radiusY = radius * scale * (0.72 - compression * 0.08) * collapseScale;
+          for (let index = 0; index < pointCount; index += 1) {
+            const angle = index / pointCount * fullTurn;
+            const wobble = 1
+              + Math.sin(angle * 3 - time * 0.52 + phaseOffset) * (0.045 + gravity * 0.018)
+              + Math.sin(angle * 7 + time * 0.78 + phaseOffset * 1.7) * 0.022
+              + Math.cos(angle * 11 - time * 1.08 - phaseOffset) * 0.012;
+            points.push({
+              x: driftX * (1 - scale * 0.32) + Math.cos(angle) * radiusX * wobble,
+              y: driftY * (1 - scale * 0.28) + Math.sin(angle) * radiusY * wobble
+            });
+          }
+          return createClosedCanvasPath(points);
+        };
+
+        context.save();
+        context.globalCompositeOperation = "source-over";
+        for (let layer = 0; layer < 3; layer += 1) {
+          const scale = 1.34 - layer * 0.2;
+          const absorption = context.createRadialGradient(
+            driftX * (0.4 + layer * 0.14),
+            driftY * (0.4 + layer * 0.14),
+            0,
+            0,
+            0,
+            radius * scale * collapseScale
+          );
+          absorption.addColorStop(0, layer === 2 ? "rgba(0,0,2,0.995)" : "rgba(0,0,4,0.92)");
+          absorption.addColorStop(0.48, layer === 2 ? "rgba(0,0,5,0.96)" : "rgba(3,1,10,0.74)");
+          absorption.addColorStop(0.78, layer === 0 ? "rgba(11,3,22,0.24)" : "rgba(5,1,14,0.54)");
+          absorption.addColorStop(1, "rgba(7,2,18,0)");
+          context.globalAlpha = opacity * (0.42 + layer * 0.19 + compression * 0.08);
+          context.fillStyle = absorption;
+          context.fill(buildVoidPath(scale, layer * 1.83));
         }
 
-        const fresnel = context.createRadialGradient(0, 0, radius * 0.58, 0, 0, radius * 1.16);
-        fresnel.addColorStop(0, "rgba(55, 17, 78, 0)");
-        fresnel.addColorStop(0.56, "rgba(101, 87, 184, 0.04)");
-        fresnel.addColorStop(0.78, "rgba(255, 72, 145, 0.18)");
-        fresnel.addColorStop(0.91, "rgba(218, 229, 255, 0.52)");
-        fresnel.addColorStop(1, "rgba(255, 98, 159, 0)");
-        context.globalAlpha = activity * (0.72 + electricPulse * 0.16);
-        context.fillStyle = fresnel;
-        context.fillRect(-radius * 1.2, -radius * 1.2, radius * 2.4, radius * 2.4);
+        for (let depth = 0; depth < 3; depth += 1) {
+          const depthScale = 0.68 - depth * 0.11;
+          context.save();
+          context.translate(
+            Math.sin(time * (0.46 + depth * 0.09) + depth * 2.1) * radius * 0.012 * (1 - compression),
+            Math.cos(time * (0.41 + depth * 0.08) + depth * 1.6) * radius * 0.01 * (1 - compression)
+          );
+          context.globalAlpha = opacity * (0.78 + depth * 0.065);
+          context.fillStyle = depth === 2 ? "rgba(0,0,1,0.995)" : "rgba(0,0,4,0.94)";
+          context.fill(buildVoidPath(depthScale, depth * 2.37 + 0.6));
+          context.restore();
+        }
+        context.restore();
 
-        const coreSparkRadius = radius * (0.055 + Math.max(0, electricPulse) * 0.035)
-          * (1 - compression * 0.38);
-        const coreSpark = context.createRadialGradient(0, 0, 0, 0, 0, coreSparkRadius);
-        coreSpark.addColorStop(0, "rgba(255, 255, 255, 0.96)");
-        coreSpark.addColorStop(0.28, "rgba(213, 222, 255, 0.72)");
-        coreSpark.addColorStop(0.62, "rgba(255, 71, 147, 0.3)");
-        coreSpark.addColorStop(1, "rgba(255, 71, 147, 0)");
+        context.save();
         context.globalCompositeOperation = "lighter";
-        context.globalAlpha = activity * (0.36 + electricPulse * 0.24);
-        context.fillStyle = coreSpark;
-        context.fillRect(
-          -coreSparkRadius,
-          -coreSparkRadius,
-          coreSparkRadius * 2,
-          coreSparkRadius * 2
-        );
+        context.lineCap = "round";
+        for (let arc = 0; arc < 4; arc += 1) {
+          const seed = randomSeed(arc + 19681);
+          const start = time * (0.18 + seed * 0.09) + seed * fullTurn;
+          const span = 0.42 + seed * 0.54;
+          const points = [];
+          const segments = 7;
+          for (let segment = 0; segment <= segments; segment += 1) {
+            const unit = segment / segments;
+            const angle = start + span * unit;
+            const edgeRadius = radius * collapseScale * (
+              0.98
+              + Math.sin(angle * 5 - time * 0.7 + arc) * 0.04
+              + arc * 0.035
+            );
+            points.push({
+              x: driftX + Math.cos(angle) * edgeRadius,
+              y: driftY + Math.sin(angle) * edgeRadius * (0.72 - compression * 0.08)
+            });
+          }
+          const edgePath = createSmoothCanvasPath(points);
+          context.globalAlpha = opacity * (0.12 + gravity * 0.1) * (0.58 + seed * 0.42);
+          context.strokeStyle = arc % 2 === 0
+            ? "rgba(255, 112, 165, 0.86)"
+            : "rgba(182, 211, 255, 0.78)";
+          context.lineWidth = 0.56 + gravity * 0.54;
+          context.shadowColor = context.strokeStyle;
+          context.shadowBlur = (4 + gravity * 7) * parameters.shadowQuality;
+          context.stroke(edgePath);
+        }
         context.restore();
         return true;
       };
@@ -2504,26 +2437,16 @@ const gateStyle = [
             5,
             coreRadius * (1.02 + blackHoleBuild * 0.08 + gravityLock * 0.08)
           );
-          if (paintLightningCore(timestamp, {
+          paintSingularityField(context, timestamp, {
             mobile: width < 640,
             quality: renderQuality,
             activity: lightningActivity,
+            opacity: blackHoleOpacity,
+            radius: lightningRadius,
+            gravity: gravityLock,
+            shadowQuality,
             compression: clamp(collapseDepth * 0.36 + crushCompression * 0.82, 0, 1)
-          })) {
-            const lightningDisplaySize = lightningRadius * 3.68;
-            context.save();
-            context.globalCompositeOperation = "source-over";
-            context.globalAlpha = blackHoleOpacity;
-            context.shadowBlur = 0;
-            context.drawImage(
-              lightningCoreCanvas,
-              -lightningDisplaySize * 0.5,
-              -lightningDisplaySize * 0.5,
-              lightningDisplaySize,
-              lightningDisplaySize
-            );
-            context.restore();
-          }
+          });
 
           const horizonRadiusX = lightningRadius * 0.9;
           const horizonRadiusY = lightningRadius * (0.76 - collapseDepth * 0.06 - crushCompression * 0.05);
@@ -4195,7 +4118,13 @@ const gateStyle = [
         renderedGlitchTick = -1;
         energyContext?.clearRect(0, 0, energyCanvasWidth, energyCanvasHeight);
         burstContext?.clearRect(0, 0, burstCanvasWidth, burstCanvasHeight);
-        lightningCoreContext?.clearRect(0, 0, lightningCoreBufferSize, lightningCoreBufferSize);
+        singularityFieldContext?.clearRect(
+          0,
+          0,
+          singularityFieldCanvas.width,
+          singularityFieldCanvas.height
+        );
+        singularityFieldLastPaintTimestamp = 0;
         spaceLensRenderer?.clear();
         titleLensRenderer?.clear();
         gate.style.setProperty("--kisara-title-source-opacity", "1");
