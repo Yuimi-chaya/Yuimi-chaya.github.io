@@ -1603,7 +1603,7 @@ const gateStyle = [
         const fieldHeight = radius * (3.18 + gravity * 0.26);
         context.save();
         context.globalCompositeOperation = "lighter";
-        context.globalAlpha = opacity * activity * (0.72 + electricPulse * 0.16);
+        context.globalAlpha = opacity * activity * (0.82 + electricPulse * 0.18);
         context.imageSmoothingEnabled = true;
         context.rotate(Math.sin(time * 0.38) * 0.026 * (1 - compression));
         context.drawImage(
@@ -1650,7 +1650,7 @@ const gateStyle = [
 
           const path = createSmoothCanvasPath(points);
           const pulse = 0.56 + Math.sin(time * (2.2 + seed) + ribbon * 1.7) * 0.44;
-          context.globalAlpha = opacity * activity * (0.045 + pulse * 0.07) * (1 - compression * 0.5);
+          context.globalAlpha = opacity * activity * (0.062 + pulse * 0.086) * (1 - compression * 0.5);
           context.strokeStyle = ribbon % 3 === 0
             ? "rgba(183, 210, 255, 0.86)"
             : "rgba(255, 72, 145, 0.86)";
@@ -1671,7 +1671,7 @@ const gateStyle = [
         const collapseScale = 1 - compression * 0.58;
         const driftX = Math.sin(time * 0.74) * radius * 0.028 * (1 - compression);
         const driftY = Math.cos(time * 0.61) * radius * 0.022 * (1 - compression);
-        const buildVoidPath = (scale, phaseOffset) => {
+        const buildVoidPath = (scale, phaseOffset, roughness = 1) => {
           const points = [];
           const pointCount = parameters.mobile ? 14 : 18;
           const radiusX = radius * scale * collapseScale;
@@ -1679,9 +1679,12 @@ const gateStyle = [
           for (let index = 0; index < pointCount; index += 1) {
             const angle = index / pointCount * fullTurn;
             const wobble = 1
-              + Math.sin(angle * 3 - time * 0.52 + phaseOffset) * (0.045 + gravity * 0.018)
-              + Math.sin(angle * 7 + time * 0.78 + phaseOffset * 1.7) * 0.022
-              + Math.cos(angle * 11 - time * 1.08 - phaseOffset) * 0.012;
+              + Math.sin(angle * 3 - time * 0.52 + phaseOffset)
+                * (0.045 + gravity * 0.018) * roughness
+              + Math.sin(angle * 7 + time * 0.78 + phaseOffset * 1.7)
+                * 0.022 * roughness
+              + Math.cos(angle * 11 - time * 1.08 - phaseOffset)
+                * 0.012 * roughness;
             points.push({
               x: driftX * (1 - scale * 0.32) + Math.cos(angle) * radiusX * wobble,
               y: driftY * (1 - scale * 0.28) + Math.sin(angle) * radiusY * wobble
@@ -1692,35 +1695,75 @@ const gateStyle = [
 
         context.save();
         context.globalCompositeOperation = "source-over";
-        for (let layer = 0; layer < 3; layer += 1) {
-          const scale = 1.34 - layer * 0.2;
-          const absorption = context.createRadialGradient(
-            driftX * (0.4 + layer * 0.14),
-            driftY * (0.4 + layer * 0.14),
-            0,
-            0,
-            0,
-            radius * scale * collapseScale
-          );
-          absorption.addColorStop(0, layer === 2 ? "rgba(0,0,2,0.995)" : "rgba(0,0,4,0.92)");
-          absorption.addColorStop(0.48, layer === 2 ? "rgba(0,0,5,0.96)" : "rgba(3,1,10,0.74)");
-          absorption.addColorStop(0.78, layer === 0 ? "rgba(11,3,22,0.24)" : "rgba(5,1,14,0.54)");
-          absorption.addColorStop(1, "rgba(7,2,18,0)");
-          context.globalAlpha = opacity * (0.42 + layer * 0.19 + compression * 0.08);
-          context.fillStyle = absorption;
-          context.fill(buildVoidPath(scale, layer * 1.83));
+        const absorptionVeilRadius = radius * 1.46 * collapseScale;
+        const absorptionVeil = context.createRadialGradient(
+          driftX * 0.42,
+          driftY * 0.42,
+          0,
+          0,
+          0,
+          absorptionVeilRadius
+        );
+        absorptionVeil.addColorStop(0, "rgba(0,0,4,0.82)");
+        absorptionVeil.addColorStop(0.48, "rgba(3,1,10,0.46)");
+        absorptionVeil.addColorStop(0.8, "rgba(11,3,22,0.16)");
+        absorptionVeil.addColorStop(1, "rgba(8,2,18,0)");
+        context.globalAlpha = opacity * (0.34 + gravity * 0.12 + compression * 0.08);
+        context.fillStyle = absorptionVeil;
+        context.fill(buildVoidPath(1.42, 0.84, 1.52));
+
+        const cloudCount = parameters.mobile ? 7 : 10;
+        for (let cloud = 0; cloud < cloudCount; cloud += 1) {
+          const seed = randomSeed(cloud + 19747);
+          const orbitAngle = seed * fullTurn
+            + time * (0.08 + seed * 0.07) * (cloud % 2 === 0 ? 1 : -1);
+          const orbitRadius = radius * (0.04 + seed * 0.23) * (1 - compression * 0.72);
+          const cloudX = driftX + Math.cos(orbitAngle) * orbitRadius;
+          const cloudY = driftY + Math.sin(orbitAngle) * orbitRadius * 0.62;
+          const cloudRadius = radius * collapseScale * (0.38 + seed * 0.46);
+          const cloudFlatten = 0.56 + randomSeed(cloud + 19789) * 0.22;
+          context.save();
+          context.translate(cloudX, cloudY);
+          context.rotate(orbitAngle * 0.34 + Math.sin(time * 0.21 + cloud) * 0.12);
+          context.scale(1, cloudFlatten);
+          const cloudGradient = context.createRadialGradient(0, 0, 0, 0, 0, cloudRadius);
+          cloudGradient.addColorStop(0, "rgba(0,0,3,0.88)");
+          cloudGradient.addColorStop(0.42, "rgba(1,0,6,0.62)");
+          cloudGradient.addColorStop(0.74, "rgba(7,2,16,0.2)");
+          cloudGradient.addColorStop(1, "rgba(9,3,18,0)");
+          context.globalAlpha = opacity * (0.18 + seed * 0.13 + compression * 0.05);
+          context.fillStyle = cloudGradient;
+          context.fillRect(-cloudRadius, -cloudRadius, cloudRadius * 2, cloudRadius * 2);
+          context.restore();
         }
 
         for (let depth = 0; depth < 3; depth += 1) {
-          const depthScale = 0.68 - depth * 0.11;
+          const depthScale = [0.43, 0.31, 0.21][depth];
           context.save();
           context.translate(
-            Math.sin(time * (0.46 + depth * 0.09) + depth * 2.1) * radius * 0.012 * (1 - compression),
-            Math.cos(time * (0.41 + depth * 0.08) + depth * 1.6) * radius * 0.01 * (1 - compression)
+            Math.sin(time * (0.46 + depth * 0.09) + depth * 2.1)
+              * radius * 0.018 * (1 - compression),
+            Math.cos(time * (0.41 + depth * 0.08) + depth * 1.6)
+              * radius * 0.014 * (1 - compression)
           );
-          context.globalAlpha = opacity * (0.78 + depth * 0.065);
-          context.fillStyle = depth === 2 ? "rgba(0,0,1,0.995)" : "rgba(0,0,4,0.94)";
-          context.fill(buildVoidPath(depthScale, depth * 2.37 + 0.6));
+          context.globalAlpha = opacity * (0.84 + depth * 0.055);
+          if (depth === 0) {
+            const throatMist = context.createRadialGradient(
+              0,
+              0,
+              0,
+              0,
+              0,
+              radius * depthScale * collapseScale
+            );
+            throatMist.addColorStop(0, "rgba(0,0,1,0.99)");
+            throatMist.addColorStop(0.58, "rgba(0,0,4,0.9)");
+            throatMist.addColorStop(1, "rgba(7,2,15,0)");
+            context.fillStyle = throatMist;
+          } else {
+            context.fillStyle = depth === 2 ? "rgba(0,0,1,0.998)" : "rgba(0,0,3,0.97)";
+          }
+          context.fill(buildVoidPath(depthScale, depth * 2.37 + 0.6, 1.48 - depth * 0.18));
           context.restore();
         }
         context.restore();
@@ -1728,7 +1771,7 @@ const gateStyle = [
         context.save();
         context.globalCompositeOperation = "lighter";
         context.lineCap = "round";
-        for (let arc = 0; arc < 4; arc += 1) {
+        for (let arc = 0; arc < 3; arc += 1) {
           const seed = randomSeed(arc + 19681);
           const start = time * (0.18 + seed * 0.09) + seed * fullTurn;
           const span = 0.42 + seed * 0.54;
@@ -2448,35 +2491,7 @@ const gateStyle = [
             compression: clamp(collapseDepth * 0.36 + crushCompression * 0.82, 0, 1)
           });
 
-          const horizonRadiusX = lightningRadius * 0.9;
-          const horizonRadiusY = lightningRadius * (0.76 - collapseDepth * 0.06 - crushCompression * 0.05);
-
           context.globalCompositeOperation = "lighter";
-          for (let rim = 0; rim < 3; rim += 1) {
-            const rimPhase = time * (0.18 + rim * 0.035) + rim * 2.1;
-            const rimSpan = 0.38 + rim * 0.17;
-            context.globalAlpha = blackHoleOpacity * (0.16 + gravityLock * 0.1) * (1 - rim * 0.2);
-            context.strokeStyle = rim === 1
-              ? "rgba(255, 226, 236, 0.82)"
-              : rim === 0
-                ? "rgba(255, 111, 154, 0.7)"
-                : "rgba(161, 195, 255, 0.62)";
-            context.lineWidth = 0.55 + gravityLock * 0.62 + rim * 0.18;
-            context.shadowColor = context.strokeStyle;
-            context.shadowBlur = (4 + gravityLock * 7) * shadowQuality;
-            context.beginPath();
-            context.ellipse(
-              0,
-              0,
-              horizonRadiusX * (1.03 + rim * 0.025),
-              horizonRadiusY * (1.04 + rim * 0.04),
-              0,
-              rimPhase,
-              rimPhase + rimSpan
-            );
-            context.stroke();
-          }
-
           for (let band = 0; band < 3; band += 1) {
             context.globalAlpha = blackHoleOpacity * (0.34 + band * 0.082) * (0.8 + gravityLock * 0.46);
             context.strokeStyle = diskGradient;
