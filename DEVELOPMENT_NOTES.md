@@ -32,8 +32,10 @@
 - Kisara WebGL lens baseline rollback commit: `5864321 Replace Kisara warp slices with WebGL lensing`.
 - Kisara continuous-lensing refinement commit: `bd03ae6 Refine Kisara black hole lensing`.
 - Kisara subject-aware lensing refinement commit: `5a70d67 Prioritize Kisara subject-aware lensing`.
+- Kisara continuous-title-lens checkpoint commit: `5e3949d Checkpoint Kisara continuous lensing`.
+- Kisara side-field lensing refinement commit: `139ca19 Constrain Kisara lensing to side fields`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
-- Local state: the Kisara image transition, single-envelope charge beam, jet/coast/drift wake particles, post-gloss procedural warning, sharp foreground pink black hole, subject-aware WebGL2 lensing, slingshot burst, lingering particle rain, persistent glitch status, and site-wide deep-indigo UI are implemented and browser-validated. The latest lensing refinement is committed locally at `5a70d67` and is not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
+- Local state: the Kisara image transition, single-envelope charge beam, jet/coast/drift wake particles, post-gloss procedural warning, sharp foreground pink black hole, side-only WebGL2 background lensing, independent continuous title refraction, slingshot burst, lingering particle rain, persistent glitch status, and site-wide deep-indigo UI are implemented and browser-validated. The latest lensing refinement is committed locally at `139ca19` and is not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
 - Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
 - Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
@@ -287,11 +289,20 @@
 
 ### 2026-07-19 Kisara subject-aware lensing refinement
 
+- Historical/superseded by `139ca19`: the per-feature face/hair/body/wing/weapon regions described below are no longer the active background-warp architecture.
 - Added a face-protection region derived from normalized coordinates in the current `fight.jpg`, then converted it through the same cover crop used by the WebGL scene. The protection therefore follows the face from desktop center framing to the right-shifted mobile crop instead of relying on fixed viewport pixels.
 - Reweighted the shader so the face interior receives almost no radial pull or shock displacement, while an elliptical subject halo around the hair, bow, scarf, shoulders, wings, and weapon receives stronger lensing. The title rectangle is supplied separately as another priority region.
 - Added three clipped `Kisara` title refraction layers for upper, middle, and lower bands. Their shear, drift, scale, opacity, and retained source-text blur follow the black-hole pressure, keeping the word visibly bent but readable instead of smearing it into horizontal blocks.
 - Revalidated the full automatic release at desktop `1280x720` and mobile `375x844`: facial proportions remain stable, title/subject-edge distortion is visible, the mobile lens buffer remains `255x574`, horizontal overflow stays zero, and browser warning/error logs remain empty. `npm test` passed 3/3 and `npm run build` generated 36 pages with sitemap and Pagefind.
 - The normalized protection coordinates are intentionally tuned to the current `public/themes/kisara/assets/fight.jpg`; replacing that artwork with a differently composed image requires retuning the face region.
+
+### 2026-07-19 Kisara side-field lensing and continuous title refinement
+
+- Replaced the three clipped CSS title replicas with one transparent WebGL title texture rendered from Canvas2D. The source title crossfades into the texture only during the black-hole pressure phase, so the word is sampled as one continuous surface rather than as independently stretched bands.
+- Superseded the stronger center-collapse title map after browser captures showed it pulling letters into disconnected fragments. The active title field uses low-frequency vertical bend, horizontal ribbon shear, a restrained orbital tangent, and a small shock displacement; it preserves the full word silhouette while still visibly flexing around the release center.
+- Removed the fight-art-specific face, hair, body, wing, and weapon uniforms from the background shader. The active field now uses a horizontal three-zone mask: the middle third returns the original UV exactly, while only the left and right thirds receive radial pull, slow side sweep, and shock displacement through a soft boundary.
+- The foreground black-hole Canvas remains sharp and centered above the unchanged character area. The background lens and title lens each clear after release or while hidden; unsupported WebGL2 keeps the original DOM title and Canvas release fallback.
+- Revalidated the full automatic release at desktop `1280x720` and mobile `375x844`: the central character region remains geometrically stable, the word stays readable while bending, both lens canvases return inactive after release, performance blur returns to `0px`, and positive horizontal overflow remains zero. Fresh-page warning/error logs were empty. `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind) passed.
 
 ### 2026-07-18 Multi-theme implementation
 
