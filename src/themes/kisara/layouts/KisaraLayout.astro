@@ -13,9 +13,12 @@ interface Props {
 const { title = `${site.title} | Kisara`, description = site.description } = Astro.props;
 const canonicalPath = getCanonicalPath(Astro.url.pathname);
 const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
+const isHome = canonicalPath === "/";
+const pageKey = canonicalPath.split("/").filter(Boolean)[0] ?? "home";
 const navItems = site.nav.map((item) => ({
   ...item,
-  href: getThemePath("kisara", item.href)
+  href: getThemePath("kisara", item.href),
+  active: item.href === "/" ? isHome : canonicalPath.startsWith(item.href)
 }));
 const themeOptions = themes.map((theme) => ({
   ...theme,
@@ -35,15 +38,20 @@ const themeOptions = themes.map((theme) => ({
     <ThemePreferenceGate currentTheme="kisara" />
     <title>{title}</title>
   </head>
-  <body data-pagefind-ignore>
+  <body class:list={[isHome ? "kisara-home-page" : "kisara-inner-page"]} data-kisara-page={pageKey} data-pagefind-ignore>
     <a class="kisara-skip-link" href="#kisara-main">跳到正文</a>
-    <header class="kisara-header">
+    <header class:list={["kisara-header", isHome ? "is-home-header" : "is-inner-header"]}>
       <a class="kisara-brand" href={getThemePath("kisara", "/")} aria-label="Kisara 主题首页">
         <span class="kisara-brand-mark" aria-hidden="true"></span>
         <span><strong>YUIMI LAB</strong><small>KISARA / 03</small></span>
       </a>
       <nav class="kisara-nav" aria-label="Kisara theme navigation">
-        {navItems.map((item) => <a href={item.href}>{item.label}</a>)}
+        {navItems.map((item) => (
+          <a href={item.href} aria-current={item.active ? "page" : undefined}>
+            <Icon name={item.icon} aria-hidden="true" />
+            <span>{item.label}</span>
+          </a>
+        ))}
       </nav>
       <button class="kisara-theme-button" type="button" data-kisara-theme-button aria-label="选择主题" title="选择主题" aria-expanded="false">
         <Icon name="tabler:palette" aria-hidden="true" />
@@ -51,7 +59,12 @@ const themeOptions = themes.map((theme) => ({
     </header>
 
     <div class="kisara-theme-panel" data-kisara-theme-panel hidden>
-      <span>SELECT THEME</span>
+      <div class="kisara-panel-heading">
+        <span>SELECT THEME</span>
+        <button type="button" data-kisara-panel-close aria-label="关闭主题选择器" title="关闭">
+          <Icon name="tabler:x" aria-hidden="true" />
+        </button>
+      </div>
       {themeOptions.map((theme) => (
         <button type="button" data-theme-select={theme.id} aria-pressed={theme.id === "kisara" ? "true" : "false"}>
           <i aria-hidden="true"></i>
@@ -65,8 +78,11 @@ const themeOptions = themes.map((theme) => ({
     </main>
 
     <footer class="kisara-footer">
-      <span>© 2026 喝益胃 / Yuimi Lab</span>
-      <span>CONTRACT CHANNEL 03 / KISARA</span>
+      <span class="kisara-footer-signal"><i aria-hidden="true"></i>CONTRACT CHANNEL 03 / ONLINE</span>
+      <nav aria-label="Kisara footer navigation">
+        {navItems.slice(1).map((item) => <a href={item.href}>{item.label}</a>)}
+      </nav>
+      <span>© 2026 喝益胃 / YUIMI LAB</span>
     </footer>
 
     <nav class="kisara-context-menu" data-kisara-context-menu hidden aria-label="Kisara 主题快捷菜单">
@@ -78,14 +94,15 @@ const themeOptions = themes.map((theme) => ({
         </button>
       ))}
       <hr />
-      <button type="button" data-kisara-action="top">回到顶部</button>
-      <button type="button" data-kisara-action="home">Kisara 首页</button>
+      <button type="button" data-kisara-action="top"><Icon name="tabler:arrow-up" aria-hidden="true" /><span>回到顶部</span></button>
+      <button type="button" data-kisara-action="home"><Icon name="tabler:home" aria-hidden="true" /><span>Kisara 首页</span></button>
     </nav>
 
     <script is:inline>
       (() => {
         const panel = document.querySelector("[data-kisara-theme-panel]");
         const panelButton = document.querySelector("[data-kisara-theme-button]");
+        const panelClose = document.querySelector("[data-kisara-panel-close]");
         const menu = document.querySelector("[data-kisara-context-menu]");
         let returnFocus = null;
 
@@ -119,6 +136,7 @@ const themeOptions = themes.map((theme) => ({
           panel.hidden = !opening;
           panelButton.setAttribute("aria-expanded", String(opening));
         });
+        panelClose?.addEventListener("click", closePanel);
 
         window.addEventListener("contextmenu", (event) => {
           event.preventDefault();

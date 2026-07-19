@@ -25,13 +25,14 @@
 - Kisara color-mask prototype rollback commit: `97990c8 Add Kisara scroll mask theme prototype`.
 - Kisara automatic-release rollback commit: `0409dbf Stabilize Kisara automatic burst sequence`.
 - Kisara organic-beam rollback commit: `9ac9223 Refine Kisara organic beam and release`.
+- Kisara beam-detail rollback commit: `fcc9397 Refine Kisara beam detail and performance`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
-- Local state: the Kisara image transition, single-envelope charge beam, jet/coast/drift wake particles, post-gloss procedural warning, sharp foreground pink black hole, accretion/lensing layers, slingshot burst, lingering particle rain, and persistent glitch status are implemented and browser-validated on desktop and mobile-sized viewports; the latest refinement remains local and is not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
+- Local state: the Kisara image transition, single-envelope charge beam, jet/coast/drift wake particles, post-gloss procedural warning, sharp foreground pink black hole, accretion/lensing layers, slingshot burst, lingering particle rain, and persistent glitch status are implemented and browser-validated. The homepage continuation plus Blog, Projects, Games, About, Article, 404, navigation, context menu, and footer now share the same deep-indigo contract-interface language. The latest presentation pass remains local and is not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
 - Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
 - Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
 - Preference key: `yuimi-theme-id-v1` with an allowlist and `fuyukawa-kagari` fallback.
-- Implementation state: three independent frontends are locally available. The Kisara refinement has passed the current local test/build/browser pass and is awaiting final visual acceptance; it has not been pushed.
+- Implementation state: three independent frontends are locally available. The Kisara interaction and full-page presentation pass have passed the current local test/build/browser checks and are awaiting final visual acceptance; they have not been pushed.
 
 ## Architecture Decision
 
@@ -101,9 +102,10 @@
 ### Kisara Theme
 
 - Goal: establish a visual-interaction-first character theme before selecting final artwork.
-- Status: image transition, continuous organic charge beam, two-stage overcharge sequence, persistent particle pools, and the pink-black-hole release refinement are implemented and browser-validated on desktop and `375x844` mobile viewports; publication is pending.
+- Status: image transition, continuous organic charge beam, two-stage overcharge sequence, persistent particle pools, pink-black-hole release, and the first complete site-wide UI pass are implemented and browser-validated on desktop and `375x844` mobile viewports; publication is pending.
 - Key behavior: while the homepage is at the top, downward wheel/touch/keyboard input raises a blue-to-red diagonal tide and upward input lowers it. Input changes a target level; `requestAnimationFrame` advances the visible level with damped velocity, so the mask, background transition, and crest continue smoothly between wheel events. The cold background gradually blurs and dims while the fight artwork fades in from blur to clarity. The lower contract display is a Canvas-only tapered energy beam drawn from one continuous envelope; its internal filaments use periodic phase functions without modulo-wrapped packets or differently scaled shell geometry. Wake particles emit from the beam nose and keep visible streak continuity through jet, inertial coast, and ambient-drift phases before a late TTL fade. Normal-charge instability eases toward the current charge instead of jumping at wheel segments, and an explicit initial-state latch makes a second charge cycle restart from a clean pose phase after returning to zero. After the red tide settles at 100%, the title gloss finishes first; a short pre-warning blur then precedes the procedural DOM warning. The warning has a black/white core, four unequal tapered rays, broken shards, and sparks; it rotates and strobes, collapses sharply back into the core, then hands off to an automatic 8.2-second release. The local meter dissolves permanently for that sequence. A sharp foreground pink black hole forms at the warning center while the title and background remain depth-blurred: layered far/near accretion arcs, an occluding event horizon, photon ring, lensing arcs, and bounded orbit particles build pressure before an inversion flash. Tangential slingshot waves, curved bipolar jets, elliptical shock rings, spiral rush lines, fragments, slower gravity-driven rain, and residual wake replace the old restored-beam explosion. The burst Canvas is a top-level gate layer and is explicitly excluded from the common blur selector, so the black hole remains sharp above the blurred title. The lower state text shows `CONTRACT 000%` through the first charge and switches to continuously changing machine-glitch output instead of replaying a second percentage counter. Document scrolling is released only after both stages settle at 100%; the next section and the return to the blue gate use a time-scaled damped spring rather than a distance-proportional jump.
 - Escape paths: reduced-motion users start completed, restored pages below the top are synchronized to completed, and an explicit `SKIP` link bypasses the gate.
+- Site-wide presentation: the homepage continues into full-width channel, current-pulse, project, and article bands instead of repeating the hero effect. Inner pages use a fixed theme header, mobile bottom navigation, cold-blue information lines, rose active states, restrained `fight.jpg` atmosphere, and page-specific list/article controls. Blog search/filtering, Projects technology filtering, Games metadata/actions, About identity signals, article reading progress/share controls, and a themed 404 are functional rather than decorative-only.
 - Boundary: no root `kisara/` source image is imported, copied, staged, or published.
 - Local helper: root `preview-blog.bat` runs `npm run build` first and starts `npm run dev -- --host 127.0.0.1` only after a successful build.
 
@@ -120,14 +122,14 @@
 
 ## Immediate Next Actions
 
-1. Obtain user visual acceptance for the current single-envelope charge beam, long-lived wake, pink black-hole formation, slingshot burst, and lingering-rain sequence; only then tune disk size, jet width, flash strength, blur, or timing from new feedback.
+1. Obtain user visual acceptance for the current Kisara homepage continuation and inner-page UI together with the existing gate sequence; only then tune section density, typography, atmosphere, or interaction timing from new feedback.
 2. Add parallax, character cutouts, or puppet layers only after suitable source material is explicitly selected.
 3. Push the baseline and Kisara commits only when separately requested.
 
 ## Test and Validation Record
 
 - `npm test`: 3/3 Node tests passed for all theme IDs, canonical path stripping, and cross-theme article-context mapping.
-- `npm run build`: passed after the current Kisara procedural warning refinement; 36 static pages generated, sitemap created, Pagefind indexed 36 pages.
+- `npm run build`: passed after the current Kisara site-wide presentation pass; 36 static pages generated, sitemap created, Pagefind indexed 36 pages.
 - Sitemap: verified that `/themes/blank/` routes are excluded.
 - Resource boundary: verified no legacy `/assets/` or `/music/` runtime references and no Blank import/reference to Kagari internals or assets.
 - Desktop browser: verified both theme home pages, Blank article deep link, canonical/noindex, zero horizontal overflow, two-way switching, query/hash preservation, refresh persistence, browser back/forward, and no console warnings/errors.
@@ -140,6 +142,7 @@
 - Persistent-particle/cinematic-release validation (`2026-07-19`): desktop `1265x712` and mobile `375x844` browser passes confirmed that charge packets fade at both wrap boundaries, wake exhaust separates from the nose and becomes bounded ambient drift, the automatic release grows an asymmetric rear-weighted body instead of restoring the local meter, and three event-driven burst waves hand off to slower particle rain and residual motes. Both viewports had no positive horizontal overflow; the performance blur recovered to `0px`, the final cue reached `SIGNAL RELEASED / CONTINUE`, and the desktop viewport was restored after mobile testing. `npm test` passed 3/3 and `npm run build` generated 36 pages, sitemap, and a 36-page Pagefind index.
 - Pink-black-hole validation (`2026-07-19`): desktop `1265x712` continuous frame sampling confirmed the ordered sequence of sharp accretion/lensing build, dark-core compression, white-pink inversion, curved bipolar jets, elliptical shock rings, slingshot fragments, and lingering particle rain. The title and background remained depth-blurred while the top-level burst Canvas stayed sharp above them. Mobile `375x844` checks confirmed the continuous charge beam and black hole remain inside the gate with no positive horizontal overflow. The final cue reached `SIGNAL RELEASED / CONTINUE`.
 - Beam-detail/performance validation (`2026-07-19`): desktop `1280x720` confirmed the charge beam retains one continuous envelope while clipped helical shards circulate inside it and a primed wake immediately opens into a denser, longer rearward plume. The black-hole endpoint now skips transparent detonation drawing, clears inherited Canvas shadow blur before residual particles, fades and releases the old wake with the beam, paints residual rain at about 30 FPS, and stops Canvas/layout work once only the low-frequency glitch label remains. `npm test` passed 3/3 and `npm run build` generated 36 pages, sitemap, and a 36-page Pagefind index.
+- Site-wide presentation validation (`2026-07-19`): desktop checks covered the homepage continuation, Blog, Projects, Games, About, Article, and 404. Blog keyword search returned two `Hexo` signals and the Projects UE5 filter reduced the list to its matching record. Mobile `375x844` checks covered the homepage continuation and all major page types; Projects filtering remains horizontally scrollable with its native scrollbar hidden, About and 404 have no positive horizontal overflow, and long hand-written article `pre` blocks scroll only inside the code surface. The page log contained Vite debug messages only, with no warnings or errors. `git diff --check` reported no content errors, `npm test` passed 3/3, and `npm run build` generated 36 pages, sitemap, and a 36-page Pagefind index.
 - Accessibility: verified Kagari context menu opens with `Shift+F10`, focuses its first item, closes with Escape, becomes `visibility:hidden`, and returns focus outside the hidden menu.
 - Search: Pagefind query returned the canonical root article once and did not expose a duplicate Blank result.
 - Production 404: verified `/themes/blank/not-a-real-page/?x=1#lost` redirects to the Blank 404 with the original URL encoded in `from`.
@@ -236,6 +239,14 @@
 - Added an initial primed wake burst, higher rearward launch speed, wider side separation, longer jet/coast phases, and a larger bounded pool. Escaped particles still transition into ambient drift, while overcharge now fades and clears the old wake before the black-hole phase.
 - Removed the post-impact hot path by skipping the completed transparent detonation layer, resetting inherited `shadowBlur` before burst/rain particles, suppressing invisible ambient work, and throttling completed residual particles to roughly 30 FPS. After all Canvas particles expire, the frame loop only updates the runaway glitch label at low frequency and performs no Canvas or layout repaint.
 - Revalidated `git diff --check`, `npm test` (3/3), `npm run build` (36 pages, sitemap, Pagefind), and desktop `1280x720` charge/release behavior.
+
+### 2026-07-19 Kisara site-wide presentation pass
+
+- Replaced the placeholder homepage continuation with full-width contract introduction, channel navigation, current-pulse, project-preview, and latest-article sections that extend the gate palette without repeating its cinematic effect.
+- Rebuilt the Kisara layout shell with page-aware navigation states, a compact fixed inner-page header, clearer context-menu actions, footer status/navigation, and a reachable mobile bottom bar.
+- Reworked Blog, Projects, Games, About, Article, and 404 into page-specific information systems using cold-blue rules, rose activation, dense editorial type, and restrained fight-art atmosphere instead of generic glass-card stacks.
+- Added functional Blog search/category filtering and results count, Projects technology filtering, Games metadata/actions, About identity and live-signal blocks, article reading progress/copy-link behavior, and themed recovery actions on 404.
+- Fixed narrow-layout overflow for hand-written article `pre` blocks and hid the native scrollbar on mobile filter tracks while preserving horizontal scrolling. Revalidated `git diff --check`, `npm test` (3/3), `npm run build` (36 pages, sitemap, Pagefind), desktop major pages, and mobile `375x844` Projects/About/404 with no warning or error logs.
 
 ### 2026-07-18 Multi-theme implementation
 

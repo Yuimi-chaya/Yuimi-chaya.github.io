@@ -1,20 +1,48 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
-import { profileIdentity, profileStatus, profileTech } from "@/core/data/profile";
+import { Icon } from "astro-icon/components";
+import { currentSignals, profileIdentity, profileStatus, profileTech } from "@/core/data/profile";
 ---
 
 <KisaraLayout title="About | Kisara" description="关于喝益胃与 Yuimi Lab。">
   <section class="kisara-page-lead">
-    <p class="kisara-section-index">IDENTITY TRACE</p>
-    <h1>{profileIdentity.handle}</h1>
-    <p>{profileIdentity.bio}</p>
+    <div class="kisara-page-lead-inner">
+      <p class="kisara-section-index">IDENTITY TRACE / CONTRACTOR</p>
+      <h1>{profileIdentity.displayName}.</h1>
+      <p>{profileIdentity.bio}</p>
+      <div class="kisara-lead-metrics">
+        <span><strong>03</strong> CONTRACT CHANNEL</span>
+        <span><strong>ON</strong> INTEREST DRIVEN</span>
+      </div>
+    </div>
+  </section>
+  <section class="kisara-identity-shell">
+    <div class="kisara-identity-intro">
+      <p class="kisara-section-index">CONTRACTOR PROFILE / 01</p>
+      <h2>Yuimi-chaya</h2>
+      <p>二次元技术宅，喜欢研究有意思的东西。技术内容可以认真，呈现方式可以保留一点角色感和玩具感。</p>
+      <nav aria-label="Yuimi 社交链接">
+        <a href={profileIdentity.github} target="_blank" rel="noreferrer"><Icon name="tabler:brand-github" aria-hidden="true" />GITHUB <span>↗</span></a>
+        <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer"><Icon name="tabler:brand-bilibili" aria-hidden="true" />BILIBILI <span>↗</span></a>
+      </nav>
+    </div>
+    <dl class="kisara-identity-matrix">
+      <div><dt>DISPLAY NAME</dt><dd>{profileIdentity.displayName}</dd></div>
+      <div><dt>HANDLE</dt><dd>{profileIdentity.handle}</dd></div>
+      <div><dt>SPACE</dt><dd>{profileIdentity.siteName}</dd></div>
+      <div><dt>MODE</dt><dd>ANIME × CODE × INTERACTION</dd></div>
+    </dl>
   </section>
   <section class="kisara-data-section">
-    <h2>Current status</h2>
-    <div class="kisara-inline-signals">{profileStatus.map((item) => <span>{item}</span>)}</div>
+    <div class="kisara-data-heading"><p class="kisara-section-index">CURRENT STATUS / 02</p><h2>Signals now.</h2></div>
+    <div class="kisara-inline-signals">{profileStatus.map((item, index) => <span><i>0{index + 1}</i>{item}</span>)}</div>
   </section>
   <section class="kisara-data-section">
-    <h2>Technical lines</h2>
-    <dl>{profileTech.map((item) => <div><dt>{item.name}</dt><dd>{item.note}</dd></div>)}</dl>
+    <div class="kisara-data-heading"><p class="kisara-section-index">TECHNICAL LINES / 03</p><h2>Tools in orbit.</h2></div>
+    <dl class="kisara-tech-lines">{profileTech.map((item, index) => <div><span>{String(index + 1).padStart(2, "0")}</span><dt>{item.name}</dt><dd>{item.note}</dd><strong>{item.key.toUpperCase()}</strong></div>)}</dl>
+  </section>
+  <section class="kisara-data-section kisara-pulse-section">
+    <div class="kisara-data-heading"><p class="kisara-section-index">LIVE PULSE / 04</p><h2>Still transmitting.</h2></div>
+    <div class="kisara-signal-grid">{currentSignals.map((signal, index) => <article><span>0{index + 1}</span><small>{signal.label}</small><h3>{signal.text}</h3></article>)}</div>
   </section>
 </KisaraLayout>

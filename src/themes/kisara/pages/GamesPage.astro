@@ -1,20 +1,38 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import { Icon } from "astro-icon/components";
 import { gamePicks } from "@/core/data/games";
 ---
 
 <KisaraLayout title="Games | Kisara" description="Yuimi Lab 的小游戏收藏。">
   <section class="kisara-page-lead">
-    <p class="kisara-section-index">PLAY CHANNEL</p>
-    <h1>Games</h1>
-    <p>短暂离开记录区，切进一局刚刚好的小游戏。</p>
+    <div class="kisara-page-lead-inner">
+      <p class="kisara-section-index">PLAY CHANNEL / GAME</p>
+      <h1>Temporary escape.</h1>
+      <p>短暂离开记录区，切进一局刚刚好的小游戏。这里保留原作者、许可和项目来源。</p>
+      <div class="kisara-lead-metrics"><span><strong>{String(gamePicks.length).padStart(2, "0")}</strong> GAMES READY</span></div>
+    </div>
   </section>
-  <div class="kisara-record-list">
-    {gamePicks.map((game, index) => (
-      <article>
-        <span>{String(index + 1).padStart(2, "0")}</span>
-        <div><small>{game.vibe}</small><h2>{game.name}</h2><p>{game.summary}</p><a class="kisara-text-link" href={game.play} target="_blank" rel="noreferrer">START ↗</a></div>
-      </article>
-    ))}
-  </div>
+  <section class="kisara-directory-shell">
+    <div class="kisara-record-list kisara-game-list">
+      {gamePicks.map((game, index) => (
+        <article>
+          <span>{String(index + 1).padStart(2, "0")}</span>
+          <div>
+            <small>{game.vibe} / {game.license}</small>
+            <h2>{game.name}</h2>
+            <p>{game.summary}</p>
+            <dl>
+              <div><dt>AUTHOR</dt><dd>{game.author}</dd></div>
+              <div><dt>SIGNAL</dt><dd>{game.thanks}</dd></div>
+            </dl>
+          </div>
+          <nav aria-label={`${game.name} 操作`}>
+            <a href={game.play} target="_blank" rel="noreferrer"><Icon name="tabler:player-play" aria-hidden="true" />START</a>
+            <a href={game.repo} target="_blank" rel="noreferrer"><Icon name="tabler:brand-github" aria-hidden="true" />SOURCE</a>
+          </nav>
+        </article>
+      ))}
+    </div>
+  </section>
 </KisaraLayout>

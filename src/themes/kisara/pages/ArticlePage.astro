@@ -1,5 +1,7 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import { Icon } from "astro-icon/components";
+import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
 
 const { frontmatter } = Astro.props;
@@ -9,15 +11,24 @@ const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit
 ---
 
 <KisaraLayout title={`${frontmatter.title} | Kisara`} description={frontmatter.description}>
+  <div class="kisara-reading-progress" data-kisara-reading-progress aria-hidden="true"><span></span></div>
   <div class="kisara-article-shell">
     <article>
       <header class="kisara-article-header">
+        <a class="kisara-back-link" href={getThemePath("kisara", "/blog/")}><Icon name="tabler:arrow-left" aria-hidden="true" />BACK TO ARCHIVE</a>
         <p class="kisara-section-index">{categoryLabel[frontmatter.category]} / {date}</p>
         <h1>{frontmatter.title}</h1>
         <p>{frontmatter.description}</p>
-        <div>{frontmatter.tags.map((tag: string) => <span>#{tag}</span>)}</div>
+        <div class="kisara-article-tags">{frontmatter.tags.map((tag: string) => <span>#{tag}</span>)}</div>
       </header>
       <div class="kisara-prose"><slot /></div>
+      <footer class="kisara-article-end">
+        <div><span>END OF TRANSMISSION</span><strong>YUIMI LAB / KISARA CHANNEL</strong></div>
+        <nav aria-label="文章操作">
+          <button type="button" data-kisara-copy-link><Icon name="tabler:link" aria-hidden="true" /><span>COPY LINK</span></button>
+          <a href={getThemePath("kisara", "/blog/")}><Icon name="tabler:archive" aria-hidden="true" />MORE LOGS</a>
+        </nav>
+      </footer>
     </article>
     {headings.length > 0 && (
       <aside class="kisara-toc" aria-label="文章目录">
@@ -26,4 +37,36 @@ const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit
       </aside>
     )}
   </div>
+
+  <script is:inline>
+    (() => {
+      const progress = document.querySelector("[data-kisara-reading-progress] span");
+      const copyButton = document.querySelector("[data-kisara-copy-link]");
+      let scrollFrame = 0;
+      const updateProgress = () => {
+        scrollFrame = 0;
+        const distance = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+        progress?.style.setProperty("transform", `scaleX(${Math.min(1, Math.max(0, window.scrollY / distance))})`);
+      };
+      window.addEventListener("scroll", () => {
+        if (!scrollFrame) scrollFrame = window.requestAnimationFrame(updateProgress);
+      }, { passive: true });
+      updateProgress();
+
+      copyButton?.addEventListener("click", async () => {
+        const label = copyButton.querySelector("span");
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          if (label) label.textContent = "LINK COPIED";
+          copyButton.classList.add("is-copied");
+        } catch {
+          if (label) label.textContent = "COPY FAILED";
+        }
+        window.setTimeout(() => {
+          if (label) label.textContent = "COPY LINK";
+          copyButton.classList.remove("is-copied");
+        }, 1800);
+      });
+    })();
+  </script>
 </KisaraLayout>

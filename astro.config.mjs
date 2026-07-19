@@ -111,7 +111,18 @@ export default defineConfig({
           "flower",
           "mood-smile",
           "chevron-down",
-          "palette"
+          "palette",
+          "x",
+          "arrow-up",
+          "home",
+          "archive",
+          "arrow-left",
+          "link",
+          "player-play",
+          "flask-2",
+          "user-scan",
+          "arrow-back-up",
+          "activity-heartbeat"
         ],
         "simple-icons": [
           "unity",

@@ -1,11 +1,16 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
+import { currentSignals, profileIdentity } from "@/core/data/profile";
+import { projectEntries } from "@/core/data/projects";
 import { getThemePath } from "@/core/themes/registry";
+import { categoryLabel } from "@/lib/site";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 const posts = (await getPublishedPosts()).slice(0, 3);
+const featuredProjects = projectEntries.slice(0, 3);
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
   month: "2-digit",
@@ -21,6 +26,12 @@ const findThemeAsset = (baseName: string) => {
 };
 const activeBackgroundUrl = findThemeAsset("gate-background");
 const activeFightUrl = findThemeAsset("fight");
+const channelLinks = [
+  { index: "01", label: "READ THE LOG", note: "开发与部署记录", href: getThemePath("kisara", "/blog/"), icon: "tabler:book-2" },
+  { index: "02", label: "OPEN THE LAB", note: "项目与互动实验", href: getThemePath("kisara", "/projects/"), icon: "tabler:flask-2" },
+  { index: "03", label: "ENTER PLAY", note: "短暂切进小游戏", href: getThemePath("kisara", "/games/"), icon: "tabler:device-gamepad-2" },
+  { index: "04", label: "TRACE YUIMI", note: "读取契约者资料", href: getThemePath("kisara", "/about/"), icon: "tabler:user-scan" }
+] as const;
 const gateStyle = [
   "--kisara-fill: 0%",
   "--kisara-burst-progress: 0%",
@@ -71,30 +82,95 @@ const gateStyle = [
   <section id="kisara-opening" class="kisara-opening" aria-labelledby="kisara-opening-title">
     <div class="kisara-opening-inner">
       <p class="kisara-section-index">AFTER THE SIGNATURE / 001</p>
-      <h2 id="kisara-opening-title">The signal continues below.</h2>
+      <div class="kisara-opening-heading">
+        <h2 id="kisara-opening-title">After the contract.</h2>
+        <span>CHANNEL 03 / CONNECTED</span>
+      </div>
       <div class="kisara-opening-grid">
-        <p>视觉、交互与技术记录沿着同一条契约线继续展开。</p>
-        <nav aria-label="Kisara theme shortcuts">
-          <a href={getThemePath("kisara", "/blog/")}><span>01</span>READ THE LOG</a>
-          <a href={getThemePath("kisara", "/projects/")}><span>02</span>OPEN THE LAB</a>
-          <a href={getThemePath("kisara", "/about/")}><span>03</span>TRACE YUIMI</a>
+        <div class="kisara-opening-copy">
+          <p>这里不再继续重复首屏的演出，而是把视觉、交互与技术记录接到同一条契约线上。</p>
+          <div class="kisara-contractor-line">
+            <span>CONTRACTOR</span>
+            <strong>{profileIdentity.displayName} / {profileIdentity.handle}</strong>
+            <small>兴趣驱动型折腾人 · 喜欢把技术做得有一点可爱</small>
+          </div>
+        </div>
+        <nav class="kisara-channel-links" aria-label="Kisara theme shortcuts">
+          {channelLinks.map((item) => (
+            <a href={item.href}>
+              <span>{item.index}</span>
+              <Icon name={item.icon} aria-hidden="true" />
+              <div><strong>{item.label}</strong><small>{item.note}</small></div>
+              <i aria-hidden="true">↗</i>
+            </a>
+          ))}
         </nav>
+      </div>
+    </div>
+  </section>
+
+  <section class="kisara-signal-deck" aria-labelledby="kisara-signal-title">
+    <div class="kisara-content-shell">
+      <div class="kisara-section-heading">
+        <div>
+          <p class="kisara-section-index">LIVE SIGNALS / 002</p>
+          <h2 id="kisara-signal-title">Current pulse.</h2>
+        </div>
+        <p>不用仪表盘汇报人生，只留三条现在确实还在发热的信号。</p>
+      </div>
+      <div class="kisara-signal-grid">
+        {currentSignals.map((signal, index) => (
+          <article>
+            <span>0{index + 1}</span>
+            <small>{signal.label}</small>
+            <h3>{signal.text}</h3>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="kisara-home-projects" aria-labelledby="kisara-project-title">
+    <div class="kisara-content-shell">
+      <div class="kisara-section-heading">
+        <div>
+          <p class="kisara-section-index">ACTIVE LAB / 003</p>
+          <h2 id="kisara-project-title">Work in motion.</h2>
+        </div>
+        <a class="kisara-section-link" href={getThemePath("kisara", "/projects/")}>VIEW ALL WORKS <span>↗</span></a>
+      </div>
+      <div class="kisara-project-tracks">
+        {featuredProjects.map((project, index) => (
+          <article>
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <div>
+              <small>{project.type} / {project.status}</small>
+              <h3>{project.title}</h3>
+              <p>{project.summary}</p>
+            </div>
+            <strong>{project.line.toUpperCase()}</strong>
+          </article>
+        ))}
       </div>
     </div>
   </section>
 
   <section class="kisara-latest" aria-labelledby="kisara-latest-title">
     <div class="kisara-section-heading">
-      <p class="kisara-section-index">RECENT TRANSMISSIONS / 002</p>
-      <h2 id="kisara-latest-title">Latest notes</h2>
+      <div>
+        <p class="kisara-section-index">RECENT TRANSMISSIONS / 004</p>
+        <h2 id="kisara-latest-title">Latest notes.</h2>
+      </div>
+      <a class="kisara-section-link" href={getThemePath("kisara", "/blog/")}>OPEN ARCHIVE <span>↗</span></a>
     </div>
     <div class="kisara-transmission-list">
       {posts.map((post, index) => (
         <a href={getThemePath("kisara", `/blog/${post.id}/`)}>
           <span>{String(index + 1).padStart(2, "0")}</span>
           <div>
-            <time datetime={post.data.pubDate.toISOString()}>{dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}</time>
+            <small>{categoryLabel[post.data.category]} / <time datetime={post.data.pubDate.toISOString()}>{dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}</time></small>
             <h3>{post.data.title}</h3>
+            <p>{post.data.description}</p>
           </div>
           <i aria-hidden="true">↗</i>
         </a>

@@ -1,30 +1,92 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
 import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
 
 const posts = await getPublishedPosts();
+const categories = Array.from(new Set(posts.map((post) => post.data.category)));
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" });
 ---
 
 <KisaraLayout title="Blog | Kisara" description="Yuimi Lab 的文章记录。">
   <section class="kisara-page-lead">
-    <p class="kisara-section-index">TRANSMISSION ARCHIVE</p>
-    <h1>Blog</h1>
-    <p>开发记录、部署笔记，以及一路留下的兴趣信号。</p>
+    <div class="kisara-page-lead-inner">
+      <p class="kisara-section-index">TRANSMISSION ARCHIVE / BLOG</p>
+      <h1>Signal archive.</h1>
+      <p>开发记录、部署笔记，以及一路留下的兴趣信号。按关键词或频道寻找一条仍然有用的记录。</p>
+      <div class="kisara-lead-metrics">
+        <span><strong>{String(posts.length).padStart(2, "0")}</strong> LOGS ONLINE</span>
+        <span><strong>{String(categories.length).padStart(2, "0")}</strong> CHANNELS</span>
+      </div>
+    </div>
   </section>
-  <div class="kisara-record-list">
-    {posts.map((post, index) => (
-      <a href={getThemePath("kisara", `/blog/${post.id}/`)}>
-        <span>{String(index + 1).padStart(2, "0")}</span>
-        <div>
-          <small>{categoryLabel[post.data.category]} / {dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}</small>
-          <h2>{post.data.title}</h2>
-          <p>{post.data.description}</p>
-        </div>
-        <i aria-hidden="true">↗</i>
-      </a>
-    ))}
-  </div>
+  <section class="kisara-directory-shell" data-kisara-archive>
+    <div class="kisara-archive-toolbar">
+      <label>
+        <Icon name="tabler:search" aria-hidden="true" />
+        <input type="search" data-kisara-archive-search placeholder="TRACE TITLE / TAG / SIGNAL" autocomplete="off" />
+      </label>
+      <div class="kisara-filter-row" aria-label="文章频道筛选">
+        <button type="button" data-kisara-filter="all" aria-pressed="true">ALL</button>
+        {categories.map((category) => <button type="button" data-kisara-filter={category} aria-pressed="false">{categoryLabel[category]}</button>)}
+      </div>
+      <output data-kisara-result-count>{posts.length} SIGNALS</output>
+    </div>
+    <div class="kisara-record-list" data-kisara-archive-list>
+      {posts.map((post, index) => (
+        <a
+          href={getThemePath("kisara", `/blog/${post.id}/`)}
+          data-kisara-record
+          data-category={post.data.category}
+          data-search={[post.data.title, post.data.description, ...post.data.tags].join(" ").toLowerCase()}
+        >
+          <span>{String(index + 1).padStart(2, "0")}</span>
+          <div>
+            <small>{categoryLabel[post.data.category]} / {dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}</small>
+            <h2>{post.data.title}</h2>
+            <p>{post.data.description}</p>
+            <div class="kisara-record-tags">{post.data.tags.slice(0, 4).map((tag) => <em>#{tag}</em>)}</div>
+          </div>
+          <i aria-hidden="true">↗</i>
+        </a>
+      ))}
+    </div>
+    <p class="kisara-empty-signal" data-kisara-empty hidden>NO MATCHED SIGNAL / 换一个关键词试试。</p>
+  </section>
+
+  <script is:inline>
+    (() => {
+      const archive = document.querySelector("[data-kisara-archive]");
+      if (!archive) return;
+      const input = archive.querySelector("[data-kisara-archive-search]");
+      const buttons = Array.from(archive.querySelectorAll("[data-kisara-filter]"));
+      const records = Array.from(archive.querySelectorAll("[data-kisara-record]"));
+      const count = archive.querySelector("[data-kisara-result-count]");
+      const empty = archive.querySelector("[data-kisara-empty]");
+      let activeFilter = "all";
+
+      const refresh = () => {
+        const query = input?.value.trim().toLowerCase() ?? "";
+        let visibleCount = 0;
+        records.forEach((record) => {
+          const categoryMatch = activeFilter === "all" || record.dataset.category === activeFilter;
+          const queryMatch = !query || record.dataset.search?.includes(query);
+          const visible = Boolean(categoryMatch && queryMatch);
+          record.hidden = !visible;
+          if (visible) visibleCount += 1;
+        });
+        if (count) count.textContent = `${visibleCount} SIGNALS`;
+        if (empty) empty.hidden = visibleCount !== 0;
+      };
+
+      input?.addEventListener("input", refresh);
+      buttons.forEach((button) => button.addEventListener("click", () => {
+        activeFilter = button.dataset.kisaraFilter ?? "all";
+        buttons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+        refresh();
+      }));
+    })();
+  </script>
 </KisaraLayout>

@@ -1,20 +1,57 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
-import { projectEntries } from "@/core/data/projects";
+import { Icon } from "astro-icon/components";
+import { projectEntries, projectTechLines } from "@/core/data/projects";
 ---
 
 <KisaraLayout title="Projects | Kisara" description="Yuimi Lab 的项目与实验记录。">
   <section class="kisara-page-lead">
-    <p class="kisara-section-index">LABORATORY INDEX</p>
-    <h1>Projects</h1>
-    <p>正在运转、正在学习，也正在等待下一次灵感接入的项目线。</p>
+    <div class="kisara-page-lead-inner">
+      <p class="kisara-section-index">LABORATORY INDEX / WORKS</p>
+      <h1>Active laboratory.</h1>
+      <p>正在运转、正在学习，也正在等待下一次灵感接入的项目线。按技术频道切换当前实验。</p>
+      <div class="kisara-lead-metrics">
+        <span><strong>{String(projectEntries.length).padStart(2, "0")}</strong> PROJECTS</span>
+        <span><strong>{String(projectTechLines.length).padStart(2, "0")}</strong> TECH LINES</span>
+      </div>
+    </div>
   </section>
-  <div class="kisara-record-list">
-    {projectEntries.map((project, index) => (
-      <article>
-        <span>{String(index + 1).padStart(2, "0")}</span>
-        <div><small>{project.type} / {project.status}</small><h2>{project.title}</h2><p>{project.summary}</p></div>
-      </article>
-    ))}
-  </div>
+  <section class="kisara-directory-shell" data-kisara-projects>
+    <div class="kisara-tech-selector" role="group" aria-label="技术线筛选">
+      <button type="button" data-project-filter="all" aria-pressed="true"><span>00</span>ALL CHANNELS</button>
+      {projectTechLines.map((line, index) => (
+        <button type="button" data-project-filter={line.key} aria-pressed="false"><span>{String(index + 1).padStart(2, "0")}</span>{line.label}</button>
+      ))}
+    </div>
+    <div class="kisara-record-list kisara-project-list">
+      {projectEntries.map((project, index) => (
+        <article data-project-record data-line={project.line}>
+          <span>{String(index + 1).padStart(2, "0")}</span>
+          <div>
+            <small><i aria-hidden="true"></i>{project.type} / {project.status}</small>
+            <h2>{project.title}</h2>
+            <p>{project.summary}</p>
+            <ul>{project.details.map((detail) => <li>{detail}</li>)}</ul>
+          </div>
+          <strong>{project.line.toUpperCase()} <Icon name="tabler:activity-heartbeat" aria-hidden="true" /></strong>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <script is:inline>
+    (() => {
+      const projects = document.querySelector("[data-kisara-projects]");
+      if (!projects) return;
+      const buttons = Array.from(projects.querySelectorAll("[data-project-filter]"));
+      const records = Array.from(projects.querySelectorAll("[data-project-record]"));
+      buttons.forEach((button) => button.addEventListener("click", () => {
+        const filter = button.dataset.projectFilter ?? "all";
+        buttons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+        records.forEach((record) => {
+          record.hidden = filter !== "all" && record.dataset.line !== filter;
+        });
+      }));
+    })();
+  </script>
 </KisaraLayout>
