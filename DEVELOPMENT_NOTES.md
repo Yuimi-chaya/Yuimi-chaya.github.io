@@ -29,8 +29,10 @@
 - Kisara site-wide presentation rollback commit: `fae3b93 Unify Kisara theme presentation`.
 - Kisara momentum/screen-impact rollback commit: `835baa4 Refine Kisara beam motion and black hole impact`.
 - Kisara seamless-phase/collapse rollback commit: `e19ca2a Deepen Kisara collapse and lensing sequence`.
+- Kisara WebGL lens baseline rollback commit: `5864321 Replace Kisara warp slices with WebGL lensing`.
+- Kisara continuous-lensing refinement commit: `bd03ae6 Refine Kisara black hole lensing`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
-- Local state: the Kisara image transition, single-envelope charge beam, jet/coast/drift wake particles, post-gloss procedural warning, sharp foreground pink black hole, accretion/lensing layers, slingshot burst, lingering particle rain, persistent glitch status, and site-wide deep-indigo UI are implemented and browser-validated. The seamless beam-phase and first collapse/shockwave pass is committed locally at `e19ca2a`; the latest terminal-crush, dual-band spatial refraction, and layered abyss-core refinement remains uncommitted and is not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
+- Local state: the Kisara image transition, single-envelope charge beam, jet/coast/drift wake particles, post-gloss procedural warning, sharp foreground pink black hole, WebGL2 background lensing, slingshot burst, lingering particle rain, persistent glitch status, and site-wide deep-indigo UI are implemented and browser-validated. The latest lensing refinement is committed locally at `bd03ae6` and is not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
 - Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
 - Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
@@ -272,6 +274,15 @@
 - Split the black-hole endpoint into a deeper inward collapse, a particle-free full-screen shockwave, and delayed final detonation. Added inward streaks, compression rings, and a central compression glow without increasing persistent particle limits.
 - Added a radial-masked duplicate of the cold/fight backgrounds as a local lensing layer. The layer expands with the shockwave while the main wallpaper container remains fixed, replacing prolonged viewport shake and preventing exposed outer edges.
 - Revalidated desktop repeated-cycle/long-idle continuity, desktop release staging, mobile `375x844` full release, zero positive horizontal overflow, full blur/warp recovery, empty page logs, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind).
+
+### 2026-07-19 Kisara WebGL lensing and pure-black horizon refinement
+
+- Replaced the superseded CSS background-copy/radial-mask warp with one full-screen WebGL2 fragment pass that cover-samples the theme backgrounds per pixel. Unsupported WebGL2 and context-loss paths keep the Canvas release effects without restoring the old sliced warp.
+- Converged on a capped monotonic primary-image lens with a short smooth influence envelope. Removed the experimental signed secondary-image fold, shader chromatic triple sampling, and oversized lens radius after browser captures showed that combination turning the character face into a circular portal.
+- Matched the shader background atmosphere to the page, reduced full-screen performance blur, and kept the `Kisara` title in the same blur choreography while the lens Canvas remains a continuous undivided scene.
+- Made the event horizon optically empty through both shader and Canvas masks, reduced the bright photon rim, and reapplied a full-radius solid-black mask after foreground disk highlights so no texture or light streak can cross the center.
+- Reduced the lens shader from roughly eight texture reads per fragment to two. Desktop runs at up to CSS resolution/60 FPS; mobile remains capped near 30 FPS with a `0.68` render scale and pixel budget. The lens Canvas clears and becomes transparent after release or while hidden.
+- Revalidated `git diff --check`, `npm test` (3/3), `npm run build` (36 pages, sitemap, Pagefind), desktop `1280x720`, mobile layout metrics at `375x844`, zero positive horizontal overflow, WebGL ready/active/clear lifecycle, and no browser warning/error logs. Final visual acceptance remains with the user.
 
 ### 2026-07-18 Multi-theme implementation
 
