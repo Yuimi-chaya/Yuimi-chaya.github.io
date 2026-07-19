@@ -267,6 +267,9 @@ const gateStyle = [
       let lastQualityAdjustment = 0;
       const lightningCoreCanvas = document.createElement("canvas");
       const lightningCoreContext = lightningCoreCanvas.getContext("2d", { alpha: true });
+      const lightningTrailCanvas = document.createElement("canvas");
+      const lightningTrailContext = lightningTrailCanvas.getContext("2d", { alpha: true });
+      let lightningFieldImageData = null;
       let lightningCoreBufferSize = 0;
       let lightningCoreLastPaintTimestamp = 0;
       let spaceLensRenderer = null;
@@ -379,6 +382,25 @@ const gateStyle = [
       const randomSeed = (index) => {
         const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
         return value - Math.floor(value);
+      };
+      const createSmoothCanvasPath = (points) => {
+        const path = new Path2D();
+        if (points.length === 0) return path;
+        path.moveTo(points[0].x, points[0].y);
+        for (let index = 1; index < points.length - 1; index += 1) {
+          const next = points[index + 1];
+          path.quadraticCurveTo(
+            points[index].x,
+            points[index].y,
+            (points[index].x + next.x) * 0.5,
+            (points[index].y + next.y) * 0.5
+          );
+        }
+        if (points.length > 1) {
+          const last = points[points.length - 1];
+          path.lineTo(last.x, last.y);
+        }
+        return path;
       };
       const nextParticleRandom = () => randomSeed((particleSerial += 1) * 1.61803398875 + 0.37);
 
@@ -1421,26 +1443,37 @@ const gateStyle = [
       };
 
       const paintLightningCore = (timestamp, parameters) => {
-        if (!lightningCoreContext || parameters.activity <= 0.001) return false;
+        if (!lightningCoreContext || !lightningTrailContext || parameters.activity <= 0.001) return false;
         const quality = clamp(parameters.quality, 0.7, 1);
         const targetSize = parameters.mobile
           ? (quality < 0.8 ? 128 : 144)
           : (quality < 0.8 ? 160 : 192);
+        const fieldTargetSize = parameters.mobile
+          ? (quality < 0.8 ? 64 : 76)
+          : (quality < 0.8 ? 80 : 96);
         if (lightningCoreBufferSize !== targetSize) {
           lightningCoreBufferSize = targetSize;
           lightningCoreCanvas.width = targetSize;
           lightningCoreCanvas.height = targetSize;
           lightningCoreLastPaintTimestamp = 0;
         }
+        if (lightningTrailCanvas.width !== fieldTargetSize) {
+          lightningTrailCanvas.width = fieldTargetSize;
+          lightningTrailCanvas.height = fieldTargetSize;
+          lightningFieldImageData = lightningTrailContext.createImageData(
+            fieldTargetSize,
+            fieldTargetSize
+          );
+        }
         const minimumInterval = parameters.mobile
           ? 1000 / 30
           : quality < 0.8
             ? 1000 / 36
             : 1000 / 45;
-        if (
-          lightningCoreLastPaintTimestamp > 0
-          && timestamp - lightningCoreLastPaintTimestamp < minimumInterval
-        ) return true;
+        const paintGap = lightningCoreLastPaintTimestamp > 0
+          ? timestamp - lightningCoreLastPaintTimestamp
+          : Number.POSITIVE_INFINITY;
+        if (paintGap < minimumInterval) return true;
         lightningCoreLastPaintTimestamp = timestamp;
 
         const context = lightningCoreContext;
@@ -1501,12 +1534,32 @@ const gateStyle = [
         context.arc(0, 0, radius, 0, fullTurn);
         context.fill();
 
+        const voidRadius = radius * (0.27 - compression * 0.045);
+        const voidOffsetX = Math.sin(time * 1.37) * radius * 0.028 * (1 - compression);
+        const voidOffsetY = Math.cos(time * 1.11) * radius * 0.024 * (1 - compression);
+        const voidGradient = context.createRadialGradient(
+          voidOffsetX,
+          voidOffsetY,
+          0,
+          voidOffsetX,
+          voidOffsetY,
+          voidRadius
+        );
+        voidGradient.addColorStop(0, "rgba(0, 0, 2, 0.995)");
+        voidGradient.addColorStop(0.46, "rgba(0, 0, 5, 0.95)");
+        voidGradient.addColorStop(0.78, "rgba(5, 1, 15, 0.68)");
+        voidGradient.addColorStop(1, "rgba(22, 7, 36, 0)");
+        context.globalCompositeOperation = "source-over";
+        context.globalAlpha = 0.9 + compression * 0.07;
+        context.fillStyle = voidGradient;
+        context.fillRect(-voidRadius, -voidRadius, voidRadius * 2, voidRadius * 2);
+
         context.globalCompositeOperation = "lighter";
-        for (let lobe = 0; lobe < 2; lobe += 1) {
+        for (let lobe = 0; lobe < 3; lobe += 1) {
           const lobePhase = time * (0.82 + lobe * 0.21) + lobe * 2.7;
-          const lobeX = Math.cos(lobePhase) * radius * (0.18 + lobe * 0.05);
-          const lobeY = Math.sin(lobePhase * 1.13) * radius * 0.2;
-          const lobeRadius = radius * (0.5 + lobe * 0.08);
+          const lobeX = Math.cos(lobePhase) * radius * (0.16 + lobe * 0.04);
+          const lobeY = Math.sin(lobePhase * 1.13) * radius * (0.18 + lobe * 0.015);
+          const lobeRadius = radius * (0.44 + lobe * 0.07);
           const plasmaLobe = context.createRadialGradient(
             lobeX,
             lobeY,
@@ -1517,14 +1570,22 @@ const gateStyle = [
           );
           plasmaLobe.addColorStop(
             0,
-            lobe === 0 ? "rgba(255, 75, 151, 0.22)" : "rgba(119, 153, 255, 0.2)"
+            lobe === 0
+              ? "rgba(255, 75, 151, 0.36)"
+              : lobe === 1
+                ? "rgba(119, 153, 255, 0.32)"
+                : "rgba(190, 91, 255, 0.25)"
           );
           plasmaLobe.addColorStop(
             0.42,
-            lobe === 0 ? "rgba(178, 56, 177, 0.1)" : "rgba(103, 108, 224, 0.09)"
+            lobe === 0
+              ? "rgba(178, 56, 177, 0.16)"
+              : lobe === 1
+                ? "rgba(103, 108, 224, 0.15)"
+                : "rgba(128, 60, 179, 0.12)"
           );
           plasmaLobe.addColorStop(1, "rgba(69, 31, 105, 0)");
-          context.globalAlpha = activity * (0.54 + electricPulse * 0.08) * (1 - compression * 0.42);
+          context.globalAlpha = activity * (0.64 + electricPulse * 0.1) * (1 - compression * 0.42);
           context.fillStyle = plasmaLobe;
           context.fillRect(
             lobeX - lobeRadius,
@@ -1534,91 +1595,207 @@ const gateStyle = [
           );
         }
 
-        const branchCount = Math.max(
-          6,
-          Math.floor((parameters.mobile ? 9 : 14) * quality)
+        const fieldContext = lightningTrailContext;
+        const fieldSize = lightningTrailCanvas.width;
+        const fieldImageData = lightningFieldImageData;
+        if (fieldImageData) {
+          const pixels = fieldImageData.data;
+          const inverseHalfSize = 2 / fieldSize;
+          const fieldTime = time * (1 + activity * 0.16);
+          let offset = 0;
+          for (let y = 0; y < fieldSize; y += 1) {
+            const normalizedY = (y + 0.5) * inverseHalfSize - 1;
+            for (let x = 0; x < fieldSize; x += 1) {
+              const normalizedX = (x + 0.5) * inverseHalfSize - 1;
+              const radialDistance = Math.hypot(normalizedX, normalizedY);
+              if (radialDistance >= 1.035) {
+                pixels[offset] = 0;
+                pixels[offset + 1] = 0;
+                pixels[offset + 2] = 0;
+                pixels[offset + 3] = 0;
+                offset += 4;
+                continue;
+              }
+
+              const angle = Math.atan2(normalizedY, normalizedX);
+              const warpX = normalizedX
+                + Math.sin(normalizedY * 5.2 + fieldTime * 1.12) * 0.13
+                + Math.sin(angle * 3 - fieldTime * 0.74) * 0.045;
+              const warpY = normalizedY
+                + Math.cos(normalizedX * 4.7 - fieldTime * 0.96) * 0.12
+                + Math.cos(angle * 2 + fieldTime * 0.62) * 0.04;
+              const currentA = Math.sin(warpX * 11.6 + fieldTime * 2.1)
+                + Math.sin(warpY * 9.4 - fieldTime * 1.72) * 0.82;
+              const currentB = Math.sin(
+                (warpX * 0.74 + warpY * 1.28) * 14.3
+                - fieldTime * 1.28
+                + Math.sin(angle * 2.4 + fieldTime * 0.58) * 0.78
+              );
+              const currentC = Math.cos(
+                (warpX * 1.36 - warpY * 0.62) * 10.8
+                + fieldTime * 1.56
+                + radialDistance * 7.2
+              );
+              const ridgeA = Math.pow(
+                Math.max(0, 1 - Math.abs(currentA * 0.54 + currentB * 0.46 - 0.08) / 0.48),
+                3.2
+              );
+              const ridgeB = Math.pow(
+                Math.max(0, 1 - Math.abs(currentB * 0.66 - currentC * 0.34 + 0.14) / 0.42),
+                3.6
+              );
+              const edgeUnit = clamp((1.035 - radialDistance) / 0.19, 0, 1);
+              const sphereMask = edgeUnit * edgeUnit * (3 - 2 * edgeUnit);
+              const centerUnit = clamp((radialDistance - 0.055) / 0.3, 0, 1);
+              const centerMask = 0.28 + centerUnit * centerUnit * (3 - 2 * centerUnit) * 0.72;
+              const mist = (0.5 + Math.sin(
+                warpX * 5.3 - warpY * 4.6 + fieldTime * 0.9
+              ) * 0.5) * 0.16;
+              const electric = Math.max(ridgeA, ridgeB * 0.86);
+              const brightness = clamp(
+                (electric * 0.92 + mist)
+                * sphereMask
+                * centerMask
+                * (0.78 + electricPulse * 0.18)
+                * (1 - compression * 0.38),
+                0,
+                1
+              );
+              const hue = 0.5 + Math.sin(
+                angle * 2.1 + fieldTime * 0.72 + currentC * 0.8
+              ) * 0.5;
+              pixels[offset] = Math.round(126 + hue * 112 + electric * 18);
+              pixels[offset + 1] = Math.round(52 + electric * 94 + (1 - hue) * 22);
+              pixels[offset + 2] = Math.round(202 + (1 - hue) * 49 + electric * 4);
+              pixels[offset + 3] = Math.round(255 * brightness * activity * 0.76);
+              offset += 4;
+            }
+          }
+          fieldContext.setTransform(1, 0, 0, 1, 0, 0);
+          fieldContext.globalCompositeOperation = "source-over";
+          fieldContext.globalAlpha = 1;
+          fieldContext.putImageData(fieldImageData, 0, 0);
+
+          const fieldDisplaySize = radius * 2.16;
+          context.globalCompositeOperation = "lighter";
+          context.globalAlpha = activity * (0.82 + electricPulse * 0.12);
+          context.imageSmoothingEnabled = true;
+          context.drawImage(
+            lightningTrailCanvas,
+            -fieldDisplaySize * 0.5,
+            -fieldDisplaySize * 0.5,
+            fieldDisplaySize,
+            fieldDisplaySize
+          );
+        }
+
+        const filamentCount = Math.max(
+          3,
+          Math.floor((parameters.mobile ? 4 : 5) * quality)
         );
+        const chargeNodes = [];
+        for (let node = 0; node < filamentCount + 2; node += 1) {
+          const seed = randomSeed(node + 19421);
+          const orbitSeed = (node * 0.61803398875 + 0.29) % 1;
+          const direction = node % 2 === 0 ? 1 : -1;
+          const angle = seed * fullTurn + time * (0.18 + seed * 0.22) * direction;
+          const orbitRadius = radius
+            * (0.24 + orbitSeed * 0.44)
+            * (1 - compression * 0.24)
+            * (1 + Math.sin(time * (0.82 + seed * 0.34) + node) * 0.08);
+          chargeNodes.push({
+            x: Math.cos(angle) * orbitRadius
+              + Math.sin(time * 1.9 + node * 1.7) * radius * 0.014,
+            y: Math.sin(angle * 1.03 + seed * 0.7)
+              * orbitRadius
+              * (0.68 + seed * 0.16)
+              + Math.cos(time * 1.67 + node) * radius * 0.012
+          });
+        }
+
         context.save();
         context.beginPath();
-        context.arc(0, 0, radius * 0.96, 0, fullTurn);
+        context.arc(0, 0, radius * 0.92, 0, fullTurn);
         context.clip();
+        context.globalCompositeOperation = "lighter";
+        for (let node = 0; node < chargeNodes.length; node += 1) {
+          const charge = chargeNodes[node];
+          const seed = randomSeed(node + 19643);
+          const glowRadius = radius * (0.035 + seed * 0.025)
+            * (0.78 + electricPulse * 0.24);
+          const chargeGlow = context.createRadialGradient(
+            charge.x,
+            charge.y,
+            0,
+            charge.x,
+            charge.y,
+            glowRadius
+          );
+          chargeGlow.addColorStop(0, "rgba(245, 249, 255, 0.72)");
+          chargeGlow.addColorStop(0.26, node % 2 === 0
+            ? "rgba(255, 107, 176, 0.48)"
+            : "rgba(151, 182, 255, 0.46)");
+          chargeGlow.addColorStop(1, "rgba(122, 61, 177, 0)");
+          context.globalAlpha = activity * (0.26 + electricPulse * 0.1);
+          context.fillStyle = chargeGlow;
+          context.fillRect(
+            charge.x - glowRadius,
+            charge.y - glowRadius,
+            glowRadius * 2,
+            glowRadius * 2
+          );
+        }
+        context.restore();
+
+        const tendrilSlots = parameters.mobile ? 2 : 3;
         context.globalCompositeOperation = "lighter";
         context.lineCap = "round";
         context.lineJoin = "round";
-        context.beginPath();
-        for (let branch = 0; branch < branchCount; branch += 1) {
-          const seed = randomSeed(branch + 19421);
-          const startAngle = seed * fullTurn + time * (0.34 + seed * 0.24);
-          const angularDrift = (randomSeed(branch + 19473) - 0.5) * (0.9 + activity * 0.45);
+        for (let tendril = 0; tendril < tendrilSlots; tendril += 1) {
+          const seed = randomSeed(tendril + 19681);
+          const pulse = 0.5 + Math.sin(
+            time * (1.3 + seed * 0.58) + seed * fullTurn + tendril * 1.7
+          ) * 0.5;
+          const spark = smoothstep(clamp((pulse - 0.66) / 0.34, 0, 1));
+          if (spark <= 0.015) continue;
+          const source = chargeNodes[(tendril * 2 + 1) % chargeNodes.length];
+          const sourceAngle = Math.atan2(source.y, source.x)
+            + (seed - 0.5) * 0.62
+            + Math.sin(time * 0.72 + tendril) * 0.12;
+          const reach = radius
+            * (1.12 + spark * (0.16 + activity * 0.09))
+            * (1 - compression * 0.56);
+          const points = [];
           const segments = 6;
           for (let segment = 0; segment <= segments; segment += 1) {
             const unit = segment / segments;
-            const jitter = Math.sin(
-              time * (4.1 + seed * 2.4)
-              + branch * 1.73
-              + segment * 2.18
-            ) * (0.13 + (1 - unit) * 0.11);
-            const angle = startAngle + angularDrift * unit + jitter;
-            const radialReach = radius
-              * (0.1 + unit * (0.78 - compression * 0.25))
-              * (1 + Math.sin(time * 2.7 + branch + unit * 5.4) * 0.035);
-            const x = Math.cos(angle) * radialReach;
-            const y = Math.sin(angle) * radialReach;
-            if (segment === 0) context.moveTo(x, y);
-            else context.lineTo(x, y);
+            const envelope = Math.sin(unit * Math.PI);
+            const distance = radius * 0.55 + (reach - radius * 0.55) * unit;
+            const bend = Math.sin(
+              unit * Math.PI * 1.4 + time * (2.2 + seed) + tendril * 2.4
+            ) * radius * 0.065 * envelope;
+            points.push({
+              x: source.x * (1 - unit)
+                + Math.cos(sourceAngle) * distance * unit
+                - Math.sin(sourceAngle) * bend,
+              y: source.y * (1 - unit)
+                + Math.sin(sourceAngle) * distance * unit
+                + Math.cos(sourceAngle) * bend
+            });
           }
+          const tendrilPath = createSmoothCanvasPath(points);
+          context.globalAlpha = activity * spark * 0.14 * (1 - compression * 0.56);
+          context.strokeStyle = "rgba(255, 68, 153, 0.82)";
+          context.lineWidth = 3.4;
+          context.shadowColor = "rgba(255, 54, 143, 0.8)";
+          context.shadowBlur = 7 * quality;
+          context.stroke(tendrilPath);
+          context.globalAlpha = activity * spark * 0.34 * (1 - compression * 0.42);
+          context.strokeStyle = "rgba(220, 233, 255, 0.82)";
+          context.lineWidth = 0.46;
+          context.shadowBlur = 0;
+          context.stroke(tendrilPath);
         }
-        context.globalAlpha = activity * (0.18 + electricPulse * 0.08);
-        context.strokeStyle = "rgba(255, 63, 143, 0.82)";
-        context.lineWidth = 4.6 + activity * 2.2;
-        context.shadowColor = "rgba(255, 45, 139, 0.9)";
-        context.shadowBlur = 8 + activity * 8;
-        context.stroke();
-        context.globalAlpha = activity * (0.55 + electricPulse * 0.16);
-        context.strokeStyle = "rgba(177, 185, 255, 0.94)";
-        context.lineWidth = 1.65 + compression * 0.55;
-        context.shadowColor = "rgba(151, 180, 255, 0.9)";
-        context.shadowBlur = 3.5 + activity * 3.5;
-        context.stroke();
-        context.globalAlpha = activity * (0.72 + electricPulse * 0.2);
-        context.strokeStyle = "rgba(255, 255, 255, 0.96)";
-        context.lineWidth = 0.48 + compression * 0.36;
-        context.shadowBlur = 0;
-        context.stroke();
-        context.restore();
-
-        const tendrilCount = Math.max(3, Math.floor((parameters.mobile ? 4 : 6) * quality));
-        context.globalCompositeOperation = "lighter";
-        context.lineCap = "round";
-        context.lineJoin = "round";
-        context.beginPath();
-        for (let tendril = 0; tendril < tendrilCount; tendril += 1) {
-          const seed = randomSeed(tendril + 19681);
-          const startAngle = seed * fullTurn + time * (0.46 + seed * 0.26);
-          const reach = radius * (1.2 + activity * 0.34) * (1 - compression * 0.48);
-          for (let segment = 0; segment <= 4; segment += 1) {
-            const unit = segment / 4;
-            const angle = startAngle
-              + (seed - 0.5) * unit * 0.7
-              + Math.sin(time * 5.8 + tendril * 2.1 + segment * 1.7) * 0.1;
-            const distance = radius * 0.78 + (reach - radius * 0.78) * unit;
-            const x = Math.cos(angle) * distance;
-            const y = Math.sin(angle) * distance;
-            if (segment === 0) context.moveTo(x, y);
-            else context.lineTo(x, y);
-          }
-        }
-        context.globalAlpha = activity * 0.22 * (1 - compression * 0.54);
-        context.strokeStyle = "rgba(255, 74, 149, 0.84)";
-        context.lineWidth = 3.2;
-        context.shadowColor = "rgba(255, 54, 143, 0.88)";
-        context.shadowBlur = 9;
-        context.stroke();
-        context.globalAlpha = activity * 0.72 * (1 - compression * 0.38);
-        context.strokeStyle = "rgba(239, 244, 255, 0.94)";
-        context.lineWidth = 0.65;
-        context.shadowBlur = 0;
-        context.stroke();
 
         const fresnel = context.createRadialGradient(0, 0, radius * 0.58, 0, 0, radius * 1.16);
         fresnel.addColorStop(0, "rgba(55, 17, 78, 0)");
@@ -1629,26 +1806,6 @@ const gateStyle = [
         context.globalAlpha = activity * (0.72 + electricPulse * 0.16);
         context.fillStyle = fresnel;
         context.fillRect(-radius * 1.2, -radius * 1.2, radius * 2.4, radius * 2.4);
-
-        const voidRadius = radius * (0.3 - compression * 0.055);
-        const voidOffsetX = Math.sin(time * 1.37) * radius * 0.035 * (1 - compression);
-        const voidOffsetY = Math.cos(time * 1.11) * radius * 0.03 * (1 - compression);
-        const voidGradient = context.createRadialGradient(
-          voidOffsetX,
-          voidOffsetY,
-          0,
-          voidOffsetX,
-          voidOffsetY,
-          voidRadius
-        );
-        voidGradient.addColorStop(0, "rgba(0, 0, 2, 0.995)");
-        voidGradient.addColorStop(0.42, "rgba(0, 0, 5, 0.97)");
-        voidGradient.addColorStop(0.74, "rgba(4, 1, 13, 0.76)");
-        voidGradient.addColorStop(1, "rgba(18, 5, 31, 0)");
-        context.globalCompositeOperation = "source-over";
-        context.globalAlpha = 0.9 + compression * 0.08;
-        context.fillStyle = voidGradient;
-        context.fillRect(-voidRadius, -voidRadius, voidRadius * 2, voidRadius * 2);
 
         const coreSparkRadius = radius * (0.055 + Math.max(0, electricPulse) * 0.035)
           * (1 - compression * 0.38);
@@ -3800,7 +3957,7 @@ const gateStyle = [
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
         const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
         const glossPosition = -18 + glossSweep * 136;
-        const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
+        const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.96;
         const crestOpacity = fill <= 0.002 || fill >= 0.998
           ? 0
           : Math.min(0.92, 0.54 + Math.abs(velocity) * 42);
