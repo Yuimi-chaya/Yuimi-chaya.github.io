@@ -69,7 +69,13 @@ const gateStyle = [
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
       <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
-      <span class="kisara-title-data-stream" aria-hidden="true">Kisara</span>
+      <canvas
+        class="kisara-title-data-canvas"
+        data-kisara-title-data
+        width="1200"
+        height="320"
+        aria-hidden="true"
+      ></canvas>
       <canvas
         class="kisara-title-lens-canvas"
         data-kisara-title-lens
@@ -213,6 +219,8 @@ const gateStyle = [
       const burstContext = burstCanvas?.getContext("2d");
       const spaceLensCanvas = gate.querySelector("[data-kisara-space-lens]");
       const titleLensCanvas = gate.querySelector("[data-kisara-title-lens]");
+      const titleDataCanvas = gate.querySelector("[data-kisara-title-data]");
+      const titleDataContext = titleDataCanvas?.getContext("2d", { alpha: true });
       const postReleaseCanvas = gate.querySelector("[data-kisara-post-release-canvas]");
       const postReleaseContext = postReleaseCanvas?.getContext("2d", { alpha: true });
       const fightBackground = gate.querySelector(".kisara-gate-background-fight");
@@ -275,6 +283,10 @@ const gateStyle = [
       let postReleaseCanvasWidth = 0;
       let postReleaseCanvasHeight = 0;
       let postReleasePixelRatio = 1;
+      let titleDataCanvasWidth = 0;
+      let titleDataCanvasHeight = 0;
+      let titleDataPixelRatio = 1;
+      let titleDataCells = [];
       let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
       let renderQuality = 1;
       let renderCostEma = 0;
@@ -283,6 +295,11 @@ const gateStyle = [
       const singularityFieldContext = singularityFieldCanvas.getContext("2d", { alpha: true });
       let singularityFieldImageData = null;
       let singularityFieldLastPaintTimestamp = 0;
+      const titleDataMaskCanvas = document.createElement("canvas");
+      const titleDataMaskContext = titleDataMaskCanvas.getContext("2d", {
+        alpha: true,
+        willReadFrequently: true
+      });
       let spaceLensRenderer = null;
       let spaceLensInitGeneration = 0;
       let lastSpaceLensPaintTimestamp = 0;
@@ -484,6 +501,128 @@ const gateStyle = [
         postReleaseContext.setTransform(1, 0, 0, 1, 0, 0);
         postReleaseContext.clearRect(0, 0, postReleaseCanvas.width, postReleaseCanvas.height);
         postReleaseContext.setTransform(postReleasePixelRatio, 0, 0, postReleasePixelRatio, 0, 0);
+      };
+
+      const clearTitleDataCanvas = () => {
+        if (!titleDataCanvas || !titleDataContext) return;
+        titleDataContext.setTransform(1, 0, 0, 1, 0, 0);
+        titleDataContext.clearRect(0, 0, titleDataCanvas.width, titleDataCanvas.height);
+        titleDataContext.setTransform(titleDataPixelRatio, 0, 0, titleDataPixelRatio, 0, 0);
+        titleDataCanvas.style.opacity = "0";
+      };
+
+      const rebuildTitleDataCells = () => {
+        titleDataCells = [];
+        if (
+          !titleDataMaskContext
+          || !title
+          || titleDataMaskCanvas.width <= 1
+          || titleDataMaskCanvas.height <= 1
+        ) return;
+
+        const width = titleDataMaskCanvas.width;
+        const height = titleDataMaskCanvas.height;
+        const style = window.getComputedStyle(title);
+        const fontSize = Math.max(1, Number.parseFloat(style.fontSize) * titleDataPixelRatio);
+        titleDataMaskContext.setTransform(1, 0, 0, 1, 0, 0);
+        titleDataMaskContext.clearRect(0, 0, width, height);
+        titleDataMaskContext.save();
+        titleDataMaskContext.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
+        titleDataMaskContext.textAlign = "center";
+        titleDataMaskContext.textBaseline = "alphabetic";
+        titleDataMaskContext.lineJoin = "round";
+        const metrics = titleDataMaskContext.measureText("Kisara");
+        const baseline = height * 0.5
+          + ((metrics.actualBoundingBoxAscent || fontSize * 0.72)
+            - (metrics.actualBoundingBoxDescent || fontSize * 0.16)) * 0.5;
+        titleDataMaskContext.fillStyle = "#ffffff";
+        titleDataMaskContext.strokeStyle = "#ffffff";
+        titleDataMaskContext.lineWidth = Math.max(1, 2.4 * titleDataPixelRatio);
+        titleDataMaskContext.strokeText("Kisara", width * 0.5, baseline);
+        titleDataMaskContext.fillText("Kisara", width * 0.5, baseline);
+        titleDataMaskContext.restore();
+
+        const pixels = titleDataMaskContext.getImageData(0, 0, width, height).data;
+        const cellSize = (titleDataCanvasWidth < 520 ? 7.5 : 9) * titleDataPixelRatio;
+        const cellStep = Math.max(5, Math.round(cellSize));
+        const sampleAlpha = (x, y) => {
+          const sampleX = clamp(Math.round(x), 0, width - 1);
+          const sampleY = clamp(Math.round(y), 0, height - 1);
+          return pixels[(sampleY * width + sampleX) * 4 + 3] / 255;
+        };
+        const ringRadii = [0, cellStep * 0.78, cellStep * 1.55, cellStep * 2.38];
+        const ringSamples = [1, 8, 12, 16];
+
+        for (let y = cellStep * 0.5; y < height; y += cellStep) {
+          for (let x = cellStep * 0.5; x < width; x += cellStep) {
+            let ring = -1;
+            let maskStrength = sampleAlpha(x, y);
+            if (maskStrength > 0.06) {
+              ring = 0;
+            } else {
+              for (let ringIndex = 1; ringIndex < ringRadii.length; ringIndex += 1) {
+                const radius = ringRadii[ringIndex];
+                const sampleCount = ringSamples[ringIndex];
+                let ringStrength = 0;
+                for (let sample = 0; sample < sampleCount; sample += 1) {
+                  const angle = sample / sampleCount * fullTurn + ringIndex * 0.23;
+                  ringStrength = Math.max(
+                    ringStrength,
+                    sampleAlpha(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius)
+                  );
+                }
+                if (ringStrength > 0.08) {
+                  ring = ringIndex;
+                  maskStrength = ringStrength;
+                  break;
+                }
+              }
+            }
+            if (ring < 0) continue;
+
+            const cellX = Math.floor(x / cellStep);
+            const cellY = Math.floor(y / cellStep);
+            const seed = randomSeed(cellX * 37.17 + cellY * 91.73 + ring * 13.19);
+            if (ring === 3 && seed < 0.24) continue;
+            titleDataCells.push({
+              x: x / titleDataPixelRatio,
+              y: y / titleDataPixelRatio,
+              ring,
+              maskStrength,
+              noise: seed,
+              tone: randomSeed(cellX * 17.31 + cellY * 53.47 + 3.7),
+              flicker: randomSeed(cellX * 71.83 + cellY * 19.61 + 11.2),
+              size: cellStep / titleDataPixelRatio * (0.7 + seed * 0.22)
+            });
+          }
+        }
+      };
+
+      const resizeTitleDataCanvas = (force = false) => {
+        if (!titleDataCanvas || !titleDataContext || !titleDataMaskContext) return;
+        const rect = titleDataCanvas.getBoundingClientRect();
+        const width = Math.max(1, rect.width);
+        const height = Math.max(1, rect.height);
+        const deviceScale = Math.min(window.devicePixelRatio || 1, width < 640 ? 1.16 : 1.32);
+        const pixelRatio = Math.min(deviceScale, 1536 / width, 460 / height);
+        const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
+        const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
+        const changed = force
+          || Math.abs(titleDataCanvasWidth - width) > 0.5
+          || Math.abs(titleDataCanvasHeight - height) > 0.5
+          || Math.abs(titleDataPixelRatio - pixelRatio) > 0.01
+          || titleDataCanvas.width !== pixelWidth
+          || titleDataCanvas.height !== pixelHeight;
+        if (!changed) return;
+        titleDataCanvas.width = pixelWidth;
+        titleDataCanvas.height = pixelHeight;
+        titleDataMaskCanvas.width = pixelWidth;
+        titleDataMaskCanvas.height = pixelHeight;
+        titleDataCanvasWidth = width;
+        titleDataCanvasHeight = height;
+        titleDataPixelRatio = pixelRatio;
+        clearTitleDataCanvas();
+        rebuildTitleDataCells();
       };
 
       const refreshPostReleaseLayout = () => {
@@ -947,7 +1086,7 @@ const gateStyle = [
 
       const updatePostReleaseDataStream = (timestamp, frameSeconds, intro) => {
         if (!postReleaseDataInitialized) {
-          gate.style.setProperty("--kisara-data-stream-opacity", "0");
+          postReleaseDataOpacity = 0;
           return;
         }
         let activeDirection = postReleaseDirection || 1;
@@ -972,12 +1111,123 @@ const gateStyle = [
           * (1 - Math.exp(-frameSeconds * (moving ? 7.4 : 4.2)));
         postReleaseDataPhase += frameSeconds * (moving ? 34 : 7.5) * (activeDirection > 0 ? -1 : 1);
         if (Math.abs(postReleaseDataPhase) > 2048) postReleaseDataPhase %= 2048;
-        gate.style.setProperty("--kisara-data-stream-position", `${postReleaseDataPosition.toFixed(3)}%`);
-        gate.style.setProperty("--kisara-data-stream-phase", `${postReleaseDataPhase.toFixed(3)}px`);
-        gate.style.setProperty(
-          "--kisara-data-stream-opacity",
-          (postReleaseDataOpacity * intro).toFixed(3)
-        );
+      };
+
+      const drawTitleDataReconstruction = (timestamp, intro) => {
+        if (!titleDataCanvas || !titleDataContext) return;
+        if (!postReleaseDataInitialized || postReleaseDataOpacity * intro <= 0.003) {
+          if (titleDataCanvas.style.opacity !== "0") clearTitleDataCanvas();
+          return;
+        }
+        if (titleDataCanvasWidth <= 1 || titleDataCanvasHeight <= 1) {
+          resizeTitleDataCanvas();
+        }
+        if (titleDataCells.length === 0) return;
+
+        titleDataContext.setTransform(1, 0, 0, 1, 0, 0);
+        titleDataContext.clearRect(0, 0, titleDataCanvas.width, titleDataCanvas.height);
+        titleDataContext.setTransform(titleDataPixelRatio, 0, 0, titleDataPixelRatio, 0, 0);
+        titleDataContext.save();
+        titleDataContext.globalCompositeOperation = "lighter";
+        titleDataContext.lineWidth = 0.72;
+
+        const width = titleDataCanvasWidth;
+        const height = titleDataCanvasHeight;
+        const moving = Boolean(postReleaseJourney);
+        const direction = postReleaseJourney?.direction || postReleaseDirection || 1;
+        const position = postReleaseDataPosition;
+        const bandReach = moving ? 15.8 : 13.6;
+        const phase = postReleaseDataPhase;
+        const time = timestamp / 1000;
+
+        for (const cell of titleDataCells) {
+          const normalizedX = cell.x / Math.max(1, width);
+          const normalizedY = cell.y / Math.max(1, height);
+          const cellCoordinate = (
+            normalizedX
+            + (normalizedY - 0.5) * 0.1 * direction
+          ) * 100;
+          const distance = Math.abs(cellCoordinate - position);
+          const radialProgress = clamp(
+            (bandReach - distance) / Math.max(1, bandReach * 0.68) + 0.5,
+            0,
+            1
+          );
+          if (radialProgress <= 0.001) continue;
+
+          const animatedNoise = 0.5 + 0.5 * Math.sin(
+            cell.x * 0.031
+            - cell.y * 0.047
+            + phase * 0.11
+            + cell.flicker * fullTurn
+          );
+          const dataNoise = cell.noise * 0.58 + animatedNoise * 0.42;
+          const dataMask = smoothstep(clamp(
+            (radialProgress - (dataNoise - 0.16)) / 0.32,
+            0,
+            1
+          ));
+          const dataSettle = smoothstep(clamp(
+            (radialProgress - (dataNoise + 0.04)) / 0.58,
+            0,
+            1
+          ));
+          const dataFront = Math.exp(-Math.pow(
+            (radialProgress - dataNoise) / 0.17,
+            2
+          ));
+          const ringWeight = [1, 0.74, 0.46, 0.27][cell.ring] ?? 0.2;
+          const erosionGate = cell.ring === 0
+            ? 1
+            : clamp(dataFront * 1.42 + dataMask * (0.2 - cell.ring * 0.025), 0, 1);
+          const pulse = 0.9 + Math.sin(time * 4.2 + cell.flicker * 17.4) * 0.1;
+          const alpha = clamp(
+            (dataMask * (0.54 + dataSettle * 0.24) + dataFront * 0.52)
+              * ringWeight
+              * erosionGate
+              * cell.maskStrength
+              * pulse,
+            0,
+            1
+          );
+          if (alpha <= 0.018) continue;
+
+          const blueCell = cell.tone < 0.2 || (cell.ring > 0 && cell.tone < 0.42);
+          const frontHeat = clamp(dataFront * 1.16, 0, 1);
+          const red = blueCell
+            ? 133 + frontHeat * 102
+            : 220 + frontHeat * 35;
+          const green = blueCell
+            ? 169 + frontHeat * 72
+            : 48 + dataSettle * 58 + frontHeat * 128;
+          const blue = blueCell
+            ? 255
+            : 143 + dataSettle * 44 + frontHeat * 68;
+          const size = Math.max(2.8, cell.size * (0.88 + dataFront * 0.12));
+          const left = cell.x - size * 0.5;
+          const top = cell.y - size * 0.5;
+
+          if (dataFront > 0.52 && cell.flicker > 0.64) {
+            const glowSize = size * (1.42 + dataFront * 0.28);
+            titleDataContext.fillStyle = `rgba(${Math.round(red)}, ${Math.round(green)}, ${Math.round(blue)}, ${alpha * 0.2})`;
+            titleDataContext.fillRect(
+              cell.x - glowSize * 0.5,
+              cell.y - glowSize * 0.5,
+              glowSize,
+              glowSize
+            );
+          }
+
+          titleDataContext.fillStyle = `rgba(${Math.round(red)}, ${Math.round(green)}, ${Math.round(blue)}, ${alpha})`;
+          titleDataContext.fillRect(left, top, size, size);
+          if (dataFront > 0.3) {
+            titleDataContext.strokeStyle = `rgba(255, 244, 250, ${alpha * (0.22 + dataFront * 0.58)})`;
+            titleDataContext.strokeRect(left + 0.35, top + 0.35, Math.max(0, size - 0.7), Math.max(0, size - 0.7));
+          }
+        }
+
+        titleDataContext.restore();
+        titleDataCanvas.style.opacity = (postReleaseDataOpacity * intro).toFixed(3);
       };
 
       const drawPostRelease = (timestamp) => {
@@ -1016,6 +1266,7 @@ const gateStyle = [
         gate.style.setProperty("--kisara-post-parallax-y", `${postReleaseY.toFixed(3)}px`);
         gate.style.setProperty("--kisara-post-release-opacity", intro.toFixed(3));
         updatePostReleaseDataStream(timestamp, frameSeconds, intro);
+        drawTitleDataReconstruction(timestamp, intro);
         clearPostReleaseCanvas();
         drawPostReleaseHighlights(postReleaseContext, timestamp, intro);
         updatePostReleaseParticles(
@@ -1070,10 +1321,7 @@ const gateStyle = [
         gate.style.setProperty("--kisara-post-parallax-x", "0px");
         gate.style.setProperty("--kisara-post-parallax-y", "0px");
         gate.style.setProperty("--kisara-post-release-opacity", "0");
-        gate.style.setProperty("--kisara-data-stream-position", "50%");
-        gate.style.setProperty("--kisara-data-stream-phase", "0px");
-        gate.style.setProperty("--kisara-data-stream-opacity", "0");
-        gate.classList.remove("is-data-stream-from-right", "is-data-stream-from-left");
+        clearTitleDataCanvas();
         clearPostReleaseCanvas();
       };
 
@@ -1121,8 +1369,6 @@ const gateStyle = [
           startedAt: timestamp,
           duration: Math.max(880, 900 + Math.abs(endPosition - startPosition) * 5)
         };
-        gate.classList.toggle("is-data-stream-from-right", direction > 0);
-        gate.classList.toggle("is-data-stream-from-left", direction < 0);
         startPostReleaseAnimation();
       };
 
@@ -2052,7 +2298,10 @@ const gateStyle = [
         startTitleLens();
       }, { passive: true });
       startTitleLens();
-      document.fonts?.ready.then(() => titleLensRenderer?.refresh());
+      document.fonts?.ready.then(() => {
+        titleLensRenderer?.refresh();
+        resizeTitleDataCanvas(true);
+      });
 
       const drawSpaceLens = (timestamp, parameters) => {
         if (!spaceLensRenderer || !spaceLensCanvas) return;
@@ -2267,20 +2516,24 @@ const gateStyle = [
             const normalizedY = (y + 0.5) * inverseHalfSize - 1;
             for (let x = 0; x < fieldSize; x += 1) {
               const normalizedX = (x + 0.5) * inverseHalfSize - 1;
-              const stretchedX = normalizedX * 0.88;
-              const stretchedY = normalizedY * 1.16;
-              const angle = Math.atan2(stretchedY, stretchedX);
-              const baseRadius = Math.hypot(stretchedX, stretchedY);
+              const fieldX = normalizedX;
+              const fieldY = normalizedY;
+              const angle = Math.atan2(fieldY, fieldX);
+              const baseRadius = Math.hypot(fieldX, fieldY);
+              const boundaryBreath = 0.5
+                + Math.sin(fieldTime * 0.74) * 0.28
+                + Math.sin(fieldTime * 1.31 + 1.2) * 0.12;
               const boundary = 0.95
-                + Math.sin(angle * 3 - fieldTime * 0.72) * 0.07
-                + Math.sin(angle * 7 + fieldTime * 1.08) * 0.035
-                + Math.cos(angle * 11 - fieldTime * 1.42) * 0.018;
+                + Math.sin(angle * 2.17 + 0.82) * 0.034 * (0.82 + boundaryBreath * 0.18)
+                + Math.sin(angle * 5.03 - 1.34) * 0.021 * (0.88 + boundaryBreath * 0.12)
+                + Math.cos(angle * 8.11 + 0.37) * 0.011;
               const fieldRadius = baseRadius / Math.max(0.74, boundary);
-              const outerMask = 1 - smoothstep(clamp((fieldRadius - 0.72) / 0.31, 0, 1));
-              const throatRadius = 0.12
-                + (1 - compression) * 0.045
-                + Math.sin(angle * 4 + fieldTime * 0.64) * 0.012;
-              const innerMask = smoothstep(clamp((fieldRadius - throatRadius) / 0.22, 0, 1));
+              const outerMask = 1 - smoothstep(clamp((fieldRadius - 0.7) / 0.33, 0, 1));
+              const throatRadius = 0.135
+                + (1 - compression) * 0.032
+                + Math.sin(angle * 2.73 + 1.88) * 0.008 * (0.8 + boundaryBreath * 0.2)
+                + Math.sin(angle * 6.13 - 0.54) * 0.004;
+              const innerMask = smoothstep(clamp((fieldRadius - throatRadius) / 0.19, 0, 1));
               const fieldMask = outerMask * innerMask;
 
               if (fieldMask <= 0.0005) {
@@ -2292,41 +2545,40 @@ const gateStyle = [
                 continue;
               }
 
-              const warpX = stretchedX
-                + Math.sin(stretchedY * 5.4 + fieldTime * 1.2) * 0.12
-                + Math.sin(angle * 3 - fieldTime * 0.66) * 0.055;
-              const warpY = stretchedY
-                + Math.cos(stretchedX * 4.8 - fieldTime) * 0.11
-                + Math.cos(angle * 2 + fieldTime * 0.58) * 0.05;
-              const spiralA = Math.sin(
-                angle * 5.0
-                + fieldRadius * (17.5 + gravity * 5.5)
-                - fieldTime * (2.15 + gravity * 1.2)
-                + Math.sin(warpX * 5.2 - warpY * 3.6) * 0.72
+              const warpX = fieldX
+                + Math.sin(fieldY * 5.2 + fieldTime * 0.82) * 0.11
+                + Math.sin((fieldX + fieldY) * 3.7 - fieldTime * 0.43) * 0.046;
+              const warpY = fieldY
+                + Math.cos(fieldX * 4.8 - fieldTime * 0.74) * 0.1
+                + Math.cos((fieldX - fieldY) * 3.35 + fieldTime * 0.51) * 0.044;
+              const currentA = Math.sin(
+                warpX * (8.1 + gravity * 1.2)
+                + warpY * 3.2
+                - fieldTime * (1.54 + gravity * 0.34)
+                + Math.sin(warpY * 4.7 + fieldTime * 0.39) * 0.78
               );
-              const spiralB = Math.sin(
-                angle * -3.0
-                + fieldRadius * 24.0
-                + fieldTime * 1.72
-                + Math.sin(angle * 4 + fieldTime * 0.8) * 0.64
+              const currentB = Math.sin(
+                warpY * 8.9
+                - warpX * 2.85
+                + fieldTime * 1.27
+                + Math.cos(warpX * 5.1 - fieldTime * 0.36) * 0.72
               );
               const crossCurrent = Math.cos(
-                warpX * 10.8
-                - warpY * 8.7
-                + fieldTime * 1.38
-                + fieldRadius * 6.2
+                (warpX + warpY) * 6.15
+                - fieldTime * 0.93
+                + Math.sin((warpX - warpY) * 4.4 + fieldTime * 0.31) * 0.64
               );
               const ridgeA = Math.pow(
-                Math.max(0, 1 - Math.abs(spiralA * 0.7 + spiralB * 0.3 - 0.08) / 0.38),
-                3.4
+                Math.max(0, 1 - Math.abs(currentA * 0.68 + currentB * 0.32 - 0.06) / 0.37),
+                3.55
               );
               const ridgeB = Math.pow(
-                Math.max(0, 1 - Math.abs(spiralB * 0.56 - crossCurrent * 0.44 + 0.12) / 0.34),
-                3.8
+                Math.max(0, 1 - Math.abs(currentB * 0.58 - crossCurrent * 0.42 + 0.11) / 0.35),
+                3.65
               );
               const mist = (
                 0.5
-                + Math.sin(warpX * 4.6 + warpY * 3.9 - fieldTime * 0.82) * 0.5
+                + Math.sin(warpX * 4.5 + warpY * 3.8 - fieldTime * 0.78) * 0.5
               ) * (0.11 + gravity * 0.045);
               const electric = Math.max(ridgeA, ridgeB * 0.9);
               const brightness = clamp(
@@ -2338,7 +2590,7 @@ const gateStyle = [
                 1
               );
               const hue = 0.5
-                + Math.sin(angle * 2.2 + fieldTime * 0.64 + crossCurrent * 0.8) * 0.5;
+                + Math.sin(warpX * 3.35 - warpY * 2.65 + fieldTime * 0.41 + crossCurrent * 0.72) * 0.5;
               const whiteHeat = Math.pow(electric, 4) * (0.28 + gravity * 0.26);
 
               pixels[offset] = Math.round(136 + hue * 103 + whiteHeat * 20);
@@ -2355,13 +2607,12 @@ const gateStyle = [
           singularityFieldContext.putImageData(singularityFieldImageData, 0, 0);
         }
 
-        const fieldWidth = radius * (4.25 + gravity * 0.42);
-        const fieldHeight = radius * (3.18 + gravity * 0.26);
+        const fieldWidth = radius * (3.88 + gravity * 0.34);
+        const fieldHeight = radius * (3.56 + gravity * 0.3);
         context.save();
         context.globalCompositeOperation = "lighter";
         context.globalAlpha = opacity * activity * (0.82 + electricPulse * 0.18);
         context.imageSmoothingEnabled = true;
-        context.rotate(Math.sin(time * 0.38) * 0.026 * (1 - compression));
         context.drawImage(
           singularityFieldCanvas,
           -fieldWidth * 0.5,
@@ -2371,76 +2622,71 @@ const gateStyle = [
         );
         context.restore();
 
-        const ribbonCount = Math.max(4, Math.floor((parameters.mobile ? 5 : 7) * quality));
+        const streamCount = parameters.mobile ? 2 : 3;
         context.save();
         context.globalCompositeOperation = "lighter";
         context.lineCap = "round";
         context.lineJoin = "round";
-        for (let ribbon = 0; ribbon < ribbonCount; ribbon += 1) {
-          const seed = randomSeed(ribbon + 19421);
-          const direction = ribbon % 2 === 0 ? 1 : -1;
-          const baseAngle = seed * fullTurn + time * (0.12 + seed * 0.1) * direction;
-          const points = [];
-          const segments = parameters.mobile ? 8 : 10;
-          for (let segment = 0; segment <= segments; segment += 1) {
-            const unit = segment / segments;
-            const distance = radius * (
-              0.42
-              + unit * (1.72 + seed * 0.7 + gravity * 0.34)
-            ) * (1 - compression * (0.32 + unit * 0.22));
-            const curl = direction * (
-              unit * (1.06 + seed * 0.72 + gravity * 0.64)
-              + unit * unit * (0.48 + gravity * 0.58)
-            );
-            const wave = Math.sin(
-              unit * Math.PI * (2.1 + seed)
-              - time * (1.2 + seed * 0.8)
-              + ribbon
-            ) * 0.075 * Math.sin(unit * Math.PI);
-            const angle = baseAngle + curl + wave;
-            points.push({
-              x: Math.cos(angle) * distance,
-              y: Math.sin(angle) * distance * (0.68 + seed * 0.1)
-            });
+        for (let stream = 0; stream < streamCount; stream += 1) {
+          const seed = randomSeed(stream + 19421);
+          const anchorAngle = seed * fullTurn + (stream - 1) * 0.43;
+          for (let fragment = 0; fragment < 2; fragment += 1) {
+            const travel = (time * (0.11 + seed * 0.045) + seed + fragment * 0.43) % 1;
+            const startUnit = Math.max(0, travel - 0.075);
+            const endUnit = Math.min(1, travel + 0.075);
+            if (endUnit - startUnit < 0.035) continue;
+            const points = [];
+            const segments = 5;
+            for (let segment = 0; segment <= segments; segment += 1) {
+              const unit = startUnit + (endUnit - startUnit) * (segment / segments);
+              const distance = radius * (
+                1.72 - unit * (1.34 + seed * 0.12)
+              ) * (1 - compression * (0.24 + unit * 0.38));
+              const localBend = (seed - 0.5) * 0.34 * (1 - unit)
+                + Math.sin(unit * 8.2 + time * (0.72 + seed * 0.24) + stream) * 0.035;
+              const angle = anchorAngle + localBend;
+              points.push({
+                x: Math.cos(angle) * distance,
+                y: Math.sin(angle) * distance * (0.9 + seed * 0.08)
+              });
+            }
+            const path = createSmoothCanvasPath(points);
+            const pulse = Math.sin(clamp((travel - startUnit) / Math.max(0.001, endUnit - startUnit), 0, 1) * Math.PI);
+            context.globalAlpha = opacity
+              * activity
+              * (0.055 + pulse * 0.075)
+              * (1 - compression * 0.58);
+            context.strokeStyle = stream === 0
+              ? "rgba(181, 211, 255, 0.72)"
+              : "rgba(255, 91, 153, 0.76)";
+            context.lineWidth = 1.05 + gravity * 0.72;
+            context.shadowColor = context.strokeStyle;
+            context.shadowBlur = (4 + gravity * 5) * parameters.shadowQuality;
+            context.stroke(path);
           }
-
-          const path = createSmoothCanvasPath(points);
-          const pulse = 0.56 + Math.sin(time * (2.2 + seed) + ribbon * 1.7) * 0.44;
-          context.globalAlpha = opacity * activity * (0.062 + pulse * 0.086) * (1 - compression * 0.5);
-          context.strokeStyle = ribbon % 3 === 0
-            ? "rgba(183, 210, 255, 0.86)"
-            : "rgba(255, 72, 145, 0.86)";
-          context.lineWidth = 2.2 + gravity * 1.4;
-          context.shadowColor = context.strokeStyle;
-          context.shadowBlur = (6 + gravity * 8) * parameters.shadowQuality;
-          context.stroke(path);
-          context.globalAlpha *= 2.25;
-          context.strokeStyle = ribbon % 3 === 0
-            ? "rgba(231, 241, 255, 0.92)"
-            : "rgba(255, 190, 216, 0.9)";
-          context.lineWidth = 0.42 + gravity * 0.22;
-          context.shadowBlur = 0;
-          context.stroke(path);
         }
         context.restore();
 
         const collapseScale = 1 - compression * 0.58;
-        const driftX = Math.sin(time * 0.74) * radius * 0.028 * (1 - compression);
-        const driftY = Math.cos(time * 0.61) * radius * 0.022 * (1 - compression);
-        const buildVoidPath = (scale, phaseOffset, roughness = 1) => {
+        const driftX = Math.sin(time * 0.43) * radius * 0.007 * (1 - compression);
+        const driftY = Math.sin(time * 0.37 + 1.74) * radius * 0.006 * (1 - compression);
+        const buildVoidPath = (scale, phaseOffset, roughness = 1, aspect = 0.96) => {
           const points = [];
-          const pointCount = parameters.mobile ? 14 : 18;
+          const pointCount = parameters.mobile ? 18 : 24;
           const radiusX = radius * scale * collapseScale;
-          const radiusY = radius * scale * (0.72 - compression * 0.08) * collapseScale;
+          const radiusY = radius * scale * aspect * collapseScale;
+          const contourBreath = 0.78
+            + Math.sin(time * 0.66 + phaseOffset) * 0.12
+            + Math.sin(time * 1.17 + phaseOffset * 0.43) * 0.06;
           for (let index = 0; index < pointCount; index += 1) {
             const angle = index / pointCount * fullTurn;
             const wobble = 1
-              + Math.sin(angle * 3 - time * 0.52 + phaseOffset)
-                * (0.045 + gravity * 0.018) * roughness
-              + Math.sin(angle * 7 + time * 0.78 + phaseOffset * 1.7)
-                * 0.022 * roughness
-              + Math.cos(angle * 11 - time * 1.08 - phaseOffset)
-                * 0.012 * roughness;
+              + Math.sin(angle * 2.13 + phaseOffset)
+                * (0.028 + gravity * 0.008) * roughness * contourBreath
+              + Math.sin(angle * 5.07 - phaseOffset * 1.31)
+                * 0.016 * roughness
+              + Math.cos(angle * 8.17 + phaseOffset * 0.67)
+                * 0.008 * roughness;
             points.push({
               x: driftX * (1 - scale * 0.32) + Math.cos(angle) * radiusX * wobble,
               y: driftY * (1 - scale * 0.28) + Math.sin(angle) * radiusY * wobble
@@ -2471,16 +2717,19 @@ const gateStyle = [
         const cloudCount = parameters.mobile ? 7 : 10;
         for (let cloud = 0; cloud < cloudCount; cloud += 1) {
           const seed = randomSeed(cloud + 19747);
-          const orbitAngle = seed * fullTurn
-            + time * (0.08 + seed * 0.07) * (cloud % 2 === 0 ? 1 : -1);
-          const orbitRadius = radius * (0.04 + seed * 0.23) * (1 - compression * 0.72);
-          const cloudX = driftX + Math.cos(orbitAngle) * orbitRadius;
-          const cloudY = driftY + Math.sin(orbitAngle) * orbitRadius * 0.62;
+          const cloudAngle = seed * fullTurn + (cloud % 3 - 1) * 0.18;
+          const inwardPulse = 0.5 + Math.sin(time * (0.38 + seed * 0.24) + seed * 13.7) * 0.5;
+          const cloudDistance = radius
+            * (0.035 + seed * 0.19)
+            * (0.76 + inwardPulse * 0.24)
+            * (1 - compression * 0.76);
+          const cloudX = driftX + Math.cos(cloudAngle) * cloudDistance;
+          const cloudY = driftY + Math.sin(cloudAngle) * cloudDistance * 0.9;
           const cloudRadius = radius * collapseScale * (0.38 + seed * 0.46);
-          const cloudFlatten = 0.56 + randomSeed(cloud + 19789) * 0.22;
+          const cloudFlatten = 0.74 + randomSeed(cloud + 19789) * 0.2;
           context.save();
           context.translate(cloudX, cloudY);
-          context.rotate(orbitAngle * 0.34 + Math.sin(time * 0.21 + cloud) * 0.12);
+          context.rotate(cloudAngle * 0.16 + Math.sin(time * 0.31 + cloud) * 0.035);
           context.scale(1, cloudFlatten);
           const cloudGradient = context.createRadialGradient(0, 0, 0, 0, 0, cloudRadius);
           cloudGradient.addColorStop(0, "rgba(0,0,3,0.88)");
@@ -2495,107 +2744,67 @@ const gateStyle = [
 
         context.save();
         context.globalCompositeOperation = "source-over";
-        context.lineCap = "round";
-        context.lineJoin = "round";
-        const armRotation = time * (0.17 + gravity * 0.11) * (1 - compression * 0.58);
-        for (let arm = 0; arm < 5; arm += 1) {
-          const seed = randomSeed(arm + 19841);
-          const baseAngle = arm / 5 * fullTurn + armRotation + (seed - 0.5) * 0.22;
-          const points = [];
-          const segments = parameters.mobile ? 8 : 11;
-          for (let segment = 0; segment <= segments; segment += 1) {
-            const unit = segment / segments;
-            const distance = radius * collapseScale * (
-              0.11 + unit * (0.8 + seed * 0.2)
-            );
-            const angle = baseAngle
-              + unit * (1.08 + gravity * 0.68 + seed * 0.28)
-              + Math.sin(unit * Math.PI * 1.9 - time * 0.58 + arm) * 0.058;
-            points.push({
-              x: driftX + Math.cos(angle) * distance,
-              y: driftY + Math.sin(angle) * distance * (0.62 + seed * 0.09)
-            });
-          }
-          for (let segment = 0; segment < points.length - 1; segment += 1) {
-            const unit = segment / (points.length - 1);
-            const start = points[segment];
-            const end = points[segment + 1];
-            const widthEnvelope = Math.pow(1 - unit, 0.72);
-            context.globalAlpha = opacity
-              * (0.06 + widthEnvelope * (0.17 + gravity * 0.045))
-              * (1 - compression * 0.18);
-            context.strokeStyle = segment % 3 === 0
-              ? "rgba(0,0,3,0.9)"
-              : "rgba(3,0,8,0.82)";
-            context.lineWidth = radius * collapseScale * (
-              0.022 + widthEnvelope * (0.115 + seed * 0.018)
-            );
-            context.shadowColor = "rgba(0,0,5,0.68)";
-            context.shadowBlur = radius
-              * (0.045 + widthEnvelope * 0.075)
-              * parameters.shadowQuality;
-            context.beginPath();
-            context.moveTo(start.x, start.y);
-            context.lineTo(end.x, end.y);
-            context.stroke();
-          }
-        }
-        context.restore();
-
-        context.save();
-        context.translate(
-          driftX + Math.sin(time * 0.47) * radius * 0.012 * (1 - compression),
-          driftY + Math.cos(time * 0.39) * radius * 0.01 * (1 - compression)
+        const voidGradient = context.createRadialGradient(
+          driftX - radius * 0.025,
+          driftY - radius * 0.018,
+          radius * 0.01,
+          driftX,
+          driftY,
+          radius * 0.3 * collapseScale
         );
-        context.rotate(
-          -time * 0.11 * (1 - compression * 0.7)
-          + Math.sin(time * 0.31) * 0.08
-        );
-        context.scale(
-          1.18 + Math.sin(time * 0.73) * 0.08 * (1 - compression),
-          0.74 + Math.cos(time * 0.61) * 0.055 * (1 - compression)
-        );
-        context.globalCompositeOperation = "source-over";
-        context.globalAlpha = opacity * (0.92 + compression * 0.06);
-        context.fillStyle = "rgba(0,0,1,0.998)";
-        context.fill(buildVoidPath(0.21, 1.24, 2.35));
-        context.translate(radius * 0.025 * (1 - compression), -radius * 0.012);
-        context.globalAlpha = opacity * 0.88;
-        context.fillStyle = "rgba(0,0,4,0.96)";
-        context.fill(buildVoidPath(0.13, 3.67, 2.7));
+        voidGradient.addColorStop(0, "rgba(0,0,0,1)");
+        voidGradient.addColorStop(0.58, "rgba(0,0,1,0.998)");
+        voidGradient.addColorStop(0.82, "rgba(0,0,4,0.92)");
+        voidGradient.addColorStop(1, "rgba(3,0,9,0.18)");
+        context.globalAlpha = opacity * (0.9 + compression * 0.08);
+        context.fillStyle = voidGradient;
+        context.shadowColor = "rgba(0,0,2,0.88)";
+        context.shadowBlur = radius * 0.2 * parameters.shadowQuality;
+        context.fill(buildVoidPath(0.29, 1.24, 1.42, 0.95));
+        context.shadowBlur = 0;
+        context.globalAlpha = opacity * 0.99;
+        context.fillStyle = "rgba(0,0,0,0.998)";
+        context.fill(buildVoidPath(0.185, 3.67, 1.72, 0.985));
         context.restore();
         context.restore();
 
         context.save();
         context.globalCompositeOperation = "lighter";
         context.lineCap = "round";
-        for (let arc = 0; arc < 3; arc += 1) {
+        for (let arc = 0; arc < 2; arc += 1) {
           const seed = randomSeed(arc + 19681);
-          const start = time * (0.18 + seed * 0.09) + seed * fullTurn;
-          const span = 0.42 + seed * 0.54;
+          const start = seed * fullTurn + arc * 0.71;
+          const span = 0.24 + seed * 0.22;
           const points = [];
-          const segments = 7;
+          const segments = 6;
           for (let segment = 0; segment <= segments; segment += 1) {
             const unit = segment / segments;
             const angle = start + span * unit;
             const edgeRadius = radius * collapseScale * (
-              0.98
-              + Math.sin(angle * 5 - time * 0.7 + arc) * 0.04
-              + arc * 0.035
+              0.96
+              + Math.sin(angle * 4.7 + arc * 1.8) * 0.028
+              + Math.sin(time * (0.86 + seed * 0.34) + unit * Math.PI) * 0.012
             );
             points.push({
               x: driftX + Math.cos(angle) * edgeRadius,
-              y: driftY + Math.sin(angle) * edgeRadius * (0.72 - compression * 0.08)
+              y: driftY + Math.sin(angle) * edgeRadius * 0.95
             });
           }
           const edgePath = createSmoothCanvasPath(points);
-          context.globalAlpha = opacity * (0.12 + gravity * 0.1) * (0.58 + seed * 0.42);
+          const flicker = Math.pow(
+            0.5 + Math.sin(time * (1.7 + seed * 0.8) + seed * 19.4) * 0.5,
+            2.2
+          );
+          context.globalAlpha = opacity
+            * (0.035 + gravity * 0.055)
+            * (0.34 + flicker * 0.66)
+            * (1 - compression * 0.48);
           context.strokeStyle = arc % 2 === 0
             ? "rgba(255, 112, 165, 0.86)"
             : "rgba(182, 211, 255, 0.78)";
-          context.lineWidth = 0.56 + gravity * 0.54;
+          context.lineWidth = 0.5 + gravity * 0.42;
           context.shadowColor = context.strokeStyle;
-          context.shadowBlur = (4 + gravity * 7) * parameters.shadowQuality;
+          context.shadowBlur = (3 + gravity * 5) * parameters.shadowQuality;
           context.stroke(edgePath);
         }
         context.restore();
@@ -2700,7 +2909,7 @@ const gateStyle = [
           0.92
         );
         const blackHoleOpacity = blackHoleBuild * blackHoleFade;
-        const blackHoleAngle = -0.16 + Math.sin(time * 0.43) * 0.025 - collapseDepth * 0.16;
+        const blackHoleAngle = -0.16 - collapseDepth * 0.16;
 
         context.save();
         context.globalCompositeOperation = "lighter";
@@ -2934,8 +3143,8 @@ const gateStyle = [
             orbitParticles.push({
               angle: nextParticleRandom() * Math.PI * 2,
               radius: diskRadius * (1.05 + nextParticleRandom() * 1.55),
-              angularVelocity: (0.72 + nextParticleRandom() * 1.08) * (nextParticleRandom() > 0.1 ? 1 : -1),
-              radialSpeed: 5 + nextParticleRandom() * 13,
+              angularVelocity: (0.16 + nextParticleRandom() * 0.34) * (nextParticleRandom() > 0.16 ? 1 : -1),
+              radialSpeed: 10 + nextParticleRandom() * 18,
               lane: 0.74 + nextParticleRandom() * 0.34,
               age: 0,
               life: 4.8 + nextParticleRandom() * 5.4,
@@ -2967,7 +3176,7 @@ const gateStyle = [
           }
           const previousAngle = particle.angle;
           const previousRadius = particle.radius;
-          const orbitAcceleration = 1 + gravityLock * 4.8 + collapseDepth * 5.4 + crushCompression * 9.5;
+          const orbitAcceleration = 1 + gravityLock * 0.9 + collapseDepth * 0.8 + crushCompression * 1.4;
           particle.angle += particle.angularVelocity * frameSeconds * orbitAcceleration
             * Math.pow(diskRadius / Math.max(coreRadius, particle.radius), 0.46);
           particle.radius -= (
@@ -5152,6 +5361,7 @@ const gateStyle = [
         resizeEnergyCanvas(true);
         resizeBurstCanvas(true);
         resizePostReleaseCanvas(true);
+        resizeTitleDataCanvas(true);
         spaceLensRenderer?.resize();
         titleLensRenderer?.resize();
         startEnergyAnimation();
