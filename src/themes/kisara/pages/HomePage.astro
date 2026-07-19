@@ -113,6 +113,8 @@ const gateStyle = [
       const burstCanvas = gate.querySelector("[data-kisara-burst-canvas]");
       const burstContext = burstCanvas?.getContext("2d");
       const meterShell = gate.querySelector(".kisara-contract-meter");
+      const title = gate.querySelector(".kisara-title");
+      const cross = gate.querySelector(".kisara-title-cross");
       const opening = document.querySelector("#kisara-opening");
       const state = gate.querySelector("[data-kisara-state]");
       const cue = gate.querySelector("[data-kisara-cue]");
@@ -131,17 +133,23 @@ const gateStyle = [
       const crossBuildEnd = 0.58;
       const crossFlashEnd = 0.72;
       const crossEnd = 0.82;
-      const reformEnd = 0.9;
-      const detonationStart = 0.88;
-      const detonationEnd = 0.97;
-      const rainStart = 0.985;
+      const reformEnd = 0.89;
+      const detonationStart = 0.885;
+      const detonationEnd = 0.958;
+      const rainStart = 0.952;
+      const rainPeak = 0.978;
+      const releaseAutoplayDuration = 5200;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
-      let progress = reducedMotion || restoredBelowGate ? 1 : 0;
+      const startsComplete = reducedMotion && !restoredBelowGate;
+      let progress = startsComplete ? 1 : 0;
       let targetProgress = progress;
       let velocity = 0;
-      let burstProgress = reducedMotion || restoredBelowGate ? 1 : 0;
+      let burstProgress = startsComplete ? 1 : 0;
       let targetBurstProgress = burstProgress;
       let burstVelocity = 0;
+      let burstAutoplay = false;
+      let burstAutoplayComplete = startsComplete;
+      let burstAutoplayStartedAt = 0;
       let animationFrame = 0;
       let lastFrameTime = 0;
       let touchY = null;
@@ -157,12 +165,17 @@ const gateStyle = [
       let burstCanvasHeight = 0;
       let pageMode = restoredBelowGate ? "next" : "gate";
       let scrollFrame = 0;
+      let resetTransitionTimer = 0;
       let restoreWindowOpen = true;
       let poseTimestamp = 0;
+      let poseClock = 0;
+      let poseAtRest = true;
       let chargeInstability = 0;
       let beamPose = {
         shakeX: 0,
         shakeY: 0,
+        anchorX: 0,
+        anchorY: 0,
         lift: 0,
         scaleX: 1,
         scaleY: 1,
@@ -257,12 +270,12 @@ const gateStyle = [
         const angleRadians = beamPose.angle * Math.PI / 180;
         const headOffset = (localFrontX - meterWidth * 0.5) * beamPose.scaleX;
         const originX = clamp(
-          meterLeft + meterWidth * 0.5 + beamPose.shakeX + Math.cos(angleRadians) * headOffset,
+          meterLeft + meterWidth * 0.5 + beamPose.anchorX + beamPose.shakeX + Math.cos(angleRadians) * headOffset,
           width * 0.05,
           width * 0.95
         );
         const originY = clamp(
-          meterTop + meterHeight * 0.5 + beamPose.shakeY + beamPose.lift + Math.sin(angleRadians) * headOffset,
+          meterTop + meterHeight * 0.5 + beamPose.anchorY + beamPose.shakeY + beamPose.lift + Math.sin(angleRadians) * headOffset,
           height * 0.12,
           height * 0.88
         );
@@ -274,8 +287,11 @@ const gateStyle = [
         const pressure = phaseProgress(burst, 0.7, 0.94);
         const detonation = phaseProgress(burst, detonationStart, detonationEnd);
         const detonationRush = 1 - Math.pow(1 - detonation, 2.6);
-        const rainProgress = phaseProgress(burst, rainStart, 1);
-        const wakeOpacity = clamp(1 - dissolve * 0.78 - rainProgress * 0.72, 0, 1);
+        const rainProgress = phaseProgress(burst, rainStart, rainPeak);
+        const rainFade = 1 - phaseProgress(burst, rainPeak, 1);
+        const rainOpacity = rainProgress * rainFade;
+        const releaseFade = 1 - phaseProgress(burst, rainPeak, 1);
+        const wakeOpacity = clamp((1 - dissolve) * releaseFade, 0, 1);
         context.save();
         context.globalCompositeOperation = "lighter";
 
@@ -287,7 +303,7 @@ const gateStyle = [
           const x = (seedX * width + Math.sin(time * speed + index) * (4 + fill * 20) + width) % width;
           const y = (seedY * height + Math.cos(time * (speed + 0.2) + index) * (3 + fill * 16) + height) % height;
           const size = 0.45 + seedY * (0.7 + fill * 1.8);
-          const alpha = (0.025 + seedX * 0.14) * intensity;
+          const alpha = (0.025 + seedX * 0.14) * intensity * wakeOpacity;
           context.globalAlpha = alpha;
           context.fillStyle = fill > 0.56 && index % 3 !== 0 ? "#ff9caf" : "#c5d8ff";
           context.beginPath();
@@ -381,7 +397,7 @@ const gateStyle = [
           compression.addColorStop(0, `rgba(255, 250, 252, ${0.08 + pressure * 0.13})`);
           compression.addColorStop(0.28, `rgba(255, 92, 128, ${0.035 + pressure * 0.09})`);
           compression.addColorStop(1, "rgba(255, 73, 105, 0)");
-          context.globalAlpha = 1;
+          context.globalAlpha = releaseFade;
           context.fillStyle = compression;
           context.fillRect(0, 0, width, height);
 
@@ -400,19 +416,19 @@ const gateStyle = [
               flash.addColorStop(0, `rgba(255, 249, 252, ${0.22 * pulse})`);
               flash.addColorStop(0.3, `rgba(255, 116, 149, ${0.085 * pulse})`);
               flash.addColorStop(1, "rgba(255, 73, 105, 0)");
-              context.globalAlpha = 1;
+              context.globalAlpha = releaseFade;
               context.fillStyle = flash;
               context.fillRect(0, 0, width, height);
             }
 
-            context.globalAlpha = Math.pow(detonation, 5) * 0.06;
+            context.globalAlpha = Math.pow(detonation, 5) * 0.06 * releaseFade;
             context.fillStyle = "#ff7894";
             context.fillRect(0, 0, width, height);
 
             for (let ring = 0; ring < 3; ring += 1) {
               const ringRadius = shockRadius - ring * (18 + detonationRush * 34);
               if (ringRadius <= 0) continue;
-              context.globalAlpha = (0.2 - ring * 0.04) * intensity * (0.38 + detonationRush * 0.62);
+              context.globalAlpha = (0.2 - ring * 0.04) * intensity * (0.38 + detonationRush * 0.62) * releaseFade;
               context.strokeStyle = ring % 2 === 0 ? "#ffb1c3" : "#d9e5ff";
               context.lineWidth = 1 + detonationRush * (3.8 - ring * 0.46);
               context.beginPath();
@@ -429,7 +445,7 @@ const gateStyle = [
               const radius = age * shockRadius;
               const x = burstOriginX + Math.cos(angle) * radius;
               const y = burstOriginY + Math.sin(angle) * radius * 0.76;
-              const alpha = (1 - age) * (0.16 + seed * 0.76) * intensity * (0.4 + detonationRush * 0.86) * (1 - rainProgress);
+              const alpha = (1 - age) * (0.16 + seed * 0.76) * intensity * (0.4 + detonationRush * 0.86) * (1 - rainProgress) * releaseFade;
               if (alpha <= 0.01) continue;
               const streak = 2 + detonationRush * (16 + seed * 48);
               context.globalAlpha = alpha;
@@ -442,7 +458,7 @@ const gateStyle = [
             }
           }
 
-          if (rainProgress > 0.001) {
+          if (rainOpacity > 0.001) {
             const rainCount = Math.floor((14 + rainProgress * 280) * densityScale);
             for (let index = 0; index < rainCount; index += 1) {
               const seed = randomSeed(index + 5201);
@@ -452,7 +468,7 @@ const gateStyle = [
               const x = seed * width + Math.sin(time * (0.8 + drift) + index) * (8 + rainProgress * 24);
               const y = -48 + age * (height + 96) + (1 - rainProgress) * burstOriginY * 0.42;
               const length = 2 + rainProgress * (4 + drift * 12);
-              const alpha = (0.16 + drift * 0.68) * rainProgress * (0.48 + intensity * 0.52);
+              const alpha = (0.16 + drift * 0.68) * rainOpacity * (0.48 + intensity * 0.52);
               context.globalAlpha = alpha;
               context.strokeStyle = index % 6 === 0 ? "#ffffff" : index % 2 === 0 ? "#ff9caf" : "#c9dcff";
               context.lineWidth = 0.55 + rainProgress * (0.65 + seed * 1.1);
@@ -480,18 +496,38 @@ const gateStyle = [
         const pressure = phaseProgress(burst, 0.7, 0.94);
         const detonation = phaseProgress(burst, detonationStart, detonationEnd);
         const detonationRush = 1 - Math.pow(1 - detonation, 2.6);
-        const rainProgress = phaseProgress(burst, rainStart, 1);
-        const blurRecovery = phaseProgress(burst, 0.9, 1);
+        const rainProgress = phaseProgress(burst, rainStart, rainPeak);
+        const blurRecovery = phaseProgress(burst, detonationEnd, 1);
         const burstActive = burst > 0.001 && burst < 0.999;
-        const time = timestamp / 1000;
         if (advanceCharge) {
           const frameSeconds = poseTimestamp
             ? clamp((timestamp - poseTimestamp) / 1000, 0.008, 0.06)
             : 1 / 60;
           poseTimestamp = timestamp;
-          const instabilityTarget = Math.pow(fill, 0.86);
-          chargeInstability += (instabilityTarget - chargeInstability) * (1 - Math.exp(-frameSeconds * 5.4));
+          const atInitialState = fill <= 0.0005
+            && targetProgress <= 0.0005
+            && Math.abs(velocity) <= 0.0005
+            && targetBurstProgress <= 0.0005
+            && Math.abs(burstVelocity) <= 0.0005
+            && burst <= 0.0005;
+          if (atInitialState) {
+            chargeInstability = 0;
+            poseClock = 0;
+            poseTimestamp = timestamp;
+            poseAtRest = true;
+          } else {
+            if (poseAtRest) {
+              poseClock = 0;
+              chargeInstability = 0;
+              poseAtRest = false;
+            }
+            poseClock += frameSeconds;
+            const instabilityTarget = Math.pow(fill, 0.86);
+            const instabilityResponse = instabilityTarget < chargeInstability ? 10.8 : 5.4;
+            chargeInstability += (instabilityTarget - chargeInstability) * (1 - Math.exp(-frameSeconds * instabilityResponse));
+          }
         }
+        const time = poseClock;
         const instability = 0.28 + chargeInstability * 1.72;
         const floatFrequency = 0.68 + chargeInstability * 1.9;
         const floatAmplitudeX = 1.6 + instability * 5.5;
@@ -524,9 +560,7 @@ const gateStyle = [
         const shakeY = floatY + jitterY
           + Math.cos(time * (24 + pressure * 44 + detonationRush * 42)) * burstStrength * 0.62
           + detonationShakeY;
-        const beamLift = burst > 0.001
-          ? -reform * Math.min(150, gate.clientHeight * 0.17) - detonationRush * Math.min(38, gate.clientHeight * 0.05)
-          : 0;
+        const beamLift = 0;
         const beamScaleX = burst > 0.001
           ? (reform > 0 ? 0.16 + reform * 0.84 : 1) * (1 + detonationRush * 0.12)
           : 1;
@@ -534,6 +568,28 @@ const gateStyle = [
           ? 1 + reform * 0.32 + pressure * 0.62 + detonationRush * 1.6
           : 1;
         const beamAngle = floatAngle - reform * 8.5 - detonationRush * 17;
+        const anchorProgress = phaseProgress(burst, crossFlashEnd, crossEnd);
+        let beamAnchorX = 0;
+        let beamAnchorY = 0;
+        if (meterShell && title && anchorProgress > 0.0005) {
+          const gateRect = gate.getBoundingClientRect();
+          const meterWidth = meterShell.clientWidth;
+          const meterHeight = meterShell.clientHeight;
+          const frontRadius = 5 + fill * 22;
+          const localFrontX = clamp(meterWidth * fill, 3, Math.max(3, meterWidth - frontRadius * 2.2));
+          const headOffset = (localFrontX - meterWidth * 0.5) * beamScaleX;
+          const angleRadians = beamAngle * Math.PI / 180;
+          const rotatedHeadX = Math.cos(angleRadians) * headOffset;
+          const rotatedHeadY = Math.sin(angleRadians) * headOffset;
+          const meterCenterX = meterShell.offsetLeft + meterWidth * 0.5 - gateRect.left;
+          const meterCenterY = meterShell.offsetTop + meterHeight * 0.5 - gateRect.top;
+          const crossRect = cross?.getBoundingClientRect();
+          const titleRect = title.getBoundingClientRect();
+          const crossCenterX = (crossRect ? crossRect.left + crossRect.width * 0.5 : titleRect.left + titleRect.width * 0.5) - gateRect.left;
+          const crossCenterY = (crossRect ? crossRect.top + crossRect.height * 0.5 : titleRect.top + titleRect.height * 0.5) - gateRect.top;
+          beamAnchorX = (crossCenterX - meterCenterX - rotatedHeadX) * anchorProgress;
+          beamAnchorY = (crossCenterY - meterCenterY - rotatedHeadY - beamLift) * anchorProgress;
+        }
         const fadeOut = phaseProgress(burst, 0.015, 0.13);
         const beamVisibility = burst <= 0.001
           ? 1
@@ -569,9 +625,20 @@ const gateStyle = [
           + Math.sin(time * (8 + crossFlash * 18)) * (0.7 + crossStrobe * 3.8);
         const crossShakeX = Math.sin(time * (16 + crossFlash * 28)) * (0.35 + crossStrobe * 2.6 + releaseFlash * 2.2);
         const crossShakeY = Math.cos(time * (19 + crossFlash * 31)) * (0.3 + crossStrobe * 2.1 + releaseFlash * 1.8);
-        beamPose = { shakeX, shakeY, lift: beamLift, scaleX: beamScaleX, scaleY: beamScaleY, angle: beamAngle };
+        beamPose = {
+          shakeX,
+          shakeY,
+          anchorX: beamAnchorX,
+          anchorY: beamAnchorY,
+          lift: beamLift,
+          scaleX: beamScaleX,
+          scaleY: beamScaleY,
+          angle: beamAngle
+        };
         meterShell?.style.setProperty("--kisara-beam-shake-x", `${shakeX.toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-shake-y", `${shakeY.toFixed(3)}px`);
+        meterShell?.style.setProperty("--kisara-beam-anchor-x", `${beamAnchorX.toFixed(3)}px`);
+        meterShell?.style.setProperty("--kisara-beam-anchor-y", `${beamAnchorY.toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-lift", `${beamLift.toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-expansion", beamScaleY.toFixed(4));
         meterShell?.style.setProperty("--kisara-beam-scale-x", beamScaleX.toFixed(4));
@@ -611,7 +678,8 @@ const gateStyle = [
         if (tick === renderedGlitchTick) return;
         const burstComplete = targetBurstProgress >= 0.9995
           && burstProgress >= 0.999
-          && Math.abs(burstVelocity) < 0.001;
+          && Math.abs(burstVelocity) < 0.001
+          && burstAutoplayComplete;
         state.textContent = makeGlitchState(timestamp, burstProgress, burstComplete);
         renderedGlitchTick = tick;
       };
@@ -631,11 +699,16 @@ const gateStyle = [
 
         const time = timestamp / 1000;
         const centerY = height / 2;
-        const reform = smoothstep(clamp((burstProgress - 0.15) / 0.29, 0, 1));
-        const pressure = smoothstep(clamp((burstProgress - 0.22) / 0.52, 0, 1));
+        const reform = phaseProgress(burstProgress, crossEnd, reformEnd);
+        const pressure = phaseProgress(burstProgress, 0.7, 0.94);
         const detonation = phaseProgress(burstProgress, detonationStart, detonationEnd);
         const detonationRush = 1 - Math.pow(1 - detonation, 2.6);
-        const rainProgress = phaseProgress(burstProgress, rainStart, 1);
+        const rainProgress = phaseProgress(burstProgress, rainStart, rainPeak);
+        const fadeOut = phaseProgress(burstProgress, 0.015, 0.13);
+        const beamVisibility = burstProgress <= 0.001
+          ? 1
+          : clamp((1 - fadeOut) * (1 - reform) + reform, 0, 1);
+        const localBeamOpacity = clamp(beamVisibility * (1 - rainProgress), 0, 1);
         const startThickness = 0.8 + fill * 1.8;
         const endThickness = 2 + fill * 34 + reform * 5 + pressure * 10 + detonationRush * 25;
         const intensity = 0.12 + fill * 0.88 + pressure * 0.12 + detonationRush * 0.3;
@@ -643,6 +716,12 @@ const gateStyle = [
         const frontX = clamp(width * fill, 3, Math.max(3, width - frontRadius * 2.2));
         const noseLength = Math.min(12, Math.max(1.5, frontX * 0.26));
         const context = energyContext;
+        if (localBeamOpacity <= 0.001) {
+          if (!reducedMotion && document.visibilityState === "visible" && pageMode === "gate") {
+            energyFrame = window.requestAnimationFrame(drawEnergy);
+          }
+          return;
+        }
         const thicknessAt = (x, scale = 1) =>
           (startThickness + (endThickness - startThickness) * clamp(x / frontX, 0, 1)) * scale;
         context.save();
@@ -713,7 +792,7 @@ const gateStyle = [
           context.stroke();
         }
 
-        const wakeOpacity = clamp(1 - phaseProgress(burstProgress, 0.015, 0.14) * 0.82 - rainProgress * 0.7, 0, 1);
+        const wakeOpacity = clamp(1 - fadeOut, 0, 1);
         const localWakeLength = Math.max(24, 26 + fill * frontX * 0.56);
         const localWakeSpread = 3 + fill * height * 0.28;
         if (wakeOpacity > 0.001) {
@@ -822,13 +901,13 @@ const gateStyle = [
         context.fillRect(0, 0, width, height);
         context.restore();
 
-        if (!reducedMotion && document.visibilityState === "visible" && pageMode !== "next") {
+        if (!reducedMotion && document.visibilityState === "visible" && pageMode === "gate") {
           energyFrame = window.requestAnimationFrame(drawEnergy);
         }
       };
 
       const startEnergyAnimation = () => {
-        if (!energyContext || pageMode === "next") return;
+        if (!energyContext || pageMode !== "gate") return;
         if (reducedMotion) {
           drawEnergy(performance.now());
           return;
@@ -845,7 +924,8 @@ const gateStyle = [
         const burstComplete = fillComplete
           && targetBurstProgress >= 0.9995
           && burstProgress >= 0.999
-          && Math.abs(burstVelocity) < 0.001;
+          && Math.abs(burstVelocity) < 0.001
+          && burstAutoplayComplete;
         const tideVisible = fill > 0.0005;
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
         const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
@@ -891,12 +971,23 @@ const gateStyle = [
         gate.classList.toggle("is-released", pageMode === "next");
         gate.classList.toggle("is-receding", velocity < -0.0003);
         if (cue) {
-          cue.textContent = burstComplete
+          cue.textContent = burstAutoplay
+            ? "AUTOMATIC RELEASE / STAND BY"
+            : burstComplete
             ? "SIGNAL RELEASED / CONTINUE"
             : fillComplete
               ? "OVERCHARGE / BREAK THE SEAL"
               : "SCROLL / SIGN THE CONTRACT";
         }
+      };
+
+      const startReleaseAutoplay = (timestamp) => {
+        if (burstAutoplay || burstAutoplayComplete) return;
+        burstAutoplay = true;
+        burstAutoplayStartedAt = timestamp;
+        targetBurstProgress = 1;
+        burstProgress = Math.max(crossEnd, burstProgress);
+        burstVelocity = 0;
       };
 
       const animate = (timestamp) => {
@@ -908,11 +999,31 @@ const gateStyle = [
         const spring = (targetProgress - progress) * springStrength * frameRatio;
         velocity = (velocity + spring) * Math.pow(damping, frameRatio);
         progress = clamp(progress + velocity * frameRatio, 0, 1);
-        const burstSpring = (targetBurstProgress - burstProgress) * burstSpringStrength * frameRatio;
-        burstVelocity = (burstVelocity + burstSpring) * Math.pow(burstDamping, frameRatio);
-        burstProgress = clamp(burstProgress + burstVelocity * frameRatio, 0, 1);
+        if (burstAutoplay) {
+          const autoplayProgress = clamp((timestamp - burstAutoplayStartedAt) / releaseAutoplayDuration, 0, 1);
+          burstProgress = crossEnd + (1 - crossEnd) * autoplayProgress;
+          targetBurstProgress = 1;
+          burstVelocity = 0;
+          if (autoplayProgress >= 1) {
+            burstAutoplay = false;
+            burstAutoplayComplete = true;
+            burstProgress = 1;
+          }
+        } else {
+          const burstSpring = (targetBurstProgress - burstProgress) * burstSpringStrength * frameRatio;
+          burstVelocity = (burstVelocity + burstSpring) * Math.pow(burstDamping, frameRatio);
+          burstProgress = clamp(burstProgress + burstVelocity * frameRatio, 0, 1);
+          if (
+            !burstAutoplayComplete
+            && targetBurstProgress >= crossEnd - 0.0005
+            && burstProgress >= crossEnd - 0.0007
+          ) {
+            startReleaseAutoplay(timestamp);
+          }
+        }
 
-        const settled = Math.abs(targetProgress - progress) < settleDistance
+        const settled = !burstAutoplay
+          && Math.abs(targetProgress - progress) < settleDistance
           && Math.abs(velocity) < settleDistance
           && Math.abs(targetBurstProgress - burstProgress) < settleDistance
           && Math.abs(burstVelocity) < settleDistance;
@@ -946,11 +1057,12 @@ const gateStyle = [
         window.scrollTo(0, clamp(value, 0, Math.max(0, document.documentElement.scrollHeight - window.innerHeight)));
       };
 
-      const smoothScrollTo = (target, onComplete) => {
+      const smoothScrollTo = (target, onComplete, onProgress) => {
         if (scrollFrame) return;
         const destination = Math.max(0, target);
         if (reducedMotion) {
           setScrollPosition(destination);
+          onProgress?.(1);
           onComplete?.();
           return;
         }
@@ -960,12 +1072,14 @@ const gateStyle = [
         let current = window.scrollY;
         let velocity = 0;
         let lastTimestamp = performance.now();
+        const initialDistance = Math.max(1, Math.abs(destination - current));
         const stiffness = 38;
         const dampingForce = 11.8;
         const maxVelocity = clamp(Math.abs(destination - current) * 2.4, 620, 1900);
 
         const finish = () => {
           setScrollPosition(destination);
+          onProgress?.(1);
           root.style.scrollBehavior = previousScrollBehavior;
           scrollFrame = 0;
           onComplete?.();
@@ -979,6 +1093,7 @@ const gateStyle = [
           velocity = clamp(velocity + acceleration * deltaTime, -maxVelocity, maxVelocity);
           current += velocity * deltaTime;
           setScrollPosition(current);
+          onProgress?.(clamp(1 - Math.abs(destination - current) / initialDistance, 0, 1));
           if (Math.abs(distance) < 0.35 && Math.abs(velocity) < 8) {
             finish();
             return;
@@ -991,7 +1106,9 @@ const gateStyle = [
 
       const resetGateState = () => {
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
+        if (energyFrame) window.cancelAnimationFrame(energyFrame);
         animationFrame = 0;
+        energyFrame = 0;
         lastFrameTime = 0;
         targetProgress = 0;
         progress = 0;
@@ -999,41 +1116,78 @@ const gateStyle = [
         targetBurstProgress = 0;
         burstProgress = 0;
         burstVelocity = 0;
+        burstAutoplay = false;
+        burstAutoplayComplete = false;
+        burstAutoplayStartedAt = 0;
         energyProgress = 0;
         poseTimestamp = 0;
+        poseClock = 0;
+        poseAtRest = true;
         chargeInstability = 0;
+        beamPose = {
+          shakeX: 0,
+          shakeY: 0,
+          anchorX: 0,
+          anchorY: 0,
+          lift: 0,
+          scaleX: 1,
+          scaleY: 1,
+          angle: 0
+        };
         renderedPercent = -1;
         renderedStage = "";
         renderedGlitchTick = -1;
+        energyContext?.clearRect(0, 0, energyCanvasWidth, energyCanvasHeight);
+        burstContext?.clearRect(0, 0, burstCanvasWidth, burstCanvasHeight);
         render();
       };
 
       const enterNextPage = () => {
         if (scrollFrame) return;
         pageMode = "snap";
+        let resetApplied = false;
+        gate.classList.remove("is-color-resetting");
         smoothScrollTo(getNextPageTop(), () => {
+          if (!resetApplied) resetGateState();
           pageMode = "next";
           render();
+          if (resetTransitionTimer) window.clearTimeout(resetTransitionTimer);
+          resetTransitionTimer = window.setTimeout(() => {
+            gate.classList.remove("is-color-resetting");
+            resetTransitionTimer = 0;
+          }, 260);
+        }, (scrollProgress) => {
+          if (scrollProgress >= 0.68) gate.classList.add("is-color-resetting");
+          if (scrollProgress >= 0.86 && !resetApplied) {
+            resetApplied = true;
+            resetGateState();
+          }
         });
       };
 
       const returnToGate = () => {
         if (scrollFrame) return;
+        if (resetTransitionTimer) {
+          window.clearTimeout(resetTransitionTimer);
+          resetTransitionTimer = 0;
+        }
+        gate.classList.remove("is-color-resetting");
         pageMode = "snap";
         smoothScrollTo(0, () => {
           pageMode = "gate";
-          resetGateState();
+          render();
         });
       };
 
       const addProgress = (delta) => {
+        if (burstAutoplay || burstAutoplayComplete) return;
         const boundedDelta = clamp(delta, -180, 180);
         const fillComplete = targetProgress >= 0.9995
           && progress >= 0.999
           && Math.abs(velocity) < 0.001;
         const burstInProgress = targetBurstProgress > 0.0005 || burstProgress > 0.0005;
         if ((delta > 0 && fillComplete) || (delta < 0 && burstInProgress)) {
-          targetBurstProgress = clamp(targetBurstProgress + boundedDelta / burstDistance, 0, 1);
+          targetBurstProgress = clamp(targetBurstProgress + boundedDelta / burstDistance, 0, crossEnd);
           burstVelocity += boundedDelta / burstDistance * 0.045;
         } else {
           targetProgress = clamp(targetProgress + boundedDelta / fillDistance, 0, 1);
@@ -1049,10 +1203,12 @@ const gateStyle = [
       const isComplete = () => isFillComplete()
         && targetBurstProgress >= 0.9995
         && burstProgress >= 0.999
-        && Math.abs(burstVelocity) < 0.001;
+        && Math.abs(burstVelocity) < 0.001
+        && burstAutoplayComplete;
 
       const shouldCaptureGate = (delta) => {
         if (window.scrollY > 2 || delta === 0) return false;
+        if (burstAutoplay) return true;
         if (delta > 0) return !isComplete();
         return targetBurstProgress > 0.0005
           || burstProgress > 0.0005
@@ -1153,6 +1309,9 @@ const gateStyle = [
         targetBurstProgress = 1;
         burstProgress = 1;
         burstVelocity = 0;
+        burstAutoplay = false;
+        burstAutoplayComplete = true;
+        burstAutoplayStartedAt = 0;
         render();
         enterNextPage();
       });
@@ -1173,18 +1332,9 @@ const gateStyle = [
 
       render();
       const syncRestoredPosition = () => {
-        if (!restoreWindowOpen || scrollFrame || pageMode !== "gate" || window.scrollY <= 2 || isComplete()) return;
-        if (animationFrame) window.cancelAnimationFrame(animationFrame);
-        animationFrame = 0;
-        lastFrameTime = 0;
-        targetProgress = 1;
-        progress = 1;
-        velocity = 0;
-        targetBurstProgress = 1;
-        burstProgress = 1;
-        burstVelocity = 0;
+        if (!restoreWindowOpen || scrollFrame || pageMode !== "gate" || window.scrollY <= 2) return;
         pageMode = "next";
-        render();
+        resetGateState();
       };
       window.addEventListener("pageshow", syncRestoredPosition);
       window.addEventListener("scroll", syncRestoredPosition, { passive: true });

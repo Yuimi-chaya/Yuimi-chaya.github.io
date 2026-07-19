@@ -245,6 +245,8 @@ a {
   --kisara-gloss-opacity: 0;
   --kisara-beam-shake-x: 0px;
   --kisara-beam-shake-y: 0px;
+  --kisara-beam-anchor-x: 0px;
+  --kisara-beam-anchor-y: 0px;
   --kisara-beam-lift: 0px;
   --kisara-beam-expansion: 1;
   --kisara-beam-scale-x: 1;
@@ -289,6 +291,23 @@ a {
   overflow: hidden;
   isolation: isolate;
   background-color: #111636;
+}
+
+.kisara-gate::after {
+  content: "";
+  position: absolute;
+  z-index: 20;
+  inset: -2px;
+  pointer-events: none;
+  opacity: 0;
+  background: rgba(17, 22, 54, 0.64);
+  backdrop-filter: blur(0) saturate(1);
+  transition: opacity 260ms ease, backdrop-filter 260ms ease;
+}
+
+.kisara-gate.is-color-resetting::after {
+  opacity: 0.88;
+  backdrop-filter: blur(14px) saturate(0.72);
 }
 
 .kisara-gate-visual,
@@ -379,8 +398,11 @@ a {
   -webkit-text-stroke: 2px rgba(235, 239, 255, 0.24);
   background-clip: text;
   -webkit-background-clip: text;
+  filter: blur(var(--kisara-performance-blur));
+  -webkit-filter: blur(var(--kisara-performance-blur));
   text-shadow: 0 12px 30px rgba(5, 8, 28, 0.4);
   transition: text-shadow 260ms ease, transform 260ms ease;
+  will-change: transform, filter;
 }
 
 .kisara-title-base {
@@ -697,7 +719,11 @@ a {
   height: 68px;
   margin-top: 34px;
   isolation: isolate;
-  transform: translate3d(var(--kisara-beam-shake-x), calc(var(--kisara-beam-shake-y) + var(--kisara-beam-lift)), 0)
+  transform: translate3d(
+      calc(var(--kisara-beam-anchor-x) + var(--kisara-beam-shake-x)),
+      calc(var(--kisara-beam-anchor-y) + var(--kisara-beam-shake-y) + var(--kisara-beam-lift)),
+      0
+    )
     rotate(var(--kisara-beam-angle))
     scaleX(var(--kisara-beam-scale-x))
     scaleY(var(--kisara-beam-scale-y));
