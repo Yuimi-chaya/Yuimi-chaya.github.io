@@ -383,3 +383,12 @@
 - Added a `Kisara` text-only pixel-data strip. A direction change starts one mirrored journey; its position and fade derive from the actual damped background displacement, so repeated pointer events in the same direction cannot restart the strip.
 - Composed parallax additively with the existing black-hole fight shifts, dynamically capped it against the background layer's physical bleed, and reset the new RAF, Canvas, particles, CSS variables, and direction state during visibility changes, section entry, restored navigation, and return-to-blue flows.
 - Fixed two stale `lightningCoreLastPaintTimestamp` reset references left after the procedural singularity rename.
+
+### 2026-07-19 Kisara ember eyes and persistent pixel-band refinement
+
+- Removed the `YUIMI LAB / INTERACTION CHANNEL 03` gate label that crossed the character's eyes after reconstruction.
+- Rebuilt the title data effect as a square-cell band with an independent roughly 1.2-second journey. It now travels opposite the background parallax, reverses from its current position, and remains fully visible at the left or right text edge instead of fading out at arrival.
+- Recalibrated the third post-release source to the pale blade's right edge in `fight.jpg`. Both eyes now use larger breathing blooms, a layered rising flame core, and directional flame tongues; the blade uses an elongated edge flare rather than a circular point.
+- Increased the bounded post-release particle budget and weighted emission toward the eyes. All three sources share one mirrored direction, launch upward, and retain stronger age-dependent lift after ejection so their free drift continues diagonally upward instead of resembling falling tears.
+- Slowed the horizontal background response to match the longer data-band read time while retaining the existing physical bleed limits and no-black-edge guarantee.
+- Revalidated `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind). Browser validation covered a complete desktop release, bidirectional pixel-band travel and edge parking, a complete `375x844` release, zero positive horizontal overflow, and empty page warning/error logs.

@@ -64,7 +64,6 @@ const gateStyle = [
     </div>
     <canvas class="kisara-burst-canvas" data-kisara-burst-canvas width="1280" height="900" aria-hidden="true"></canvas>
     <div class="kisara-screen-impact" aria-hidden="true"></div>
-    <p class="kisara-gate-index">YUIMI LAB / INTERACTION CHANNEL 03</p>
     <h1 class="kisara-title" aria-label="Kisara">
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
@@ -439,8 +438,9 @@ const gateStyle = [
       const postReleaseSources = [
         { x: 0.4845, y: 0.338, kind: "eye", angle: -0.16, strength: 1 },
         { x: 0.5585, y: 0.336, kind: "eye", angle: 0.08, strength: 0.96 },
-        { x: 0.592, y: 0.055, kind: "blade", angle: 0.88, strength: 1.12 }
+        { x: 0.748, y: 0.36, kind: "blade", angle: 0.88, strength: 1.28 }
       ];
+      const postReleaseSourceOrder = [0, 1, 0, 1, 2, 0, 1];
       let fightImageWidth = 1920;
       let fightImageHeight = 1080;
       let postReleaseActive = false;
@@ -456,9 +456,13 @@ const gateStyle = [
       let postReleaseMaxY = 4;
       let postReleasePointerX = null;
       let postReleasePointerAccumulator = 0;
-      let postReleaseDirection = 0;
+      let postReleaseDirection = 1;
       let postReleaseDirectionChangedAt = 0;
       let postReleaseJourney = null;
+      let postReleaseDataInitialized = false;
+      let postReleaseDataPosition = 50;
+      let postReleaseDataOpacity = 0;
+      let postReleaseDataPhase = 0;
       let postReleaseEmissionBudget = 0;
       let postReleaseAmbientBudget = 0;
       let postReleaseSourceIndex = 0;
@@ -601,12 +605,97 @@ const gateStyle = [
         context.restore();
       };
 
+      const drawPostReleaseEyeFlame = (context, source, point, motionDirection, speed, time, alpha) => {
+        const direction = motionDirection || postReleaseDirection || 1;
+        const glowScale = clamp(point.scale, 0.58, 1.35);
+        const motionStretch = Math.min(22, speed * 0.16);
+        const baseLength = (25 + motionStretch) * glowScale;
+        const phase = time * 2.15 + source.x * 31 + source.y * 17;
+        const rawForwardX = -direction;
+        const rawForwardY = -0.22 + source.angle * 0.08 + Math.sin(phase * 0.68) * 0.024;
+        const forwardMagnitude = Math.max(0.001, Math.hypot(rawForwardX, rawForwardY));
+        const forwardX = rawForwardX / forwardMagnitude;
+        const forwardY = rawForwardY / forwardMagnitude;
+        const normalX = -forwardY;
+        const normalY = forwardX;
+        const lobes = [
+          { length: 1, width: 1, offset: 0, phase: 0, alpha: 0.58 },
+          { length: 0.72, width: 0.72, offset: -3.2, phase: 1.8, alpha: 0.42 },
+          { length: 0.56, width: 0.58, offset: 3.5, phase: 3.6, alpha: 0.34 }
+        ];
+
+        context.save();
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        for (const lobe of lobes) {
+          const flutter = Math.sin(phase * 1.7 + lobe.phase) * (2.4 + lobe.length * 2.1) * glowScale;
+          const length = baseLength * lobe.length * (0.92 + Math.sin(phase + lobe.phase) * 0.08);
+          const width = (3.7 + Math.min(2.8, speed * 0.024)) * glowScale * lobe.width;
+          const sideOffset = (lobe.offset + flutter * 0.28) * glowScale;
+          const tailX = point.x + forwardX * length + normalX * (sideOffset + flutter);
+          const tailY = point.y + forwardY * length + normalY * (sideOffset + flutter);
+          const gradient = context.createLinearGradient(tailX, tailY, point.x, point.y);
+          gradient.addColorStop(0, "rgba(255, 33, 120, 0)");
+          gradient.addColorStop(0.34, `rgba(255, 38, 125, ${alpha * lobe.alpha * 0.42})`);
+          gradient.addColorStop(0.72, `rgba(255, 91, 158, ${alpha * lobe.alpha * 0.9})`);
+          gradient.addColorStop(1, `rgba(255, 241, 250, ${alpha * lobe.alpha})`);
+
+          context.fillStyle = gradient;
+          context.shadowColor = `rgba(255, 35, 124, ${alpha * 0.56})`;
+          context.shadowBlur = 10 * glowScale;
+          context.beginPath();
+          context.moveTo(
+            point.x + normalX * width,
+            point.y + normalY * width
+          );
+          context.bezierCurveTo(
+            point.x + forwardX * length * 0.24 + normalX * (width * 1.5 + sideOffset * 0.2),
+            point.y + forwardY * length * 0.24 + normalY * (width * 1.5 + sideOffset * 0.2),
+            point.x + forwardX * length * 0.72 + normalX * (width * 0.44 + sideOffset),
+            point.y + forwardY * length * 0.72 + normalY * (width * 0.44 + sideOffset),
+            tailX,
+            tailY
+          );
+          context.bezierCurveTo(
+            point.x + forwardX * length * 0.64 + normalX * (-width * 0.42 + sideOffset),
+            point.y + forwardY * length * 0.64 + normalY * (-width * 0.42 + sideOffset),
+            point.x + forwardX * length * 0.18 - normalX * width,
+            point.y + forwardY * length * 0.18 - normalY * width,
+            point.x - normalX * width * 0.72,
+            point.y - normalY * width * 0.72
+          );
+          context.closePath();
+          context.fill();
+        }
+
+        const coreLength = baseLength * 0.82;
+        const coreTailX = point.x + forwardX * coreLength;
+        const coreTailY = point.y + forwardY * coreLength + normalY * Math.sin(phase * 1.6) * 2.6 * glowScale;
+        const coreGradient = context.createLinearGradient(coreTailX, coreTailY, point.x, point.y);
+        coreGradient.addColorStop(0, "rgba(255, 80, 151, 0)");
+        coreGradient.addColorStop(0.58, `rgba(255, 119, 180, ${alpha * 0.48})`);
+        coreGradient.addColorStop(1, `rgba(255, 255, 255, ${alpha * 0.92})`);
+        context.shadowBlur = 7 * glowScale;
+        context.strokeStyle = coreGradient;
+        context.lineWidth = Math.max(0.8, 1.45 * glowScale);
+        context.beginPath();
+        context.moveTo(coreTailX, coreTailY);
+        context.quadraticCurveTo(
+          point.x + forwardX * coreLength * 0.44 + normalX * Math.sin(phase) * 2.4 * glowScale,
+          point.y + forwardY * coreLength * 0.44 + normalY * Math.sin(phase) * 2.4 * glowScale,
+          point.x,
+          point.y
+        );
+        context.stroke();
+        context.restore();
+      };
+
       const drawPostReleaseHighlights = (context, timestamp, intro) => {
         const time = timestamp / 1000;
         const speed = Math.abs(postReleaseVelocityX);
         const motionDirection = Math.abs(postReleaseVelocityX) > 1.2
           ? Math.sign(postReleaseVelocityX)
-          : postReleaseDirection;
+          : postReleaseDirection || 1;
         context.save();
         context.globalCompositeOperation = "lighter";
         for (let index = 0; index < postReleaseSources.length; index += 1) {
@@ -623,81 +712,144 @@ const gateStyle = [
           const alpha = intro * source.strength * (pulse + movementLift);
           if (source.kind === "eye") {
             const glowScale = clamp(point.scale, 0.58, 1.35);
+            const firePulse = 0.92
+              + Math.sin(time * 4.6 + index * 1.3) * 0.13
+              + Math.sin(time * 8.7 + index * 0.8) * 0.05;
+            const fireRise = (1 + Math.sin(time * 3.8 + index * 1.7)) * 1.35 * glowScale;
+            drawPostReleaseEyeFlame(
+              context,
+              source,
+              point,
+              motionDirection,
+              speed,
+              time,
+              alpha * 0.94
+            );
             drawPostReleaseBloom(
               context,
               point.x,
               point.y,
-              13.5 * glowScale,
-              9.5 * glowScale,
+              23 * glowScale * firePulse,
+              16 * glowScale * firePulse,
               source.angle,
-              alpha * 0.36
+              alpha * 0.62
             );
             drawPostReleaseBloom(
               context,
               point.x - 0.6 * glowScale,
-              point.y - 1.4 * glowScale,
-              3.1 * glowScale,
-              5.7 * glowScale,
+              point.y - 1.8 * glowScale - fireRise * 0.28,
+              5.5 * glowScale * firePulse,
+              9.6 * glowScale * firePulse,
               source.angle,
-              alpha * 0.82
+              alpha
             );
-            drawPostReleaseTrail(context, source, point, motionDirection, speed, alpha * 0.72);
-            context.fillStyle = `rgba(255, 255, 255, ${0.72 * alpha})`;
+            context.save();
+            context.translate(point.x, point.y);
+            context.rotate(source.angle);
+            const tongueHeight = (10.5 + fireRise * 0.72) * glowScale * firePulse;
+            const tongueGradient = context.createLinearGradient(0, 4 * glowScale, 0, -tongueHeight);
+            tongueGradient.addColorStop(0, `rgba(255, 249, 253, ${0.98 * alpha})`);
+            tongueGradient.addColorStop(0.34, `rgba(255, 126, 179, ${0.9 * alpha})`);
+            tongueGradient.addColorStop(0.72, `rgba(255, 43, 128, ${0.62 * alpha})`);
+            tongueGradient.addColorStop(1, "rgba(255, 35, 124, 0)");
+            context.fillStyle = tongueGradient;
+            context.shadowColor = `rgba(255, 47, 132, ${0.76 * alpha})`;
+            context.shadowBlur = 7.5 * glowScale;
             context.beginPath();
-            context.arc(
-              point.x - 1.15 * glowScale,
-              point.y - 2.25 * glowScale,
-              Math.max(0.65, 1.15 * glowScale),
+            context.moveTo(-3.15 * glowScale, 3.2 * glowScale);
+            context.bezierCurveTo(
+              -4.5 * glowScale,
+              -1.4 * glowScale,
+              -2.2 * glowScale,
+              -tongueHeight * 0.72,
+              0.25 * glowScale,
+              -tongueHeight
+            );
+            context.bezierCurveTo(
+              2.8 * glowScale,
+              -tongueHeight * 0.66,
+              4.4 * glowScale,
+              -1.1 * glowScale,
+              3 * glowScale,
+              3.2 * glowScale
+            );
+            context.closePath();
+            context.fill();
+            context.shadowBlur = 4 * glowScale;
+            context.fillStyle = `rgba(255, 255, 255, ${0.96 * alpha})`;
+            context.beginPath();
+            context.ellipse(
+              -0.7 * glowScale,
+              -2.5 * glowScale - fireRise * 0.22,
+              1.7 * glowScale * firePulse,
+              3.1 * glowScale * firePulse,
+              0,
               0,
               fullTurn
             );
             context.fill();
+            context.restore();
           } else {
             const glowScale = clamp(point.scale, 0.62, 1.4);
             drawPostReleaseBloom(
               context,
               point.x,
               point.y,
-              24 * glowScale,
-              9 * glowScale,
+              31 * glowScale,
+              10.5 * glowScale,
               source.angle,
-              alpha * 0.42
+              alpha * 0.58
             );
             context.save();
             context.translate(point.x, point.y);
             context.rotate(source.angle);
-            const bladeGradient = context.createLinearGradient(-30 * glowScale, 0, 34 * glowScale, 0);
+            context.shadowColor = `rgba(255, 54, 145, ${0.72 * alpha})`;
+            context.shadowBlur = 12 * glowScale;
+            const bladeGradient = context.createLinearGradient(-38 * glowScale, 0, 42 * glowScale, 0);
             bladeGradient.addColorStop(0, "rgba(255, 76, 158, 0)");
-            bladeGradient.addColorStop(0.36, `rgba(255, 123, 186, ${0.22 * alpha})`);
-            bladeGradient.addColorStop(0.68, `rgba(255, 239, 248, ${0.72 * alpha})`);
+            bladeGradient.addColorStop(0.3, `rgba(255, 72, 153, ${0.36 * alpha})`);
+            bladeGradient.addColorStop(0.7, `rgba(255, 216, 238, ${0.9 * alpha})`);
             bladeGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
             context.strokeStyle = bladeGradient;
             context.lineCap = "round";
-            context.lineWidth = Math.max(1.1, 2.4 * glowScale);
+            context.lineWidth = Math.max(1.6, 4.2 * glowScale);
             context.beginPath();
-            context.moveTo(-30 * glowScale, 0);
-            context.quadraticCurveTo(0, -1.8 * glowScale, 34 * glowScale, 0.5 * glowScale);
+            context.moveTo(-38 * glowScale, 0);
+            context.quadraticCurveTo(0, -2.2 * glowScale, 42 * glowScale, 0.7 * glowScale);
+            context.stroke();
+            context.shadowBlur = 5 * glowScale;
+            context.strokeStyle = `rgba(255, 249, 253, ${0.92 * alpha})`;
+            context.lineWidth = Math.max(0.65, 1.05 * glowScale);
+            context.beginPath();
+            context.moveTo(-8 * glowScale, -0.2 * glowScale);
+            context.quadraticCurveTo(10 * glowScale, -1.1 * glowScale, 31 * glowScale, 0.2 * glowScale);
+            context.stroke();
+            context.strokeStyle = `rgba(255, 174, 211, ${0.7 * alpha})`;
+            context.lineWidth = Math.max(0.55, 0.82 * glowScale);
+            context.beginPath();
+            context.moveTo(18 * glowScale, -6 * glowScale);
+            context.lineTo(18 * glowScale, 6 * glowScale);
             context.stroke();
             context.restore();
-            drawPostReleaseTrail(context, source, point, motionDirection, speed, alpha * 0.8);
+            drawPostReleaseTrail(context, source, point, motionDirection, speed, alpha * 0.92);
           }
         }
         context.restore();
       };
 
       const spawnPostReleaseParticle = (source, point, direction, speed, ambient = false) => {
-        if (postReleaseParticles.length >= (postReleaseCanvasWidth < 640 ? 52 : 92)) return;
+        if (postReleaseParticles.length >= (postReleaseCanvasWidth < 640 ? 136 : 224)) return;
         const randomA = nextPostReleaseRandom();
         const randomB = nextPostReleaseRandom();
         const randomC = nextPostReleaseRandom();
-        const ejectionDirection = direction || postReleaseDirection || (randomA > 0.5 ? 1 : -1);
+        const ejectionDirection = direction || postReleaseDirection || 1;
         const power = ambient
-          ? 24 + randomB * 24
-          : 52 + Math.min(150, speed * 0.68) + randomB * 44;
-        const verticalBias = source.kind === "blade" ? 0.18 : -0.08;
-        const velocityX = -ejectionDirection * power * (0.72 + randomA * 0.5);
-        const velocityY = power * ((randomC - 0.5) * 0.58 + verticalBias);
-        const history = 0.012 + randomA * 0.012;
+          ? 48 + randomB * 46
+          : 76 + Math.min(180, speed * 0.82) + randomB * 62;
+        const verticalBias = source.kind === "blade" ? -0.36 : -0.42;
+        const velocityX = -ejectionDirection * power * (0.8 + randomA * 0.48);
+        const velocityY = power * ((randomC - 0.5) * 0.4 + verticalBias);
+        const history = 0.016 + randomA * 0.022;
         postReleaseParticles.push({
           x: point.x + (randomA - 0.5) * (source.kind === "blade" ? 9 : 4),
           y: point.y + (randomB - 0.5) * (source.kind === "blade" ? 6 : 4),
@@ -706,29 +858,37 @@ const gateStyle = [
           velocityX,
           velocityY,
           age: 0,
-          life: ambient ? 0.72 + randomC * 0.48 : 0.58 + randomC * 0.72,
-          size: (source.kind === "blade" ? 1.05 : 0.78) + randomB * 1.25,
-          hue: source.kind === "blade" ? 338 + randomA * 12 : 326 + randomA * 18
+          life: ambient ? 1.08 + randomC * 0.82 : 0.86 + randomC * 0.9,
+          size: (source.kind === "blade" ? 1.18 : 1.02) + randomB * 1.72,
+          hue: source.kind === "blade" ? 338 + randomA * 12 : 326 + randomA * 18,
+          curl: 12 + randomA * 22,
+          lift: 26 + randomB * 24,
+          phase: randomC * fullTurn,
+          ambient
         });
       };
 
       const updatePostReleaseParticles = (context, frameSeconds, speed, intro) => {
-        const activeDirection = Math.abs(postReleaseVelocityX) > 1.2
+        const activeDirection = Math.abs(postReleaseVelocityX) > 0.7
           ? Math.sign(postReleaseVelocityX)
-          : postReleaseDirection;
-        if (precisePointer && speed > 2) {
-          postReleaseEmissionBudget += frameSeconds * (5 + Math.min(29, speed * 0.2));
+          : postReleaseDirection || 1;
+        if (precisePointer && speed > 0.7) {
+          postReleaseEmissionBudget += frameSeconds * (34 + Math.min(70, speed * 0.52));
         }
-        postReleaseAmbientBudget += frameSeconds * 1.35 * intro;
+        postReleaseAmbientBudget += frameSeconds * (postReleaseCanvasWidth < 640 ? 26 : 42) * intro;
         while (postReleaseEmissionBudget >= 1) {
           postReleaseEmissionBudget -= 1;
-          const source = postReleaseSources[postReleaseSourceIndex % postReleaseSources.length];
+          const source = postReleaseSources[
+            postReleaseSourceOrder[postReleaseSourceIndex % postReleaseSourceOrder.length]
+          ];
           postReleaseSourceIndex += 1;
           spawnPostReleaseParticle(source, mapPostReleaseSource(source), activeDirection, speed, false);
         }
         while (postReleaseAmbientBudget >= 1) {
           postReleaseAmbientBudget -= 1;
-          const source = postReleaseSources[postReleaseSourceIndex % postReleaseSources.length];
+          const source = postReleaseSources[
+            postReleaseSourceOrder[postReleaseSourceIndex % postReleaseSourceOrder.length]
+          ];
           postReleaseSourceIndex += 1;
           spawnPostReleaseParticle(source, mapPostReleaseSource(source), activeDirection, speed, true);
         }
@@ -747,27 +907,37 @@ const gateStyle = [
           particle.previousY = particle.y;
           particle.x += particle.velocityX * frameSeconds;
           particle.y += particle.velocityY * frameSeconds;
-          const drag = Math.exp(-1.45 * frameSeconds);
+          const drag = Math.exp(-(particle.ambient ? 0.68 : 0.92) * frameSeconds);
           particle.velocityX *= drag;
-          particle.velocityY = particle.velocityY * drag - 5.5 * frameSeconds;
+          particle.velocityY *= drag;
+          particle.velocityX += Math.cos(particle.phase + particle.age * 4.2)
+            * particle.curl * frameSeconds * 0.24;
+          particle.velocityY += Math.sin(particle.phase + particle.age * 4.8)
+            * particle.curl * frameSeconds * 0.62;
+          particle.velocityY -= particle.lift
+            * frameSeconds
+            * (0.82 + Math.min(0.9, particle.age * 0.72));
           const lifeProgress = particle.age / particle.life;
-          const alpha = Math.sin(lifeProgress * Math.PI) * intro;
-          const trailLength = clamp(Math.hypot(particle.velocityX, particle.velocityY) * 0.035, 3, 12);
+          const fadeIn = smoothstep(clamp(particle.age / 0.09, 0, 1));
+          const fadeOut = 1 - smoothstep(clamp((lifeProgress - 0.58) / 0.42, 0, 1));
+          const flicker = 0.76 + Math.sin(particle.phase + particle.age * 9.4) * 0.24;
+          const alpha = fadeIn * fadeOut * flicker * intro;
+          const trailLength = clamp(Math.hypot(particle.velocityX, particle.velocityY) * 0.058, 5, 23);
           const magnitude = Math.max(1, Math.hypot(particle.velocityX, particle.velocityY));
           const tailX = particle.x - particle.velocityX / magnitude * trailLength;
           const tailY = particle.y - particle.velocityY / magnitude * trailLength;
           const gradient = context.createLinearGradient(tailX, tailY, particle.x, particle.y);
           gradient.addColorStop(0, `hsla(${particle.hue}, 100%, 68%, 0)`);
-          gradient.addColorStop(0.72, `hsla(${particle.hue}, 100%, 72%, ${0.36 * alpha})`);
-          gradient.addColorStop(1, `rgba(255, 246, 252, ${0.84 * alpha})`);
+          gradient.addColorStop(0.58, `hsla(${particle.hue}, 100%, 72%, ${0.48 * alpha})`);
+          gradient.addColorStop(1, `rgba(255, 246, 252, ${0.96 * alpha})`);
           context.strokeStyle = gradient;
-          context.lineWidth = Math.max(0.55, particle.size * (1 - lifeProgress * 0.38));
+          context.lineWidth = Math.max(0.62, particle.size * (1.08 - lifeProgress * 0.42));
           context.lineCap = "round";
           context.beginPath();
           context.moveTo(tailX, tailY);
           context.lineTo(particle.x, particle.y);
           context.stroke();
-          context.fillStyle = `rgba(255, 223, 239, ${0.68 * alpha})`;
+          context.fillStyle = `rgba(255, 223, 239, ${0.82 * alpha})`;
           context.beginPath();
           context.arc(particle.x, particle.y, Math.max(0.45, particle.size * 0.46), 0, fullTurn);
           context.fill();
@@ -775,28 +945,39 @@ const gateStyle = [
         context.restore();
       };
 
-      const updatePostReleaseDataStream = (intro) => {
-        if (!postReleaseJourney) {
+      const updatePostReleaseDataStream = (timestamp, frameSeconds, intro) => {
+        if (!postReleaseDataInitialized) {
           gate.style.setProperty("--kisara-data-stream-opacity", "0");
           return;
         }
-        const distance = postReleaseJourney.endX - postReleaseJourney.startX;
-        const progress = Math.abs(distance) < 0.01
-          ? 1
-          : clamp((postReleaseX - postReleaseJourney.startX) / distance, 0, 1);
-        const eased = smoothstep(progress);
-        const fromRight = postReleaseJourney.direction > 0;
-        const position = fromRight ? 116 - eased * 134 : -16 + eased * 134;
-        const visibility = Math.pow(Math.sin(clamp(progress, 0, 1) * Math.PI), 0.58);
-        gate.style.setProperty("--kisara-data-stream-position", `${position.toFixed(3)}%`);
-        gate.style.setProperty("--kisara-data-stream-phase", `${(eased * 86 * (fromRight ? -1 : 1)).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-data-stream-opacity", (visibility * intro * 0.92).toFixed(3));
-        gate.classList.toggle("is-data-stream-from-right", fromRight);
-        gate.classList.toggle("is-data-stream-from-left", !fromRight);
-        if (progress >= 0.999 && Math.abs(postReleaseTargetX - postReleaseX) < 0.08) {
-          postReleaseJourney = null;
-          gate.style.setProperty("--kisara-data-stream-opacity", "0");
+        let activeDirection = postReleaseDirection || 1;
+        if (postReleaseJourney) {
+          activeDirection = postReleaseJourney.direction;
+          const progress = clamp(
+            (timestamp - postReleaseJourney.startedAt) / postReleaseJourney.duration,
+            0,
+            1
+          );
+          const eased = smoothstep(smoothstep(progress));
+          postReleaseDataPosition = postReleaseJourney.startPosition
+            + (postReleaseJourney.endPosition - postReleaseJourney.startPosition) * eased;
+          if (progress >= 0.999) {
+            postReleaseDataPosition = postReleaseJourney.endPosition;
+            postReleaseJourney = null;
+          }
         }
+        const moving = Boolean(postReleaseJourney);
+        const targetOpacity = moving ? 0.96 : 0.76;
+        postReleaseDataOpacity += (targetOpacity - postReleaseDataOpacity)
+          * (1 - Math.exp(-frameSeconds * (moving ? 7.4 : 4.2)));
+        postReleaseDataPhase += frameSeconds * (moving ? 34 : 7.5) * (activeDirection > 0 ? -1 : 1);
+        if (Math.abs(postReleaseDataPhase) > 2048) postReleaseDataPhase %= 2048;
+        gate.style.setProperty("--kisara-data-stream-position", `${postReleaseDataPosition.toFixed(3)}%`);
+        gate.style.setProperty("--kisara-data-stream-phase", `${postReleaseDataPhase.toFixed(3)}px`);
+        gate.style.setProperty(
+          "--kisara-data-stream-opacity",
+          (postReleaseDataOpacity * intro).toFixed(3)
+        );
       };
 
       const drawPostRelease = (timestamp) => {
@@ -824,7 +1005,7 @@ const gateStyle = [
           : 1 / 60;
         postReleaseLastTimestamp = timestamp;
         const previousX = postReleaseX;
-        const response = 1 - Math.exp(-frameSeconds * 6.8);
+        const response = 1 - Math.exp(-frameSeconds * 3.35);
         postReleaseX += (postReleaseTargetX - postReleaseX) * response;
         postReleaseY += (postReleaseTargetY - postReleaseY) * (1 - Math.exp(-frameSeconds * 5.4));
         postReleaseVelocityX = (postReleaseX - previousX) / Math.max(0.001, frameSeconds);
@@ -834,7 +1015,7 @@ const gateStyle = [
         gate.style.setProperty("--kisara-post-parallax-x", `${postReleaseX.toFixed(3)}px`);
         gate.style.setProperty("--kisara-post-parallax-y", `${postReleaseY.toFixed(3)}px`);
         gate.style.setProperty("--kisara-post-release-opacity", intro.toFixed(3));
-        updatePostReleaseDataStream(intro);
+        updatePostReleaseDataStream(timestamp, frameSeconds, intro);
         clearPostReleaseCanvas();
         drawPostReleaseHighlights(postReleaseContext, timestamp, intro);
         updatePostReleaseParticles(
@@ -874,9 +1055,13 @@ const gateStyle = [
         postReleaseVelocityX = 0;
         postReleasePointerX = null;
         postReleasePointerAccumulator = 0;
-        postReleaseDirection = 0;
+        postReleaseDirection = 1;
         postReleaseDirectionChangedAt = 0;
         postReleaseJourney = null;
+        postReleaseDataInitialized = false;
+        postReleaseDataPosition = 50;
+        postReleaseDataOpacity = 0;
+        postReleaseDataPhase = 0;
         postReleaseEmissionBudget = 0;
         postReleaseAmbientBudget = 0;
         postReleaseSourceIndex = 0;
@@ -885,6 +1070,8 @@ const gateStyle = [
         gate.style.setProperty("--kisara-post-parallax-x", "0px");
         gate.style.setProperty("--kisara-post-parallax-y", "0px");
         gate.style.setProperty("--kisara-post-release-opacity", "0");
+        gate.style.setProperty("--kisara-data-stream-position", "50%");
+        gate.style.setProperty("--kisara-data-stream-phase", "0px");
         gate.style.setProperty("--kisara-data-stream-opacity", "0");
         gate.classList.remove("is-data-stream-from-right", "is-data-stream-from-left");
         clearPostReleaseCanvas();
@@ -917,10 +1104,22 @@ const gateStyle = [
         postReleaseDirection = direction;
         postReleaseDirectionChangedAt = timestamp;
         postReleaseTargetX = destination;
+        const startPosition = postReleaseDataInitialized
+          ? postReleaseDataPosition
+          : direction > 0
+            ? 85
+            : 15;
+        const endPosition = direction > 0 ? 15 : 85;
+        postReleaseDataInitialized = true;
+        postReleaseDataPosition = startPosition;
         postReleaseJourney = {
           direction,
           startX: postReleaseX,
-          endX: destination
+          endX: destination,
+          startPosition,
+          endPosition,
+          startedAt: timestamp,
+          duration: Math.max(880, 900 + Math.abs(endPosition - startPosition) * 5)
         };
         gate.classList.toggle("is-data-stream-from-right", direction > 0);
         gate.classList.toggle("is-data-stream-from-left", direction < 0);

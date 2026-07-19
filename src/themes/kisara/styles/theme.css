@@ -293,7 +293,7 @@ a {
   --kisara-post-parallax-x: 0px;
   --kisara-post-parallax-y: 0px;
   --kisara-post-release-opacity: 0;
-  --kisara-data-stream-position: -16%;
+  --kisara-data-stream-position: 50%;
   --kisara-data-stream-phase: 0px;
   --kisara-data-stream-opacity: 0;
   --kisara-gravity-scale: 1;
@@ -603,7 +603,7 @@ a {
 }
 
 .kisara-title > .kisara-title-data-stream {
-  z-index: 2;
+  z-index: 3;
   position: relative;
   pointer-events: none;
   opacity: var(--kisara-data-stream-opacity);
@@ -613,48 +613,68 @@ a {
   background-image:
     linear-gradient(
       90deg,
-      transparent 0%,
-      rgba(255, 68, 137, 0.12) 18%,
-      rgba(255, 139, 190, 0.72) 38%,
-      rgba(255, 252, 255, 0.98) 52%,
-      rgba(255, 90, 157, 0.64) 68%,
-      transparent 100%
+      rgba(255, 45, 128, 0.16) 0%,
+      rgba(255, 79, 148, 0.74) 20%,
+      rgba(255, 226, 243, 0.98) 48%,
+      rgba(255, 255, 255, 1) 56%,
+      rgba(255, 83, 153, 0.78) 82%,
+      rgba(255, 38, 126, 0.18) 100%
     ),
     repeating-linear-gradient(
       90deg,
-      transparent 0 4px,
-      rgba(255, 214, 236, 0.92) 4px 7px,
-      rgba(255, 61, 143, 0.36) 7px 10px,
-      transparent 10px 15px
+      rgba(255, 247, 252, 0.98) 0 7px,
+      rgba(255, 112, 173, 0.82) 7px 15px,
+      rgba(255, 42, 132, 0.62) 15px 22px,
+      rgba(255, 192, 221, 0.9) 22px 30px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.82) 0 6px,
+      rgba(255, 69, 147, 0.54) 6px 13px,
+      rgba(255, 177, 211, 0.76) 13px 21px
     );
-  background-size: 100% 100%, 18px 100%;
-  background-position: center, var(--kisara-data-stream-phase) 0;
+  background-size: 100% 100%, 30px 100%, 100% 21px;
+  background-position:
+    center,
+    var(--kisara-data-stream-phase) 0,
+    0 var(--kisara-data-stream-phase);
+  background-blend-mode: screen, screen, normal;
   background-clip: text;
   -webkit-background-clip: text;
+  -webkit-mask-image:
+    repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 10px),
+    repeating-linear-gradient(0deg, #000 0 6px, transparent 6px 9px);
+  -webkit-mask-position: var(--kisara-data-stream-phase) 0, 0 0;
+  -webkit-mask-composite: source-in;
+  mask-image:
+    repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 10px),
+    repeating-linear-gradient(0deg, #000 0 6px, transparent 6px 9px);
+  mask-position: var(--kisara-data-stream-phase) 0, 0 0;
+  mask-composite: intersect;
   mix-blend-mode: screen;
   filter: none;
   -webkit-filter: none;
   text-shadow:
-    0 0 8px rgba(255, 245, 252, 0.82),
-    0 0 18px rgba(255, 55, 135, 0.58);
+    0 0 7px rgba(255, 245, 252, 0.9),
+    0 0 19px rgba(255, 55, 135, 0.68);
   will-change: opacity, clip-path, background-position;
 }
 
 .kisara-gate.is-data-stream-from-right .kisara-title-data-stream {
   clip-path: polygon(
-    calc(var(--kisara-data-stream-position) - 2%) 0,
-    calc(var(--kisara-data-stream-position) + 11%) 0,
-    calc(var(--kisara-data-stream-position) + 3%) 100%,
-    calc(var(--kisara-data-stream-position) - 10%) 100%
+    calc(var(--kisara-data-stream-position) - 14%) 0,
+    calc(var(--kisara-data-stream-position) + 10%) 0,
+    calc(var(--kisara-data-stream-position) + 15%) 100%,
+    calc(var(--kisara-data-stream-position) - 9%) 100%
   );
 }
 
 .kisara-gate.is-data-stream-from-left .kisara-title-data-stream {
   clip-path: polygon(
-    calc(var(--kisara-data-stream-position) - 11%) 0,
-    calc(var(--kisara-data-stream-position) + 2%) 0,
-    calc(var(--kisara-data-stream-position) + 10%) 100%,
-    calc(var(--kisara-data-stream-position) - 3%) 100%
+    calc(var(--kisara-data-stream-position) - 10%) 0,
+    calc(var(--kisara-data-stream-position) + 14%) 0,
+    calc(var(--kisara-data-stream-position) + 9%) 100%,
+    calc(var(--kisara-data-stream-position) - 15%) 100%
   );
 }
 
