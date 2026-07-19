@@ -282,6 +282,17 @@ a {
   --kisara-fight-scale: 1.06;
   --kisara-fight-saturation: 0.92;
   --kisara-fight-brightness: 0.9;
+  --kisara-screen-shake-x: 0px;
+  --kisara-screen-shake-y: 0px;
+  --kisara-base-shift-x: 0px;
+  --kisara-base-shift-y: 0px;
+  --kisara-fight-shift-x: 0px;
+  --kisara-fight-shift-y: 0px;
+  --kisara-gravity-scale: 1;
+  --kisara-chromatic-shift: 0px;
+  --kisara-impact-flash: 0;
+  --kisara-impact-vignette: 0;
+  --kisara-impact-scale: 1;
   position: relative;
   display: grid;
   place-items: center;
@@ -310,6 +321,47 @@ a {
   backdrop-filter: blur(14px) saturate(0.72);
 }
 
+.kisara-screen-impact,
+.kisara-screen-impact::before,
+.kisara-screen-impact::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.kisara-screen-impact {
+  z-index: 7;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.kisara-screen-impact::before,
+.kisara-screen-impact::after {
+  content: "";
+  will-change: opacity, transform;
+}
+
+.kisara-screen-impact::before {
+  z-index: 2;
+  opacity: var(--kisara-impact-flash);
+  transform: scale(var(--kisara-impact-scale));
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.96) 0 3%, rgba(255, 226, 237, 0.76) 8%, rgba(255, 83, 132, 0.3) 24%, transparent 62%),
+    linear-gradient(112deg, transparent 22%, rgba(255, 255, 255, 0.26) 48%, transparent 74%);
+  mix-blend-mode: screen;
+}
+
+.kisara-screen-impact::after {
+  z-index: 1;
+  opacity: var(--kisara-impact-vignette);
+  transform: translate3d(var(--kisara-screen-shake-x), var(--kisara-screen-shake-y), 0)
+    scale(var(--kisara-impact-scale));
+  background:
+    radial-gradient(circle at calc(50% + var(--kisara-chromatic-shift)) 50%, transparent 0 18%, rgba(255, 45, 96, 0.12) 38%, transparent 67%),
+    radial-gradient(circle at calc(50% - var(--kisara-chromatic-shift)) 50%, transparent 0 20%, rgba(112, 159, 255, 0.12) 41%, transparent 70%),
+    radial-gradient(circle at 50% 50%, transparent 0 16%, rgba(11, 8, 29, 0.08) 34%, rgba(2, 3, 14, 0.72) 100%);
+}
+
 .kisara-gate-visual,
 .kisara-gate-background,
 .kisara-gate-atmosphere {
@@ -323,6 +375,8 @@ a {
   overflow: hidden;
   background: #111636;
   isolation: isolate;
+  transform: translate3d(var(--kisara-screen-shake-x), var(--kisara-screen-shake-y), 0);
+  will-change: transform;
 }
 
 .kisara-gate-background {
@@ -337,14 +391,18 @@ a {
   background-image: var(--kisara-gate-background-image);
   opacity: var(--kisara-bg-opacity);
   filter: blur(calc(var(--kisara-bg-blur) + var(--kisara-performance-blur))) saturate(var(--kisara-bg-saturation)) brightness(var(--kisara-bg-brightness));
-  transform: scale(1.045);
+  transform: translate3d(var(--kisara-base-shift-x), var(--kisara-base-shift-y), 0)
+    scale(1.045)
+    scale(var(--kisara-gravity-scale));
 }
 
 .kisara-gate-background-fight {
   background-image: var(--kisara-fight-background-image);
   opacity: var(--kisara-fight-opacity);
   filter: blur(calc(var(--kisara-fight-blur) + var(--kisara-performance-blur))) saturate(var(--kisara-fight-saturation)) brightness(var(--kisara-fight-brightness));
-  transform: scale(var(--kisara-fight-scale));
+  transform: translate3d(var(--kisara-fight-shift-x), var(--kisara-fight-shift-y), 0)
+    scale(var(--kisara-fight-scale))
+    scale(var(--kisara-gravity-scale));
 }
 
 .kisara-gate-atmosphere {
@@ -387,6 +445,10 @@ a {
   font-weight: 700;
   line-height: 0.86;
   letter-spacing: 0;
+  transform: translate3d(var(--kisara-screen-shake-x), var(--kisara-screen-shake-y), 0)
+    scale(var(--kisara-impact-scale));
+  transform-origin: 50% 50%;
+  will-change: transform;
 }
 
 .kisara-title > span {
@@ -734,7 +796,7 @@ a {
   will-change: transform, opacity, filter;
 }
 
-.kisara-gate > :not(.kisara-contract-meter):not(.kisara-gate-visual):not(.kisara-title):not(.kisara-burst-canvas) {
+.kisara-gate > :not(.kisara-contract-meter):not(.kisara-gate-visual):not(.kisara-title):not(.kisara-burst-canvas):not(.kisara-screen-impact) {
   filter: blur(var(--kisara-performance-blur));
 }
 
@@ -767,6 +829,14 @@ a {
   position: absolute;
   bottom: 30px;
   color: #aabef2;
+}
+
+.kisara-gate-index,
+.kisara-contract-state,
+.kisara-scroll-cue,
+.kisara-gate-skip {
+  transform: translate3d(var(--kisara-screen-shake-x), var(--kisara-screen-shake-y), 0);
+  will-change: transform, filter;
 }
 
 .kisara-gate-skip {

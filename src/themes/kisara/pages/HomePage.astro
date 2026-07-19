@@ -48,6 +48,7 @@ const gateStyle = [
       <div class="kisara-gate-atmosphere"></div>
     </div>
     <canvas class="kisara-burst-canvas" data-kisara-burst-canvas width="1280" height="900" aria-hidden="true"></canvas>
+    <div class="kisara-screen-impact" aria-hidden="true"></div>
     <p class="kisara-gate-index">YUIMI LAB / INTERACTION CHANNEL 03</p>
     <h1 class="kisara-title" aria-label="Kisara">
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
@@ -234,6 +235,8 @@ const gateStyle = [
       let renderedStage = "";
       let renderedGlitchTick = -1;
       let energyFrame = 0;
+      let energyTimer = 0;
+      let energyLoopActive = false;
       let energyProgress = 0;
       let energyCanvasWidth = 0;
       let energyCanvasHeight = 0;
@@ -259,6 +262,12 @@ const gateStyle = [
       };
       let screenParticleTimestamp = 0;
       let lastEnergyPaintTimestamp = 0;
+      let beamHeadTimestamp = 0;
+      let beamHeadX = 0;
+      let beamHeadY = 0;
+      let beamHeadVelocityX = 0;
+      let beamHeadVelocityY = 0;
+      let beamMotionEnergy = 0;
       let particleSerial = 0;
       let wakeEmissionBudget = 0;
       let orbitEmissionBudget = 0;
@@ -320,7 +329,8 @@ const gateStyle = [
         const rect = burstCanvas.getBoundingClientRect();
         const width = Math.max(1, Math.round(rect.width));
         const height = Math.max(1, Math.round(rect.height));
-        const devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        const ratioCap = width < 640 ? 1.25 : 1.5;
+        const devicePixelRatio = Math.min(window.devicePixelRatio || 1, ratioCap);
         const pixelWidth = Math.max(1, Math.round(width * devicePixelRatio));
         const pixelHeight = Math.max(1, Math.round(height * devicePixelRatio));
         if (burstCanvas.width !== pixelWidth || burstCanvas.height !== pixelHeight) {
@@ -362,16 +372,46 @@ const gateStyle = [
         );
         const angleRadians = beamPose.angle * Math.PI / 180;
         const headOffset = (localFrontX - meterWidth * 0.5) * beamPose.scaleX;
-        const originX = clamp(
-          meterLeft + meterWidth * 0.5 + beamPose.anchorX + beamPose.shakeX + Math.cos(angleRadians) * headOffset,
+        const stableOriginX = clamp(
+          meterLeft + meterWidth * 0.5 + beamPose.anchorX + Math.cos(angleRadians) * headOffset,
           width * 0.04,
           width * 0.96
         );
-        const originY = clamp(
-          meterTop + meterHeight * 0.5 + beamPose.anchorY + beamPose.shakeY + beamPose.lift + Math.sin(angleRadians) * headOffset,
+        const stableOriginY = clamp(
+          meterTop + meterHeight * 0.5 + beamPose.anchorY + beamPose.lift + Math.sin(angleRadians) * headOffset,
           height * 0.08,
           height * 0.92
         );
+        const originX = clamp(stableOriginX + beamPose.shakeX * 0.36, width * 0.04, width * 0.96);
+        const originY = clamp(stableOriginY + beamPose.shakeY * 0.36, height * 0.08, height * 0.92);
+        const headFrameSeconds = beamHeadTimestamp
+          ? clamp((timestamp - beamHeadTimestamp) / 1000, 0.008, 0.05)
+          : frameSeconds;
+        if (!beamHeadTimestamp || fill <= 0.018) {
+          beamHeadX = stableOriginX;
+          beamHeadY = stableOriginY;
+          beamHeadVelocityX = 0;
+          beamHeadVelocityY = 0;
+          beamMotionEnergy = 0;
+        } else {
+          let rawVelocityX = (stableOriginX - beamHeadX) / headFrameSeconds;
+          let rawVelocityY = (stableOriginY - beamHeadY) / headFrameSeconds;
+          const rawSpeed = Math.hypot(rawVelocityX, rawVelocityY);
+          if (rawSpeed > 980) {
+            const speedScale = 980 / rawSpeed;
+            rawVelocityX *= speedScale;
+            rawVelocityY *= speedScale;
+          }
+          const velocityResponse = 1 - Math.exp(-headFrameSeconds * 10.5);
+          beamHeadVelocityX += (rawVelocityX - beamHeadVelocityX) * velocityResponse;
+          beamHeadVelocityY += (rawVelocityY - beamHeadVelocityY) * velocityResponse;
+          const motionTarget = clamp(Math.hypot(beamHeadVelocityX, beamHeadVelocityY) / 620, 0, 1);
+          const motionResponse = 1 - Math.exp(-headFrameSeconds * (motionTarget < beamMotionEnergy ? 8.5 : 5.8));
+          beamMotionEnergy += (motionTarget - beamMotionEnergy) * motionResponse;
+          beamHeadX = stableOriginX;
+          beamHeadY = stableOriginY;
+        }
+        beamHeadTimestamp = timestamp;
         const maxRadius = Math.hypot(width, height) * 1.18;
         const dissolve = phaseProgress(burst, 0.015, 0.14);
         const releaseBuild = phaseProgress(burst, crossEnd, reformEnd);
@@ -383,6 +423,12 @@ const gateStyle = [
         const wakeOpacity = clamp(1 - dissolve, 0, 1);
         const afterglow = phaseProgress(burst, detonationStart, detonationEnd)
           * (1 - phaseProgress(burst, rainPeak, 1));
+        const blackHoleBuild = phaseProgress(burst, crossEnd, 0.872);
+        const gravityLock = phaseProgress(burst, 0.855, detonationStart);
+        const collapse = phaseProgress(burst, 0.892, detonationStart);
+        const blackHoleFade = 1 - phaseProgress(burst, detonationStart + 0.006, detonationEnd);
+        const blackHoleOpacity = blackHoleBuild * blackHoleFade;
+        const blackHoleAngle = -0.16 + Math.sin(time * 0.43) * 0.025 - collapse * 0.08;
 
         context.save();
         context.globalCompositeOperation = "lighter";
@@ -393,11 +439,30 @@ const gateStyle = [
             const seedX = randomSeed(index + 1201);
             const seedY = randomSeed(index + 1801);
             const speed = 0.18 + seedX * (0.28 + fill * 0.56);
-            const x = (seedX * width + Math.sin(time * speed + index) * (5 + fill * 17) + width) % width;
-            const y = (seedY * height + Math.cos(time * (speed + 0.17) + index) * (4 + fill * 13) + height) % height;
+            let x = (seedX * width + Math.sin(time * speed + index) * (5 + fill * 17) + width) % width;
+            let y = (seedY * height + Math.cos(time * (speed + 0.17) + index) * (4 + fill * 13) + height) % height;
             const size = 0.42 + seedY * (0.6 + fill * 1.25);
+            const gravityX = originX - x;
+            const gravityY = originY - y;
+            const gravityDistance = Math.max(1, Math.hypot(gravityX, gravityY));
+            const gravityFalloff = 1 - clamp(gravityDistance / maxRadius, 0, 1);
+            const screenPull = gravityLock * gravityFalloff * (0.018 + collapse * 0.044);
+            x += gravityX * screenPull;
+            y += gravityY * screenPull;
             context.globalAlpha = (0.018 + seedX * 0.085) * intensity * wakeOpacity;
             context.fillStyle = fill > 0.56 && index % 3 !== 0 ? "#ff9caf" : "#c5d8ff";
+            if (gravityLock > 0.025) {
+              const inverseDistance = 1 / gravityDistance;
+              const streakLength = gravityLock * gravityFalloff * (3 + seedX * 16);
+              context.globalAlpha *= 0.72 + gravityLock * 0.48;
+              context.strokeStyle = context.fillStyle;
+              context.lineWidth = 0.45 + size * 0.38;
+              context.lineCap = "round";
+              context.beginPath();
+              context.moveTo(x - gravityX * inverseDistance * streakLength, y - gravityY * inverseDistance * streakLength);
+              context.lineTo(x, y);
+              context.stroke();
+            }
             context.beginPath();
             context.arc(x, y, size, 0, Math.PI * 2);
             context.fill();
@@ -405,37 +470,60 @@ const gateStyle = [
         }
 
         if (fill <= 0.018) wakePrimed = false;
-        const wakeLimit = width < 640 ? 190 : 320;
+        const wakeLimit = width < 640 ? 175 : 280;
         const forwardX = Math.cos(angleRadians);
         const forwardY = Math.sin(angleRadians);
         const normalX = -forwardY;
         const normalY = forwardX;
         const spawnWakeParticle = (launchBoost = 1, primed = false) => {
-          const side = nextParticleRandom() > 0.5 ? 1 : -1;
-          const backSpeed = (68 + fill * 184 + nextParticleRandom() * 84) * launchBoost;
-          const sideSpeed = side * (18 + fill * 108)
-            * (0.46 + nextParticleRandom() * 0.92)
+          const sideNoise = nextParticleRandom() + nextParticleRandom() - 1;
+          const sideDirection = sideNoise >= 0 ? 1 : -1;
+          const inheritedMotion = 0.64 + nextParticleRandom() * 0.24;
+          const slipSpeed = (24 + fill * 72 + nextParticleRandom() * 46) * launchBoost;
+          const sideSpeed = sideNoise * (10 + fill * 42)
+            * (0.52 + nextParticleRandom() * 0.76)
             * Math.sqrt(launchBoost);
-          const velocityX = -forwardX * backSpeed + normalX * sideSpeed;
-          const velocityY = -forwardY * backSpeed + normalY * sideSpeed;
+          const exhaustAcceleration = (92 + fill * 238 + nextParticleRandom() * 118) * launchBoost;
+          const lateralAcceleration = sideDirection * (22 + fill * 92)
+            * (0.42 + Math.abs(sideNoise) * 0.9 + nextParticleRandom() * 0.32);
+          let velocityX = beamHeadVelocityX * inheritedMotion - forwardX * slipSpeed + normalX * sideSpeed;
+          let velocityY = beamHeadVelocityY * inheritedMotion - forwardY * slipSpeed + normalY * sideSpeed;
           const startGap = 2 + localFrontRadius * 0.3;
-          const startX = originX - forwardX * startGap;
-          const startY = originY - forwardY * startGap;
-          const warmup = primed ? nextParticleRandom() * (0.1 + fill * 0.34) : 0;
+          const sideOffset = sideNoise * localFrontRadius * (0.08 + nextParticleRandom() * 0.2);
+          const startX = originX - forwardX * startGap + normalX * sideOffset;
+          const startY = originY - forwardY * startGap + normalY * sideOffset;
+          const warmup = primed ? nextParticleRandom() * (0.08 + fill * 0.22) : 0;
+          const warmupExhaust = exhaustAcceleration * warmup;
+          const warmupLateral = lateralAcceleration * warmup;
+          const x = startX + velocityX * warmup
+            - forwardX * warmupExhaust * warmup * 0.5
+            + normalX * warmupLateral * warmup * 0.5;
+          const y = startY + velocityY * warmup
+            - forwardY * warmupExhaust * warmup * 0.5
+            + normalY * warmupLateral * warmup * 0.5;
+          velocityX += -forwardX * warmupExhaust + normalX * warmupLateral;
+          velocityY += -forwardY * warmupExhaust + normalY * warmupLateral;
+          const historySeconds = Math.min(frameSeconds, 0.022) * (1.1 + nextParticleRandom() * 0.8);
           wakeParticles.push({
-            x: startX + velocityX * warmup * 0.58,
-            y: startY + velocityY * warmup * 0.58,
-            previousX: startX,
-            previousY: startY,
+            x,
+            y,
+            previousX: x - velocityX * historySeconds,
+            previousY: y - velocityY * historySeconds,
             velocityX,
             velocityY,
             age: warmup,
-            jetLife: 0.78 + nextParticleRandom() * 0.82,
-            coastLife: 1.65 + nextParticleRandom() * 1.8,
-            life: 8.6 + nextParticleRandom() * 6.4,
+            jetLife: 0.58 + nextParticleRandom() * 0.66,
+            coastLife: 1.45 + nextParticleRandom() * 1.65,
+            life: 7.8 + nextParticleRandom() * 5.6,
             size: 0.58 + nextParticleRandom() * (1 + fill * 1.48),
             phase: nextParticleRandom() * Math.PI * 2,
             curl: (nextParticleRandom() - 0.5) * 2,
+            forwardX,
+            forwardY,
+            normalX,
+            normalY,
+            exhaustAcceleration,
+            lateralAcceleration,
             tint: Math.floor(nextParticleRandom() * 5)
           });
         };
@@ -443,15 +531,15 @@ const gateStyle = [
         if (!reducedMotion && wakeOpacity > 0.02 && fill > 0.025 && burst < 0.02) {
           if (!wakePrimed) {
             wakePrimed = true;
-            const primeCount = width < 640 ? 22 : width < 960 ? 30 : 38;
+            const primeCount = width < 640 ? 18 : width < 960 ? 24 : 30;
             for (let index = 0; index < primeCount && wakeParticles.length < wakeLimit; index += 1) {
-              spawnWakeParticle(1.18 + nextParticleRandom() * 0.34, true);
+              spawnWakeParticle(1.04 + nextParticleRandom() * 0.24, true);
             }
           }
-          wakeEmissionBudget += frameSeconds * (12 + fill * 58) * densityScale;
+          wakeEmissionBudget += frameSeconds * (14 + fill * 48 + beamMotionEnergy * 44) * densityScale;
           while (wakeEmissionBudget >= 1 && wakeParticles.length < wakeLimit) {
             wakeEmissionBudget -= 1;
-            spawnWakeParticle(1 + fill * 0.16);
+            spawnWakeParticle(1 + fill * 0.12 + beamMotionEnergy * 0.12);
           }
         } else {
           wakeEmissionBudget = Math.min(wakeEmissionBudget, 0.95);
@@ -463,7 +551,8 @@ const gateStyle = [
           const particle = wakeParticles[index];
           particle.age += frameSeconds;
           if (particle.age >= particle.life) {
-            wakeParticles.splice(index, 1);
+            wakeParticles[index] = wakeParticles[wakeParticles.length - 1];
+            wakeParticles.pop();
             continue;
           }
 
@@ -471,14 +560,21 @@ const gateStyle = [
           particle.previousY = particle.y;
           const inJet = particle.age < particle.jetLife;
           const inCoast = particle.age < particle.jetLife + particle.coastLife;
-          const drag = Math.exp(-frameSeconds * (inJet ? 0.72 : inCoast ? 0.16 : 0.08));
+          const jetProgress = clamp(particle.age / particle.jetLife, 0, 1);
+          const drag = Math.exp(-frameSeconds * (inJet ? 0.46 : inCoast ? 0.14 : 0.08));
           particle.velocityX *= drag;
           particle.velocityY *= drag;
+          if (inJet) {
+            const exhaustForce = particle.exhaustAcceleration * (0.52 + (1 - jetProgress) * 0.48);
+            const separationForce = particle.lateralAcceleration * (0.24 + jetProgress * 0.76);
+            particle.velocityX += (-particle.forwardX * exhaustForce + particle.normalX * separationForce) * frameSeconds;
+            particle.velocityY += (-particle.forwardY * exhaustForce + particle.normalY * separationForce) * frameSeconds;
+          }
           const particleSpeed = Math.max(1, Math.hypot(particle.velocityX, particle.velocityY));
           const curveX = -particle.velocityY / particleSpeed;
           const curveY = particle.velocityX / particleSpeed;
-          if (inJet || inCoast) {
-            const curveStrength = particle.curl * (inJet ? 8.4 : 3.8) * (0.45 + particle.size * 0.24);
+          if (inCoast) {
+            const curveStrength = particle.curl * (inJet ? 2.6 : 3.6) * (0.45 + particle.size * 0.24);
             particle.velocityX += curveX * curveStrength * frameSeconds;
             particle.velocityY += curveY * curveStrength * frameSeconds;
           } else {
@@ -518,13 +614,15 @@ const gateStyle = [
           context.lineCap = "round";
           if (inJet || inCoast) {
             const coastFade = inJet ? 1 : 1 - clamp((particle.age - particle.jetLife) / particle.coastLife, 0, 1) * 0.34;
-            const trailScale = inJet ? 2.2 : 1.35;
+            const trailScale = inJet ? 1.9 + beamMotionEnergy * 0.8 : 1.3;
+            const motionX = particle.x - particle.previousX;
+            const motionY = particle.y - particle.previousY;
             context.globalAlpha = alpha * coastFade;
             context.lineWidth = particle.size * (inJet ? 0.78 : 0.62);
             context.beginPath();
             context.moveTo(
-              particle.x - particle.velocityX * frameSeconds * trailScale,
-              particle.y - particle.velocityY * frameSeconds * trailScale
+              particle.previousX - motionX * (trailScale - 1),
+              particle.previousY - motionY * (trailScale - 1)
             );
             context.lineTo(particle.x, particle.y);
             context.stroke();
@@ -537,19 +635,13 @@ const gateStyle = [
           }
         }
 
-        const blackHoleBuild = phaseProgress(burst, crossEnd, 0.872);
-        const gravityLock = phaseProgress(burst, 0.855, detonationStart);
-        const collapse = phaseProgress(burst, 0.892, detonationStart);
-        const blackHoleFade = 1 - phaseProgress(burst, detonationStart + 0.006, detonationEnd);
-        const blackHoleOpacity = blackHoleBuild * blackHoleFade;
-        const blackHoleAngle = -0.16 + Math.sin(time * 0.43) * 0.025 - collapse * 0.08;
         const viewportScale = Math.min(width, height);
         const baseCoreRadius = clamp(viewportScale * 0.09, 28, 82);
         const coreRadius = baseCoreRadius * (0.86 + blackHoleBuild * 0.18 - collapse * 0.2);
         const diskRadius = coreRadius * (3.12 + blackHoleBuild * 0.62 - collapse * 0.32);
         const diskFlatten = 0.27 + blackHoleBuild * 0.055 - collapse * 0.035;
 
-        const orbitLimit = width < 640 ? 112 : 220;
+        const orbitLimit = width < 640 ? 82 : 160;
         const orbitDrive = blackHoleOpacity * (1 - detonationLinear);
         if (!reducedMotion && orbitDrive > 0.01) {
           orbitEmissionBudget += frameSeconds * (18 + gravityLock * 86) * densityScale;
@@ -585,7 +677,8 @@ const gateStyle = [
           const particle = orbitParticles[index];
           particle.age += frameSeconds;
           if (particle.age >= particle.life || blackHoleOpacity <= 0.001) {
-            orbitParticles.splice(index, 1);
+            orbitParticles[index] = orbitParticles[orbitParticles.length - 1];
+            orbitParticles.pop();
             continue;
           }
           const previousAngle = particle.angle;
@@ -600,7 +693,7 @@ const gateStyle = [
               particle.escape
               && gravityLock > 0.54
               && detonationLinear <= 0.001
-              && burstParticles.length < (width < 640 ? 190 : 360)
+              && burstParticles.length < (width < 640 ? 110 : 210)
             ) {
               const escapePoint = projectOrbit(particle.angle, coreRadius * 1.18, particle.lane);
               const tangentAngle = particle.angle + (particle.angularVelocity > 0 ? Math.PI / 2 : -Math.PI / 2) + blackHoleAngle;
@@ -621,14 +714,16 @@ const gateStyle = [
                 tint: particle.tint,
                 shape: nextParticleRandom()
               });
-              orbitParticles.splice(index, 1);
+              orbitParticles[index] = orbitParticles[orbitParticles.length - 1];
+              orbitParticles.pop();
               continue;
             }
             if (burst < detonationStart && blackHoleOpacity > 0.2) {
               particle.radius = diskRadius * (1.6 + nextParticleRandom() * 0.92);
               particle.angle += Math.PI * (0.42 + nextParticleRandom() * 0.34);
             } else {
-              orbitParticles.splice(index, 1);
+              orbitParticles[index] = orbitParticles[orbitParticles.length - 1];
+              orbitParticles.pop();
               continue;
             }
           }
@@ -690,6 +785,31 @@ const gateStyle = [
 
           context.save();
           context.globalCompositeOperation = "lighter";
+          context.shadowBlur = 0;
+          for (let lens = 0; lens < 3; lens += 1) {
+            const lensPhase = (time * (0.1 + lens * 0.025) + lens * 0.31) % 1;
+            const lensRadius = coreRadius * (1.8 + lens * 1.15)
+              + lensPhase * maxRadius * (0.2 + gravityLock * 0.18);
+            const lensFade = (1 - lensPhase) * blackHoleOpacity * (0.075 + gravityLock * 0.08);
+            context.globalAlpha = lensFade;
+            context.strokeStyle = lens % 2 === 0 ? "rgba(255, 111, 151, 0.72)" : "rgba(156, 190, 255, 0.64)";
+            context.lineWidth = 0.7 + gravityLock * 1.15;
+            context.beginPath();
+            context.ellipse(
+              originX,
+              originY,
+              lensRadius,
+              lensRadius * (0.52 + lens * 0.035),
+              blackHoleAngle,
+              0,
+              Math.PI * 2
+            );
+            context.stroke();
+          }
+          context.restore();
+
+          context.save();
+          context.globalCompositeOperation = "lighter";
           for (const particle of orbitParticles) {
             if (particle.depth < 0 && particle.renderX !== undefined) drawOrbitParticle(particle);
           }
@@ -704,7 +824,7 @@ const gateStyle = [
           diskGradient.addColorStop(0.78, "rgba(255, 107, 149, 0.62)");
           diskGradient.addColorStop(1, "rgba(255, 107, 149, 0)");
 
-          for (let band = 0; band < 5; band += 1) {
+          for (let band = 0; band < 4; band += 1) {
             context.globalAlpha = blackHoleOpacity * (0.14 + band * 0.038) * (0.78 + gravityLock * 0.54);
             context.strokeStyle = diskGradient;
             context.lineWidth = 1.7 + (4 - band) * (1.7 + gravityLock * 0.82);
@@ -770,7 +890,7 @@ const gateStyle = [
           context.arc(0, 0, coreRadius * 1.1, 0, Math.PI * 2);
           context.stroke();
 
-          for (let band = 0; band < 4; band += 1) {
+          for (let band = 0; band < 3; band += 1) {
             context.globalAlpha = blackHoleOpacity * (0.34 + band * 0.082) * (0.8 + gravityLock * 0.46);
             context.strokeStyle = diskGradient;
             context.lineWidth = 2 + (3 - band) * (2.15 + gravityLock * 0.96);
@@ -810,7 +930,7 @@ const gateStyle = [
             context.stroke();
           }
 
-          for (let highlight = 0; highlight < 6; highlight += 1) {
+          for (let highlight = 0; highlight < 4; highlight += 1) {
             const seed = randomSeed(highlight + 7301);
             const phase = time * (0.42 + seed * 0.5) + seed * Math.PI * 2;
             const span = 0.18 + seed * 0.42;
@@ -832,9 +952,9 @@ const gateStyle = [
           context.restore();
         }
 
-        const burstLimit = width < 640 ? 190 : 360;
+        const burstLimit = width < 640 ? 110 : 210;
         const spawnBurstWave = (waveIndex) => {
-          const count = Math.floor((waveIndex === 0 ? 72 : waveIndex === 1 ? 104 : 138) * densityScale);
+          const count = Math.floor((waveIndex === 0 ? 58 : 82) * densityScale);
           for (let index = 0; index < count && burstParticles.length < burstLimit; index += 1) {
             const angle = nextParticleRandom() * Math.PI * 2;
             const spawnRadius = coreRadius * (0.82 + nextParticleRandom() * 0.92);
@@ -842,41 +962,43 @@ const gateStyle = [
             const localY = Math.sin(angle) * spawnRadius * diskFlatten;
             const spawnX = originX + localX * Math.cos(blackHoleAngle) - localY * Math.sin(blackHoleAngle);
             const spawnY = originY + localX * Math.sin(blackHoleAngle) + localY * Math.cos(blackHoleAngle);
-            const flowSign = nextParticleRandom() > 0.1 ? 1 : -1;
-            const localTangentX = -Math.sin(angle) * flowSign;
-            const localTangentY = Math.cos(angle) * diskFlatten * flowSign;
-            const tangentLength = Math.max(0.001, Math.hypot(localTangentX, localTangentY));
-            const tangentX = (localTangentX / tangentLength) * Math.cos(blackHoleAngle)
-              - (localTangentY / tangentLength) * Math.sin(blackHoleAngle);
-            const tangentY = (localTangentX / tangentLength) * Math.sin(blackHoleAngle)
-              + (localTangentY / tangentLength) * Math.cos(blackHoleAngle);
-            const radialX = Math.cos(angle + blackHoleAngle);
-            const radialY = Math.sin(angle + blackHoleAngle) * 0.76;
-            const speed = (waveIndex === 0 ? 170 : waveIndex === 1 ? 125 : 92)
-              + nextParticleRandom() * (waveIndex === 0 ? 280 : waveIndex === 1 ? 230 : 180);
-            const tangentWeight = waveIndex === 0 ? 0.82 : waveIndex === 1 ? 0.58 : 0.34;
-            const radialWeight = waveIndex === 0 ? 0.34 : waveIndex === 1 ? 0.62 : 0.88;
+            const lobeSign = nextParticleRandom() > 0.5 ? 1 : -1;
+            const spreadNoise = nextParticleRandom() + nextParticleRandom() - 1;
+            const axisAngle = blackHoleAngle + (lobeSign < 0 ? Math.PI : 0);
+            const directionAngle = axisAngle + spreadNoise * (waveIndex === 0 ? 0.3 : 0.68);
+            const directionX = Math.cos(directionAngle);
+            const directionY = Math.sin(directionAngle);
+            const swirlDirection = nextParticleRandom() > 0.5 ? 1 : -1;
+            const swirlX = -directionY * swirlDirection;
+            const swirlY = directionX * swirlDirection;
+            const speed = (waveIndex === 0 ? 248 : 174)
+              + nextParticleRandom() * (waveIndex === 0 ? 330 : 260);
+            const swirlWeight = (waveIndex === 0 ? 0.1 : 0.2) + nextParticleRandom() * 0.12;
+            const velocityX = directionX * speed + swirlX * speed * swirlWeight;
+            const velocityY = directionY * speed + swirlY * speed * swirlWeight;
+            const historyTime = 0.012 + nextParticleRandom() * 0.022;
             burstParticles.push({
               x: spawnX,
               y: spawnY,
-              previousX: spawnX,
-              previousY: spawnY,
-              velocityX: tangentX * speed * tangentWeight + radialX * speed * radialWeight,
-              velocityY: tangentY * speed * tangentWeight + radialY * speed * radialWeight,
+              previousX: spawnX - velocityX * historyTime,
+              previousY: spawnY - velocityY * historyTime,
+              velocityX,
+              velocityY,
               age: 0,
-              life: 3.2 + nextParticleRandom() * 3.8 + waveIndex * 0.38,
-              size: 0.58 + nextParticleRandom() * (1.72 + waveIndex * 0.48),
-              drag: 0.28 + nextParticleRandom() * 0.5,
-              gravity: 4 + nextParticleRandom() * 20,
+              life: 2.05 + nextParticleRandom() * 2.2 + waveIndex * 0.28,
+              size: 0.58 + nextParticleRandom() * (1.52 + waveIndex * 0.34),
+              drag: 0.38 + nextParticleRandom() * 0.44,
+              gravity: 2 + nextParticleRandom() * 12,
               phase: nextParticleRandom() * Math.PI * 2,
               tint: Math.floor(nextParticleRandom() * 6),
-              shape: nextParticleRandom()
+              shape: nextParticleRandom(),
+              spark: nextParticleRandom() < 0.18
             });
           }
         };
 
         if (!reducedMotion) {
-          const waveThresholds = [0.06, 0.34, 0.66];
+          const waveThresholds = [0.08, 0.42];
           for (let waveIndex = 0; waveIndex < waveThresholds.length; waveIndex += 1) {
             const waveBit = 1 << waveIndex;
             if (detonationLinear >= waveThresholds[waveIndex] && (burstWaveMask & waveBit) === 0) {
@@ -984,7 +1106,7 @@ const gateStyle = [
 
           const rushStrength = Math.pow(Math.sin(clamp(detonationLinear / 0.84, 0, 1) * Math.PI), 1.15);
           if (rushStrength > 0.001) {
-            const rushCount = 14 + Math.floor(rushStrength * 34);
+            const rushCount = 12 + Math.floor(rushStrength * 22);
             for (let index = 0; index < rushCount; index += 1) {
               const seed = randomSeed(index + 9301);
               const angle = seed * Math.PI * 2 + blackHoleAngle + detonationLinear * (0.8 + seed * 1.4);
@@ -1016,7 +1138,7 @@ const gateStyle = [
             }
           }
 
-          for (let arcIndex = 0; arcIndex < 12; arcIndex += 1) {
+          for (let arcIndex = 0; arcIndex < 8; arcIndex += 1) {
             const seed = randomSeed(arcIndex + 10101);
             const delayed = clamp((detonationLinear - seed * 0.28) / (1 - seed * 0.28), 0, 1);
             if (delayed <= 0) continue;
@@ -1064,7 +1186,8 @@ const gateStyle = [
           const particle = burstParticles[index];
           particle.age += frameSeconds;
           if (particle.age >= particle.life) {
-            burstParticles.splice(index, 1);
+            burstParticles[index] = burstParticles[burstParticles.length - 1];
+            burstParticles.pop();
             continue;
           }
           particle.previousX = particle.x;
@@ -1073,7 +1196,7 @@ const gateStyle = [
           const drag = Math.exp(-frameSeconds * particle.drag);
           particle.velocityX *= drag;
           particle.velocityY *= drag;
-          particle.velocityX += Math.sin(particle.phase + particle.age * 1.8) * frameSeconds * 3.2;
+          particle.velocityX += Math.sin(particle.phase + particle.age * 1.5) * frameSeconds * 1.6;
           particle.velocityY += particle.gravity * frameSeconds * (0.16 + lifeRatio * 0.84);
           particle.x += particle.velocityX * frameSeconds;
           particle.y += particle.velocityY * frameSeconds;
@@ -1084,7 +1207,8 @@ const gateStyle = [
             || particle.y < -180
             || particle.y > height + 220
           ) {
-            burstParticles.splice(index, 1);
+            burstParticles[index] = burstParticles[burstParticles.length - 1];
+            burstParticles.pop();
             continue;
           }
 
@@ -1126,18 +1250,17 @@ const gateStyle = [
             context.lineTo(trailX, trailY);
             context.stroke();
           }
-          if (particle.size > 1.35 && lifeRatio > 0.16) {
+          if (particle.spark && lifeRatio > 0.1 && lifeRatio < 0.72) {
             context.globalAlpha = alpha * 0.44;
-            context.beginPath();
-            context.arc(particle.x, particle.y, particle.size * 0.44, 0, Math.PI * 2);
-            context.fill();
+            const sparkSize = Math.max(0.7, particle.size * 0.52);
+            context.fillRect(particle.x - sparkSize * 0.5, particle.y - sparkSize * 0.5, sparkSize, sparkSize);
           }
         }
 
-        const rainLimit = width < 640 ? 130 : 230;
+        const rainLimit = width < 640 ? 80 : 140;
         const rainDrive = rainBuild * (1 - rainStop);
         if (!reducedMotion && rainDrive > 0.001) {
-          rainEmissionBudget += frameSeconds * (18 + rainDrive * 132) * densityScale;
+          rainEmissionBudget += frameSeconds * (12 + rainDrive * 88) * densityScale;
           while (rainEmissionBudget >= 1 && rainParticles.length < rainLimit) {
             rainEmissionBudget -= 1;
             const angle = nextParticleRandom() * Math.PI * 2;
@@ -1151,9 +1274,9 @@ const gateStyle = [
               velocityX: Math.cos(angle) * outwardSpeed + (nextParticleRandom() - 0.5) * 46,
               velocityY: Math.sin(angle) * outwardSpeed * 0.62 - 34 - nextParticleRandom() * 96,
               age: 0,
-              life: 3.1 + nextParticleRandom() * 3.2,
-              gravity: 30 + nextParticleRandom() * 48,
-              size: 0.5 + nextParticleRandom() * 1.55,
+              life: 2.65 + nextParticleRandom() * 2.45,
+              gravity: 28 + nextParticleRandom() * 42,
+              size: 0.48 + nextParticleRandom() * 1.36,
               phase: nextParticleRandom() * Math.PI * 2,
               tint: Math.floor(nextParticleRandom() * 7)
             });
@@ -1168,7 +1291,8 @@ const gateStyle = [
           const particle = rainParticles[index];
           particle.age += frameSeconds;
           if (particle.age >= particle.life) {
-            rainParticles.splice(index, 1);
+            rainParticles[index] = rainParticles[rainParticles.length - 1];
+            rainParticles.pop();
             continue;
           }
           particle.previousX = particle.x;
@@ -1180,7 +1304,8 @@ const gateStyle = [
           particle.x += particle.velocityX * frameSeconds;
           particle.y += particle.velocityY * frameSeconds;
           if (particle.y > height + 90 || particle.x < -90 || particle.x > width + 90) {
-            rainParticles.splice(index, 1);
+            rainParticles[index] = rainParticles[rainParticles.length - 1];
+            rainParticles.pop();
             continue;
           }
 
@@ -1238,6 +1363,7 @@ const gateStyle = [
         const releaseFlash = Math.pow(Math.sin(crossReleaseLinear * Math.PI), 1.45);
         const reform = phaseProgress(burst, crossEnd, reformEnd);
         const pressure = phaseProgress(burst, 0.7, 0.94);
+        const detonationLinear = clamp((burst - detonationStart) / (detonationEnd - detonationStart), 0, 1);
         const detonation = phaseProgress(burst, detonationStart, detonationEnd);
         const detonationRush = 1 - Math.pow(1 - detonation, 2.6);
         const rainProgress = phaseProgress(burst, rainStart, rainPeak);
@@ -1342,6 +1468,27 @@ const gateStyle = [
           * (1 - phaseProgress(burst, detonationEnd, 1)) * 6.8;
         const impactBlur = pressure * 2.2 + detonationRush * 11;
         const performanceBlur = preBlastBlur + gravityBlur + impactBlur * (1 - blurRecovery);
+        const gravityScreen = phaseProgress(burst, crossEnd, 0.874)
+          * (1 - phaseProgress(burst, detonationEnd, 1));
+        const gravityPressure = phaseProgress(burst, 0.852, detonationStart);
+        const inversionFlash = Math.exp(-Math.pow((detonationLinear - 0.12) / 0.075, 2));
+        const ruptureFlash = Math.exp(-Math.pow((detonationLinear - 0.38) / 0.16, 2)) * 0.68;
+        const impactFlash = detonationLinear <= 0.0005
+          ? 0
+          : clamp(inversionFlash + ruptureFlash, 0, 1.2);
+        const impactTail = phaseProgress(burst, detonationStart, rainPeak)
+          * (1 - phaseProgress(burst, rainPeak, 1));
+        const screenShakeStrength = gravityPressure * 0.8 + detonationRush * 5.8 + impactFlash * 3.2;
+        const screenShakeX = Math.sin(time * (12 + detonationRush * 34) + 0.3) * screenShakeStrength
+          + Math.cos(time * 7.1) * gravityScreen * 0.7;
+        const screenShakeY = Math.cos(time * (14 + detonationRush * 38) + 1.1) * screenShakeStrength * 0.66
+          + Math.sin(time * 6.4) * gravityScreen * 0.5;
+        const gravityDriftX = Math.sin(time * 1.6 + 0.7) * gravityScreen * (0.7 + gravityPressure * 1.8);
+        const gravityDriftY = Math.cos(time * 1.34 + 1.2) * gravityScreen * (0.5 + gravityPressure * 1.25);
+        const gravityScale = 1 + gravityScreen * 0.012 + impactFlash * 0.026 + impactTail * 0.008;
+        const chromaticShift = gravityScreen * (1.2 + gravityPressure * 4.2) + impactFlash * 5.6;
+        const impactVignette = clamp(gravityScreen * (0.34 + gravityPressure * 0.48) + impactTail * 0.2, 0, 0.92);
+        const impactScale = 1 + impactFlash * 0.009 + detonationRush * 0.004;
         const crossPulse = 0.5 + 0.5 * Math.sin(time * (10 + crossFlash * 19) + Math.sin(time * 2.1));
         const crossStrobe = clamp(crossFlash * (0.42 + crossPulse * 0.64) + releaseFlash * 1.18, 0, 1.35);
         const crossRayProgress = clamp(crossBuild * (1 - crossCollapse), 0, 1);
@@ -1391,6 +1538,17 @@ const gateStyle = [
         meterShell?.style.setProperty("--kisara-beam-glow", `${(pressure * 12 + detonationRush * 45).toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-brightness", (1 + pressure * 0.16 + detonationRush * 0.62).toFixed(3));
         gate.style.setProperty("--kisara-performance-blur", `${performanceBlur.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-screen-shake-x", `${screenShakeX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-screen-shake-y", `${screenShakeY.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-base-shift-x", `${(-gravityDriftX - screenShakeX * 0.18).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-base-shift-y", `${(-gravityDriftY - screenShakeY * 0.18).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-fight-shift-x", `${(gravityDriftX * 1.65 - screenShakeX * 0.28).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-fight-shift-y", `${(gravityDriftY * 1.45 - screenShakeY * 0.28).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-gravity-scale", gravityScale.toFixed(4));
+        gate.style.setProperty("--kisara-chromatic-shift", `${chromaticShift.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-impact-flash", impactFlash.toFixed(3));
+        gate.style.setProperty("--kisara-impact-vignette", impactVignette.toFixed(3));
+        gate.style.setProperty("--kisara-impact-scale", impactScale.toFixed(4));
         gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
         gate.style.setProperty("--kisara-cross-ray-progress", crossRayProgress.toFixed(4));
         gate.style.setProperty("--kisara-cross-ray-breath", crossRayBreath.toFixed(3));
@@ -1427,9 +1585,32 @@ const gateStyle = [
         renderedGlitchTick = tick;
       };
 
+      const queueEnergyFrame = (delay = 0) => {
+        if (!reducedMotion && document.visibilityState === "visible" && pageMode === "gate" && energyLoopActive) {
+          if (delay > 0) {
+            if (energyTimer) window.clearTimeout(energyTimer);
+            energyTimer = window.setTimeout(() => {
+              energyTimer = 0;
+              if (document.visibilityState === "visible" && pageMode === "gate" && energyLoopActive) {
+                energyFrame = window.requestAnimationFrame(drawEnergy);
+              } else {
+                energyLoopActive = false;
+              }
+            }, delay);
+            return;
+          }
+          energyFrame = window.requestAnimationFrame(drawEnergy);
+          return;
+        }
+        if (energyTimer) window.clearTimeout(energyTimer);
+        energyTimer = 0;
+        energyFrame = 0;
+        energyLoopActive = false;
+      };
+
       const drawEnergy = (timestamp) => {
         energyFrame = 0;
-        if (!energyCanvas || !energyContext) return;
+        if (!energyLoopActive || !energyCanvas || !energyContext) return;
         const releaseSettled = burstAutoplayComplete
           && burstProgress >= 0.999
           && targetBurstProgress >= 0.9995;
@@ -1446,17 +1627,13 @@ const gateStyle = [
           && lastEnergyPaintTimestamp > 0
           && timestamp - lastEnergyPaintTimestamp < minimumFrameInterval
         ) {
-          if (!reducedMotion && document.visibilityState === "visible" && pageMode === "gate") {
-            energyFrame = window.requestAnimationFrame(drawEnergy);
-          }
+          queueEnergyFrame(minimumFrameInterval - (timestamp - lastEnergyPaintTimestamp));
           return;
         }
         lastEnergyPaintTimestamp = timestamp;
         if (staticRelease) {
           updateGlitchState(timestamp);
-          if (!reducedMotion && document.visibilityState === "visible" && pageMode === "gate") {
-            energyFrame = window.requestAnimationFrame(drawEnergy);
-          }
+          queueEnergyFrame(minimumFrameInterval);
           return;
         }
         resizeEnergyCanvas();
@@ -1466,7 +1643,10 @@ const gateStyle = [
         const height = energyCanvasHeight;
         energyContext.clearRect(0, 0, width, height);
         drawScreenEnergy(timestamp);
-        if (width <= 1 || height <= 1) return;
+        if (width <= 1 || height <= 1) {
+          queueEnergyFrame();
+          return;
+        }
 
         const fill = Math.max(energyProgress, 0.012);
         const time = timestamp / 1000;
@@ -1483,9 +1663,7 @@ const gateStyle = [
         const context = energyContext;
 
         if (localBeamOpacity <= 0.001) {
-          if (!reducedMotion && document.visibilityState === "visible" && pageMode === "gate") {
-            energyFrame = window.requestAnimationFrame(drawEnergy);
-          }
+          queueEnergyFrame();
           return;
         }
 
@@ -1575,48 +1753,91 @@ const gateStyle = [
         coreGradient.addColorStop(0.3, "rgba(183, 211, 255, 0.12)");
         coreGradient.addColorStop(0.72, "rgba(255, 191, 211, 0.34)");
         coreGradient.addColorStop(1, "rgba(255, 255, 255, 0.72)");
-        context.globalAlpha = localBeamOpacity * intensity;
+        context.globalAlpha = localBeamOpacity * intensity * 0.82;
         context.fillStyle = coreGradient;
         context.fillRect(0, 0, frontX, height);
 
-        for (let strand = 0; strand < 8; strand += 1) {
-          const strandGradient = context.createLinearGradient(0, 0, frontX, 0);
-          strandGradient.addColorStop(0, "rgba(166, 201, 255, 0)");
-          strandGradient.addColorStop(0.24, "rgba(174, 207, 255, 0.18)");
-          strandGradient.addColorStop(0.7, "rgba(255, 143, 172, 0.74)");
-          strandGradient.addColorStop(0.94, "rgba(255, 244, 248, 0.9)");
-          strandGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
-          context.beginPath();
-          const segments = Math.max(40, Math.min(104, Math.ceil(bodyEndX / 5)));
-          for (let segment = 0; segment <= segments; segment += 1) {
-            const x = bodyEndX * segment / segments;
-            const unit = x / Math.max(bodyEndX, 1);
-            const localThickness = thicknessAt(x) * 0.82;
-            const mainPhase = unit * Math.PI * (2.35 + strand * 0.31)
-              - time * (2.9 + strand * 0.23)
-              + strand * 0.93;
-            const secondaryPhase = unit * Math.PI * (7.1 + strand * 0.17)
-              + time * (1.25 + strand * 0.09)
-              + strand * 0.47;
-            const offset = (strand - 3.5) * localThickness * 0.085;
-            const y = centerY
-              + Math.sin(mainPhase) * localThickness * (0.17 + strand % 2 * 0.025)
-              + Math.sin(secondaryPhase) * localThickness * 0.045
-              + offset;
-            if (segment === 0) context.moveTo(x, y);
-            else context.lineTo(x, y);
+        const helixGradient = context.createLinearGradient(0, 0, frontX, 0);
+        helixGradient.addColorStop(0, "rgba(155, 195, 255, 0)");
+        helixGradient.addColorStop(0.2, "rgba(169, 205, 255, 0.18)");
+        helixGradient.addColorStop(0.66, "rgba(255, 126, 163, 0.76)");
+        helixGradient.addColorStop(0.91, "rgba(255, 239, 246, 0.96)");
+        helixGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+        const helixShadowGradient = context.createLinearGradient(0, 0, frontX, 0);
+        helixShadowGradient.addColorStop(0, "rgba(31, 61, 132, 0)");
+        helixShadowGradient.addColorStop(0.22, "rgba(49, 82, 160, 0.34)");
+        helixShadowGradient.addColorStop(0.66, "rgba(129, 26, 78, 0.42)");
+        helixShadowGradient.addColorStop(0.94, "rgba(185, 43, 96, 0.16)");
+        helixShadowGradient.addColorStop(1, "rgba(185, 43, 96, 0)");
+        const helixSegments = Math.max(44, Math.min(108, Math.ceil(bodyEndX / 4.8)));
+        for (let depthPass = 0; depthPass < 2; depthPass += 1) {
+          for (let strand = 0; strand < 5; strand += 1) {
+            context.beginPath();
+            let penDown = false;
+            for (let segment = 0; segment <= helixSegments; segment += 1) {
+              const x = bodyEndX * segment / helixSegments;
+              const unit = x / Math.max(bodyEndX, 1);
+              const localThickness = thicknessAt(x) * (0.76 + strand * 0.022);
+              const spiralPhase = unit * Math.PI * 2 * (2.18 + strand * 0.17)
+                - time * (3.25 + strand * 0.24)
+                + strand * Math.PI * 0.4;
+              const counterPhase = unit * Math.PI * 2 * (5.6 + strand * 0.12)
+                + time * (1.28 + strand * 0.08);
+              const depth = Math.cos(spiralPhase);
+              const visible = depthPass === 0 ? depth <= 0.18 : depth > -0.18;
+              const y = centerY
+                + Math.sin(spiralPhase) * localThickness * (0.27 + strand % 2 * 0.035)
+                + Math.sin(counterPhase) * localThickness * 0.038;
+              if (!visible) {
+                penDown = false;
+                continue;
+              }
+              if (!penDown) {
+                context.moveTo(x, y);
+                penDown = true;
+              } else {
+                context.lineTo(x, y);
+              }
+            }
+            const frontPass = depthPass === 1;
+            context.globalCompositeOperation = frontPass ? "lighter" : "source-over";
+            context.globalAlpha = localBeamOpacity * intensity * (frontPass ? 0.64 : 0.22)
+              * (0.78 + strand * 0.055);
+            context.strokeStyle = frontPass ? helixGradient : helixShadowGradient;
+            context.lineWidth = frontPass ? 1 + fill * 1.72 : 0.72 + fill * 0.82;
+            context.lineCap = "round";
+            context.stroke();
           }
-          context.globalAlpha = localBeamOpacity * intensity * (strand === 3 || strand === 4 ? 0.74 : 0.32);
-          context.strokeStyle = strandGradient;
-          context.lineWidth = strand === 3 || strand === 4 ? 1 + fill * 2.2 : 0.52 + fill * 0.82;
-          context.lineCap = "round";
+        }
+        context.globalCompositeOperation = "lighter";
+
+        const compressionCount = width < 420 ? 3 : 5;
+        for (let pulse = 0; pulse < compressionCount; pulse += 1) {
+          const travel = (time * (0.42 + fill * 0.52 + beamMotionEnergy * 0.34) + pulse / compressionCount) % 1;
+          const wrapFade = smoothstep(clamp(travel / 0.13, 0, 1))
+            * (1 - smoothstep(clamp((travel - 0.84) / 0.16, 0, 1)));
+          const x = bodyEndX * (0.1 + travel * 0.86);
+          const localThickness = thicknessAt(x);
+          context.globalAlpha = localBeamOpacity * intensity * wrapFade * (0.14 + beamMotionEnergy * 0.18);
+          context.strokeStyle = pulse % 2 === 0 ? "rgba(255, 245, 249, 0.9)" : "rgba(178, 211, 255, 0.82)";
+          context.lineWidth = 0.55 + fill * 0.9;
+          context.beginPath();
+          context.ellipse(
+            x,
+            centerY,
+            1.4 + fill * 2.8 + beamMotionEnergy * 2.6,
+            localThickness * (0.18 + fill * 0.1),
+            0,
+            0,
+            Math.PI * 2
+          );
           context.stroke();
         }
 
-        const fragmentCount = width < 420 ? 9 : 15;
+        const fragmentCount = width < 420 ? 12 : 20;
         for (let fragment = 0; fragment < fragmentCount; fragment += 1) {
           const seed = randomSeed(fragment + 11401);
-          const travel = (time * (0.34 + seed * 0.22) + seed * 1.73) % 1;
+          const travel = (time * (0.36 + seed * 0.24 + beamMotionEnergy * 0.12) + seed * 1.73) % 1;
           const wrapFade = smoothstep(clamp(travel / 0.12, 0, 1))
             * (1 - smoothstep(clamp((travel - 0.82) / 0.18, 0, 1)));
           const x = bodyEndX * (0.06 + travel * 0.9);
@@ -1626,7 +1847,9 @@ const gateStyle = [
             + seed * Math.PI * 2;
           const depth = 0.5 + Math.cos(spiralPhase) * 0.5;
           const y = centerY + Math.sin(spiralPhase) * localThickness * (0.28 + seed * 0.18);
-          const size = (0.72 + fill * 1.5) * (0.62 + seed * 0.72) * (0.72 + depth * 0.42);
+          const size = (0.72 + fill * 1.5 + beamMotionEnergy * 0.42)
+            * (0.62 + seed * 0.72)
+            * (0.68 + depth * 0.5);
           context.save();
           context.translate(x, y);
           context.rotate(0.18 + Math.sin(spiralPhase) * 0.52 + seed * 0.38);
@@ -1674,21 +1897,60 @@ const gateStyle = [
         context.arc(frontX - frontRadius * 0.34, centerY, frontRadius * 1.7, 0, Math.PI * 2);
         context.fill();
 
+        const impactStrength = clamp(fill * 0.34 + beamMotionEnergy * 0.92, 0, 1.18);
+        if (impactStrength > 0.025) {
+          context.save();
+          context.globalCompositeOperation = "lighter";
+          context.translate(frontX - frontRadius * 0.2, centerY);
+          for (let ring = 0; ring < 2; ring += 1) {
+            const pulse = 0.5 + Math.sin(time * (7.6 + ring * 1.8) + ring * 1.4) * 0.5;
+            context.globalAlpha = localBeamOpacity * impactStrength * (0.22 - ring * 0.065) * (0.72 + pulse * 0.28);
+            context.strokeStyle = ring === 0 ? "rgba(255, 252, 253, 0.96)" : "rgba(255, 112, 151, 0.76)";
+            context.lineWidth = 0.8 + fill * 1.3 + beamMotionEnergy * 1.2;
+            context.beginPath();
+            context.ellipse(
+              0,
+              0,
+              frontRadius * (0.28 + ring * 0.24 + beamMotionEnergy * 0.18),
+              frontRadius * (0.72 + ring * 0.42 + impactStrength * 0.25),
+              0,
+              -Math.PI * 0.72,
+              Math.PI * 0.72
+            );
+            context.stroke();
+          }
+          const impactFlare = context.createLinearGradient(-frontRadius * 2.8, 0, frontRadius * 0.9, 0);
+          impactFlare.addColorStop(0, "rgba(255, 94, 139, 0)");
+          impactFlare.addColorStop(0.72, "rgba(255, 121, 158, 0.12)");
+          impactFlare.addColorStop(1, "rgba(255, 255, 255, 0.82)");
+          context.globalAlpha = localBeamOpacity * impactStrength * 0.48;
+          context.fillStyle = impactFlare;
+          context.beginPath();
+          context.moveTo(-frontRadius * (2.4 + beamMotionEnergy * 1.4), -frontRadius * 0.08);
+          context.lineTo(frontRadius * 0.7, -frontRadius * (0.22 + impactStrength * 0.12));
+          context.lineTo(frontRadius * 0.7, frontRadius * (0.22 + impactStrength * 0.12));
+          context.lineTo(-frontRadius * (2.4 + beamMotionEnergy * 1.4), frontRadius * 0.08);
+          context.closePath();
+          context.fill();
+          context.restore();
+        }
+
         context.restore();
 
-        if (!reducedMotion && document.visibilityState === "visible" && pageMode === "gate") {
-          energyFrame = window.requestAnimationFrame(drawEnergy);
-        }
+        queueEnergyFrame();
       };
 
       const startEnergyAnimation = () => {
-        if (!energyContext || pageMode !== "gate") return;
+        if (!energyContext || pageMode !== "gate" || energyLoopActive) return;
+        energyLoopActive = true;
         if (reducedMotion) {
           drawEnergy(performance.now());
           return;
         }
-        if (!energyFrame && document.visibilityState === "visible") {
+        if (document.visibilityState === "visible") {
           energyFrame = window.requestAnimationFrame(drawEnergy);
+        } else {
+          energyLoopActive = false;
         }
       };
 
@@ -1882,8 +2144,11 @@ const gateStyle = [
       const resetGateState = () => {
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
         if (energyFrame) window.cancelAnimationFrame(energyFrame);
+        if (energyTimer) window.clearTimeout(energyTimer);
         animationFrame = 0;
         energyFrame = 0;
+        energyTimer = 0;
+        energyLoopActive = false;
         lastFrameTime = 0;
         targetProgress = 0;
         progress = 0;
@@ -1901,6 +2166,12 @@ const gateStyle = [
         chargeInstability = 0;
         screenParticleTimestamp = 0;
         lastEnergyPaintTimestamp = 0;
+        beamHeadTimestamp = 0;
+        beamHeadX = 0;
+        beamHeadY = 0;
+        beamHeadVelocityX = 0;
+        beamHeadVelocityY = 0;
+        beamMotionEnergy = 0;
         particleSerial = 0;
         wakeEmissionBudget = 0;
         orbitEmissionBudget = 0;
@@ -1962,6 +2233,16 @@ const gateStyle = [
         pageMode = "snap";
         smoothScrollTo(0, () => {
           pageMode = "gate";
+          poseTimestamp = 0;
+          poseClock = 0;
+          poseAtRest = true;
+          chargeInstability = 0;
+          screenParticleTimestamp = 0;
+          lastEnergyPaintTimestamp = 0;
+          beamHeadTimestamp = 0;
+          beamHeadVelocityX = 0;
+          beamHeadVelocityY = 0;
+          beamMotionEnergy = 0;
           render();
         });
       };
@@ -2112,9 +2393,13 @@ const gateStyle = [
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "hidden") {
           if (energyFrame) window.cancelAnimationFrame(energyFrame);
+          if (energyTimer) window.clearTimeout(energyTimer);
           energyFrame = 0;
+          energyTimer = 0;
+          energyLoopActive = false;
           screenParticleTimestamp = 0;
           lastEnergyPaintTimestamp = 0;
+          beamHeadTimestamp = 0;
           return;
         }
         startEnergyAnimation();
