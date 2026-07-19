@@ -1742,19 +1742,19 @@ const gateStyle = [
         context.lineCap = "round";
         context.lineJoin = "round";
         const armRotation = time * (0.17 + gravity * 0.11) * (1 - compression * 0.58);
-        for (let arm = 0; arm < 3; arm += 1) {
+        for (let arm = 0; arm < 5; arm += 1) {
           const seed = randomSeed(arm + 19841);
-          const baseAngle = arm / 3 * fullTurn + armRotation + (seed - 0.5) * 0.34;
+          const baseAngle = arm / 5 * fullTurn + armRotation + (seed - 0.5) * 0.22;
           const points = [];
-          const segments = parameters.mobile ? 7 : 9;
+          const segments = parameters.mobile ? 8 : 11;
           for (let segment = 0; segment <= segments; segment += 1) {
             const unit = segment / segments;
             const distance = radius * collapseScale * (
-              0.06 + unit * (0.86 + seed * 0.24)
+              0.11 + unit * (0.8 + seed * 0.2)
             );
             const angle = baseAngle
-              + unit * (1.22 + gravity * 0.76 + seed * 0.34)
-              + Math.sin(unit * Math.PI * 1.8 - time * 0.62 + arm) * 0.075;
+              + unit * (1.08 + gravity * 0.68 + seed * 0.28)
+              + Math.sin(unit * Math.PI * 1.9 - time * 0.58 + arm) * 0.058;
             points.push({
               x: driftX + Math.cos(angle) * distance,
               y: driftY + Math.sin(angle) * distance * (0.62 + seed * 0.09)
@@ -1766,17 +1766,17 @@ const gateStyle = [
             const end = points[segment + 1];
             const widthEnvelope = Math.pow(1 - unit, 0.72);
             context.globalAlpha = opacity
-              * (0.1 + widthEnvelope * (0.32 + gravity * 0.08))
+              * (0.06 + widthEnvelope * (0.17 + gravity * 0.045))
               * (1 - compression * 0.18);
             context.strokeStyle = segment % 3 === 0
-              ? "rgba(0,0,2,0.96)"
-              : "rgba(1,0,5,0.9)";
+              ? "rgba(0,0,3,0.9)"
+              : "rgba(3,0,8,0.82)";
             context.lineWidth = radius * collapseScale * (
-              0.035 + widthEnvelope * (0.24 + seed * 0.035)
+              0.022 + widthEnvelope * (0.115 + seed * 0.018)
             );
-            context.shadowColor = "rgba(0,0,4,0.82)";
+            context.shadowColor = "rgba(0,0,5,0.68)";
             context.shadowBlur = radius
-              * (0.08 + widthEnvelope * 0.12)
+              * (0.045 + widthEnvelope * 0.075)
               * parameters.shadowQuality;
             context.beginPath();
             context.moveTo(start.x, start.y);

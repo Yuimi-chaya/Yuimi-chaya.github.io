@@ -364,3 +364,11 @@
 - Verified before migration that no prior theme or dark-mode registry existed.
 - Rejected same-URL client-only theme replacement because a static Astro build cannot select complete server-rendered layouts from `localStorage` without duplicate DOM/CSS or visible replacement.
 - Chose root `fuyukawa-kagari` plus prefixed `blank` routes to preserve current public URLs and provide fully independent static documents.
+
+### 2026-07-19 Kisara integrated procedural singularity core
+
+- Removed the remaining complete offscreen sphere composite from the black-hole center. The release no longer draws a standalone ball, SVG-like shell, Fresnel circle, or the extra three elliptical horizon arcs.
+- Kept one bounded `68-108px` procedural electric field only as moving plasma texture. Its irregular alpha envelope, central exclusion, spiral ridges, and pink/blue currents are generated per frame and composited directly into the main release Canvas.
+- Rebuilt the visible center from overlapping absorption clouds, five tapered inward currents, and a very small animated irregular throat. These elements share the accretion-disk transform and collapse timing, so the core grows out of the existing scene instead of reading as a pasted asset.
+- Preserved rollback checkpoints for each visual direction: `0668d7c` (field without sphere), `b670763` (cloud aperture), `059ac5b` (deeper well), and `9d5c22e` (spiral inflow).
+- Revalidated desktop and mobile `375x844` black-hole frames, zero positive horizontal overflow, empty browser warning/error logs, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind). Final visual acceptance remains with the user.
