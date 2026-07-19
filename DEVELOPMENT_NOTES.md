@@ -31,8 +31,9 @@
 - Kisara seamless-phase/collapse rollback commit: `e19ca2a Deepen Kisara collapse and lensing sequence`.
 - Kisara WebGL lens baseline rollback commit: `5864321 Replace Kisara warp slices with WebGL lensing`.
 - Kisara continuous-lensing refinement commit: `bd03ae6 Refine Kisara black hole lensing`.
+- Kisara subject-aware lensing refinement commit: `5a70d67 Prioritize Kisara subject-aware lensing`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
-- Local state: the Kisara image transition, single-envelope charge beam, jet/coast/drift wake particles, post-gloss procedural warning, sharp foreground pink black hole, WebGL2 background lensing, slingshot burst, lingering particle rain, persistent glitch status, and site-wide deep-indigo UI are implemented and browser-validated. The latest lensing refinement is committed locally at `bd03ae6` and is not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
+- Local state: the Kisara image transition, single-envelope charge beam, jet/coast/drift wake particles, post-gloss procedural warning, sharp foreground pink black hole, subject-aware WebGL2 lensing, slingshot burst, lingering particle rain, persistent glitch status, and site-wide deep-indigo UI are implemented and browser-validated. The latest lensing refinement is committed locally at `5a70d67` and is not pushed. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
 - Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
 - Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
@@ -283,6 +284,14 @@
 - Made the event horizon optically empty through both shader and Canvas masks, reduced the bright photon rim, and reapplied a full-radius solid-black mask after foreground disk highlights so no texture or light streak can cross the center.
 - Reduced the lens shader from roughly eight texture reads per fragment to two. Desktop runs at up to CSS resolution/60 FPS; mobile remains capped near 30 FPS with a `0.68` render scale and pixel budget. The lens Canvas clears and becomes transparent after release or while hidden.
 - Revalidated `git diff --check`, `npm test` (3/3), `npm run build` (36 pages, sitemap, Pagefind), desktop `1280x720`, mobile layout metrics at `375x844`, zero positive horizontal overflow, WebGL ready/active/clear lifecycle, and no browser warning/error logs. Final visual acceptance remains with the user.
+
+### 2026-07-19 Kisara subject-aware lensing refinement
+
+- Added a face-protection region derived from normalized coordinates in the current `fight.jpg`, then converted it through the same cover crop used by the WebGL scene. The protection therefore follows the face from desktop center framing to the right-shifted mobile crop instead of relying on fixed viewport pixels.
+- Reweighted the shader so the face interior receives almost no radial pull or shock displacement, while an elliptical subject halo around the hair, bow, scarf, shoulders, wings, and weapon receives stronger lensing. The title rectangle is supplied separately as another priority region.
+- Added three clipped `Kisara` title refraction layers for upper, middle, and lower bands. Their shear, drift, scale, opacity, and retained source-text blur follow the black-hole pressure, keeping the word visibly bent but readable instead of smearing it into horizontal blocks.
+- Revalidated the full automatic release at desktop `1280x720` and mobile `375x844`: facial proportions remain stable, title/subject-edge distortion is visible, the mobile lens buffer remains `255x574`, horizontal overflow stays zero, and browser warning/error logs remain empty. `npm test` passed 3/3 and `npm run build` generated 36 pages with sitemap and Pagefind.
+- The normalized protection coordinates are intentionally tuned to the current `public/themes/kisara/assets/fight.jpg`; replacing that artwork with a differently composed image requires retuning the face region.
 
 ### 2026-07-18 Multi-theme implementation
 
