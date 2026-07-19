@@ -35,8 +35,8 @@ const gateStyle = [
       <div class="kisara-gate-background kisara-gate-background-base"></div>
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
       <div class="kisara-gate-atmosphere"></div>
-      <canvas class="kisara-burst-canvas" data-kisara-burst-canvas width="1280" height="900"></canvas>
     </div>
+    <canvas class="kisara-burst-canvas" data-kisara-burst-canvas width="1280" height="900" aria-hidden="true"></canvas>
     <p class="kisara-gate-index">YUIMI LAB / INTERACTION CHANNEL 03</p>
     <h1 class="kisara-title" aria-label="Kisara">
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
@@ -138,7 +138,7 @@ const gateStyle = [
       const detonationEnd = 0.968;
       const rainStart = 0.948;
       const rainPeak = 0.986;
-      const releaseAutoplayDuration = 6800;
+      const releaseAutoplayDuration = 8200;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
       const startsComplete = reducedMotion && !restoredBelowGate;
       let progress = startsComplete ? 1 : 0;
@@ -184,9 +184,11 @@ const gateStyle = [
       let screenParticleTimestamp = 0;
       let particleSerial = 0;
       let wakeEmissionBudget = 0;
+      let orbitEmissionBudget = 0;
       let rainEmissionBudget = 0;
       let burstWaveMask = 0;
       const wakeParticles = [];
+      const orbitParticles = [];
       const burstParticles = [];
       const rainParticles = [];
 
@@ -322,14 +324,14 @@ const gateStyle = [
           context.fill();
         }
 
-        const wakeLimit = width < 640 ? 84 : 164;
+        const wakeLimit = width < 640 ? 132 : 248;
         if (!reducedMotion && wakeOpacity > 0.02 && fill > 0.025 && burst < 0.02) {
-          wakeEmissionBudget += frameSeconds * (4 + fill * 34) * densityScale;
+          wakeEmissionBudget += frameSeconds * (6 + fill * 44) * densityScale;
           while (wakeEmissionBudget >= 1 && wakeParticles.length < wakeLimit) {
             wakeEmissionBudget -= 1;
             const side = nextParticleRandom() > 0.5 ? 1 : -1;
-            const backSpeed = 28 + fill * 98 + nextParticleRandom() * 34;
-            const sideSpeed = side * (8 + fill * 58) * (0.45 + nextParticleRandom() * 0.72);
+            const backSpeed = 46 + fill * 142 + nextParticleRandom() * 52;
+            const sideSpeed = side * (12 + fill * 76) * (0.42 + nextParticleRandom() * 0.8);
             const forwardX = Math.cos(angleRadians);
             const forwardY = Math.sin(angleRadians);
             const normalX = -forwardY;
@@ -342,8 +344,9 @@ const gateStyle = [
               velocityX: -forwardX * backSpeed + normalX * sideSpeed,
               velocityY: -forwardY * backSpeed + normalY * sideSpeed,
               age: 0,
-              jetLife: 0.24 + nextParticleRandom() * 0.48,
-              life: 3.8 + nextParticleRandom() * 4.6,
+              jetLife: 0.62 + nextParticleRandom() * 0.68,
+              coastLife: 1.3 + nextParticleRandom() * 1.45,
+              life: 7.2 + nextParticleRandom() * 5.8,
               size: 0.55 + nextParticleRandom() * (0.9 + fill * 1.35),
               phase: nextParticleRandom() * Math.PI * 2,
               curl: (nextParticleRandom() - 0.5) * 2,
@@ -365,21 +368,29 @@ const gateStyle = [
           particle.previousX = particle.x;
           particle.previousY = particle.y;
           const inJet = particle.age < particle.jetLife;
-          const drag = Math.exp(-frameSeconds * (inJet ? 1.65 : 0.34));
+          const inCoast = particle.age < particle.jetLife + particle.coastLife;
+          const drag = Math.exp(-frameSeconds * (inJet ? 0.72 : inCoast ? 0.16 : 0.08));
           particle.velocityX *= drag;
           particle.velocityY *= drag;
-          if (!inJet) {
+          const particleSpeed = Math.max(1, Math.hypot(particle.velocityX, particle.velocityY));
+          const curveX = -particle.velocityY / particleSpeed;
+          const curveY = particle.velocityX / particleSpeed;
+          if (inJet || inCoast) {
+            const curveStrength = particle.curl * (inJet ? 8.4 : 3.8) * (0.45 + particle.size * 0.24);
+            particle.velocityX += curveX * curveStrength * frameSeconds;
+            particle.velocityY += curveY * curveStrength * frameSeconds;
+          } else {
             const driftAge = particle.age - particle.jetLife;
             particle.velocityX += Math.sin(particle.phase + driftAge * (0.54 + particle.size * 0.08))
-              * frameSeconds * (2.4 + particle.size * 1.2);
+              * frameSeconds * (3.2 + particle.size * 1.4);
             particle.velocityY += Math.cos(particle.phase * 0.73 + driftAge * 0.46)
-              * frameSeconds * (1.6 + particle.size * 0.82);
-            particle.velocityY -= frameSeconds * (0.7 + particle.size * 0.22);
+              * frameSeconds * (2.1 + particle.size * 0.9);
+            particle.velocityY -= frameSeconds * (0.52 + particle.size * 0.18);
           }
           particle.x += particle.velocityX * frameSeconds;
           particle.y += particle.velocityY * frameSeconds;
 
-          if (!inJet) {
+          if (!inJet && !inCoast) {
             if (particle.x < 10 && particle.velocityX < 0) particle.velocityX *= -0.46;
             if (particle.x > width - 10 && particle.velocityX > 0) particle.velocityX *= -0.46;
             if (particle.y < 10 && particle.velocityY < 0) particle.velocityY *= -0.42;
@@ -390,8 +401,8 @@ const gateStyle = [
 
           const lifeRatio = particle.age / particle.life;
           const fadeIn = smoothstep(clamp(particle.age / 0.14, 0, 1));
-          const fadeOut = 1 - smoothstep(clamp((lifeRatio - 0.58) / 0.42, 0, 1));
-          const alpha = fadeIn * fadeOut * (inJet ? 0.64 : 0.34) * intensity;
+          const fadeOut = 1 - smoothstep(clamp((lifeRatio - 0.74) / 0.26, 0, 1));
+          const alpha = fadeIn * fadeOut * (inJet ? 0.68 : inCoast ? 0.54 : 0.42) * intensity;
           if (alpha <= 0.004) continue;
 
           context.globalAlpha = alpha;
@@ -402,10 +413,16 @@ const gateStyle = [
               : "#bfd6ff";
           context.fillStyle = context.strokeStyle;
           context.lineCap = "round";
-          if (inJet) {
-            context.lineWidth = particle.size * 0.72;
+          if (inJet || inCoast) {
+            const coastFade = inJet ? 1 : 1 - clamp((particle.age - particle.jetLife) / particle.coastLife, 0, 1) * 0.34;
+            const trailScale = inJet ? 2.2 : 1.35;
+            context.globalAlpha = alpha * coastFade;
+            context.lineWidth = particle.size * (inJet ? 0.78 : 0.62);
             context.beginPath();
-            context.moveTo(particle.previousX, particle.previousY);
+            context.moveTo(
+              particle.x - particle.velocityX * frameSeconds * trailScale,
+              particle.y - particle.velocityY * frameSeconds * trailScale
+            );
             context.lineTo(particle.x, particle.y);
             context.stroke();
           } else {
@@ -417,246 +434,337 @@ const gateStyle = [
           }
         }
 
-        const bodyFade = 1 - phaseProgress(burst, detonationStart, detonationStart + 0.024);
-        const bodyOpacity = Math.pow(releaseBuild, 0.68) * bodyFade;
-        const compressionDarkness = phaseProgress(burst, detonationStart - 0.045, detonationStart)
-          * (1 - detonationLinear);
-        if (compressionDarkness > 0.001) {
-          context.save();
-          context.globalCompositeOperation = "source-over";
-          const compressionShade = context.createRadialGradient(
-            originX,
-            originY,
-            18,
-            originX,
-            originY,
-            maxRadius * 0.82
-          );
-          compressionShade.addColorStop(0, "rgba(4, 6, 18, 0)");
-          compressionShade.addColorStop(0.34, "rgba(5, 7, 21, 0.045)");
-          compressionShade.addColorStop(1, "rgba(3, 5, 17, 0.46)");
-          context.globalAlpha = compressionDarkness * 0.72;
-          context.fillStyle = compressionShade;
-          context.fillRect(0, 0, width, height);
-          context.restore();
+        const blackHoleBuild = phaseProgress(burst, crossEnd, 0.872);
+        const gravityLock = phaseProgress(burst, 0.855, detonationStart);
+        const collapse = phaseProgress(burst, 0.892, detonationStart);
+        const blackHoleFade = 1 - phaseProgress(burst, detonationStart + 0.006, detonationEnd);
+        const blackHoleOpacity = blackHoleBuild * blackHoleFade;
+        const blackHoleAngle = -0.16 + Math.sin(time * 0.43) * 0.025 - collapse * 0.08;
+        const viewportScale = Math.min(width, height);
+        const baseCoreRadius = clamp(viewportScale * 0.09, 28, 82);
+        const coreRadius = baseCoreRadius * (0.86 + blackHoleBuild * 0.18 - collapse * 0.2);
+        const diskRadius = coreRadius * (3.12 + blackHoleBuild * 0.62 - collapse * 0.32);
+        const diskFlatten = 0.27 + blackHoleBuild * 0.055 - collapse * 0.035;
+
+        const orbitLimit = width < 640 ? 112 : 220;
+        const orbitDrive = blackHoleOpacity * (1 - detonationLinear);
+        if (!reducedMotion && orbitDrive > 0.01) {
+          orbitEmissionBudget += frameSeconds * (18 + gravityLock * 86) * densityScale;
+          while (orbitEmissionBudget >= 1 && orbitParticles.length < orbitLimit) {
+            orbitEmissionBudget -= 1;
+            orbitParticles.push({
+              angle: nextParticleRandom() * Math.PI * 2,
+              radius: diskRadius * (1.05 + nextParticleRandom() * 1.55),
+              angularVelocity: (0.72 + nextParticleRandom() * 1.08) * (nextParticleRandom() > 0.1 ? 1 : -1),
+              radialSpeed: 5 + nextParticleRandom() * 13,
+              lane: 0.74 + nextParticleRandom() * 0.34,
+              age: 0,
+              life: 4.8 + nextParticleRandom() * 5.4,
+              size: 0.45 + nextParticleRandom() * 1.35,
+              escape: nextParticleRandom() < 0.18,
+              tint: Math.floor(nextParticleRandom() * 6)
+            });
+          }
+        } else {
+          orbitEmissionBudget = Math.min(orbitEmissionBudget, 0.95);
         }
-        if (bodyOpacity > 0.001) {
-          const collapse = phaseProgress(burst, detonationStart - 0.026, detonationStart);
-          const releaseAngle = (-7.5 - releasePressure * 10.5) * Math.PI / 180;
-          const jitterX = Math.sin(time * (15 + releasePressure * 22)) * releasePressure * 6.5;
-          const jitterY = Math.cos(time * (18 + releasePressure * 26) + 0.8) * releasePressure * 4.8;
-          const availableLength = Math.min(width * 0.84, 920);
-          const bodyLength = (54 + releaseBuild * availableLength * 0.34 + releasePressure * availableLength * 0.46)
-            * (1 - collapse * 0.22);
-          const bodyThicknessLimit = Math.min(height * 0.18, width * 0.18, 150);
-          const bodyThickness = (10 + releaseBuild * 30 + releasePressure * bodyThicknessLimit)
-            * (1 - collapse * 0.2);
-          const bodyGradient = context.createLinearGradient(-bodyLength * 0.58, 0, bodyLength * 0.42, 0);
-          bodyGradient.addColorStop(0, "rgba(108, 153, 255, 0)");
-          bodyGradient.addColorStop(0.16, "rgba(132, 177, 255, 0.2)");
-          bodyGradient.addColorStop(0.5, "rgba(255, 91, 132, 0.64)");
-          bodyGradient.addColorStop(0.78, "rgba(255, 187, 205, 0.68)");
-          bodyGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
 
-          context.save();
-          context.translate(originX + jitterX, originY + jitterY);
-          context.rotate(releaseAngle);
-
-          const tracePlasmaBody = (scale, ripplePhase) => {
-            const segments = 42;
-            context.beginPath();
-            for (let segment = 0; segment <= segments; segment += 1) {
-              const unit = segment / segments;
-              const x = (unit - 0.58) * bodyLength;
-              const envelope = Math.pow(Math.sin(unit * Math.PI), 0.62) * bodyThickness * scale;
-              const ripple = (
-                Math.sin(unit * Math.PI * 5.2 - time * (5.2 + releasePressure * 4.6) + ripplePhase)
-                + Math.sin(unit * Math.PI * 11.4 + time * 2.7 + ripplePhase * 0.7) * 0.36
-              ) * envelope * (0.035 + releasePressure * 0.035);
-              const y = -envelope - ripple;
-              if (segment === 0) context.moveTo(x, y);
-              else context.lineTo(x, y);
-            }
-            for (let segment = segments; segment >= 0; segment -= 1) {
-              const unit = segment / segments;
-              const x = (unit - 0.58) * bodyLength;
-              const envelope = Math.pow(Math.sin(unit * Math.PI), 0.62) * bodyThickness * scale;
-              const ripple = (
-                Math.sin(unit * Math.PI * 4.7 + time * (4.4 + releasePressure * 4.1) + ripplePhase * 1.3)
-                + Math.cos(unit * Math.PI * 10.2 - time * 2.3 + ripplePhase) * 0.34
-              ) * envelope * (0.035 + releasePressure * 0.035);
-              context.lineTo(x, envelope + ripple);
-            }
-            context.closePath();
+        const projectOrbit = (angle, radius, lane) => {
+          const localX = Math.cos(angle) * radius;
+          const localY = Math.sin(angle) * radius * diskFlatten * lane;
+          return {
+            x: originX + localX * Math.cos(blackHoleAngle) - localY * Math.sin(blackHoleAngle),
+            y: originY + localX * Math.sin(blackHoleAngle) + localY * Math.cos(blackHoleAngle)
           };
+        };
 
-          const tracePlasmaEdge = (side, scale, ripplePhase) => {
-            const segments = 36;
-            context.beginPath();
-            for (let segment = 2; segment <= segments - 2; segment += 1) {
-              const unit = segment / segments;
-              const x = (unit - 0.58) * bodyLength;
-              const envelope = Math.pow(Math.sin(unit * Math.PI), 0.62) * bodyThickness * scale;
-              const ripple = (
-                Math.sin(unit * Math.PI * (side > 0 ? 4.8 : 5.3) + side * time * 4.2 + ripplePhase)
-                + Math.cos(unit * Math.PI * 10.4 - side * time * 2.25 + ripplePhase * 0.8) * 0.3
-              ) * envelope * (0.035 + releasePressure * 0.035);
-              const y = side * (envelope + ripple);
-              if (segment === 2) context.moveTo(x, y);
-              else context.lineTo(x, y);
+        for (let index = orbitParticles.length - 1; index >= 0; index -= 1) {
+          const particle = orbitParticles[index];
+          particle.age += frameSeconds;
+          if (particle.age >= particle.life || blackHoleOpacity <= 0.001) {
+            orbitParticles.splice(index, 1);
+            continue;
+          }
+          const previousAngle = particle.angle;
+          const previousRadius = particle.radius;
+          const orbitAcceleration = 1 + gravityLock * 4.8 + collapse * 2.2;
+          particle.angle += particle.angularVelocity * frameSeconds * orbitAcceleration
+            * Math.pow(diskRadius / Math.max(coreRadius, particle.radius), 0.46);
+          particle.radius -= (particle.radialSpeed + gravityLock * (11 + particle.size * 7)) * frameSeconds;
+
+          if (particle.radius <= coreRadius * 1.12) {
+            if (
+              particle.escape
+              && gravityLock > 0.54
+              && detonationLinear <= 0.001
+              && burstParticles.length < (width < 640 ? 190 : 360)
+            ) {
+              const escapePoint = projectOrbit(particle.angle, coreRadius * 1.18, particle.lane);
+              const tangentAngle = particle.angle + (particle.angularVelocity > 0 ? Math.PI / 2 : -Math.PI / 2) + blackHoleAngle;
+              const escapeSpeed = 150 + gravityLock * 260 + nextParticleRandom() * 120;
+              burstParticles.push({
+                x: escapePoint.x,
+                y: escapePoint.y,
+                previousX: escapePoint.x,
+                previousY: escapePoint.y,
+                velocityX: Math.cos(tangentAngle) * escapeSpeed + Math.cos(blackHoleAngle) * escapeSpeed * 0.18,
+                velocityY: Math.sin(tangentAngle) * escapeSpeed + Math.sin(blackHoleAngle) * escapeSpeed * 0.18,
+                age: 0,
+                life: 2.8 + nextParticleRandom() * 3.6,
+                size: particle.size * (0.9 + nextParticleRandom() * 0.8),
+                drag: 0.3 + nextParticleRandom() * 0.42,
+                gravity: 4 + nextParticleRandom() * 14,
+                phase: nextParticleRandom() * Math.PI * 2,
+                tint: particle.tint,
+                shape: nextParticleRandom()
+              });
+              orbitParticles.splice(index, 1);
+              continue;
             }
-          };
+            if (burst < detonationStart && blackHoleOpacity > 0.2) {
+              particle.radius = diskRadius * (1.6 + nextParticleRandom() * 0.92);
+              particle.angle += Math.PI * (0.42 + nextParticleRandom() * 0.34);
+            } else {
+              orbitParticles.splice(index, 1);
+              continue;
+            }
+          }
 
-          const shells = [
-            { scale: 2.08, alpha: 0.045, blur: 30 },
-            { scale: 1.42, alpha: 0.105, blur: 17 },
-            { scale: 1, alpha: 0.48, blur: 7 }
-          ];
-          for (let layer = 0; layer < shells.length; layer += 1) {
-            const shell = shells[layer];
-            tracePlasmaBody(shell.scale, layer * 1.37);
-            context.globalAlpha = shell.alpha * bodyOpacity * (0.72 + releasePressure * 0.38);
-            context.fillStyle = bodyGradient;
-            context.shadowColor = layer === 0 ? "rgba(117, 164, 255, 0.68)" : "rgba(255, 73, 116, 0.9)";
-            context.shadowBlur = shell.blur + releasePressure * 22;
+          const previousPoint = projectOrbit(previousAngle, previousRadius, particle.lane);
+          const point = projectOrbit(particle.angle, particle.radius, particle.lane);
+          particle.previousRenderX = previousPoint.x;
+          particle.previousRenderY = previousPoint.y;
+          particle.renderX = point.x;
+          particle.renderY = point.y;
+          particle.depth = Math.sin(particle.angle);
+        }
+
+        const drawOrbitParticle = (particle) => {
+          const lifeRatio = particle.age / particle.life;
+          const fadeIn = smoothstep(clamp(particle.age / 0.14, 0, 1));
+          const fadeOut = 1 - smoothstep(clamp((lifeRatio - 0.72) / 0.28, 0, 1));
+          const coreProximity = clamp((particle.radius - coreRadius) / Math.max(1, diskRadius * 1.55), 0, 1);
+          context.globalAlpha = fadeIn * fadeOut * blackHoleOpacity * (0.28 + (1 - coreProximity) * 0.56);
+          context.strokeStyle = particle.tint === 0
+            ? "#ffffff"
+            : particle.tint < 4
+              ? "#ff89a9"
+              : "#b9d4ff";
+          context.fillStyle = context.strokeStyle;
+          context.lineWidth = particle.size * (0.58 + gravityLock * 0.38);
+          context.lineCap = "round";
+          context.beginPath();
+          context.moveTo(particle.previousRenderX, particle.previousRenderY);
+          context.lineTo(particle.renderX, particle.renderY);
+          context.stroke();
+          if (particle.size > 1.12) {
+            context.globalAlpha *= 0.48;
+            context.beginPath();
+            context.arc(particle.renderX, particle.renderY, particle.size * 0.4, 0, Math.PI * 2);
             context.fill();
           }
+        };
 
-          for (let edgeIndex = 0; edgeIndex < 4; edgeIndex += 1) {
-            const side = edgeIndex % 2 === 0 ? -1 : 1;
-            const outerEdge = edgeIndex >= 2;
-            tracePlasmaEdge(side, outerEdge ? 1.32 : 1.02, 0.38 + edgeIndex * 0.61);
-            context.globalAlpha = bodyOpacity * (outerEdge ? 0.045 + releasePressure * 0.055 : 0.14 + releasePressure * 0.12);
-            context.strokeStyle = outerEdge ? "rgba(154, 193, 255, 0.7)" : "rgba(255, 152, 178, 0.84)";
-            context.lineWidth = outerEdge ? 0.7 + releasePressure * 0.7 : 0.85 + releasePressure * 1.2;
-            context.shadowColor = outerEdge ? "rgba(133, 176, 255, 0.66)" : "rgba(255, 70, 113, 0.82)";
-            context.shadowBlur = outerEdge ? 9 : 6 + releasePressure * 8;
-            context.stroke();
-          }
+        if (blackHoleOpacity > 0.001) {
+          context.save();
+          context.globalCompositeOperation = "source-over";
+          const gravityShade = context.createRadialGradient(
+            originX,
+            originY,
+            coreRadius * 0.4,
+            originX,
+            originY,
+            maxRadius * 0.72
+          );
+          gravityShade.addColorStop(0, "rgba(1, 1, 8, 0.18)");
+          gravityShade.addColorStop(0.22, "rgba(7, 3, 17, 0.12)");
+          gravityShade.addColorStop(0.58, "rgba(20, 5, 26, 0.045)");
+          gravityShade.addColorStop(1, "rgba(3, 4, 13, 0)");
+          context.globalAlpha = blackHoleOpacity * (0.34 + collapse * 0.36);
+          context.fillStyle = gravityShade;
+          context.fillRect(0, 0, width, height);
+          context.restore();
 
           context.save();
-          tracePlasmaBody(0.88, 0.6);
-          context.clip();
-          context.shadowBlur = 0;
-          for (let strand = 0; strand < 6; strand += 1) {
-            const strandGradient = context.createLinearGradient(-bodyLength * 0.4, 0, bodyLength * 0.56, 0);
-            strandGradient.addColorStop(0, "rgba(156, 190, 255, 0)");
-            strandGradient.addColorStop(0.28, "rgba(177, 204, 255, 0.46)");
-            strandGradient.addColorStop(0.68, "rgba(255, 151, 177, 0.82)");
-            strandGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+          context.globalCompositeOperation = "lighter";
+          for (const particle of orbitParticles) {
+            if (particle.depth < 0 && particle.renderX !== undefined) drawOrbitParticle(particle);
+          }
+
+          context.translate(originX, originY);
+          context.rotate(blackHoleAngle);
+          const diskGradient = context.createLinearGradient(-diskRadius, 0, diskRadius, 0);
+          diskGradient.addColorStop(0, "rgba(111, 157, 255, 0)");
+          diskGradient.addColorStop(0.18, "rgba(143, 184, 255, 0.42)");
+          diskGradient.addColorStop(0.46, "rgba(255, 89, 137, 0.86)");
+          diskGradient.addColorStop(0.58, "rgba(255, 242, 248, 0.98)");
+          diskGradient.addColorStop(0.78, "rgba(255, 107, 149, 0.62)");
+          diskGradient.addColorStop(1, "rgba(255, 107, 149, 0)");
+
+          for (let band = 0; band < 5; band += 1) {
+            context.globalAlpha = blackHoleOpacity * (0.14 + band * 0.038) * (0.78 + gravityLock * 0.54);
+            context.strokeStyle = diskGradient;
+            context.lineWidth = 1.7 + (4 - band) * (1.7 + gravityLock * 0.82);
+            context.shadowColor = band < 2 ? "rgba(140, 181, 255, 0.72)" : "rgba(255, 77, 126, 0.9)";
+            context.shadowBlur = 7 + (4 - band) * 3 + gravityLock * 12;
             context.beginPath();
-            const strandOffset = (strand - 2.5) * bodyThickness * 0.11;
-            for (let segment = 0; segment <= 38; segment += 1) {
-              const unit = segment / 38;
-              const x = (unit - 0.58) * bodyLength;
-              const taper = Math.pow(Math.sin(unit * Math.PI), 0.7);
-              const wave = Math.sin(unit * Math.PI * (3.4 + strand * 0.24) - time * (5.4 + strand * 0.37))
-                * bodyThickness * (0.08 + releasePressure * 0.05) * taper;
-              const y = strandOffset * taper + wave;
-              if (segment === 0) context.moveTo(x, y);
-              else context.lineTo(x, y);
-            }
-            context.globalAlpha = bodyOpacity * (0.24 + releasePressure * 0.32);
-            context.strokeStyle = strandGradient;
-            context.lineWidth = 0.8 + releasePressure * 1.8 + (strand % 2) * 0.45;
+            context.ellipse(
+              0,
+              0,
+              diskRadius * (0.92 + band * 0.035),
+              diskRadius * diskFlatten * (0.84 + band * 0.055),
+              0,
+              Math.PI,
+              Math.PI * 2
+            );
             context.stroke();
           }
-          context.restore();
 
-          const spineGradient = context.createLinearGradient(-bodyLength * 0.48, 0, bodyLength * 0.36, 0);
-          spineGradient.addColorStop(0, "rgba(178, 207, 255, 0)");
-          spineGradient.addColorStop(0.28, "rgba(193, 216, 255, 0.48)");
-          spineGradient.addColorStop(0.66, "rgba(255, 205, 219, 0.88)");
-          spineGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+          context.globalAlpha = blackHoleOpacity * (0.17 + gravityLock * 0.16);
+          context.strokeStyle = diskGradient;
+          context.lineWidth = coreRadius * (0.16 + gravityLock * 0.055);
+          context.shadowColor = "rgba(255, 77, 128, 0.88)";
+          context.shadowBlur = 22 + gravityLock * 22;
           context.beginPath();
-          context.moveTo(-bodyLength * 0.48, bodyThickness * 0.04);
-          context.bezierCurveTo(
-            -bodyLength * 0.18,
-            -bodyThickness * (0.06 + releasePressure * 0.08),
-            bodyLength * 0.12,
-            bodyThickness * 0.05,
-            bodyLength * 0.36,
-            -bodyThickness * 0.02
-          );
-          context.globalAlpha = bodyOpacity * (0.42 + releasePressure * 0.28);
-          context.strokeStyle = spineGradient;
-          context.lineWidth = 1.1 + releasePressure * 3.4;
-          context.shadowColor = "rgba(255, 238, 245, 0.94)";
-          context.shadowBlur = 5 + releasePressure * 13;
+          context.ellipse(0, 0, diskRadius * 1.02, diskRadius * diskFlatten * 0.96, 0, 0, Math.PI * 2);
           context.stroke();
 
-          const motionCount = 6 + Math.floor(releasePressure * 24);
-          for (let streakIndex = 0; streakIndex < motionCount; streakIndex += 1) {
-            const seed = randomSeed(streakIndex + 7101);
-            const phase = (time * (0.11 + seed * 0.18) + seed * 3.7) % 1;
-            const phaseFade = Math.pow(Math.sin(phase * Math.PI), 1.6);
-            const x = (phase - 0.5) * bodyLength * 1.45;
-            const lane = (randomSeed(streakIndex + 7601) - 0.5) * bodyThickness * 2.8;
-            const streakLength = 14 + releasePressure * (42 + seed * 92);
-            context.globalAlpha = phaseFade * bodyOpacity * (0.04 + releasePressure * 0.19);
-            context.strokeStyle = streakIndex % 4 === 0 ? "#ffffff" : streakIndex % 2 === 0 ? "#ff9bb2" : "#bdd5ff";
-            context.lineWidth = 0.45 + seed * 1.1;
+          const halo = context.createRadialGradient(0, 0, coreRadius * 0.7, 0, 0, diskRadius * 1.08);
+          halo.addColorStop(0, "rgba(255, 92, 137, 0.14)");
+          halo.addColorStop(0.42, "rgba(255, 82, 131, 0.07)");
+          halo.addColorStop(0.76, "rgba(139, 176, 255, 0.035)");
+          halo.addColorStop(1, "rgba(139, 176, 255, 0)");
+          context.globalAlpha = blackHoleOpacity * (0.72 + gravityLock * 0.34);
+          context.fillStyle = halo;
+          context.fillRect(-diskRadius * 1.12, -diskRadius, diskRadius * 2.24, diskRadius * 2);
+
+          context.globalCompositeOperation = "source-over";
+          const eventHorizon = context.createRadialGradient(
+            -coreRadius * 0.16,
+            -coreRadius * 0.14,
+            coreRadius * 0.06,
+            0,
+            0,
+            coreRadius * 1.08
+          );
+          eventHorizon.addColorStop(0, "rgba(0, 0, 3, 1)");
+          eventHorizon.addColorStop(0.66, "rgba(2, 1, 8, 0.99)");
+          eventHorizon.addColorStop(0.9, "rgba(18, 3, 24, 0.98)");
+          eventHorizon.addColorStop(1, "rgba(61, 8, 42, 0.28)");
+          context.globalAlpha = blackHoleOpacity;
+          context.fillStyle = eventHorizon;
+          context.beginPath();
+          context.arc(0, 0, coreRadius * 1.08, 0, Math.PI * 2);
+          context.fill();
+
+          context.globalCompositeOperation = "lighter";
+          context.globalAlpha = blackHoleOpacity * (0.76 + gravityLock * 0.22);
+          context.strokeStyle = "rgba(255, 211, 226, 0.92)";
+          context.lineWidth = 1 + gravityLock * 1.4;
+          context.shadowColor = "rgba(255, 66, 123, 0.96)";
+          context.shadowBlur = 8 + gravityLock * 13;
+          context.beginPath();
+          context.arc(0, 0, coreRadius * 1.1, 0, Math.PI * 2);
+          context.stroke();
+
+          for (let band = 0; band < 4; band += 1) {
+            context.globalAlpha = blackHoleOpacity * (0.34 + band * 0.082) * (0.8 + gravityLock * 0.46);
+            context.strokeStyle = diskGradient;
+            context.lineWidth = 2 + (3 - band) * (2.15 + gravityLock * 0.96);
+            context.shadowColor = "rgba(255, 74, 125, 0.9)";
+            context.shadowBlur = 8 + (3 - band) * 3 + gravityLock * 14;
             context.beginPath();
-            context.moveTo(x, lane);
-            context.lineTo(x - streakLength, lane + (seed - 0.5) * 7);
+            context.ellipse(
+              0,
+              0,
+              diskRadius * (0.9 + band * 0.042),
+              diskRadius * diskFlatten * (0.82 + band * 0.06),
+              0,
+              0,
+              Math.PI
+            );
             context.stroke();
           }
 
-          const coreX = bodyLength * 0.31;
-          const coreRadius = bodyThickness * (0.42 + releasePressure * 0.22);
-          const coreGlow = context.createRadialGradient(coreX, 0, 0, coreX, 0, coreRadius * 1.9);
-          coreGlow.addColorStop(0, "rgba(255, 255, 255, 0.86)");
-          coreGlow.addColorStop(0.18, "rgba(255, 236, 243, 0.64)");
-          coreGlow.addColorStop(0.54, "rgba(255, 75, 118, 0.27)");
-          coreGlow.addColorStop(1, "rgba(255, 75, 118, 0)");
-          context.globalAlpha = bodyOpacity * (0.34 + releasePressure * 0.26);
-          context.fillStyle = coreGlow;
-          context.beginPath();
-          context.arc(coreX, 0, coreRadius * 1.9, 0, Math.PI * 2);
-          context.fill();
+          const lensingHeight = coreRadius * (1.92 + gravityLock * 0.52);
+          for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
+            const side = sideIndex === 0 ? -1 : 1;
+            context.globalAlpha = blackHoleOpacity * (0.3 + gravityLock * 0.34);
+            context.strokeStyle = side < 0 ? "rgba(184, 211, 255, 0.78)" : "rgba(255, 170, 195, 0.82)";
+            context.lineWidth = 1.3 + gravityLock * 1.35;
+            context.shadowColor = context.strokeStyle;
+            context.shadowBlur = 8 + gravityLock * 11;
+            context.beginPath();
+            context.moveTo(-diskRadius * 0.66, side * coreRadius * 0.12);
+            context.bezierCurveTo(
+              -coreRadius * 1.18,
+              side * lensingHeight,
+              coreRadius * 1.18,
+              side * lensingHeight,
+              diskRadius * 0.66,
+              side * coreRadius * 0.08
+            );
+            context.stroke();
+          }
+
+          for (let highlight = 0; highlight < 6; highlight += 1) {
+            const seed = randomSeed(highlight + 7301);
+            const phase = time * (0.42 + seed * 0.5) + seed * Math.PI * 2;
+            const span = 0.18 + seed * 0.42;
+            context.globalAlpha = blackHoleOpacity * (0.12 + gravityLock * 0.18) * (0.46 + seed * 0.54);
+            context.strokeStyle = highlight % 3 === 0 ? "#ffffff" : highlight % 2 === 0 ? "#ff8fab" : "#bed7ff";
+            context.lineWidth = 0.55 + seed * 1.15;
+            context.shadowBlur = 3 + gravityLock * 7;
+            context.beginPath();
+            context.ellipse(0, 0, diskRadius * (0.96 + seed * 0.16), diskRadius * diskFlatten, 0, phase, phase + span);
+            context.stroke();
+          }
           context.restore();
 
-          const contraction = phaseProgress(burst, detonationStart - 0.035, detonationStart);
-          if (contraction > 0.001) {
-            const inwardCount = 12 + Math.floor(contraction * 22);
-            for (let index = 0; index < inwardCount; index += 1) {
-              const seed = randomSeed(index + 8201);
-              const angle = seed * Math.PI * 2;
-              const radius = (46 + randomSeed(index + 8601) * Math.min(width, height) * 0.28) * (1 - contraction * 0.78);
-              const innerRadius = Math.max(3, radius - (18 + contraction * 72));
-              context.globalAlpha = contraction * (0.05 + seed * 0.18);
-              context.strokeStyle = index % 3 === 0 ? "#ffffff" : index % 2 === 0 ? "#ff94ac" : "#c5d9ff";
-              context.lineWidth = 0.5 + contraction * 1.2;
-              context.beginPath();
-              context.moveTo(originX + Math.cos(angle) * radius, originY + Math.sin(angle) * radius * 0.74);
-              context.lineTo(originX + Math.cos(angle) * innerRadius, originY + Math.sin(angle) * innerRadius * 0.74);
-              context.stroke();
-            }
+          context.save();
+          context.globalCompositeOperation = "lighter";
+          for (const particle of orbitParticles) {
+            if (particle.depth >= 0 && particle.renderX !== undefined) drawOrbitParticle(particle);
           }
+          context.restore();
         }
 
         const burstLimit = width < 640 ? 190 : 360;
         const spawnBurstWave = (waveIndex) => {
-          const count = Math.floor((waveIndex === 0 ? 84 : waveIndex === 1 ? 116 : 154) * densityScale);
-          const forwardX = Math.cos((-10 - waveIndex * 3) * Math.PI / 180);
-          const forwardY = Math.sin((-10 - waveIndex * 3) * Math.PI / 180);
+          const count = Math.floor((waveIndex === 0 ? 72 : waveIndex === 1 ? 104 : 138) * densityScale);
           for (let index = 0; index < count && burstParticles.length < burstLimit; index += 1) {
             const angle = nextParticleRandom() * Math.PI * 2;
-            const speed = (waveIndex === 0 ? 112 : waveIndex === 1 ? 78 : 46)
-              + nextParticleRandom() * (waveIndex === 0 ? 248 : waveIndex === 1 ? 188 : 128);
-            const directionalBias = (0.18 + nextParticleRandom() * 0.42) * speed;
+            const spawnRadius = coreRadius * (0.82 + nextParticleRandom() * 0.92);
+            const localX = Math.cos(angle) * spawnRadius;
+            const localY = Math.sin(angle) * spawnRadius * diskFlatten;
+            const spawnX = originX + localX * Math.cos(blackHoleAngle) - localY * Math.sin(blackHoleAngle);
+            const spawnY = originY + localX * Math.sin(blackHoleAngle) + localY * Math.cos(blackHoleAngle);
+            const flowSign = nextParticleRandom() > 0.1 ? 1 : -1;
+            const localTangentX = -Math.sin(angle) * flowSign;
+            const localTangentY = Math.cos(angle) * diskFlatten * flowSign;
+            const tangentLength = Math.max(0.001, Math.hypot(localTangentX, localTangentY));
+            const tangentX = (localTangentX / tangentLength) * Math.cos(blackHoleAngle)
+              - (localTangentY / tangentLength) * Math.sin(blackHoleAngle);
+            const tangentY = (localTangentX / tangentLength) * Math.sin(blackHoleAngle)
+              + (localTangentY / tangentLength) * Math.cos(blackHoleAngle);
+            const radialX = Math.cos(angle + blackHoleAngle);
+            const radialY = Math.sin(angle + blackHoleAngle) * 0.76;
+            const speed = (waveIndex === 0 ? 170 : waveIndex === 1 ? 125 : 92)
+              + nextParticleRandom() * (waveIndex === 0 ? 280 : waveIndex === 1 ? 230 : 180);
+            const tangentWeight = waveIndex === 0 ? 0.82 : waveIndex === 1 ? 0.58 : 0.34;
+            const radialWeight = waveIndex === 0 ? 0.34 : waveIndex === 1 ? 0.62 : 0.88;
             burstParticles.push({
-              x: originX,
-              y: originY,
-              previousX: originX,
-              previousY: originY,
-              velocityX: Math.cos(angle) * speed + forwardX * directionalBias,
-              velocityY: Math.sin(angle) * speed * 0.78 + forwardY * directionalBias,
+              x: spawnX,
+              y: spawnY,
+              previousX: spawnX,
+              previousY: spawnY,
+              velocityX: tangentX * speed * tangentWeight + radialX * speed * radialWeight,
+              velocityY: tangentY * speed * tangentWeight + radialY * speed * radialWeight,
               age: 0,
-              life: 2.15 + nextParticleRandom() * 3.15 + waveIndex * 0.32,
-              size: 0.55 + nextParticleRandom() * (1.7 + waveIndex * 0.5),
-              drag: 0.58 + nextParticleRandom() * 0.72,
-              gravity: 6 + nextParticleRandom() * 27,
+              life: 3.2 + nextParticleRandom() * 3.8 + waveIndex * 0.38,
+              size: 0.58 + nextParticleRandom() * (1.72 + waveIndex * 0.48),
+              drag: 0.28 + nextParticleRandom() * 0.5,
+              gravity: 4 + nextParticleRandom() * 20,
               phase: nextParticleRandom() * Math.PI * 2,
               tint: Math.floor(nextParticleRandom() * 6),
               shape: nextParticleRandom()
@@ -665,7 +773,7 @@ const gateStyle = [
         };
 
         if (!reducedMotion) {
-          const waveThresholds = [0.055, 0.32, 0.68];
+          const waveThresholds = [0.06, 0.34, 0.66];
           for (let waveIndex = 0; waveIndex < waveThresholds.length; waveIndex += 1) {
             const waveBit = 1 << waveIndex;
             if (detonationLinear >= waveThresholds[waveIndex] && (burstWaveMask & waveBit) === 0) {
@@ -676,114 +784,175 @@ const gateStyle = [
         }
 
         if (detonationLinear > 0.001) {
-          const flashPrimary = Math.exp(-Math.pow((detonationLinear - 0.14) / 0.105, 2));
-          const flashSecondary = Math.exp(-Math.pow((detonationLinear - 0.49) / 0.16, 2)) * 0.48;
-          const flashStrength = clamp(flashPrimary + flashSecondary, 0, 1.15);
+          const inversionFlash = Math.exp(-Math.pow((detonationLinear - 0.12) / 0.075, 2));
+          const ruptureFlash = Math.exp(-Math.pow((detonationLinear - 0.38) / 0.16, 2)) * 0.72;
+          const flashStrength = clamp(inversionFlash + ruptureFlash, 0, 1.24);
+          const jetRise = phaseProgress(detonationLinear, 0.03, 0.28);
+          const jetFall = 1 - phaseProgress(detonationLinear, 0.72, 1);
+          const jetStrength = jetRise * jetFall;
+          const shockEase = 1 - Math.pow(1 - detonationLinear, 3.2);
+
           if (flashStrength > 0.002) {
             const flash = context.createRadialGradient(originX, originY, 0, originX, originY, maxRadius * 0.88);
             flash.addColorStop(0, "rgba(255, 255, 255, 0.96)");
-            flash.addColorStop(0.09, "rgba(255, 238, 245, 0.76)");
-            flash.addColorStop(0.32, "rgba(255, 102, 142, 0.24)");
+            flash.addColorStop(0.07, "rgba(255, 240, 247, 0.82)");
+            flash.addColorStop(0.24, "rgba(255, 91, 139, 0.34)");
+            flash.addColorStop(0.54, "rgba(160, 101, 255, 0.09)");
             flash.addColorStop(1, "rgba(255, 72, 112, 0)");
-            context.globalAlpha = flashStrength * 0.9;
+            context.globalAlpha = flashStrength * 0.92;
             context.fillStyle = flash;
             context.fillRect(0, 0, width, height);
-
-            context.save();
-            context.translate(originX, originY);
-            context.rotate(-12 * Math.PI / 180);
-            const flare = context.createLinearGradient(-width * 0.42, 0, width * 0.42, 0);
-            flare.addColorStop(0, "rgba(255,255,255,0)");
-            flare.addColorStop(0.46, "rgba(255,230,239,0.16)");
-            flare.addColorStop(0.5, "rgba(255,255,255,0.92)");
-            flare.addColorStop(0.54, "rgba(255,230,239,0.16)");
-            flare.addColorStop(1, "rgba(255,255,255,0)");
-            context.globalAlpha = flashStrength * 0.72;
-            context.fillStyle = flare;
-            context.fillRect(-width * 0.46, -2 - flashStrength * 7, width * 0.92, 4 + flashStrength * 14);
-            context.restore();
           }
 
-          const shockEase = 1 - Math.pow(1 - detonationLinear, 3.4);
-          for (let ring = 0; ring < 4; ring += 1) {
-            const delayed = clamp((detonationLinear - ring * 0.11) / (1 - ring * 0.11), 0, 1);
-            if (delayed <= 0) continue;
-            const ringEase = 1 - Math.pow(1 - delayed, 3);
-            const ringRadius = ringEase * maxRadius * (0.72 + ring * 0.1);
-            const ringAlpha = Math.pow(Math.sin(delayed * Math.PI), 1.5) * (0.22 - ring * 0.032);
-            context.globalAlpha = ringAlpha;
-            context.strokeStyle = ring % 2 === 0 ? "#ffd2dc" : "#c9dcff";
-            context.lineWidth = 1 + (1 - delayed) * (4.2 - ring * 0.52);
-            context.beginPath();
-            context.ellipse(originX, originY, ringRadius, ringRadius * (0.7 + ring * 0.025), -0.12, 0, Math.PI * 2);
-            context.stroke();
-          }
-
-          const rushStrength = Math.pow(Math.sin(clamp(detonationLinear / 0.78, 0, 1) * Math.PI), 1.2);
-          if (rushStrength > 0.001) {
+          if (jetStrength > 0.001) {
             context.save();
             context.translate(originX, originY);
-            context.rotate(-12 * Math.PI / 180);
-            const rushCount = 10 + Math.floor(rushStrength * 26);
-            for (let index = 0; index < rushCount; index += 1) {
-              const seed = randomSeed(index + 9301);
-              const lane = (randomSeed(index + 9701) - 0.5) * height * 0.62;
-              const distance = (0.18 + seed * 0.82) * width * 0.56;
-              const streakLength = 30 + rushStrength * (80 + seed * 190);
-              const direction = seed > 0.18 ? -1 : 1;
-              const streakGradient = context.createLinearGradient(
-                direction * distance,
-                lane,
-                direction * (distance - streakLength),
-                lane
-              );
-              streakGradient.addColorStop(0, index % 3 === 0 ? "rgba(255,255,255,0.72)" : "rgba(255,132,160,0.5)");
-              streakGradient.addColorStop(1, "rgba(150,190,255,0)");
-              context.globalAlpha = rushStrength * (0.035 + seed * 0.15);
-              context.strokeStyle = streakGradient;
-              context.lineWidth = 0.5 + seed * 1.5;
+            context.rotate(blackHoleAngle + Math.PI / 2);
+            const jetLength = maxRadius * (0.24 + jetStrength * 0.72);
+            const jetWidth = coreRadius * (0.1 + jetStrength * 0.62);
+            const traceJet = (direction, widthScale = 1, lengthScale = 1, bendScale = 1) => {
+              const activeLength = jetLength * lengthScale;
+              const activeWidth = jetWidth * widthScale;
+              const jetBend = Math.sin(time * (8.2 + jetStrength * 8.6) + direction * 0.9)
+                * activeWidth * 0.62 * bendScale;
               context.beginPath();
-              context.moveTo(direction * distance, lane);
-              context.lineTo(direction * (distance - streakLength), lane + (seed - 0.5) * 10);
-              context.stroke();
+              context.moveTo(direction * coreRadius * 0.36, -activeWidth * 0.2);
+              context.bezierCurveTo(
+                direction * activeLength * 0.18,
+                -activeWidth + jetBend * 0.1,
+                direction * activeLength * 0.7,
+                -activeWidth * 0.28 + jetBend * 0.72,
+                direction * activeLength,
+                jetBend
+              );
+              context.bezierCurveTo(
+                direction * activeLength * 0.7,
+                activeWidth * 0.28 + jetBend * 0.72,
+                direction * activeLength * 0.18,
+                activeWidth + jetBend * 0.1,
+                direction * coreRadius * 0.36,
+                activeWidth * 0.2
+              );
+              context.closePath();
+            };
+
+            for (const direction of [-1, 1]) {
+              const jetGradient = context.createLinearGradient(0, 0, direction * jetLength, 0);
+              jetGradient.addColorStop(0, "rgba(255,255,255,0.98)");
+              jetGradient.addColorStop(0.08, "rgba(255,216,231,0.92)");
+              jetGradient.addColorStop(0.36, "rgba(255,76,130,0.56)");
+              jetGradient.addColorStop(0.72, "rgba(153,126,255,0.16)");
+              jetGradient.addColorStop(1, "rgba(126,157,255,0)");
+              traceJet(direction);
+              context.globalAlpha = jetStrength * 0.2;
+              context.fillStyle = jetGradient;
+              context.shadowColor = "rgba(255, 71, 130, 0.94)";
+              context.shadowBlur = 34 + jetStrength * 46;
+              context.fill();
+              traceJet(direction);
+              context.globalAlpha = jetStrength * 0.62;
+              context.shadowBlur = 8 + jetStrength * 14;
+              context.fill();
+              traceJet(direction, 0.3, 0.94, 0.58);
+              context.globalAlpha = jetStrength * 0.86;
+              context.fillStyle = "rgba(255, 244, 249, 0.88)";
+              context.shadowColor = "rgba(255, 188, 213, 0.98)";
+              context.shadowBlur = 7 + jetStrength * 12;
+              context.fill();
             }
             context.restore();
           }
 
-          for (let arcIndex = 0; arcIndex < 10; arcIndex += 1) {
-            const seed = randomSeed(arcIndex + 10101);
-            const delayed = clamp((detonationLinear - seed * 0.32) / (1 - seed * 0.32), 0, 1);
+          for (let ring = 0; ring < 3; ring += 1) {
+            const delayed = clamp((detonationLinear - ring * 0.14) / (1 - ring * 0.14), 0, 1);
             if (delayed <= 0) continue;
-            const radius = (1 - Math.pow(1 - delayed, 2.8)) * maxRadius * (0.22 + seed * 0.46);
-            const startAngle = seed * Math.PI * 2 + detonationLinear * (0.3 + seed * 0.7);
-            const span = 0.18 + seed * 0.72;
-            context.globalAlpha = Math.pow(Math.sin(delayed * Math.PI), 1.4) * (0.045 + seed * 0.11);
+            const ringEase = 1 - Math.pow(1 - delayed, 3);
+            const ringRadius = ringEase * maxRadius * (0.62 + ring * 0.12);
+            const ringAlpha = Math.pow(Math.sin(delayed * Math.PI), 1.42) * (0.3 - ring * 0.054);
+            context.globalAlpha = ringAlpha;
+            context.strokeStyle = ring % 2 === 0 ? "#ffd2dc" : "#c9dcff";
+            context.lineWidth = 0.8 + (1 - delayed) * (5.2 - ring * 0.68);
+            context.shadowColor = ring % 2 === 0 ? "rgba(255,92,139,0.84)" : "rgba(157,192,255,0.7)";
+            context.shadowBlur = 6 + (1 - delayed) * 14;
+            context.beginPath();
+            context.ellipse(originX, originY, ringRadius, ringRadius * (0.54 + ring * 0.045), blackHoleAngle, 0, Math.PI * 2);
+            context.stroke();
+          }
+
+          const rushStrength = Math.pow(Math.sin(clamp(detonationLinear / 0.84, 0, 1) * Math.PI), 1.15);
+          if (rushStrength > 0.001) {
+            const rushCount = 14 + Math.floor(rushStrength * 34);
+            for (let index = 0; index < rushCount; index += 1) {
+              const seed = randomSeed(index + 9301);
+              const angle = seed * Math.PI * 2 + blackHoleAngle + detonationLinear * (0.8 + seed * 1.4);
+              const startRadius = coreRadius * (1.1 + seed * 1.7);
+              const streakLength = 34 + rushStrength * (110 + seed * 240);
+              const startX = originX + Math.cos(angle) * startRadius;
+              const startY = originY + Math.sin(angle) * startRadius * 0.66;
+              const curveAngle = angle + (seed > 0.5 ? 0.28 : -0.28);
+              const endX = originX + Math.cos(curveAngle) * (startRadius + streakLength);
+              const endY = originY + Math.sin(curveAngle) * (startRadius + streakLength) * 0.72;
+              const streakGradient = context.createLinearGradient(startX, startY, endX, endY);
+              streakGradient.addColorStop(0, index % 4 === 0 ? "rgba(255,255,255,0.86)" : "rgba(255,122,157,0.66)");
+              streakGradient.addColorStop(0.42, index % 3 === 0 ? "rgba(255,95,143,0.38)" : "rgba(173,194,255,0.26)");
+              streakGradient.addColorStop(1, "rgba(140,178,255,0)");
+              context.globalAlpha = rushStrength * (0.04 + seed * 0.18);
+              context.strokeStyle = streakGradient;
+              context.lineWidth = 0.55 + seed * 1.7;
+              context.shadowColor = index % 3 === 0 ? "rgba(255,79,130,0.8)" : "rgba(154,188,255,0.62)";
+              context.shadowBlur = 3 + rushStrength * 8;
+              context.beginPath();
+              context.moveTo(startX, startY);
+              context.quadraticCurveTo(
+                originX + Math.cos(angle + (seed - 0.5) * 0.9) * (startRadius + streakLength * 0.48),
+                originY + Math.sin(angle + (seed - 0.5) * 0.9) * (startRadius + streakLength * 0.48) * 0.66,
+                endX,
+                endY
+              );
+              context.stroke();
+            }
+          }
+
+          for (let arcIndex = 0; arcIndex < 12; arcIndex += 1) {
+            const seed = randomSeed(arcIndex + 10101);
+            const delayed = clamp((detonationLinear - seed * 0.28) / (1 - seed * 0.28), 0, 1);
+            if (delayed <= 0) continue;
+            const radius = (1 - Math.pow(1 - delayed, 2.7)) * maxRadius * (0.18 + seed * 0.42);
+            const startAngle = seed * Math.PI * 2 + detonationLinear * (0.8 + seed * 1.3) + blackHoleAngle;
+            const span = 0.22 + seed * 0.9;
+            context.globalAlpha = Math.pow(Math.sin(delayed * Math.PI), 1.32) * (0.055 + seed * 0.14);
             context.strokeStyle = arcIndex % 3 === 0 ? "#ffffff" : arcIndex % 2 === 0 ? "#ff9db3" : "#bfd6ff";
-            context.lineWidth = 0.65 + (1 - delayed) * (1.8 + seed * 2.4);
+            context.lineWidth = 0.65 + (1 - delayed) * (2.2 + seed * 2.8);
+            context.shadowColor = context.strokeStyle;
+            context.shadowBlur = 4 + (1 - delayed) * 8;
             context.beginPath();
             context.ellipse(
               originX,
               originY,
               radius,
-              radius * 0.73,
-              -0.12,
+              radius * 0.62,
+              blackHoleAngle,
               startAngle,
               startAngle + span
             );
             context.stroke();
           }
 
-          const blastCoreRadius = 24 + shockEase * Math.min(width, height) * 0.19;
+          const blastCoreRadius = coreRadius * 0.72 + shockEase * Math.min(width, height) * 0.24;
           const blastCore = context.createRadialGradient(originX, originY, 0, originX, originY, blastCoreRadius);
-          blastCore.addColorStop(0, "rgba(255,255,255,0.9)");
-          blastCore.addColorStop(0.18, "rgba(255,216,228,0.72)");
-          blastCore.addColorStop(0.52, "rgba(255,74,116,0.2)");
+          blastCore.addColorStop(0, "rgba(255,255,255,0.96)");
+          blastCore.addColorStop(0.12, "rgba(255,226,237,0.84)");
+          blastCore.addColorStop(0.34, "rgba(255,80,134,0.42)");
+          blastCore.addColorStop(0.66, "rgba(164,111,255,0.12)");
           blastCore.addColorStop(1, "rgba(255,74,116,0)");
-          context.globalAlpha = (1 - detonationLinear) * 0.72 + afterglow * 0.2;
+          context.globalAlpha = Math.pow(1 - detonationLinear, 0.72) * 0.82 + afterglow * 0.24;
           context.fillStyle = blastCore;
-          context.beginPath();
-          context.arc(originX, originY, blastCoreRadius, 0, Math.PI * 2);
-          context.fill();
+          context.fillRect(
+            originX - blastCoreRadius,
+            originY - blastCoreRadius,
+            blastCoreRadius * 2,
+            blastCoreRadius * 2
+          );
         }
 
         for (let index = burstParticles.length - 1; index >= 0; index -= 1) {
@@ -1062,8 +1231,10 @@ const gateStyle = [
         const beamOpacity = burst <= 0.001 ? 1 : clamp(1 - fadeOut, 0, 1);
         const preBlastBlur = phaseProgress(burst, glossFadeEnd, crossStart + 0.04)
           * (1 - phaseProgress(burst, crossEnd, reformEnd)) * 4.8;
+        const gravityBlur = phaseProgress(burst, crossEnd, 0.86)
+          * (1 - phaseProgress(burst, detonationEnd, 1)) * 6.8;
         const impactBlur = pressure * 2.2 + detonationRush * 11;
-        const performanceBlur = preBlastBlur + impactBlur * (1 - blurRecovery);
+        const performanceBlur = preBlastBlur + gravityBlur + impactBlur * (1 - blurRecovery);
         const crossPulse = 0.5 + 0.5 * Math.sin(time * (10 + crossFlash * 19) + Math.sin(time * 2.1));
         const crossStrobe = clamp(crossFlash * (0.42 + crossPulse * 0.64) + releaseFlash * 1.18, 0, 1.35);
         const crossRayProgress = clamp(crossBuild * (1 - crossCollapse), 0, 1);
@@ -1171,7 +1342,7 @@ const gateStyle = [
         const endThickness = 2.4 + fill * 31;
         const frontRadius = 4.5 + fill * 21;
         const frontX = clamp(width * fill, 3, Math.max(3, width - frontRadius * 2.05));
-        const noseLength = Math.min(18, Math.max(2.8, frontX * 0.14));
+        const noseLength = Math.min(34, Math.max(5, frontRadius * 0.9 + frontX * 0.035));
         const bodyEndX = Math.max(1, frontX - noseLength);
         const context = energyContext;
 
@@ -1182,49 +1353,55 @@ const gateStyle = [
           return;
         }
 
-        const thicknessAt = (x, scale = 1) => {
+        const thicknessAt = (x) => {
           const unit = clamp(x / Math.max(bodyEndX, 1), 0, 1);
-          const tailGrowth = smoothstep(clamp(unit / 0.34, 0, 1));
-          const cone = startThickness + (endThickness - startThickness) * Math.pow(unit, 0.88);
-          return cone * (0.16 + tailGrowth * 0.84) * scale;
+          const tailEase = smoothstep(clamp(unit / 0.62, 0, 1));
+          const cone = startThickness * 0.26
+            + (endThickness - startThickness * 0.26) * Math.pow(unit, 1.16);
+          const breathing = 1 + Math.sin(unit * Math.PI * 2.15 - time * 2.05) * (0.008 + fill * 0.01);
+          return cone * (0.78 + tailEase * 0.22) * breathing;
         };
 
-        const traceBeamEnvelope = (scale, ripplePhase) => {
-          const segments = Math.max(24, Math.min(72, Math.ceil(bodyEndX / 8)));
+        const traceBeamEnvelope = () => {
+          const segments = Math.max(36, Math.min(96, Math.ceil(bodyEndX / 5.5)));
           context.beginPath();
           for (let segment = 0; segment <= segments; segment += 1) {
             const x = bodyEndX * segment / segments;
             const unit = x / Math.max(bodyEndX, 1);
-            const localThickness = thicknessAt(x, scale);
-            const edgeRipple = (
-              Math.sin(unit * Math.PI * 4.6 - time * 4.3 + ripplePhase)
-              + Math.sin(unit * Math.PI * 10.2 + time * 2.15 + ripplePhase * 0.7) * 0.32
-            ) * localThickness * (0.026 + fill * 0.026);
-            const y = centerY - localThickness - edgeRipple;
+            const localThickness = thicknessAt(x);
+            const ripple = (
+              Math.sin(unit * Math.PI * 4.1 - time * 3.15)
+              + Math.sin(unit * Math.PI * 9.2 + time * 1.76 + 0.7) * 0.28
+            ) * localThickness * (0.012 + fill * 0.012);
+            const y = centerY - localThickness - ripple;
             if (segment === 0) context.moveTo(x, y);
             else context.lineTo(x, y);
           }
-          context.quadraticCurveTo(
-            frontX - noseLength * 0.18,
-            centerY - endThickness * scale * 0.12,
+          context.bezierCurveTo(
+            bodyEndX + noseLength * 0.46,
+            centerY - endThickness * 0.96,
+            frontX - frontRadius * 0.12,
+            centerY - frontRadius * 0.52,
             frontX,
             centerY
           );
-          context.quadraticCurveTo(
-            frontX - noseLength * 0.18,
-            centerY + endThickness * scale * 0.12,
+          context.bezierCurveTo(
+            frontX - frontRadius * 0.12,
+            centerY + frontRadius * 0.52,
+            bodyEndX + noseLength * 0.46,
+            centerY + endThickness * 0.96,
             bodyEndX,
-            centerY + thicknessAt(bodyEndX, scale)
+            centerY + thicknessAt(bodyEndX)
           );
           for (let segment = segments - 1; segment >= 0; segment -= 1) {
             const x = bodyEndX * segment / segments;
             const unit = x / Math.max(bodyEndX, 1);
-            const localThickness = thicknessAt(x, scale);
-            const edgeRipple = (
-              Math.sin(unit * Math.PI * 4.2 + time * 3.9 + ripplePhase * 1.17)
-              + Math.cos(unit * Math.PI * 9.4 - time * 2.36 + ripplePhase) * 0.3
-            ) * localThickness * (0.026 + fill * 0.026);
-            context.lineTo(x, centerY + localThickness + edgeRipple);
+            const localThickness = thicknessAt(x);
+            const ripple = (
+              Math.sin(unit * Math.PI * 3.85 + time * 2.88 + 1.1)
+              + Math.cos(unit * Math.PI * 8.7 - time * 1.92) * 0.26
+            ) * localThickness * (0.012 + fill * 0.012);
+            context.lineTo(x, centerY + localThickness + ripple);
           }
           context.closePath();
         };
@@ -1232,167 +1409,101 @@ const gateStyle = [
         context.save();
         context.globalCompositeOperation = "lighter";
         const beamGradient = context.createLinearGradient(0, 0, frontX, 0);
-        beamGradient.addColorStop(0, "rgba(102, 149, 255, 0)");
-        beamGradient.addColorStop(0.12, "rgba(116, 163, 255, 0.035)");
-        beamGradient.addColorStop(0.3, "rgba(144, 184, 255, 0.36)");
-        beamGradient.addColorStop(0.66, "rgba(255, 111, 149, 0.76)");
-        beamGradient.addColorStop(0.88, "rgba(255, 199, 215, 0.94)");
-        beamGradient.addColorStop(1, "rgba(255, 255, 255, 0.98)");
+        beamGradient.addColorStop(0, "rgba(100, 150, 255, 0)");
+        beamGradient.addColorStop(0.1, "rgba(112, 161, 255, 0.025)");
+        beamGradient.addColorStop(0.34, "rgba(147, 187, 255, 0.24)");
+        beamGradient.addColorStop(0.62, "rgba(255, 108, 150, 0.7)");
+        beamGradient.addColorStop(0.84, "rgba(255, 191, 211, 0.94)");
+        beamGradient.addColorStop(1, "rgba(255, 255, 255, 0.99)");
 
-        const beamShells = [
-          { scale: 2.25, alpha: 0.11, blur: 15 },
-          { scale: 1.48, alpha: 0.2, blur: 10 },
-          { scale: 1, alpha: 0.72, blur: 4 }
-        ];
-        for (let layer = 0; layer < beamShells.length; layer += 1) {
-          const shell = beamShells[layer];
-          traceBeamEnvelope(shell.scale, layer * 1.41);
-          context.globalAlpha = shell.alpha * intensity * localBeamOpacity;
-          context.fillStyle = beamGradient;
-          context.shadowColor = layer === 0 ? "rgba(125, 170, 255, 0.62)" : "rgba(255, 81, 120, 0.86)";
-          context.shadowBlur = shell.blur + fill * 11;
-          context.fill();
-        }
+        traceBeamEnvelope();
+        context.globalAlpha = localBeamOpacity * intensity * 0.16;
+        context.fillStyle = beamGradient;
+        context.shadowColor = "rgba(255, 83, 127, 0.88)";
+        context.shadowBlur = 24 + fill * 22;
+        context.fill();
+
+        traceBeamEnvelope();
+        context.globalAlpha = localBeamOpacity * intensity * 0.82;
+        context.shadowColor = "rgba(255, 124, 158, 0.92)";
+        context.shadowBlur = 7 + fill * 10;
+        context.fill();
 
         context.save();
-        traceBeamEnvelope(0.88, 0.52);
+        traceBeamEnvelope();
         context.clip();
         context.shadowBlur = 0;
 
-        for (let strand = 0; strand < 6; strand += 1) {
+        const coreGradient = context.createLinearGradient(0, 0, frontX, 0);
+        coreGradient.addColorStop(0, "rgba(170, 204, 255, 0)");
+        coreGradient.addColorStop(0.3, "rgba(183, 211, 255, 0.12)");
+        coreGradient.addColorStop(0.72, "rgba(255, 191, 211, 0.34)");
+        coreGradient.addColorStop(1, "rgba(255, 255, 255, 0.72)");
+        context.globalAlpha = localBeamOpacity * intensity;
+        context.fillStyle = coreGradient;
+        context.fillRect(0, 0, frontX, height);
+
+        for (let strand = 0; strand < 8; strand += 1) {
           const strandGradient = context.createLinearGradient(0, 0, frontX, 0);
-          strandGradient.addColorStop(0, "rgba(170, 202, 255, 0)");
-          strandGradient.addColorStop(0.18, "rgba(170, 202, 255, 0.18)");
-          strandGradient.addColorStop(0.58, "rgba(255, 137, 167, 0.72)");
-          strandGradient.addColorStop(0.9, "rgba(255, 244, 248, 0.92)");
+          strandGradient.addColorStop(0, "rgba(166, 201, 255, 0)");
+          strandGradient.addColorStop(0.24, "rgba(174, 207, 255, 0.18)");
+          strandGradient.addColorStop(0.7, "rgba(255, 143, 172, 0.74)");
+          strandGradient.addColorStop(0.94, "rgba(255, 244, 248, 0.9)");
           strandGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
           context.beginPath();
-          const segments = Math.max(28, Math.min(80, Math.ceil(bodyEndX / 7)));
+          const segments = Math.max(40, Math.min(104, Math.ceil(bodyEndX / 5)));
           for (let segment = 0; segment <= segments; segment += 1) {
             const x = bodyEndX * segment / segments;
             const unit = x / Math.max(bodyEndX, 1);
-            const localThickness = thicknessAt(x, 0.72);
-            const braid = Math.sin(
-              unit * Math.PI * (3.2 + strand * 0.36)
-              - time * (4.5 + strand * 0.33)
-              + strand * 1.17
-            ) * localThickness * 0.42;
-            const microFlow = Math.sin(
-              unit * Math.PI * (9.4 + strand * 0.21)
-              + time * (2.1 + strand * 0.13)
-            ) * localThickness * 0.09;
-            const offset = (strand - 2.5) * localThickness * 0.11;
-            const y = centerY + braid + microFlow + offset;
+            const localThickness = thicknessAt(x) * 0.82;
+            const mainPhase = unit * Math.PI * (2.35 + strand * 0.31)
+              - time * (2.9 + strand * 0.23)
+              + strand * 0.93;
+            const secondaryPhase = unit * Math.PI * (7.1 + strand * 0.17)
+              + time * (1.25 + strand * 0.09)
+              + strand * 0.47;
+            const offset = (strand - 3.5) * localThickness * 0.085;
+            const y = centerY
+              + Math.sin(mainPhase) * localThickness * (0.17 + strand % 2 * 0.025)
+              + Math.sin(secondaryPhase) * localThickness * 0.045
+              + offset;
             if (segment === 0) context.moveTo(x, y);
             else context.lineTo(x, y);
           }
-          context.globalAlpha = localBeamOpacity * intensity * (strand === 2 || strand === 3 ? 0.76 : 0.34);
+          context.globalAlpha = localBeamOpacity * intensity * (strand === 3 || strand === 4 ? 0.74 : 0.32);
           context.strokeStyle = strandGradient;
-          context.lineWidth = strand === 2 || strand === 3 ? 1.05 + fill * 2.35 : 0.62 + fill * 1.05;
-          context.stroke();
-        }
-
-        const packetCount = 5 + Math.floor(fill * 36);
-        for (let index = 0; index < packetCount; index += 1) {
-          const seed = randomSeed(index + 1);
-          const speed = 0.16 + seed * 0.34;
-          const phase = (time * speed + seed * 5.71) % 1;
-          const phaseFade = Math.pow(Math.sin(phase * Math.PI), 1.7);
-          const x = bodyEndX * phase;
-          const unit = x / Math.max(bodyEndX, 1);
-          const localThickness = thicknessAt(x, 0.66);
-          const lane = (randomSeed(index + 91) - 0.5) * localThickness * 1.18;
-          const wave = Math.sin(
-            unit * Math.PI * (4.1 + seed * 2.2)
-            - time * (4.2 + seed * 2.6)
-            + index
-          ) * localThickness * 0.22;
-          const y = centerY + lane + wave;
-          const length = 5 + seed * (8 + fill * 15);
-          context.globalAlpha = phaseFade * localBeamOpacity * intensity * (0.12 + seed * 0.48);
-          context.strokeStyle = index % 5 === 0 ? "#ffffff" : index % 2 === 0 ? "#ff9ab1" : "#bfd5ff";
-          context.lineWidth = 0.45 + seed * (0.7 + fill * 1.2);
+          context.lineWidth = strand === 3 || strand === 4 ? 1 + fill * 2.2 : 0.52 + fill * 0.82;
           context.lineCap = "round";
-          context.beginPath();
-          context.moveTo(x, y);
-          context.lineTo(Math.max(0, x - length), y + (seed - 0.5) * 2.4);
           context.stroke();
         }
-        context.restore();
 
-        const wakeLength = Math.max(24, 30 + fill * frontX * 0.48);
-        const wakeSpread = 3 + fill * height * 0.24;
-        for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
-          const side = sideIndex === 0 ? -1 : 1;
-          for (let ribbon = 0; ribbon < 2; ribbon += 1) {
-            const ribbonSeed = randomSeed(sideIndex * 13 + ribbon + 4401);
-            const wakeGradient = context.createLinearGradient(frontX, centerY, frontX - wakeLength, centerY);
-            wakeGradient.addColorStop(0, "rgba(255, 244, 248, 0.54)");
-            wakeGradient.addColorStop(0.18, ribbon === 0 ? "rgba(255, 143, 170, 0.28)" : "rgba(178, 207, 255, 0.24)");
-            wakeGradient.addColorStop(1, "rgba(154, 190, 255, 0)");
-            context.globalAlpha = localBeamOpacity * intensity * (0.14 - ribbon * 0.035);
-            context.strokeStyle = wakeGradient;
-            context.lineWidth = 0.72 + fill * (0.7 - ribbon * 0.1);
-            context.lineCap = "round";
-            context.shadowColor = side < 0 ? "rgba(190, 216, 255, 0.52)" : "rgba(255, 121, 151, 0.58)";
-            context.shadowBlur = 2 + fill * 5;
-            context.beginPath();
-            context.moveTo(frontX - noseLength * 0.16, centerY);
-            context.bezierCurveTo(
-              frontX - wakeLength * 0.12,
-              centerY + side * wakeSpread * 0.035,
-              frontX - wakeLength * 0.47,
-              centerY + side * wakeSpread * (0.22 + ribbonSeed * 0.08),
-              frontX - wakeLength,
-              centerY + side * wakeSpread * (0.56 + ribbonSeed * 0.12)
-            );
-            context.stroke();
-          }
-        }
-        context.shadowBlur = 0;
-
-        const headCoreX = frontX - noseLength * 0.22;
-        const headGlow = context.createRadialGradient(headCoreX, centerY, 0, headCoreX, centerY, frontRadius * 1.82);
+        const headCoreX = frontX - frontRadius * 0.48;
+        const headGlow = context.createRadialGradient(headCoreX, centerY, 0, headCoreX, centerY, frontRadius * 1.35);
         headGlow.addColorStop(0, "rgba(255, 255, 255, 0.98)");
-        headGlow.addColorStop(0.18, "rgba(255, 239, 245, 0.88)");
-        headGlow.addColorStop(0.5, "rgba(255, 80, 121, 0.46)");
-        headGlow.addColorStop(1, "rgba(255, 73, 105, 0)");
+        headGlow.addColorStop(0.24, "rgba(255, 244, 248, 0.9)");
+        headGlow.addColorStop(0.62, "rgba(255, 104, 145, 0.36)");
+        headGlow.addColorStop(1, "rgba(255, 86, 128, 0)");
         context.globalAlpha = localBeamOpacity * intensity;
         context.fillStyle = headGlow;
-        context.beginPath();
-        context.arc(headCoreX, centerY, frontRadius * 1.82, 0, Math.PI * 2);
-        context.fill();
+        context.fillRect(headCoreX - frontRadius * 1.35, centerY - frontRadius * 1.35, frontRadius * 2.7, frontRadius * 2.7);
+        context.restore();
 
-        const coronaPulse = 0.72 + Math.sin(time * (3.2 + fill * 5.6)) * 0.18 + fill * 0.1;
-        context.globalAlpha = localBeamOpacity * coronaPulse;
-        context.strokeStyle = "rgba(255, 238, 244, 0.62)";
-        context.lineWidth = 0.8 + fill * 1.15;
-        context.beginPath();
-        context.ellipse(
-          headCoreX,
+        const auraGlow = context.createRadialGradient(
+          frontX - frontRadius * 0.34,
           centerY,
-          frontRadius * (0.62 + coronaPulse * 0.18),
-          frontRadius * (0.48 + coronaPulse * 0.14),
-          0,
-          0,
-          Math.PI * 2
+          frontRadius * 0.12,
+          frontX - frontRadius * 0.34,
+          centerY,
+          frontRadius * 1.7
         );
-        context.stroke();
-
-        const rayCount = 3 + Math.floor(fill * 8);
-        for (let ray = 0; ray < rayCount; ray += 1) {
-          const seed = randomSeed(ray + 101);
-          const pulse = 0.45 + 0.55 * Math.sin(time * (1.8 + seed * 2.2) + seed * 8.7);
-          const rayLength = 6 + pulse * (10 + fill * (24 + seed * 26));
-          const rayY = centerY + (seed - 0.5) * (6 + fill * 24);
-          context.globalAlpha = localBeamOpacity * intensity * pulse * (0.16 + seed * 0.3);
-          context.strokeStyle = ray % 2 === 0 ? "#ffffff" : "#ff8da7";
-          context.lineWidth = 0.55 + fill * 0.9;
-          context.beginPath();
-          context.moveTo(headCoreX - frontRadius * 0.18, rayY);
-          context.lineTo(headCoreX - rayLength, rayY + (seed - 0.5) * 4);
-          context.stroke();
-        }
+        auraGlow.addColorStop(0, "rgba(255, 250, 252, 0.34)");
+        auraGlow.addColorStop(0.42, "rgba(255, 105, 145, 0.16)");
+        auraGlow.addColorStop(1, "rgba(255, 91, 131, 0)");
+        context.globalAlpha = localBeamOpacity * intensity * 0.72;
+        context.fillStyle = auraGlow;
+        context.beginPath();
+        context.arc(frontX - frontRadius * 0.34, centerY, frontRadius * 1.7, 0, Math.PI * 2);
+        context.fill();
 
         context.restore();
 
@@ -1622,9 +1733,11 @@ const gateStyle = [
         screenParticleTimestamp = 0;
         particleSerial = 0;
         wakeEmissionBudget = 0;
+        orbitEmissionBudget = 0;
         rainEmissionBudget = 0;
         burstWaveMask = 0;
         wakeParticles.length = 0;
+        orbitParticles.length = 0;
         burstParticles.length = 0;
         rainParticles.length = 0;
         beamPose = {
