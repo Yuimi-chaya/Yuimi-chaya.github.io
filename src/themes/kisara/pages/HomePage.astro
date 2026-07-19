@@ -535,7 +535,12 @@ const gateStyle = [
         const baseline = height * 0.5
           + ((metrics.actualBoundingBoxAscent || fontSize * 0.72)
             - (metrics.actualBoundingBoxDescent || fontSize * 0.16)) * 0.5;
-        titleDataMaskContext.fillStyle = "#ffffff";
+        const titleGradient = titleDataMaskContext.createLinearGradient(0, height * 0.18, 0, height * 0.84);
+        titleGradient.addColorStop(0, "#ffdce6");
+        titleGradient.addColorStop(0.24, "#ff8ca5");
+        titleGradient.addColorStop(0.58, "#ff315e");
+        titleGradient.addColorStop(1, "#c81343");
+        titleDataMaskContext.fillStyle = titleGradient;
         titleDataMaskContext.strokeStyle = "#ffffff";
         titleDataMaskContext.lineWidth = Math.max(1, 2.4 * titleDataPixelRatio);
         titleDataMaskContext.strokeText("Kisara", width * 0.5, baseline);
@@ -545,10 +550,16 @@ const gateStyle = [
         const pixels = titleDataMaskContext.getImageData(0, 0, width, height).data;
         const cellSize = (titleDataCanvasWidth < 520 ? 7.5 : 9) * titleDataPixelRatio;
         const cellStep = Math.max(5, Math.round(cellSize));
-        const sampleAlpha = (x, y) => {
+        const samplePixel = (x, y) => {
           const sampleX = clamp(Math.round(x), 0, width - 1);
           const sampleY = clamp(Math.round(y), 0, height - 1);
-          return pixels[(sampleY * width + sampleX) * 4 + 3] / 255;
+          const offset = (sampleY * width + sampleX) * 4;
+          return {
+            red: pixels[offset],
+            green: pixels[offset + 1],
+            blue: pixels[offset + 2],
+            alpha: pixels[offset + 3] / 255
+          };
         };
         const ringRadii = [0, cellStep * 0.78, cellStep * 1.55, cellStep * 2.38];
         const ringSamples = [1, 8, 12, 16];
@@ -556,7 +567,8 @@ const gateStyle = [
         for (let y = cellStep * 0.5; y < height; y += cellStep) {
           for (let x = cellStep * 0.5; x < width; x += cellStep) {
             let ring = -1;
-            let maskStrength = sampleAlpha(x, y);
+            let sourceColor = samplePixel(x, y);
+            let maskStrength = sourceColor.alpha;
             if (maskStrength > 0.06) {
               ring = 0;
             } else {
@@ -564,16 +576,22 @@ const gateStyle = [
                 const radius = ringRadii[ringIndex];
                 const sampleCount = ringSamples[ringIndex];
                 let ringStrength = 0;
+                let ringColor = sourceColor;
                 for (let sample = 0; sample < sampleCount; sample += 1) {
                   const angle = sample / sampleCount * fullTurn + ringIndex * 0.23;
-                  ringStrength = Math.max(
-                    ringStrength,
-                    sampleAlpha(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius)
+                  const sampledColor = samplePixel(
+                    x + Math.cos(angle) * radius,
+                    y + Math.sin(angle) * radius
                   );
+                  if (sampledColor.alpha > ringStrength) {
+                    ringStrength = sampledColor.alpha;
+                    ringColor = sampledColor;
+                  }
                 }
                 if (ringStrength > 0.08) {
                   ring = ringIndex;
                   maskStrength = ringStrength;
+                  sourceColor = ringColor;
                   break;
                 }
               }
@@ -589,6 +607,9 @@ const gateStyle = [
               y: y / titleDataPixelRatio,
               ring,
               maskStrength,
+              sourceRed: sourceColor.red,
+              sourceGreen: sourceColor.green,
+              sourceBlue: sourceColor.blue,
               noise: seed,
               tone: randomSeed(cellX * 17.31 + cellY * 53.47 + 3.7),
               flicker: randomSeed(cellX * 71.83 + cellY * 19.61 + 11.2),
@@ -1192,24 +1213,30 @@ const gateStyle = [
           );
           if (alpha <= 0.018) continue;
 
-          const blueCell = cell.tone < 0.2 || (cell.ring > 0 && cell.tone < 0.42);
+          const blueCell = cell.tone < 0.18 || (cell.ring > 0 && cell.tone < 0.38);
           const frontHeat = clamp(dataFront * 1.16, 0, 1);
+          const sampledRed = cell.sourceRed || 226;
+          const sampledGreen = cell.sourceGreen || 54;
+          const sampledBlue = cell.sourceBlue || 137;
           const red = blueCell
-            ? 133 + frontHeat * 102
-            : 220 + frontHeat * 35;
+            ? sampledRed * 0.52 + 92 + frontHeat * 58
+            : sampledRed + frontHeat * (255 - sampledRed) * 0.86;
           const green = blueCell
-            ? 169 + frontHeat * 72
-            : 48 + dataSettle * 58 + frontHeat * 128;
+            ? sampledGreen * 0.42 + 132 + frontHeat * 72
+            : sampledGreen + dataSettle * 18 + frontHeat * (245 - sampledGreen) * 0.72;
           const blue = blueCell
-            ? 255
-            : 143 + dataSettle * 44 + frontHeat * 68;
+            ? sampledBlue * 0.34 + 172 + frontHeat * 48
+            : sampledBlue + dataSettle * 12 + frontHeat * (246 - sampledBlue) * 0.68;
+          const renderRed = Math.round(clamp(red, 0, 255));
+          const renderGreen = Math.round(clamp(green, 0, 255));
+          const renderBlue = Math.round(clamp(blue, 0, 255));
           const size = Math.max(2.8, cell.size * (0.88 + dataFront * 0.12));
           const left = cell.x - size * 0.5;
           const top = cell.y - size * 0.5;
 
           if (dataFront > 0.52 && cell.flicker > 0.64) {
             const glowSize = size * (1.42 + dataFront * 0.28);
-            titleDataContext.fillStyle = `rgba(${Math.round(red)}, ${Math.round(green)}, ${Math.round(blue)}, ${alpha * 0.2})`;
+            titleDataContext.fillStyle = `rgba(${renderRed}, ${renderGreen}, ${renderBlue}, ${alpha * 0.2})`;
             titleDataContext.fillRect(
               cell.x - glowSize * 0.5,
               cell.y - glowSize * 0.5,
@@ -1218,7 +1245,7 @@ const gateStyle = [
             );
           }
 
-          titleDataContext.fillStyle = `rgba(${Math.round(red)}, ${Math.round(green)}, ${Math.round(blue)}, ${alpha})`;
+          titleDataContext.fillStyle = `rgba(${renderRed}, ${renderGreen}, ${renderBlue}, ${alpha})`;
           titleDataContext.fillRect(left, top, size, size);
           if (dataFront > 0.3) {
             titleDataContext.strokeStyle = `rgba(255, 244, 250, ${alpha * (0.22 + dataFront * 0.58)})`;
@@ -2744,27 +2771,70 @@ const gateStyle = [
 
         context.save();
         context.globalCompositeOperation = "source-over";
-        const voidGradient = context.createRadialGradient(
-          driftX - radius * 0.025,
-          driftY - radius * 0.018,
-          radius * 0.01,
-          driftX,
-          driftY,
-          radius * 0.3 * collapseScale
-        );
-        voidGradient.addColorStop(0, "rgba(0,0,0,1)");
-        voidGradient.addColorStop(0.58, "rgba(0,0,1,0.998)");
-        voidGradient.addColorStop(0.82, "rgba(0,0,4,0.92)");
-        voidGradient.addColorStop(1, "rgba(3,0,9,0.18)");
-        context.globalAlpha = opacity * (0.9 + compression * 0.08);
-        context.fillStyle = voidGradient;
-        context.shadowColor = "rgba(0,0,2,0.88)";
-        context.shadowBlur = radius * 0.2 * parameters.shadowQuality;
-        context.fill(buildVoidPath(0.29, 1.24, 1.42, 0.95));
+        const voidLayers = [
+          {
+            scale: 0.39,
+            phase: 0.84,
+            roughness: 1.55,
+            aspect: 0.97,
+            alpha: 0.16,
+            fill: "rgba(7,2,18,0.9)",
+            blur: radius * 0.12,
+            offsetX: -0.038,
+            offsetY: 0.016
+          },
+          {
+            scale: 0.31,
+            phase: 1.92,
+            roughness: 2.2,
+            aspect: 0.94,
+            alpha: 0.4,
+            fill: "rgba(2,0,8,0.96)",
+            blur: radius * 0.075,
+            offsetX: 0.028,
+            offsetY: -0.021
+          },
+          {
+            scale: 0.235,
+            phase: 3.67,
+            roughness: 3.25,
+            aspect: 0.9,
+            alpha: 0.68,
+            fill: "rgba(0,0,2,0.99)",
+            blur: radius * 0.026,
+            offsetX: -0.014,
+            offsetY: 0.025
+          },
+          {
+            scale: 0.082,
+            phase: 5.18,
+            roughness: 4.6,
+            aspect: 0.86,
+            alpha: 0.94,
+            fill: "rgba(0,0,0,0.998)",
+            blur: 0,
+            offsetX: 0.022,
+            offsetY: -0.012
+          }
+        ];
+        for (const layer of voidLayers) {
+          context.save();
+          context.translate(radius * layer.offsetX, radius * layer.offsetY);
+          context.globalAlpha = opacity
+            * layer.alpha
+            * (0.92 + compression * 0.08);
+          context.fillStyle = layer.fill;
+          context.shadowColor = layer.fill;
+          context.shadowBlur = layer.blur * parameters.shadowQuality;
+          context.fill(buildVoidPath(
+            layer.scale,
+            layer.phase,
+            layer.roughness,
+            layer.aspect
+          ));
+          context.restore();
+        }
         context.shadowBlur = 0;
-        context.globalAlpha = opacity * 0.99;
-        context.fillStyle = "rgba(0,0,0,0.998)";
-        context.fill(buildVoidPath(0.185, 3.67, 1.72, 0.985));
         context.restore();
         context.restore();
 
