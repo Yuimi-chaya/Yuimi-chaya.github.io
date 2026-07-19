@@ -275,10 +275,6 @@ a {
   --kisara-cross-blur: 0px;
   --kisara-title-source-opacity: 1;
   --kisara-title-blur: 8.8px;
-  --kisara-rebuild-origin-x: 50%;
-  --kisara-rebuild-origin-y: 50%;
-  --kisara-rebuild-radius: 0%;
-  --kisara-rebuild-opacity: 0;
   --kisara-bg-blur: 0px;
   --kisara-bg-opacity: 1;
   --kisara-bg-saturation: 1;
@@ -410,33 +406,6 @@ a {
     scale(var(--kisara-gravity-scale));
 }
 
-.kisara-gate-background-rebuild {
-  z-index: 4;
-  background-image: var(--kisara-fight-background-image);
-  opacity: var(--kisara-rebuild-opacity);
-  filter: saturate(calc(var(--kisara-fight-saturation) + 0.12)) brightness(calc(var(--kisara-fight-brightness) + 0.08));
-  transform: translate3d(var(--kisara-fight-shift-x), var(--kisara-fight-shift-y), 0)
-    scale(var(--kisara-fight-scale))
-    scale(var(--kisara-gravity-scale));
-  -webkit-mask-image: radial-gradient(
-    circle farthest-corner at var(--kisara-rebuild-origin-x) var(--kisara-rebuild-origin-y),
-    #000 0,
-    #000 calc(var(--kisara-rebuild-radius) - 9%),
-    rgba(0, 0, 0, 0.82) calc(var(--kisara-rebuild-radius) - 4%),
-    rgba(0, 0, 0, 0.28) calc(var(--kisara-rebuild-radius) + 3%),
-    transparent calc(var(--kisara-rebuild-radius) + 10%)
-  );
-  mask-image: radial-gradient(
-    circle farthest-corner at var(--kisara-rebuild-origin-x) var(--kisara-rebuild-origin-y),
-    #000 0,
-    #000 calc(var(--kisara-rebuild-radius) - 9%),
-    rgba(0, 0, 0, 0.82) calc(var(--kisara-rebuild-radius) - 4%),
-    rgba(0, 0, 0, 0.28) calc(var(--kisara-rebuild-radius) + 3%),
-    transparent calc(var(--kisara-rebuild-radius) + 10%)
-  );
-  will-change: opacity, mask-image, -webkit-mask-image, transform;
-}
-
 .kisara-space-lens-canvas {
   z-index: 3;
   inset: 0;
@@ -530,7 +499,20 @@ a {
 
 .kisara-title-tide {
   opacity: min(var(--kisara-tide-opacity, 0), var(--kisara-title-source-opacity));
-  background: linear-gradient(180deg, #ff8da1 0%, #ff365f 52%, #d91f4c 100%);
+  background:
+    linear-gradient(
+      45deg,
+      transparent calc(var(--kisara-gloss-position, -18%) - 6.8%),
+      rgb(255 118 154 / calc(var(--kisara-gloss-opacity, 0) * 0.08)) calc(var(--kisara-gloss-position, -18%) - 4.9%),
+      rgb(255 211 220 / calc(var(--kisara-gloss-opacity, 0) * 0.42)) calc(var(--kisara-gloss-position, -18%) - 1.8%),
+      rgb(255 251 233 / calc(var(--kisara-gloss-opacity, 0) * 0.88)) calc(var(--kisara-gloss-position, -18%) - 0.45%),
+      rgb(255 255 255 / var(--kisara-gloss-opacity, 0)) calc(var(--kisara-gloss-position, -18%) + 0.3%),
+      rgb(255 224 168 / calc(var(--kisara-gloss-opacity, 0) * 0.72)) calc(var(--kisara-gloss-position, -18%) + 1.15%),
+      rgb(255 126 159 / calc(var(--kisara-gloss-opacity, 0) * 0.2)) calc(var(--kisara-gloss-position, -18%) + 3.6%),
+      transparent calc(var(--kisara-gloss-position, -18%) + 6.4%)
+    ),
+    linear-gradient(180deg, #ff8da1 0%, #ff365f 52%, #d91f4c 100%);
+  background-blend-mode: normal;
   -webkit-mask-image: linear-gradient(
     45deg,
     #000 0%,
@@ -549,48 +531,6 @@ a {
     transparent calc(var(--kisara-fill) + 5.5%),
     transparent 100%
   );
-}
-
-.kisara-title > .kisara-title-gloss {
-  z-index: 3;
-  opacity: min(var(--kisara-gloss-opacity, 0), var(--kisara-title-source-opacity));
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.92) 0%,
-    #fff7d8 22%,
-    #ffffff 43%,
-    #ffd8e2 62%,
-    #ff88a7 82%,
-    rgba(216, 37, 84, 0.38) 100%
-  );
-  -webkit-text-stroke: 0 transparent;
-  -webkit-mask-image: linear-gradient(
-    45deg,
-    transparent calc(var(--kisara-gloss-position, -18%) - 7%),
-    rgba(0, 0, 0, 0.12) calc(var(--kisara-gloss-position, -18%) - 4.8%),
-    rgba(0, 0, 0, 0.82) calc(var(--kisara-gloss-position, -18%) - 1.4%),
-    #000 calc(var(--kisara-gloss-position, -18%) - 0.35%),
-    #000 calc(var(--kisara-gloss-position, -18%) + 0.75%),
-    rgba(0, 0, 0, 0.76) calc(var(--kisara-gloss-position, -18%) + 2%),
-    rgba(0, 0, 0, 0.1) calc(var(--kisara-gloss-position, -18%) + 5.2%),
-    transparent calc(var(--kisara-gloss-position, -18%) + 7.5%)
-  );
-  mask-image: linear-gradient(
-    45deg,
-    transparent calc(var(--kisara-gloss-position, -18%) - 7%),
-    rgba(0, 0, 0, 0.12) calc(var(--kisara-gloss-position, -18%) - 4.8%),
-    rgba(0, 0, 0, 0.82) calc(var(--kisara-gloss-position, -18%) - 1.4%),
-    #000 calc(var(--kisara-gloss-position, -18%) - 0.35%),
-    #000 calc(var(--kisara-gloss-position, -18%) + 0.75%),
-    rgba(0, 0, 0, 0.76) calc(var(--kisara-gloss-position, -18%) + 2%),
-    rgba(0, 0, 0, 0.1) calc(var(--kisara-gloss-position, -18%) + 5.2%),
-    transparent calc(var(--kisara-gloss-position, -18%) + 7.5%)
-  );
-  mix-blend-mode: screen;
-  filter: saturate(1.16) contrast(1.24);
-  -webkit-filter: saturate(1.16) contrast(1.24);
-  text-shadow: none;
-  transition: opacity 120ms linear;
 }
 
 .kisara-title-lens-canvas {

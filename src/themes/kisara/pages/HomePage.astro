@@ -53,7 +53,6 @@ const gateStyle = [
         width="1280"
         height="900"
       ></canvas>
-      <div class="kisara-gate-background kisara-gate-background-rebuild"></div>
       <div class="kisara-gate-atmosphere"></div>
     </div>
     <canvas class="kisara-burst-canvas" data-kisara-burst-canvas width="1280" height="900" aria-hidden="true"></canvas>
@@ -63,7 +62,6 @@ const gateStyle = [
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
-      <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
       <canvas
         class="kisara-title-lens-canvas"
         data-kisara-title-lens
@@ -427,6 +425,8 @@ const gateStyle = [
           uniform float uShockWidth;
           uniform float uCoreRadius;
           uniform float uLensRadius;
+          uniform float uReconstruction;
+          uniform float uReconstructionOpacity;
           uniform float uTime;
 
           vec2 coverUv(vec2 uv, vec2 imageSize, float scale) {
@@ -447,6 +447,12 @@ const gateStyle = [
           vec3 adjustSceneColor(vec3 color, float saturation, float brightness) {
             float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
             return mix(vec3(luminance), color, saturation) * brightness;
+          }
+
+          float hash21(vec2 point) {
+            point = fract(point * vec2(123.34, 456.21));
+            point += dot(point, point + 45.32);
+            return fract(point.x * point.y);
           }
 
           vec3 sampleScene(vec2 uv) {
@@ -594,10 +600,78 @@ const gateStyle = [
 
             float horizon = 1.0 - smoothstep(core * 0.98, core * 1.04, radius);
             color = mix(color, vec3(0.0), horizon * sideMask);
-            float alpha = max(
+            float lensAlpha = max(
               clamp(uOpacity, 0.0, 1.0),
               horizon * sideMask * smoothstep(0.05, 0.15, gravityStrength)
             );
+
+            vec2 pixel = vUv * uResolution;
+            vec2 dataCell = floor(pixel / 9.0);
+            vec2 dataCellCenter = (dataCell + 0.5) * 9.0 / uResolution;
+            vec2 dataPoint = dataCellCenter - uCenter;
+            dataPoint.x *= aspect;
+            float dataRadius = length(dataPoint);
+            float farthestRadius = max(
+              max(
+                length(vec2(uCenter.x * aspect, uCenter.y)),
+                length(vec2((1.0 - uCenter.x) * aspect, uCenter.y))
+              ),
+              max(
+                length(vec2(uCenter.x * aspect, 1.0 - uCenter.y)),
+                length(vec2((1.0 - uCenter.x) * aspect, 1.0 - uCenter.y))
+              )
+            );
+            float reconstructionEase = 1.0 - pow(
+              1.0 - clamp(uReconstruction, 0.0, 1.0),
+              2.35
+            );
+            float reconstructionFront = reconstructionEase * farthestRadius;
+            float reconstructionBand = max(0.055, farthestRadius * 0.085);
+            float radialProgress = clamp(
+              (reconstructionFront - dataRadius) / reconstructionBand + 0.5,
+              0.0,
+              1.0
+            );
+            float dataNoise = mix(
+              hash21(dataCell),
+              0.5 + 0.5 * sin(dataCell.x * 0.31 - dataCell.y * 0.47 + uTime * 4.2),
+              0.42
+            );
+            float dataMask = smoothstep(
+              dataNoise - 0.16,
+              dataNoise + 0.16,
+              radialProgress
+            );
+            float dataSettle = smoothstep(
+              dataNoise + 0.04,
+              dataNoise + 0.62,
+              radialProgress
+            );
+            float dataFront = exp(-pow(
+              (radialProgress - dataNoise) / 0.17,
+              2.0
+            ));
+            vec2 localCell = fract(pixel / 9.0);
+            float cellEdgeDistance = min(
+              min(localCell.x, 1.0 - localCell.x),
+              min(localCell.y, 1.0 - localCell.y)
+            );
+            float cellEdge = 1.0 - smoothstep(0.035, 0.14, cellEdgeDistance);
+            vec3 blockColor = sampleScene(dataCellCenter);
+            vec3 cleanColor = sampleScene(vUv);
+            vec3 reconstructedColor = mix(blockColor, cleanColor, dataSettle);
+            reconstructedColor += vec3(0.26, 0.035, 0.12)
+              * dataFront
+              * (0.38 + cellEdge * 0.62);
+            reconstructedColor += vec3(0.075, 0.13, 0.28)
+              * dataFront
+              * cellEdge
+              * (0.28 + 0.22 * sin(dataCell.x + dataCell.y));
+            float reconstructionMix = dataMask * clamp(uReconstructionOpacity, 0.0, 1.0);
+            color = mix(color, reconstructedColor, reconstructionMix);
+            float reconstructionAlpha = reconstructionMix
+              * (0.72 + dataFront * 0.28);
+            float alpha = max(lensAlpha, reconstructionAlpha);
             outputColor = vec4(color * alpha, alpha);
           }
         `;
@@ -687,6 +761,8 @@ const gateStyle = [
           shockWidth: gl.getUniformLocation(program, "uShockWidth"),
           coreRadius: gl.getUniformLocation(program, "uCoreRadius"),
           lensRadius: gl.getUniformLocation(program, "uLensRadius"),
+          reconstruction: gl.getUniformLocation(program, "uReconstruction"),
+          reconstructionOpacity: gl.getUniformLocation(program, "uReconstructionOpacity"),
           time: gl.getUniformLocation(program, "uTime")
         };
         let cssWidth = 0;
@@ -744,6 +820,8 @@ const gateStyle = [
           gl.uniform1f(uniforms.shockWidth, parameters.shockWidth);
           gl.uniform1f(uniforms.coreRadius, parameters.coreRadius);
           gl.uniform1f(uniforms.lensRadius, parameters.lensRadius);
+          gl.uniform1f(uniforms.reconstruction, parameters.reconstruction);
+          gl.uniform1f(uniforms.reconstructionOpacity, parameters.reconstructionOpacity);
           gl.uniform1f(uniforms.time, parameters.time);
           gl.drawArrays(gl.TRIANGLES, 0, 3);
           spaceLensCanvas.style.opacity = "1";
@@ -1151,7 +1229,11 @@ const gateStyle = [
 
       const drawSpaceLens = (timestamp, parameters) => {
         if (!spaceLensRenderer || !spaceLensCanvas) return;
-        if (parameters.opacity <= 0.001 || pageMode !== "gate" || document.visibilityState !== "visible") {
+        const activeOpacity = Math.max(
+          parameters.opacity,
+          parameters.reconstructionOpacity ?? 0
+        );
+        if (activeOpacity <= 0.001 || pageMode !== "gate" || document.visibilityState !== "visible") {
           if (spaceLensCanvas.dataset.active === "true") spaceLensRenderer.clear();
           lastSpaceLensPaintTimestamp = 0;
           return;
@@ -1335,11 +1417,6 @@ const gateStyle = [
           * (1 - phaseProgress(burst, rainPeak, 1));
         const aftermath = phaseProgress(burst, detonationStart + 0.006, detonationEnd)
           * (1 - phaseProgress(burst, rainPeak, 1));
-        const reconstructionLinear = clamp(
-          (burst - detonationEnd) / Math.max(0.0001, 1 - detonationEnd),
-          0,
-          1
-        );
         const blackHoleBuild = phaseProgress(burst, crossEnd, collapseStart - 0.006);
         const gravityLock = phaseProgress(burst, 0.85, collapseEnd);
         const collapse = phaseProgress(burst, collapseStart, collapseEnd);
@@ -2556,163 +2633,6 @@ const gateStyle = [
           context.restore();
         }
 
-        if (reconstructionLinear > 0.001 && reconstructionLinear < 0.9995) {
-          const reconstructionEase = 1 - Math.pow(1 - reconstructionLinear, 2.35);
-          const reconstructionFade = 1 - phaseProgress(reconstructionLinear, 0.84, 1);
-          const reconstructionPulse = Math.pow(Math.sin(reconstructionLinear * Math.PI), 0.54);
-          const reconstructionOriginX = originX + (stableOriginX - originX) * reconstructionEase;
-          const reconstructionOriginY = originY + (stableOriginY - originY) * reconstructionEase;
-          const cornerRadius = Math.max(
-            Math.hypot(reconstructionOriginX, reconstructionOriginY),
-            Math.hypot(width - reconstructionOriginX, reconstructionOriginY),
-            Math.hypot(reconstructionOriginX, height - reconstructionOriginY),
-            Math.hypot(width - reconstructionOriginX, height - reconstructionOriginY)
-          );
-          const frontRadius = cornerRadius * reconstructionEase;
-          const waveBand = Math.max(
-            width < 640 ? 28 : 42,
-            Math.min(width, height) * (0.11 - reconstructionEase * 0.052)
-          );
-          const outerRadius = Math.max(1, frontRadius + waveBand);
-          const innerStop = Math.max(0, (frontRadius - waveBand * 0.78) / outerRadius);
-          const coreStop = Math.max(innerStop, Math.min(0.985, frontRadius / outerRadius));
-          const outerStop = Math.max(coreStop, Math.min(0.997, (frontRadius + waveBand * 0.26) / outerRadius));
-
-          context.save();
-          context.globalCompositeOperation = "lighter";
-          const rebuildWave = context.createRadialGradient(
-            reconstructionOriginX,
-            reconstructionOriginY,
-            0,
-            reconstructionOriginX,
-            reconstructionOriginY,
-            outerRadius
-          );
-          rebuildWave.addColorStop(0, "rgba(119, 160, 255, 0)");
-          rebuildWave.addColorStop(innerStop, "rgba(119, 160, 255, 0)");
-          rebuildWave.addColorStop(coreStop, "rgba(255, 245, 250, 0.38)");
-          rebuildWave.addColorStop(outerStop, "rgba(255, 91, 142, 0.18)");
-          rebuildWave.addColorStop(1, "rgba(116, 157, 255, 0)");
-          context.globalAlpha = reconstructionPulse * reconstructionFade * 0.92;
-          context.fillStyle = rebuildWave;
-          context.fillRect(0, 0, width, height);
-
-          const streamCount = width < 640 ? 10 : 18;
-          context.lineCap = "round";
-          for (let stream = 0; stream < streamCount; stream += 1) {
-            const seed = randomSeed(stream + 19103);
-            const angle = seed * Math.PI * 2
-              + Math.sin(time * (0.36 + seed * 0.44) + stream) * 0.035;
-            const streamFront = frontRadius * (0.88 + seed * 0.14);
-            const streamStart = Math.max(0, streamFront - waveBand * (1.35 + seed));
-            const streamEnd = Math.min(cornerRadius, streamFront + waveBand * (0.2 + seed * 0.24));
-            if (streamEnd <= 1) continue;
-            const startX = reconstructionOriginX + Math.cos(angle) * streamStart;
-            const startY = reconstructionOriginY + Math.sin(angle) * streamStart;
-            const endX = reconstructionOriginX + Math.cos(angle + (seed - 0.5) * 0.06) * streamEnd;
-            const endY = reconstructionOriginY + Math.sin(angle + (seed - 0.5) * 0.06) * streamEnd;
-            const streamGradient = context.createLinearGradient(startX, startY, endX, endY);
-            streamGradient.addColorStop(0, "rgba(117, 157, 255, 0)");
-            streamGradient.addColorStop(0.56, stream % 3 === 0
-              ? "rgba(255, 111, 157, 0.2)"
-              : "rgba(153, 190, 255, 0.16)");
-            streamGradient.addColorStop(0.88, "rgba(255, 248, 251, 0.72)");
-            streamGradient.addColorStop(1, "rgba(255, 111, 157, 0)");
-            context.globalAlpha = reconstructionFade * reconstructionPulse * (0.22 + seed * 0.28);
-            context.strokeStyle = streamGradient;
-            context.lineWidth = 0.55 + seed * 1.15;
-            context.setLineDash([1 + seed * 2.4, 5 + seed * 8]);
-            context.lineDashOffset = -time * (28 + seed * 62);
-            context.beginPath();
-            context.moveTo(startX, startY);
-            context.quadraticCurveTo(
-              reconstructionOriginX + Math.cos(angle + 0.035) * (streamStart + streamEnd) * 0.5,
-              reconstructionOriginY + Math.sin(angle - 0.035) * (streamStart + streamEnd) * 0.5,
-              endX,
-              endY
-            );
-            context.stroke();
-          }
-          context.setLineDash([]);
-
-          const nodeCount = width < 640 ? 34 : 68;
-          context.font = `${width < 640 ? 7 : 9}px Consolas, monospace`;
-          context.textBaseline = "middle";
-          for (let node = 0; node < nodeCount; node += 1) {
-            const seedX = randomSeed(node + 20101);
-            const seedY = randomSeed(node + 21101);
-            const seedStyle = randomSeed(node + 22101);
-            const x = seedX * width;
-            const y = seedY * height;
-            const distance = Math.hypot(x - reconstructionOriginX, y - reconstructionOriginY);
-            const waveOffset = (frontRadius - distance) / Math.max(1, waveBand);
-            if (waveOffset < -1.1 || waveOffset > 5.4) continue;
-            const leadingAlpha = clamp(1 - Math.abs(waveOffset), 0, 1);
-            const trailAlpha = phaseProgress(waveOffset, 0.15, 1.1)
-              * (1 - phaseProgress(waveOffset, 2.4, 5.4));
-            const nodeAlpha = (leadingAlpha * 0.78 + trailAlpha * 0.24) * reconstructionFade;
-            if (nodeAlpha <= 0.006) continue;
-            const horizontal = seedStyle > 0.42;
-            const length = 5 + seedStyle * (width < 640 ? 14 : 24);
-            const drift = Math.sin(time * (1.1 + seedStyle) + node * 0.7) * 1.4;
-            context.globalAlpha = nodeAlpha;
-            context.strokeStyle = node % 4 === 0
-              ? "rgba(255, 245, 250, 0.88)"
-              : node % 2 === 0
-                ? "rgba(255, 112, 157, 0.72)"
-                : "rgba(153, 190, 255, 0.68)";
-            context.lineWidth = node % 5 === 0 ? 1.25 : 0.72;
-            context.beginPath();
-            context.moveTo(x, y);
-            if (horizontal) {
-              context.lineTo(x + length, y + drift);
-              context.lineTo(x + length + 3, y + drift + (seedStyle > 0.7 ? 3 : -3));
-            } else {
-              context.lineTo(x + drift, y + length);
-              context.lineTo(x + drift + (seedStyle > 0.7 ? 3 : -3), y + length + 3);
-            }
-            context.stroke();
-
-            if (node % 4 === 0) {
-              const glyphs = ["01", "0x", "KSR", "SYNC", ">>"];
-              context.globalAlpha = nodeAlpha * 0.62;
-              context.fillStyle = context.strokeStyle;
-              context.fillText(glyphs[node % glyphs.length], x + 4, y - 5);
-            } else {
-              context.globalAlpha = nodeAlpha * 0.52;
-              context.fillStyle = context.strokeStyle;
-              const bitCount = 2 + (node % 4);
-              for (let bit = 0; bit < bitCount; bit += 1) {
-                if (randomSeed(node * 13 + bit + 23101) < 0.34) continue;
-                context.fillRect(x + bit * 3.4, y - 4, 1.2 + seedStyle, 1.2 + seedStyle);
-              }
-            }
-          }
-
-          for (let ring = 0; ring < 3; ring += 1) {
-            const delayed = clamp(
-              (reconstructionLinear - ring * 0.035) / Math.max(0.001, 1 - ring * 0.035),
-              0,
-              1
-            );
-            if (delayed <= 0.001 || delayed >= 0.9995) continue;
-            const ringEase = 1 - Math.pow(1 - delayed, 2.55);
-            const ringRadius = cornerRadius * ringEase * (0.96 + ring * 0.045);
-            context.globalAlpha = Math.pow(Math.sin(delayed * Math.PI), 1.05)
-              * reconstructionFade
-              * (0.34 - ring * 0.075);
-            context.strokeStyle = ring === 1
-              ? "rgba(157, 194, 255, 0.86)"
-              : "rgba(255, 173, 199, 0.9)";
-            context.lineWidth = 0.7 + (1 - delayed) * (3.8 - ring * 0.6);
-            context.shadowColor = context.strokeStyle;
-            context.shadowBlur = 5 + (1 - delayed) * 13;
-            context.beginPath();
-            context.arc(reconstructionOriginX, reconstructionOriginY, ringRadius, 0, Math.PI * 2);
-            context.stroke();
-          }
-          context.restore();
-        }
 
         if (afterglow > 0.001) {
           const afterglowRadius = Math.min(maxRadius * 0.5, 120 + afterglow * Math.min(width, height) * 0.48);
@@ -2996,10 +2916,9 @@ const gateStyle = [
           0,
           1
         );
-        const reconstructionReveal = 1 - Math.pow(1 - reconstructionLinear, 2.35);
         const reconstructionOpacity = phaseProgress(reconstructionLinear, 0.015, 0.16)
-          * (1 - phaseProgress(reconstructionLinear, 0.84, 1))
-          * 0.76;
+          * (1 - phaseProgress(reconstructionLinear, 0.88, 1))
+          * 0.92;
         let titleLensCenterX = titleLensCanvas?.clientWidth * 0.5 || 0;
         let titleLensCenterY = titleLensCanvas?.clientHeight * 0.5 || 0;
         if (titleLensCanvas && title) {
@@ -3067,10 +2986,6 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-shift-y", `${(gravityDriftY * 1.45).toFixed(3)}px`);
         gate.style.setProperty("--kisara-gravity-scale", gravityScale.toFixed(4));
         gate.style.setProperty("--kisara-title-blur", `${titleBlur.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-rebuild-origin-x", `${clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1) * 100}%`);
-        gate.style.setProperty("--kisara-rebuild-origin-y", `${clamp(warpOriginY / gateHeight, 0, 1) * 100}%`);
-        gate.style.setProperty("--kisara-rebuild-radius", `${(4 + reconstructionReveal * 142).toFixed(3)}%`);
-        gate.style.setProperty("--kisara-rebuild-opacity", reconstructionOpacity.toFixed(4));
         drawSpaceLens(timestamp, {
           centerX: clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1),
           centerY: clamp(1 - warpOriginY / gateHeight, 0, 1),
@@ -3084,6 +2999,8 @@ const gateStyle = [
           shockWidth: Math.max(8, lensShockWidthPixels * 0.56) / gateHeight,
           coreRadius: lensCoreRadius / gateHeight,
           lensRadius,
+          reconstruction: reconstructionLinear,
+          reconstructionOpacity,
           time: timestamp / 1000
         });
         drawTitleLens(timestamp, {
