@@ -45,7 +45,11 @@ const gateStyle = [
     <div class="kisara-gate-visual" aria-hidden="true">
       <div class="kisara-gate-background kisara-gate-background-base"></div>
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
-      <div class="kisara-space-warp">
+      <div class="kisara-space-warp kisara-space-warp-primary">
+        <div class="kisara-space-warp-layer kisara-space-warp-base"></div>
+        <div class="kisara-space-warp-layer kisara-space-warp-fight"></div>
+      </div>
+      <div class="kisara-space-warp kisara-space-warp-shear">
         <div class="kisara-space-warp-layer kisara-space-warp-base"></div>
         <div class="kisara-space-warp-layer kisara-space-warp-fight"></div>
       </div>
@@ -215,7 +219,7 @@ const gateStyle = [
       const crossFlashEnd = 0.72;
       const crossEnd = 0.82;
       const reformEnd = 0.9;
-      const collapseStart = 0.872;
+      const collapseStart = 0.858;
       const shockwaveStart = 0.91;
       const detonationStart = 0.936;
       const detonationEnd = 0.968;
@@ -467,16 +471,19 @@ const gateStyle = [
         const wakeOpacity = clamp(1 - dissolve, 0, 1);
         const afterglow = phaseProgress(burst, detonationStart, detonationEnd)
           * (1 - phaseProgress(burst, rainPeak, 1));
-        const blackHoleBuild = phaseProgress(burst, crossEnd, 0.872);
+        const blackHoleBuild = phaseProgress(burst, crossEnd, collapseStart - 0.006);
         const gravityLock = phaseProgress(burst, 0.85, shockwaveStart);
         const collapse = phaseProgress(burst, collapseStart, shockwaveStart);
+        const collapseDepth = Math.pow(collapse, 1.48);
+        const terminalCrush = phaseProgress(collapse, 0.62, 1);
+        const crushCompression = Math.pow(terminalCrush, 1.85);
         const blackHoleFade = 1 - phaseProgress(
           detonationLinear,
           0.08,
           0.78
         );
         const blackHoleOpacity = blackHoleBuild * blackHoleFade;
-        const blackHoleAngle = -0.16 + Math.sin(time * 0.43) * 0.025 - collapse * 0.12;
+        const blackHoleAngle = -0.16 + Math.sin(time * 0.43) * 0.025 - collapseDepth * 0.16;
 
         context.save();
         context.globalCompositeOperation = "lighter";
@@ -494,7 +501,8 @@ const gateStyle = [
             const gravityY = originY - y;
             const gravityDistance = Math.max(1, Math.hypot(gravityX, gravityY));
             const gravityFalloff = 1 - clamp(gravityDistance / maxRadius, 0, 1);
-            const screenPull = gravityLock * gravityFalloff * (0.018 + collapse * 0.092 + shockwave * 0.018);
+            const screenPull = gravityLock * gravityFalloff
+              * (0.018 + collapseDepth * 0.12 + crushCompression * 0.075 + shockwave * 0.018);
             x += gravityX * screenPull;
             y += gravityY * screenPull;
             context.globalAlpha = (0.018 + seedX * 0.085) * intensity * wakeOpacity;
@@ -687,16 +695,21 @@ const gateStyle = [
         const baseCoreRadius = clamp(viewportScale * 0.09, 28, 82);
         const coreRadius = baseCoreRadius
           * (0.86 + blackHoleBuild * 0.18)
-          * (1 - collapse * 0.48)
-          * (1 + shockwave * 0.08);
+          * (1 - collapseDepth * 0.58)
+          * (1 - crushCompression * 0.48)
+          * (1 + shockwave * 0.05);
         const diskRadius = coreRadius
           * (3.12 + blackHoleBuild * 0.62)
-          * (1 - collapse * 0.34)
-          * (1 + shockwave * 0.14);
-        const diskFlatten = 0.27 + blackHoleBuild * 0.055 - collapse * 0.065;
+          * (1 - collapseDepth * 0.18)
+          * (1 - crushCompression * 0.16)
+          * (1 + shockwave * 0.11);
+        const diskFlatten = Math.max(
+          0.105,
+          (0.27 + blackHoleBuild * 0.055) * (1 - collapseDepth * 0.48 - crushCompression * 0.12)
+        );
 
         const orbitLimit = width < 640 ? 82 : 160;
-        const orbitDrive = blackHoleOpacity * (1 - detonationLinear);
+        const orbitDrive = blackHoleOpacity * (1 - detonationLinear) * (1 - crushCompression * 0.78);
         if (!reducedMotion && orbitDrive > 0.01) {
           orbitEmissionBudget += frameSeconds * (18 + gravityLock * 86) * densityScale;
           while (orbitEmissionBudget >= 1 && orbitParticles.length < orbitLimit) {
@@ -737,10 +750,15 @@ const gateStyle = [
           }
           const previousAngle = particle.angle;
           const previousRadius = particle.radius;
-          const orbitAcceleration = 1 + gravityLock * 4.8 + collapse * 2.2;
+          const orbitAcceleration = 1 + gravityLock * 4.8 + collapseDepth * 5.4 + crushCompression * 9.5;
           particle.angle += particle.angularVelocity * frameSeconds * orbitAcceleration
             * Math.pow(diskRadius / Math.max(coreRadius, particle.radius), 0.46);
-          particle.radius -= (particle.radialSpeed + gravityLock * (11 + particle.size * 7)) * frameSeconds;
+          particle.radius -= (
+            particle.radialSpeed
+            + gravityLock * (11 + particle.size * 7)
+            + collapseDepth * (32 + particle.size * 12)
+            + crushCompression * (115 + particle.size * 42)
+          ) * frameSeconds;
 
           if (particle.radius <= coreRadius * 1.12) {
             if (
@@ -772,7 +790,7 @@ const gateStyle = [
               orbitParticles.pop();
               continue;
             }
-            if (burst < detonationStart && blackHoleOpacity > 0.2) {
+            if (burst < detonationStart && blackHoleOpacity > 0.2 && terminalCrush < 0.72) {
               particle.radius = diskRadius * (1.6 + nextParticleRandom() * 0.92);
               particle.angle += Math.PI * (0.42 + nextParticleRandom() * 0.34);
             } else {
@@ -841,16 +859,17 @@ const gateStyle = [
             context.save();
             context.globalCompositeOperation = "lighter";
             context.lineCap = "round";
-            for (let ring = 0; ring < 3; ring += 1) {
-              const delayed = phaseProgress(collapse, ring * 0.1, 1);
+            for (let ring = 0; ring < 5; ring += 1) {
+              const delayed = phaseProgress(collapse, ring * 0.055, 1);
               if (delayed <= 0.001) continue;
-              const ringRadius = diskRadius * (2.25 - ring * 0.24) * (1 - delayed * 0.66);
-              const ringPulse = Math.pow(Math.sin(delayed * Math.PI), 0.84);
-              context.globalAlpha = blackHoleOpacity * ringPulse * (0.16 + ring * 0.035);
-              context.strokeStyle = ring === 1 ? "rgba(255,244,249,0.9)" : "rgba(255,103,148,0.78)";
-              context.lineWidth = 0.8 + delayed * (2.8 - ring * 0.42);
-              context.shadowColor = ring === 1 ? "rgba(255,255,255,0.86)" : "rgba(255,65,125,0.86)";
-              context.shadowBlur = 7 + delayed * 16;
+              const ringPlunge = Math.pow(delayed, 1.38);
+              const ringRadius = diskRadius * (3.05 - ring * 0.34) * (1 - ringPlunge * 0.9);
+              const ringPulse = Math.pow(Math.sin(delayed * Math.PI), 0.68);
+              context.globalAlpha = blackHoleOpacity * ringPulse * (0.12 + ring * 0.028 + crushCompression * 0.16);
+              context.strokeStyle = ring === 2 ? "rgba(255,248,251,0.94)" : "rgba(255,103,148,0.8)";
+              context.lineWidth = 0.7 + delayed * (3.6 - ring * 0.42) + crushCompression * 1.4;
+              context.shadowColor = ring === 2 ? "rgba(255,255,255,0.9)" : "rgba(255,55,120,0.9)";
+              context.shadowBlur = 7 + delayed * 17 + crushCompression * 12;
               context.beginPath();
               context.ellipse(
                 originX,
@@ -864,18 +883,24 @@ const gateStyle = [
               context.stroke();
             }
 
-            const inwardCount = width < 640 ? 12 : 18;
+            const inwardCount = width < 640 ? 22 : 34;
             for (let index = 0; index < inwardCount; index += 1) {
               const seed = randomSeed(index + 13701);
-              const delayed = phaseProgress(collapse, seed * 0.22, 1);
+              const delayed = phaseProgress(collapse, seed * 0.16, 1);
               if (delayed <= 0.001) continue;
               const angle = seed * Math.PI * 2 + blackHoleAngle + Math.sin(seed * 17.3) * 0.22;
-              const outerRadius = diskRadius * (2.2 + seed * 2.4);
-              const innerRadius = coreRadius * (1.08 + seed * 0.5);
-              const currentRadius = outerRadius + (innerRadius - outerRadius) * smoothstep(delayed);
-              const streakLength = 18 + delayed * (54 + seed * 82);
+              const outerRadius = Math.max(baseCoreRadius * 4.2, diskRadius * (2.5 + seed * 3.2));
+              const innerRadius = coreRadius * (0.3 + seed * 0.36);
+              const plunge = clamp(
+                Math.pow(delayed, 1.34) + Math.pow(phaseProgress(delayed, 0.58, 1), 2.2) * 0.32,
+                0,
+                1
+              );
+              const currentRadius = outerRadius + (innerRadius - outerRadius) * plunge;
+              const streakLength = 22 + delayed * (72 + seed * 104) + crushCompression * 46;
               const tangent = angle + Math.PI / 2;
-              const curl = (seed - 0.5) * diskRadius * 0.24 * delayed;
+              const curl = (seed - 0.5) * Math.max(diskRadius, baseCoreRadius * 1.4) * 0.28 * delayed
+                * (1 - crushCompression * 0.72);
               const endX = originX + Math.cos(angle) * currentRadius + Math.cos(tangent) * curl;
               const endY = originY + Math.sin(angle) * currentRadius * 0.62 + Math.sin(tangent) * curl * 0.62;
               const startX = originX + Math.cos(angle) * (currentRadius + streakLength);
@@ -884,10 +909,10 @@ const gateStyle = [
               gradient.addColorStop(0, "rgba(144,181,255,0)");
               gradient.addColorStop(0.55, index % 3 === 0 ? "rgba(195,217,255,0.34)" : "rgba(255,105,151,0.28)");
               gradient.addColorStop(1, index % 4 === 0 ? "rgba(255,255,255,0.9)" : "rgba(255,115,157,0.72)");
-              context.globalAlpha = blackHoleOpacity * delayed * (0.18 + seed * 0.28);
+              context.globalAlpha = blackHoleOpacity * delayed * (0.16 + seed * 0.26 + crushCompression * 0.16);
               context.strokeStyle = gradient;
-              context.lineWidth = 0.55 + delayed * (0.8 + seed * 1.1);
-              context.shadowBlur = 3 + delayed * 7;
+              context.lineWidth = 0.5 + delayed * (0.9 + seed * 1.2) + crushCompression * 0.55;
+              context.shadowBlur = 3 + delayed * 7 + crushCompression * 5;
               context.beginPath();
               context.moveTo(startX, startY);
               context.quadraticCurveTo(
@@ -899,7 +924,10 @@ const gateStyle = [
               context.stroke();
             }
 
-            const compressionGlowRadius = coreRadius * (1.15 + (1 - collapse) * 1.8);
+            const compressionGlowRadius = Math.max(
+              5,
+              coreRadius * (0.72 + (1 - collapseDepth) * 2.65)
+            );
             const compressionGlow = context.createRadialGradient(
               originX,
               originY,
@@ -912,7 +940,7 @@ const gateStyle = [
             compressionGlow.addColorStop(0.16, "rgba(255,214,230,0.86)");
             compressionGlow.addColorStop(0.48, "rgba(255,68,128,0.32)");
             compressionGlow.addColorStop(1, "rgba(255,68,128,0)");
-            context.globalAlpha = blackHoleOpacity * Math.pow(collapse, 2.4) * 0.76;
+            context.globalAlpha = blackHoleOpacity * Math.pow(collapse, 2.05) * (0.72 + crushCompression * 0.26);
             context.fillStyle = compressionGlow;
             context.fillRect(
               originX - compressionGlowRadius,
@@ -920,6 +948,29 @@ const gateStyle = [
               compressionGlowRadius * 2,
               compressionGlowRadius * 2
             );
+
+            if (crushCompression > 0.001) {
+              const singularityRadius = Math.max(3.5, baseCoreRadius * (0.31 - crushCompression * 0.19));
+              const singularity = context.createRadialGradient(
+                originX,
+                originY,
+                0,
+                originX,
+                originY,
+                singularityRadius
+              );
+              singularity.addColorStop(0, "rgba(255,255,255,1)");
+              singularity.addColorStop(0.18, "rgba(255,239,247,0.98)");
+              singularity.addColorStop(0.52, "rgba(255,71,132,0.72)");
+              singularity.addColorStop(1, "rgba(255,40,111,0)");
+              context.globalAlpha = blackHoleOpacity * Math.pow(crushCompression, 2.6);
+              context.fillStyle = singularity;
+              context.shadowColor = "rgba(255,75,135,0.96)";
+              context.shadowBlur = 12 + crushCompression * 24;
+              context.beginPath();
+              context.arc(originX, originY, singularityRadius, 0, Math.PI * 2);
+              context.fill();
+            }
             context.restore();
           }
 
@@ -1002,23 +1053,115 @@ const gateStyle = [
           context.fillRect(-diskRadius * 1.12, -diskRadius, diskRadius * 2.24, diskRadius * 2);
 
           context.globalCompositeOperation = "source-over";
+          const horizonRadiusX = coreRadius * 1.08;
+          const horizonRadiusY = coreRadius * (1.02 - collapseDepth * 0.16 - crushCompression * 0.1);
           const eventHorizon = context.createRadialGradient(
-            -coreRadius * 0.16,
-            -coreRadius * 0.14,
-            coreRadius * 0.06,
+            -coreRadius * 0.18,
+            -coreRadius * 0.2,
+            coreRadius * 0.035,
             0,
             0,
-            coreRadius * 1.08
+            coreRadius * 1.12
           );
-          eventHorizon.addColorStop(0, "rgba(0, 0, 3, 1)");
-          eventHorizon.addColorStop(0.66, "rgba(2, 1, 8, 0.99)");
-          eventHorizon.addColorStop(0.9, "rgba(18, 3, 24, 0.98)");
-          eventHorizon.addColorStop(1, "rgba(61, 8, 42, 0.28)");
+          eventHorizon.addColorStop(0, "rgba(17, 24, 63, 0.96)");
+          eventHorizon.addColorStop(0.18, "rgba(7, 11, 38, 0.98)");
+          eventHorizon.addColorStop(0.42, "rgba(3, 5, 23, 0.985)");
+          eventHorizon.addColorStop(0.7, "rgba(1, 2, 13, 0.99)");
+          eventHorizon.addColorStop(0.9, "rgba(14, 4, 28, 0.99)");
+          eventHorizon.addColorStop(1, "rgba(58, 9, 49, 0.54)");
+          context.save();
+          context.beginPath();
+          context.ellipse(0, 0, horizonRadiusX, horizonRadiusY, 0, 0, Math.PI * 2);
+          context.clip();
           context.globalAlpha = blackHoleOpacity;
           context.fillStyle = eventHorizon;
-          context.beginPath();
-          context.arc(0, 0, coreRadius * 1.08, 0, Math.PI * 2);
-          context.fill();
+          context.fillRect(-horizonRadiusX, -horizonRadiusY, horizonRadiusX * 2, horizonRadiusY * 2);
+
+          const abyssGlow = context.createRadialGradient(
+            -coreRadius * 0.14,
+            -coreRadius * 0.18,
+            0,
+            0,
+            0,
+            coreRadius * 0.92
+          );
+          abyssGlow.addColorStop(0, "rgba(132,161,255,0.24)");
+          abyssGlow.addColorStop(0.16, "rgba(62,82,166,0.15)");
+          abyssGlow.addColorStop(0.42, "rgba(22,25,78,0.07)");
+          abyssGlow.addColorStop(0.72, "rgba(112,40,116,0.045)");
+          abyssGlow.addColorStop(1, "rgba(0,0,7,0)");
+          context.globalCompositeOperation = "screen";
+          context.globalAlpha = blackHoleOpacity * (0.82 + gravityLock * 0.14) * (1 - crushCompression * 0.34);
+          context.fillStyle = abyssGlow;
+          context.fillRect(-horizonRadiusX, -horizonRadiusY, horizonRadiusX * 2, horizonRadiusY * 2);
+
+          const voidSpeed = 0.034 + gravityLock * 0.045 + collapseDepth * 0.12 + crushCompression * 0.18;
+          for (let ring = 0; ring < 7; ring += 1) {
+            const seed = randomSeed(ring + 19101);
+            const depth = 1 - ((time * voidSpeed * (0.72 + seed * 0.7) + seed) % 1);
+            const radius = coreRadius * (0.075 + Math.pow(depth, 1.72) * 0.82);
+            const fade = Math.pow(Math.sin(depth * Math.PI), 1.45) * (1 - crushCompression * 0.46);
+            context.globalAlpha = blackHoleOpacity * fade * (0.068 + seed * 0.075);
+            context.strokeStyle = ring % 3 === 0
+              ? "rgba(175,205,255,0.62)"
+              : ring % 2 === 0
+                ? "rgba(143,116,235,0.46)"
+                : "rgba(255,110,166,0.34)";
+            context.lineWidth = 0.35 + depth * 0.55;
+            context.beginPath();
+            context.ellipse(
+              0,
+              0,
+              radius,
+              radius * (0.68 + seed * 0.12),
+              (seed - 0.5) * 0.22 + time * 0.012,
+              0,
+              Math.PI * 2
+            );
+            context.stroke();
+          }
+
+          for (let wisp = 0; wisp < 6; wisp += 1) {
+            const seed = randomSeed(wisp + 19241);
+            const phase = time * (0.028 + seed * 0.026) + seed * Math.PI * 2;
+            const wispRadius = coreRadius * (0.24 + seed * 0.58);
+            const wispSpan = 0.55 + seed * 1.25;
+            context.globalAlpha = blackHoleOpacity * (0.04 + seed * 0.075) * (1 - crushCompression * 0.42);
+            context.strokeStyle = wisp % 3 === 0
+              ? "rgba(184,208,255,0.6)"
+              : wisp % 2 === 0
+                ? "rgba(142,118,239,0.48)"
+                : "rgba(224,105,183,0.38)";
+            context.lineWidth = 0.38 + seed * 0.72;
+            context.beginPath();
+            context.ellipse(
+              0,
+              0,
+              wispRadius,
+              wispRadius * (0.58 + seed * 0.18),
+              (seed - 0.5) * 0.32,
+              phase,
+              phase + wispSpan
+            );
+            context.stroke();
+          }
+
+          for (let mote = 0; mote < 18; mote += 1) {
+            const seed = randomSeed(mote + 19401);
+            const speed = voidSpeed * (0.48 + seed * 0.86);
+            const depth = 1 - ((time * speed + randomSeed(mote + 19491)) % 1);
+            const radius = coreRadius * Math.pow(depth, 1.76) * (0.76 + seed * 0.12);
+            const angle = seed * Math.PI * 2 + (1 - depth) * (1.2 + seed * 2.4) - time * 0.028;
+            const moteX = Math.cos(angle) * radius;
+            const moteY = Math.sin(angle) * radius * (0.7 + seed * 0.08);
+            const fade = Math.pow(Math.sin(depth * Math.PI), 1.7) * (1 - crushCompression * 0.52);
+            context.globalAlpha = blackHoleOpacity * fade * (0.18 + seed * 0.28);
+            context.fillStyle = mote % 5 === 0 ? "#f0f5ff" : mote % 2 === 0 ? "#9cb9ff" : "#d69ad9";
+            context.beginPath();
+            context.arc(moteX, moteY, 0.36 + seed * 0.82, 0, Math.PI * 2);
+            context.fill();
+          }
+          context.restore();
 
           context.globalCompositeOperation = "lighter";
           context.globalAlpha = blackHoleOpacity * (0.76 + gravityLock * 0.22);
@@ -1549,6 +1692,9 @@ const gateStyle = [
         const reform = phaseProgress(burst, crossEnd, reformEnd);
         const pressure = phaseProgress(burst, 0.7, 0.94);
         const collapse = phaseProgress(burst, collapseStart, shockwaveStart);
+        const collapseDepth = Math.pow(collapse, 1.48);
+        const terminalCrush = phaseProgress(collapse, 0.62, 1);
+        const crushCompression = Math.pow(terminalCrush, 1.85);
         const shockwaveLinear = clamp((burst - shockwaveStart) / (detonationStart - shockwaveStart), 0, 1);
         const shockwave = smoothstep(shockwaveLinear);
         const detonationLinear = clamp((burst - detonationStart) / (detonationEnd - detonationStart), 0, 1);
@@ -1686,10 +1832,10 @@ const gateStyle = [
         const preBlastBlur = phaseProgress(burst, glossFadeEnd, crossStart + 0.04)
           * (1 - phaseProgress(burst, crossEnd, reformEnd)) * 4.8;
         const gravityBlur = phaseProgress(burst, crossEnd, 0.86)
-          * (1 - phaseProgress(burst, detonationEnd, 1)) * 6.8;
+          * (1 - phaseProgress(burst, detonationEnd, 1)) * 4.6;
         const shockwavePulse = Math.sin(shockwaveLinear * Math.PI);
         const collapsePulse = Math.sin(collapse * Math.PI);
-        const impactBlur = pressure * 1.35 + collapse * 4.4 + shockwavePulse * 8.2 + detonationRush * 7.4;
+        const impactBlur = pressure * 1.25 + collapseDepth * 2.7 + shockwavePulse * 3.8 + detonationRush * 7.4;
         const performanceBlur = preBlastBlur + gravityBlur + impactBlur * (1 - blurRecovery);
         const gravityScreen = phaseProgress(burst, crossEnd, 0.874)
           * (1 - phaseProgress(burst, detonationEnd, 1));
@@ -1701,22 +1847,23 @@ const gateStyle = [
           : clamp(inversionFlash + ruptureFlash, 0, 1.2);
         const impactTail = phaseProgress(burst, detonationStart, rainPeak)
           * (1 - phaseProgress(burst, rainPeak, 1));
-        const screenShakeStrength = collapsePulse * 0.48 + shockwavePulse * 1.05 + impactFlash * 1.48;
+        const screenShakeStrength = collapsePulse * 0.38 + shockwavePulse * 0.92 + impactFlash * 1.48;
         const screenShakeX = Math.sin(motionPhases.screenX) * screenShakeStrength
           + Math.cos(motionPhases.screenXSecondary) * impactFlash * 0.44;
         const screenShakeY = Math.cos(motionPhases.screenY) * screenShakeStrength * 0.62
           + Math.sin(motionPhases.screenYSecondary) * impactFlash * 0.34;
         const gravityDriftX = Math.sin(motionPhases.gravityX) * gravityScreen * (0.7 + gravityPressure * 1.8);
         const gravityDriftY = Math.cos(motionPhases.gravityY) * gravityScreen * (0.5 + gravityPressure * 1.25);
-        const collapseZoom = collapse * (1 - shockwave * 0.72);
+        const collapseZoom = collapseDepth * (1 - shockwave * 0.72);
         const gravityScale = 1
           + gravityScreen * 0.012
-          + collapseZoom * 0.055
+          + collapseZoom * 0.026
+          - crushCompression * 0.009
           - shockwave * 0.014
           + impactFlash * 0.018
           + impactTail * 0.006;
         const chromaticShift = gravityScreen * (1.2 + gravityPressure * 4.2) + impactFlash * 5.6;
-        const impactVignette = clamp(gravityScreen * (0.34 + gravityPressure * 0.48) + impactTail * 0.2, 0, 0.92);
+        const impactVignette = clamp(gravityScreen * (0.22 + gravityPressure * 0.36) + impactTail * 0.16, 0, 0.74);
         const impactScale = 1 + shockwavePulse * 0.004 + impactFlash * 0.007;
         const gateDiagonal = Math.hypot(gate.clientWidth, gate.clientHeight);
         const gateShortSide = Math.min(gate.clientWidth, gate.clientHeight);
@@ -1730,14 +1877,68 @@ const gateStyle = [
         const warpInner = Math.max(0, warpRadius - warpBand * 0.54);
         const warpOuter = warpRadius + warpBand * 0.54;
         const warpOuterSoft = warpRadius + warpBand * 1.18;
+        const shearRadius = warpRadius + warpBand * (shockwaveLinear > 0.001 ? 0.42 : 0.34);
+        const shearBand = warpBand * (0.62 + shockwave * 0.18);
+        const warpShearInnerSoft = Math.max(0, shearRadius - shearBand * 1.08);
+        const warpShearInner = Math.max(0, shearRadius - shearBand * 0.46);
+        const warpShearOuter = shearRadius + shearBand * 0.46;
+        const warpShearOuterSoft = shearRadius + shearBand * 1.08;
+        const warpRecovery = 1 - blurRecovery;
         const warpOpacity = clamp(
-          gravityPressure * 0.2 * (1 - shockwaveLinear)
-            + Math.pow(Math.max(0, shockwavePulse), 0.72) * 0.92
-            + impactFlash * 0.14,
+          (
+            gravityPressure * 0.2 * (1 - shockwaveLinear)
+              + collapseDepth * 0.46
+              + Math.pow(Math.max(0, shockwavePulse), 0.72) * 0.96
+              + impactFlash * 0.14
+          ) * warpRecovery,
           0,
           1
         );
-        const warpScale = 1 + gravityPressure * 0.022 + collapse * 0.026 + shockwavePulse * 0.078;
+        const warpShearOpacity = clamp(
+          (
+            gravityPressure * 0.1
+              + collapseDepth * 0.42
+              + crushCompression * 0.22
+              + Math.pow(Math.max(0, shockwavePulse), 0.76) * 0.72
+              + impactFlash * 0.08
+          ) * warpRecovery,
+          0,
+          0.88
+        );
+        const warpStrength = clamp(
+          gravityPressure * 0.28
+            + collapseDepth * 0.68
+            + crushCompression * 0.42
+            + Math.pow(Math.max(0, shockwavePulse), 0.72)
+            + impactFlash * 0.12,
+          0,
+          1.35
+        );
+        const warpPrimaryScale = 1
+          + gravityPressure * 0.036
+          + collapseDepth * 0.102
+          + crushCompression * 0.035
+          + shockwavePulse * 0.092;
+        const warpShearScale = 1
+          + gravityPressure * 0.014
+          + collapseDepth * 0.044
+          + shockwavePulse * 0.032;
+        const warpPrimaryRotation = (-1.4 * gravityPressure - 6.2 * collapseDepth + shockwavePulse * 4.6)
+          * (1 - blurRecovery);
+        const warpShearRotation = (2.5 * gravityPressure + 9.4 * collapseDepth - shockwavePulse * 7.2)
+          * (1 - blurRecovery);
+        const warpShearSkew = (-0.8 * gravityPressure - 2.2 * collapseDepth + shockwavePulse * 3.4)
+          * (1 - blurRecovery);
+        const tangentialAngle = -0.16 + Math.PI / 2;
+        const tangentialShift = (gravityPressure * 1.2 + collapseDepth * 5.8 + shockwavePulse * 13)
+          * (1 - blurRecovery);
+        const warpPrimaryShiftX = Math.sin(motionPhases.gravityX) * warpStrength * 2.4;
+        const warpPrimaryShiftY = Math.cos(motionPhases.gravityY) * warpStrength * 1.8;
+        const warpShearShiftX = Math.cos(tangentialAngle) * tangentialShift
+          + Math.cos(motionPhases.gravityY) * warpStrength * 1.8;
+        const warpShearShiftY = Math.sin(tangentialAngle) * tangentialShift
+          + Math.sin(motionPhases.gravityX) * warpStrength * 1.4;
+        const warpSurfaceBlur = Math.min(0.72, performanceBlur * 0.052);
         const crossPulse = 0.5 + 0.5 * Math.sin(
           motionPhases.crossPulse + Math.sin(motionPhases.crossPulseMod)
         );
@@ -1803,7 +2004,21 @@ const gateStyle = [
         gate.style.setProperty("--kisara-warp-outer", `${warpOuter.toFixed(2)}px`);
         gate.style.setProperty("--kisara-warp-outer-soft", `${warpOuterSoft.toFixed(2)}px`);
         gate.style.setProperty("--kisara-warp-opacity", warpOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-warp-scale", warpScale.toFixed(4));
+        gate.style.setProperty("--kisara-warp-shear-inner-soft", `${warpShearInnerSoft.toFixed(2)}px`);
+        gate.style.setProperty("--kisara-warp-shear-inner", `${warpShearInner.toFixed(2)}px`);
+        gate.style.setProperty("--kisara-warp-shear-outer", `${warpShearOuter.toFixed(2)}px`);
+        gate.style.setProperty("--kisara-warp-shear-outer-soft", `${warpShearOuterSoft.toFixed(2)}px`);
+        gate.style.setProperty("--kisara-warp-shear-opacity", warpShearOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-warp-primary-scale", warpPrimaryScale.toFixed(4));
+        gate.style.setProperty("--kisara-warp-shear-scale", warpShearScale.toFixed(4));
+        gate.style.setProperty("--kisara-warp-primary-rotation", `${warpPrimaryRotation.toFixed(3)}deg`);
+        gate.style.setProperty("--kisara-warp-shear-rotation", `${warpShearRotation.toFixed(3)}deg`);
+        gate.style.setProperty("--kisara-warp-shear-skew", `${warpShearSkew.toFixed(3)}deg`);
+        gate.style.setProperty("--kisara-warp-primary-shift-x", `${warpPrimaryShiftX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-warp-primary-shift-y", `${warpPrimaryShiftY.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-warp-shear-shift-x", `${warpShearShiftX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-warp-shear-shift-y", `${warpShearShiftY.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-warp-surface-blur", `${warpSurfaceBlur.toFixed(3)}px`);
         gate.style.setProperty("--kisara-chromatic-shift", `${chromaticShift.toFixed(3)}px`);
         gate.style.setProperty("--kisara-impact-flash", impactFlash.toFixed(3));
         gate.style.setProperty("--kisara-impact-vignette", impactVignette.toFixed(3));

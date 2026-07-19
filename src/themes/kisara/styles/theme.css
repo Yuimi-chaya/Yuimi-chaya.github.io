@@ -296,7 +296,21 @@ a {
   --kisara-warp-outer: 0px;
   --kisara-warp-outer-soft: 0px;
   --kisara-warp-opacity: 0;
-  --kisara-warp-scale: 1;
+  --kisara-warp-shear-inner-soft: 0px;
+  --kisara-warp-shear-inner: 0px;
+  --kisara-warp-shear-outer: 0px;
+  --kisara-warp-shear-outer-soft: 0px;
+  --kisara-warp-shear-opacity: 0;
+  --kisara-warp-primary-scale: 1;
+  --kisara-warp-shear-scale: 1;
+  --kisara-warp-primary-rotation: 0deg;
+  --kisara-warp-shear-rotation: 0deg;
+  --kisara-warp-shear-skew: 0deg;
+  --kisara-warp-primary-shift-x: 0px;
+  --kisara-warp-primary-shift-y: 0px;
+  --kisara-warp-shear-shift-x: 0px;
+  --kisara-warp-shear-shift-y: 0px;
+  --kisara-warp-surface-blur: 0px;
   --kisara-chromatic-shift: 0px;
   --kisara-impact-flash: 0;
   --kisara-impact-vignette: 0;
@@ -418,11 +432,16 @@ a {
 }
 
 .kisara-space-warp {
-  z-index: 1;
+  z-index: 3;
   inset: 0;
   overflow: hidden;
-  opacity: var(--kisara-warp-opacity);
   transform: translateZ(0);
+  mix-blend-mode: normal;
+  will-change: opacity, filter, mask-image, -webkit-mask-image;
+}
+
+.kisara-space-warp-primary {
+  opacity: var(--kisara-warp-opacity);
   -webkit-mask-image: radial-gradient(
     circle at var(--kisara-warp-x) var(--kisara-warp-y),
     transparent 0 var(--kisara-warp-inner-soft),
@@ -437,9 +456,26 @@ a {
     #000 var(--kisara-warp-outer),
     transparent var(--kisara-warp-outer-soft)
   );
-  filter: saturate(1.1) contrast(1.045);
-  mix-blend-mode: screen;
-  will-change: opacity, mask-image, -webkit-mask-image;
+  filter: saturate(1.16) contrast(1.09);
+}
+
+.kisara-space-warp-shear {
+  opacity: var(--kisara-warp-shear-opacity);
+  -webkit-mask-image: radial-gradient(
+    circle at var(--kisara-warp-x) var(--kisara-warp-y),
+    transparent 0 var(--kisara-warp-shear-inner-soft),
+    rgba(0, 0, 0, 0.92) var(--kisara-warp-shear-inner),
+    #000 var(--kisara-warp-shear-outer),
+    transparent var(--kisara-warp-shear-outer-soft)
+  );
+  mask-image: radial-gradient(
+    circle at var(--kisara-warp-x) var(--kisara-warp-y),
+    transparent 0 var(--kisara-warp-shear-inner-soft),
+    rgba(0, 0, 0, 0.92) var(--kisara-warp-shear-inner),
+    #000 var(--kisara-warp-shear-outer),
+    transparent var(--kisara-warp-shear-outer-soft)
+  );
+  filter: saturate(1.2) contrast(1.11);
 }
 
 .kisara-space-warp-layer {
@@ -447,22 +483,50 @@ a {
   background-position: var(--kisara-gate-background-position);
   background-size: cover;
   background-repeat: no-repeat;
-  transform-origin: var(--kisara-warp-x) var(--kisara-warp-y);
+  transform-origin: calc(var(--kisara-warp-x) + 42px) calc(var(--kisara-warp-y) + 42px);
   will-change: opacity, filter, transform;
 }
 
 .kisara-space-warp-base {
   background-image: var(--kisara-gate-background-image);
   opacity: var(--kisara-bg-opacity);
-  filter: blur(var(--kisara-performance-blur)) saturate(var(--kisara-bg-saturation)) brightness(calc(var(--kisara-bg-brightness) + 0.05));
-  transform: scale(1.06) scale(var(--kisara-warp-scale));
+  filter: blur(var(--kisara-warp-surface-blur)) saturate(var(--kisara-bg-saturation)) brightness(calc(var(--kisara-bg-brightness) + 0.05));
 }
 
 .kisara-space-warp-fight {
   background-image: var(--kisara-fight-background-image);
   opacity: var(--kisara-fight-opacity);
-  filter: blur(var(--kisara-performance-blur)) saturate(calc(var(--kisara-fight-saturation) + 0.08)) brightness(calc(var(--kisara-fight-brightness) + 0.06));
-  transform: scale(var(--kisara-fight-scale)) scale(var(--kisara-warp-scale));
+  filter: blur(var(--kisara-warp-surface-blur)) saturate(calc(var(--kisara-fight-saturation) + 0.08)) brightness(calc(var(--kisara-fight-brightness) + 0.06));
+}
+
+.kisara-space-warp-primary .kisara-space-warp-base {
+  transform: translate3d(var(--kisara-warp-primary-shift-x), var(--kisara-warp-primary-shift-y), 0)
+    rotate(var(--kisara-warp-primary-rotation))
+    scale(1.06)
+    scale(var(--kisara-warp-primary-scale));
+}
+
+.kisara-space-warp-primary .kisara-space-warp-fight {
+  transform: translate3d(var(--kisara-warp-primary-shift-x), var(--kisara-warp-primary-shift-y), 0)
+    rotate(var(--kisara-warp-primary-rotation))
+    scale(var(--kisara-fight-scale))
+    scale(var(--kisara-warp-primary-scale));
+}
+
+.kisara-space-warp-shear .kisara-space-warp-base {
+  transform: translate3d(var(--kisara-warp-shear-shift-x), var(--kisara-warp-shear-shift-y), 0)
+    rotate(var(--kisara-warp-shear-rotation))
+    skewX(var(--kisara-warp-shear-skew))
+    scale(1.06)
+    scale(var(--kisara-warp-shear-scale));
+}
+
+.kisara-space-warp-shear .kisara-space-warp-fight {
+  transform: translate3d(var(--kisara-warp-shear-shift-x), var(--kisara-warp-shear-shift-y), 0)
+    rotate(var(--kisara-warp-shear-rotation))
+    skewX(var(--kisara-warp-shear-skew))
+    scale(var(--kisara-fight-scale))
+    scale(var(--kisara-warp-shear-scale));
 }
 
 .kisara-gate-atmosphere {
