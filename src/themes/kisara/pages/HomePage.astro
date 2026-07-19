@@ -261,6 +261,14 @@ const gateStyle = [
       let energyCanvasHeight = 0;
       let burstCanvasWidth = 0;
       let burstCanvasHeight = 0;
+      let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
+      let renderQuality = 1;
+      let renderCostEma = 0;
+      let lastQualityAdjustment = 0;
+      const lightningCoreCanvas = document.createElement("canvas");
+      const lightningCoreContext = lightningCoreCanvas.getContext("2d", { alpha: true });
+      let lightningCoreBufferSize = 0;
+      let lightningCoreLastPaintTimestamp = 0;
       let spaceLensRenderer = null;
       let spaceLensInitGeneration = 0;
       let lastSpaceLensPaintTimestamp = 0;
@@ -269,6 +277,7 @@ const gateStyle = [
       let lastTitleLensPaintTimestamp = 0;
       let pageMode = restoredBelowGate ? "next" : "gate";
       let scrollFrame = 0;
+      let layoutResizeFrame = 0;
       let resetTransitionTimer = 0;
       let restoreWindowOpen = true;
       let poseTimestamp = 0;
@@ -767,8 +776,11 @@ const gateStyle = [
         };
         let cssWidth = 0;
         let cssHeight = 0;
+        let sizeDirty = true;
 
-        const resize = () => {
+        const resize = (force = false) => {
+          if (!force && !sizeDirty) return;
+          sizeDirty = false;
           const rect = spaceLensCanvas.getBoundingClientRect();
           cssWidth = Math.max(1, Math.round(rect.width));
           cssHeight = Math.max(1, Math.round(rect.height));
@@ -785,6 +797,10 @@ const gateStyle = [
             spaceLensCanvas.height = pixelHeight;
           }
           gl.viewport(0, 0, pixelWidth, pixelHeight);
+        };
+        const requestResize = () => {
+          sizeDirty = true;
+          resize();
         };
 
         const clear = () => {
@@ -836,9 +852,9 @@ const gateStyle = [
           clear();
         };
 
-        resize();
+        resize(true);
         clear();
-        return { clear, destroy, draw, resize };
+        return { clear, destroy, draw, resize: requestResize };
       };
 
       const createTitleLensRenderer = () => {
@@ -1045,8 +1061,11 @@ const gateStyle = [
         let cssWidth = 0;
         let cssHeight = 0;
         let renderScale = 1;
+        let sizeDirty = true;
 
         const resize = (force = false) => {
+          if (!force && !sizeDirty) return;
+          sizeDirty = false;
           const rect = titleLensCanvas.getBoundingClientRect();
           const nextCssWidth = Math.max(1, rect.width);
           const nextCssHeight = Math.max(1, rect.height);
@@ -1093,8 +1112,8 @@ const gateStyle = [
           gradient.addColorStop(0.24, "#ff8ca5");
           gradient.addColorStop(0.58, "#ff315e");
           gradient.addColorStop(1, "#c81343");
-          sourceContext.shadowColor = "rgba(255, 45, 96, 0.58)";
-          sourceContext.shadowBlur = Math.max(8, 20 * renderScale);
+          sourceContext.shadowColor = "rgba(255, 45, 96, 0.34)";
+          sourceContext.shadowBlur = Math.max(4, 10 * renderScale);
           sourceContext.strokeStyle = "rgba(255, 235, 242, 0.82)";
           sourceContext.lineWidth = Math.max(1.2, 1.8 * renderScale);
           sourceContext.strokeText("Kisara", pixelWidth * 0.5, baseline);
@@ -1118,6 +1137,10 @@ const gateStyle = [
             gl.UNSIGNED_BYTE,
             sourceCanvas
           );
+        };
+        const requestResize = () => {
+          sizeDirty = true;
+          resize();
         };
 
         const clear = () => {
@@ -1169,9 +1192,18 @@ const gateStyle = [
           clear();
         };
 
-        resize();
+        resize(true);
         clear();
-        return { clear, destroy, draw, refresh: () => resize(true), resize };
+        return {
+          clear,
+          destroy,
+          draw,
+          refresh: () => {
+            sizeDirty = true;
+            resize(true);
+          },
+          resize: requestResize
+        };
       };
 
       const startSpaceLens = () => {
@@ -1297,8 +1329,9 @@ const gateStyle = [
         return `${corrupted} ${phase} ${code} ${noise}`;
       };
 
-      const resizeEnergyCanvas = () => {
+      const resizeEnergyCanvas = (force = false) => {
         if (!energyCanvas || !energyContext) return;
+        if (!force && energyCanvasWidth > 0 && energyCanvasHeight > 0) return;
         const rect = energyCanvas.getBoundingClientRect();
         const width = Math.max(1, Math.round(rect.width));
         const height = Math.max(1, Math.round(rect.height));
@@ -1314,12 +1347,13 @@ const gateStyle = [
         energyCanvasHeight = height;
       };
 
-      const resizeBurstCanvas = () => {
+      const resizeBurstCanvas = (force = false) => {
         if (!burstCanvas || !burstContext) return;
+        if (!force && burstCanvasWidth > 0 && burstCanvasHeight > 0) return;
         const rect = burstCanvas.getBoundingClientRect();
         const width = Math.max(1, Math.round(rect.width));
         const height = Math.max(1, Math.round(rect.height));
-        const ratioCap = width < 640 ? 1.25 : 1.5;
+        const ratioCap = width < 640 ? 1.16 : 1.38;
         const devicePixelRatio = Math.min(window.devicePixelRatio || 1, ratioCap);
         const pixelWidth = Math.max(1, Math.round(width * devicePixelRatio));
         const pixelHeight = Math.max(1, Math.round(height * devicePixelRatio));
@@ -1330,11 +1364,315 @@ const gateStyle = [
         }
         burstCanvasWidth = width;
         burstCanvasHeight = height;
+        meterLayout = {
+          width: meterShell?.clientWidth || Math.min(620, width * 0.78),
+          height: meterShell?.clientHeight || 68,
+          left: meterShell?.offsetLeft ?? (width - Math.min(620, width * 0.78)) / 2,
+          top: meterShell?.offsetTop ?? height * 0.58
+        };
+      };
+
+      const trimParticlePool = (particles, limit, seedOffset) => {
+        while (particles.length > limit) {
+          const index = Math.floor(
+            randomSeed(particles.length * 1.371 + limit * 0.719 + seedOffset) * particles.length
+          );
+          particles[index] = particles[particles.length - 1];
+          particles.pop();
+        }
+      };
+
+      const updateRenderQuality = (timestamp, renderCost) => {
+        if (!Number.isFinite(renderCost) || renderCost <= 0) return;
+        renderCostEma = renderCostEma > 0
+          ? renderCostEma * 0.92 + renderCost * 0.08
+          : renderCost;
+        if (timestamp - lastQualityAdjustment < 1200) return;
+        lastQualityAdjustment = timestamp;
+        const mobile = burstCanvasWidth > 0 ? burstCanvasWidth < 640 : window.innerWidth < 640;
+        const highCost = mobile ? 13.5 : 16.5;
+        const lowCost = mobile ? 7.4 : 9.2;
+        if (renderCostEma > highCost && renderQuality > 0.7) {
+          renderQuality = Math.max(0.7, renderQuality - 0.08);
+          const width = burstCanvasWidth || window.innerWidth;
+          trimParticlePool(
+            wakeParticles,
+            Math.floor((width < 640 ? 175 : 280) * (0.8 + renderQuality * 0.2)),
+            11
+          );
+          trimParticlePool(
+            orbitParticles,
+            Math.floor((width < 640 ? 82 : 160) * renderQuality),
+            23
+          );
+          trimParticlePool(
+            burstParticles,
+            Math.floor((width < 640 ? 120 : 220) * renderQuality),
+            37
+          );
+          trimParticlePool(
+            rainParticles,
+            Math.floor((width < 640 ? 88 : 152) * renderQuality),
+            53
+          );
+        } else if (renderCostEma < lowCost && renderQuality < 1) {
+          renderQuality = Math.min(1, renderQuality + 0.035);
+        }
+      };
+
+      const paintLightningCore = (timestamp, parameters) => {
+        if (!lightningCoreContext || parameters.activity <= 0.001) return false;
+        const quality = clamp(parameters.quality, 0.7, 1);
+        const targetSize = parameters.mobile
+          ? (quality < 0.8 ? 128 : 144)
+          : (quality < 0.8 ? 160 : 192);
+        if (lightningCoreBufferSize !== targetSize) {
+          lightningCoreBufferSize = targetSize;
+          lightningCoreCanvas.width = targetSize;
+          lightningCoreCanvas.height = targetSize;
+          lightningCoreLastPaintTimestamp = 0;
+        }
+        const minimumInterval = parameters.mobile
+          ? 1000 / 30
+          : quality < 0.8
+            ? 1000 / 36
+            : 1000 / 45;
+        if (
+          lightningCoreLastPaintTimestamp > 0
+          && timestamp - lightningCoreLastPaintTimestamp < minimumInterval
+        ) return true;
+        lightningCoreLastPaintTimestamp = timestamp;
+
+        const context = lightningCoreContext;
+        const size = lightningCoreBufferSize;
+        const center = size * 0.5;
+        const radius = size * 0.27;
+        const time = timestamp / 1000;
+        const activity = clamp(parameters.activity, 0, 1.35);
+        const compression = clamp(parameters.compression, 0, 1);
+        const electricPulse = 0.5 + Math.sin(time * (5.4 + activity * 2.8)) * 0.26
+          + Math.sin(time * 11.7 + 1.4) * 0.12;
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.clearRect(0, 0, size, size);
+        context.save();
+        context.translate(center, center);
+        context.rotate(Math.sin(time * 0.73) * 0.08);
+        context.scale(
+          1 + Math.sin(time * 1.63) * 0.022 * (1 - compression),
+          1 + Math.cos(time * 1.37) * 0.018 * (1 - compression)
+        );
+
+        const outerGlow = context.createRadialGradient(
+          -radius * 0.18,
+          -radius * 0.2,
+          radius * 0.08,
+          0,
+          0,
+          radius * 1.55
+        );
+        outerGlow.addColorStop(0, "rgba(183, 126, 255, 0.2)");
+        outerGlow.addColorStop(0.32, "rgba(255, 70, 137, 0.18)");
+        outerGlow.addColorStop(0.68, "rgba(113, 151, 255, 0.08)");
+        outerGlow.addColorStop(1, "rgba(80, 104, 255, 0)");
+        context.globalCompositeOperation = "lighter";
+        context.globalAlpha = activity * (0.48 + electricPulse * 0.18);
+        context.fillStyle = outerGlow;
+        context.fillRect(-size * 0.5, -size * 0.5, size, size);
+
+        const sphereBody = context.createRadialGradient(
+          -radius * 0.28,
+          -radius * 0.3,
+          radius * 0.03,
+          radius * 0.04,
+          radius * 0.04,
+          radius * 1.04
+        );
+        sphereBody.addColorStop(0, "rgba(116, 74, 164, 0.78)");
+        sphereBody.addColorStop(0.2, "rgba(34, 10, 58, 0.96)");
+        sphereBody.addColorStop(0.5, "rgba(2, 0, 10, 0.995)");
+        sphereBody.addColorStop(0.72, "rgba(22, 4, 46, 0.92)");
+        sphereBody.addColorStop(0.88, "rgba(126, 26, 118, 0.54)");
+        sphereBody.addColorStop(0.96, "rgba(255, 85, 151, 0.14)");
+        sphereBody.addColorStop(1, "rgba(255, 85, 151, 0)");
+        context.globalCompositeOperation = "source-over";
+        context.globalAlpha = 0.88 + activity * 0.1;
+        context.fillStyle = sphereBody;
+        context.beginPath();
+        context.arc(0, 0, radius, 0, fullTurn);
+        context.fill();
+
+        context.globalCompositeOperation = "lighter";
+        for (let lobe = 0; lobe < 2; lobe += 1) {
+          const lobePhase = time * (0.82 + lobe * 0.21) + lobe * 2.7;
+          const lobeX = Math.cos(lobePhase) * radius * (0.18 + lobe * 0.05);
+          const lobeY = Math.sin(lobePhase * 1.13) * radius * 0.2;
+          const lobeRadius = radius * (0.5 + lobe * 0.08);
+          const plasmaLobe = context.createRadialGradient(
+            lobeX,
+            lobeY,
+            0,
+            lobeX,
+            lobeY,
+            lobeRadius
+          );
+          plasmaLobe.addColorStop(
+            0,
+            lobe === 0 ? "rgba(255, 75, 151, 0.22)" : "rgba(119, 153, 255, 0.2)"
+          );
+          plasmaLobe.addColorStop(
+            0.42,
+            lobe === 0 ? "rgba(178, 56, 177, 0.1)" : "rgba(103, 108, 224, 0.09)"
+          );
+          plasmaLobe.addColorStop(1, "rgba(69, 31, 105, 0)");
+          context.globalAlpha = activity * (0.54 + electricPulse * 0.08) * (1 - compression * 0.42);
+          context.fillStyle = plasmaLobe;
+          context.fillRect(
+            lobeX - lobeRadius,
+            lobeY - lobeRadius,
+            lobeRadius * 2,
+            lobeRadius * 2
+          );
+        }
+
+        const branchCount = Math.max(
+          6,
+          Math.floor((parameters.mobile ? 9 : 14) * quality)
+        );
+        context.save();
+        context.beginPath();
+        context.arc(0, 0, radius * 0.96, 0, fullTurn);
+        context.clip();
+        context.globalCompositeOperation = "lighter";
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.beginPath();
+        for (let branch = 0; branch < branchCount; branch += 1) {
+          const seed = randomSeed(branch + 19421);
+          const startAngle = seed * fullTurn + time * (0.34 + seed * 0.24);
+          const angularDrift = (randomSeed(branch + 19473) - 0.5) * (0.9 + activity * 0.45);
+          const segments = 6;
+          for (let segment = 0; segment <= segments; segment += 1) {
+            const unit = segment / segments;
+            const jitter = Math.sin(
+              time * (4.1 + seed * 2.4)
+              + branch * 1.73
+              + segment * 2.18
+            ) * (0.13 + (1 - unit) * 0.11);
+            const angle = startAngle + angularDrift * unit + jitter;
+            const radialReach = radius
+              * (0.1 + unit * (0.78 - compression * 0.25))
+              * (1 + Math.sin(time * 2.7 + branch + unit * 5.4) * 0.035);
+            const x = Math.cos(angle) * radialReach;
+            const y = Math.sin(angle) * radialReach;
+            if (segment === 0) context.moveTo(x, y);
+            else context.lineTo(x, y);
+          }
+        }
+        context.globalAlpha = activity * (0.18 + electricPulse * 0.08);
+        context.strokeStyle = "rgba(255, 63, 143, 0.82)";
+        context.lineWidth = 4.6 + activity * 2.2;
+        context.shadowColor = "rgba(255, 45, 139, 0.9)";
+        context.shadowBlur = 8 + activity * 8;
+        context.stroke();
+        context.globalAlpha = activity * (0.55 + electricPulse * 0.16);
+        context.strokeStyle = "rgba(177, 185, 255, 0.94)";
+        context.lineWidth = 1.65 + compression * 0.55;
+        context.shadowColor = "rgba(151, 180, 255, 0.9)";
+        context.shadowBlur = 3.5 + activity * 3.5;
+        context.stroke();
+        context.globalAlpha = activity * (0.72 + electricPulse * 0.2);
+        context.strokeStyle = "rgba(255, 255, 255, 0.96)";
+        context.lineWidth = 0.48 + compression * 0.36;
+        context.shadowBlur = 0;
+        context.stroke();
+        context.restore();
+
+        const tendrilCount = Math.max(3, Math.floor((parameters.mobile ? 4 : 6) * quality));
+        context.globalCompositeOperation = "lighter";
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.beginPath();
+        for (let tendril = 0; tendril < tendrilCount; tendril += 1) {
+          const seed = randomSeed(tendril + 19681);
+          const startAngle = seed * fullTurn + time * (0.46 + seed * 0.26);
+          const reach = radius * (1.2 + activity * 0.34) * (1 - compression * 0.48);
+          for (let segment = 0; segment <= 4; segment += 1) {
+            const unit = segment / 4;
+            const angle = startAngle
+              + (seed - 0.5) * unit * 0.7
+              + Math.sin(time * 5.8 + tendril * 2.1 + segment * 1.7) * 0.1;
+            const distance = radius * 0.78 + (reach - radius * 0.78) * unit;
+            const x = Math.cos(angle) * distance;
+            const y = Math.sin(angle) * distance;
+            if (segment === 0) context.moveTo(x, y);
+            else context.lineTo(x, y);
+          }
+        }
+        context.globalAlpha = activity * 0.22 * (1 - compression * 0.54);
+        context.strokeStyle = "rgba(255, 74, 149, 0.84)";
+        context.lineWidth = 3.2;
+        context.shadowColor = "rgba(255, 54, 143, 0.88)";
+        context.shadowBlur = 9;
+        context.stroke();
+        context.globalAlpha = activity * 0.72 * (1 - compression * 0.38);
+        context.strokeStyle = "rgba(239, 244, 255, 0.94)";
+        context.lineWidth = 0.65;
+        context.shadowBlur = 0;
+        context.stroke();
+
+        const fresnel = context.createRadialGradient(0, 0, radius * 0.58, 0, 0, radius * 1.16);
+        fresnel.addColorStop(0, "rgba(55, 17, 78, 0)");
+        fresnel.addColorStop(0.56, "rgba(101, 87, 184, 0.04)");
+        fresnel.addColorStop(0.78, "rgba(255, 72, 145, 0.18)");
+        fresnel.addColorStop(0.91, "rgba(218, 229, 255, 0.52)");
+        fresnel.addColorStop(1, "rgba(255, 98, 159, 0)");
+        context.globalAlpha = activity * (0.72 + electricPulse * 0.16);
+        context.fillStyle = fresnel;
+        context.fillRect(-radius * 1.2, -radius * 1.2, radius * 2.4, radius * 2.4);
+
+        const voidRadius = radius * (0.3 - compression * 0.055);
+        const voidOffsetX = Math.sin(time * 1.37) * radius * 0.035 * (1 - compression);
+        const voidOffsetY = Math.cos(time * 1.11) * radius * 0.03 * (1 - compression);
+        const voidGradient = context.createRadialGradient(
+          voidOffsetX,
+          voidOffsetY,
+          0,
+          voidOffsetX,
+          voidOffsetY,
+          voidRadius
+        );
+        voidGradient.addColorStop(0, "rgba(0, 0, 2, 0.995)");
+        voidGradient.addColorStop(0.42, "rgba(0, 0, 5, 0.97)");
+        voidGradient.addColorStop(0.74, "rgba(4, 1, 13, 0.76)");
+        voidGradient.addColorStop(1, "rgba(18, 5, 31, 0)");
+        context.globalCompositeOperation = "source-over";
+        context.globalAlpha = 0.9 + compression * 0.08;
+        context.fillStyle = voidGradient;
+        context.fillRect(-voidRadius, -voidRadius, voidRadius * 2, voidRadius * 2);
+
+        const coreSparkRadius = radius * (0.055 + Math.max(0, electricPulse) * 0.035)
+          * (1 - compression * 0.38);
+        const coreSpark = context.createRadialGradient(0, 0, 0, 0, 0, coreSparkRadius);
+        coreSpark.addColorStop(0, "rgba(255, 255, 255, 0.96)");
+        coreSpark.addColorStop(0.28, "rgba(213, 222, 255, 0.72)");
+        coreSpark.addColorStop(0.62, "rgba(255, 71, 147, 0.3)");
+        coreSpark.addColorStop(1, "rgba(255, 71, 147, 0)");
+        context.globalCompositeOperation = "lighter";
+        context.globalAlpha = activity * (0.36 + electricPulse * 0.24);
+        context.fillStyle = coreSpark;
+        context.fillRect(
+          -coreSparkRadius,
+          -coreSparkRadius,
+          coreSparkRadius * 2,
+          coreSparkRadius * 2
+        );
+        context.restore();
+        return true;
       };
 
       const drawScreenEnergy = (timestamp) => {
         if (!burstCanvas || !burstContext) return;
-        resizeBurstCanvas();
+        if (burstCanvasWidth <= 0 || burstCanvasHeight <= 0) resizeBurstCanvas();
         const width = burstCanvasWidth;
         const height = burstCanvasHeight;
         const context = burstContext;
@@ -1349,11 +1687,12 @@ const gateStyle = [
         const fill = Math.max(energyProgress, 0.012);
         const burst = clamp(burstProgress, 0, 1);
         const intensity = 0.12 + fill * 0.88;
-        const densityScale = width < 640 ? 0.62 : width < 960 ? 0.82 : 1;
-        const meterWidth = meterShell?.clientWidth || Math.min(620, width * 0.78);
-        const meterHeight = meterShell?.clientHeight || 68;
-        const meterLeft = meterShell?.offsetLeft ?? (width - meterWidth) / 2;
-        const meterTop = meterShell?.offsetTop ?? height * 0.58;
+        const densityScale = (width < 640 ? 0.62 : width < 960 ? 0.82 : 1) * renderQuality;
+        const shadowQuality = renderQuality;
+        const meterWidth = meterLayout.width || Math.min(620, width * 0.78);
+        const meterHeight = meterLayout.height || 68;
+        const meterLeft = meterLayout.left || (width - meterWidth) / 2;
+        const meterTop = meterLayout.top || height * 0.58;
         const localFrontRadius = 5 + fill * 22;
         const localFrontX = clamp(
           meterWidth * fill,
@@ -1472,7 +1811,7 @@ const gateStyle = [
         }
 
         if (fill <= 0.018) wakePrimed = false;
-        const wakeLimit = width < 640 ? 175 : 280;
+        const wakeLimit = Math.floor((width < 640 ? 175 : 280) * (0.8 + renderQuality * 0.2));
         const forwardX = Math.cos(angleRadians);
         const forwardY = Math.sin(angleRadians);
         const normalX = -forwardY;
@@ -1654,7 +1993,7 @@ const gateStyle = [
           (0.27 + blackHoleBuild * 0.055) * (1 - collapseDepth * 0.48 - crushCompression * 0.12)
         );
 
-        const orbitLimit = width < 640 ? 82 : 160;
+        const orbitLimit = Math.floor((width < 640 ? 82 : 160) * renderQuality);
         const orbitDrive = blackHoleOpacity * (1 - detonationLinear) * (1 - crushCompression * 0.78);
         if (!reducedMotion && orbitDrive > 0.01) {
           orbitEmissionBudget += frameSeconds * (18 + gravityLock * 86) * densityScale;
@@ -1815,7 +2154,7 @@ const gateStyle = [
               context.strokeStyle = ring === 2 ? "rgba(255,248,251,0.94)" : "rgba(255,103,148,0.8)";
               context.lineWidth = 0.7 + delayed * (3.6 - ring * 0.42) + crushCompression * 1.4;
               context.shadowColor = ring === 2 ? "rgba(255,255,255,0.9)" : "rgba(255,55,120,0.9)";
-              context.shadowBlur = 7 + delayed * 17 + crushCompression * 12;
+              context.shadowBlur = (7 + delayed * 17 + crushCompression * 12) * shadowQuality;
               context.beginPath();
               context.ellipse(
                 originX,
@@ -1829,7 +2168,7 @@ const gateStyle = [
               context.stroke();
             }
 
-            const inwardCount = width < 640 ? 22 : 34;
+            const inwardCount = Math.max(16, Math.floor((width < 640 ? 22 : 34) * renderQuality));
             for (let index = 0; index < inwardCount; index += 1) {
               const seed = randomSeed(index + 13701);
               const delayed = phaseProgress(collapse, seed * 0.16, 1);
@@ -1858,7 +2197,7 @@ const gateStyle = [
               context.globalAlpha = blackHoleOpacity * delayed * (0.16 + seed * 0.26 + crushCompression * 0.16);
               context.strokeStyle = gradient;
               context.lineWidth = 0.5 + delayed * (0.9 + seed * 1.2) + crushCompression * 0.55;
-              context.shadowBlur = 3 + delayed * 7 + crushCompression * 5;
+              context.shadowBlur = (3 + delayed * 7 + crushCompression * 5) * shadowQuality;
               context.beginPath();
               context.moveTo(startX, startY);
               context.quadraticCurveTo(
@@ -1912,7 +2251,7 @@ const gateStyle = [
               context.globalAlpha = blackHoleOpacity * Math.pow(crushCompression, 2.6);
               context.fillStyle = singularity;
               context.shadowColor = "rgba(255,75,135,0.96)";
-              context.shadowBlur = 12 + crushCompression * 24;
+              context.shadowBlur = (12 + crushCompression * 24) * shadowQuality;
               context.beginPath();
               context.arc(originX, originY, singularityRadius, 0, Math.PI * 2);
               context.fill();
@@ -1966,7 +2305,7 @@ const gateStyle = [
             context.strokeStyle = diskGradient;
             context.lineWidth = 1.7 + (4 - band) * (1.7 + gravityLock * 0.82);
             context.shadowColor = band < 2 ? "rgba(140, 181, 255, 0.72)" : "rgba(255, 77, 126, 0.9)";
-            context.shadowBlur = 7 + (4 - band) * 3 + gravityLock * 12;
+            context.shadowBlur = (7 + (4 - band) * 3 + gravityLock * 12) * shadowQuality;
             context.beginPath();
             context.ellipse(
               0,
@@ -1984,7 +2323,7 @@ const gateStyle = [
           context.strokeStyle = diskGradient;
           context.lineWidth = coreRadius * (0.16 + gravityLock * 0.055);
           context.shadowColor = "rgba(255, 77, 128, 0.88)";
-          context.shadowBlur = 22 + gravityLock * 22;
+          context.shadowBlur = (22 + gravityLock * 22) * shadowQuality;
           context.beginPath();
           context.ellipse(0, 0, diskRadius * 1.02, diskRadius * diskFlatten * 0.96, 0, 0, Math.PI * 2);
           context.stroke();
@@ -1998,38 +2337,38 @@ const gateStyle = [
           context.fillStyle = halo;
           context.fillRect(-diskRadius * 1.12, -diskRadius, diskRadius * 2.24, diskRadius * 2);
 
-          const horizonRadiusX = coreRadius * 0.94;
-          const horizonRadiusY = coreRadius * (0.58 - collapseDepth * 0.07 - crushCompression * 0.045);
-          const horizonOpacity = clamp(blackHoleOpacity * 1.14, 0, 0.93);
-          const paintVoid = (scale, opacity, depthShift = 0) => {
-            const pulse = 1 + Math.sin(time * 0.46 + depthShift) * 0.012 * (1 - crushCompression);
-            const radius = horizonRadiusX * scale * pulse;
+          const lightningActivity = clamp(
+            blackHoleBuild * (0.42 + gravityLock * 0.7) + collapseDepth * 0.12,
+            0,
+            1.28
+          );
+          const lightningRadius = Math.max(
+            5,
+            coreRadius * (1.02 + blackHoleBuild * 0.08 + gravityLock * 0.08)
+          );
+          if (paintLightningCore(timestamp, {
+            mobile: width < 640,
+            quality: renderQuality,
+            activity: lightningActivity,
+            compression: clamp(collapseDepth * 0.36 + crushCompression * 0.82, 0, 1)
+          })) {
+            const lightningDisplaySize = lightningRadius * 3.68;
             context.save();
-            context.scale(1, horizonRadiusY / Math.max(1, horizonRadiusX));
-            const voidGradient = context.createRadialGradient(
-              -horizonRadiusX * (0.08 + depthShift * 0.015),
-              -horizonRadiusX * 0.045,
-              0,
-              0,
-              0,
-              radius
-            );
-            voidGradient.addColorStop(0, "rgba(0, 0, 2, 0.995)");
-            voidGradient.addColorStop(0.16, "rgba(0, 0, 3, 0.985)");
-            voidGradient.addColorStop(0.36, "rgba(1, 0, 6, 0.88)");
-            voidGradient.addColorStop(0.58, "rgba(4, 1, 12, 0.54)");
-            voidGradient.addColorStop(0.78, "rgba(10, 3, 20, 0.2)");
-            voidGradient.addColorStop(1, "rgba(16, 5, 28, 0)");
             context.globalCompositeOperation = "source-over";
-            context.globalAlpha = opacity;
+            context.globalAlpha = blackHoleOpacity;
             context.shadowBlur = 0;
-            context.fillStyle = voidGradient;
-            context.fillRect(-radius, -radius, radius * 2, radius * 2);
+            context.drawImage(
+              lightningCoreCanvas,
+              -lightningDisplaySize * 0.5,
+              -lightningDisplaySize * 0.5,
+              lightningDisplaySize,
+              lightningDisplaySize
+            );
             context.restore();
-          };
+          }
 
-          paintVoid(2.15, horizonOpacity * 0.68, 0.4);
-          paintVoid(1.08, horizonOpacity * 0.84, 1.1);
+          const horizonRadiusX = lightningRadius * 0.9;
+          const horizonRadiusY = lightningRadius * (0.76 - collapseDepth * 0.06 - crushCompression * 0.05);
 
           context.globalCompositeOperation = "lighter";
           for (let rim = 0; rim < 3; rim += 1) {
@@ -2043,7 +2382,7 @@ const gateStyle = [
                 : "rgba(161, 195, 255, 0.62)";
             context.lineWidth = 0.55 + gravityLock * 0.62 + rim * 0.18;
             context.shadowColor = context.strokeStyle;
-            context.shadowBlur = 4 + gravityLock * 7;
+            context.shadowBlur = (4 + gravityLock * 7) * shadowQuality;
             context.beginPath();
             context.ellipse(
               0,
@@ -2062,7 +2401,7 @@ const gateStyle = [
             context.strokeStyle = diskGradient;
             context.lineWidth = 2 + (3 - band) * (2.15 + gravityLock * 0.96);
             context.shadowColor = "rgba(255, 74, 125, 0.9)";
-            context.shadowBlur = 8 + (3 - band) * 3 + gravityLock * 14;
+            context.shadowBlur = (8 + (3 - band) * 3 + gravityLock * 14) * shadowQuality;
             context.beginPath();
             context.ellipse(
               0,
@@ -2083,7 +2422,7 @@ const gateStyle = [
             context.strokeStyle = side < 0 ? "rgba(184, 211, 255, 0.78)" : "rgba(255, 170, 195, 0.82)";
             context.lineWidth = 1.3 + gravityLock * 1.35;
             context.shadowColor = context.strokeStyle;
-            context.shadowBlur = 8 + gravityLock * 11;
+            context.shadowBlur = (8 + gravityLock * 11) * shadowQuality;
             context.beginPath();
             context.moveTo(-diskRadius * 0.66, side * coreRadius * 0.12);
             context.bezierCurveTo(
@@ -2104,15 +2443,12 @@ const gateStyle = [
             context.globalAlpha = blackHoleOpacity * (0.12 + gravityLock * 0.18) * (0.46 + seed * 0.54);
             context.strokeStyle = highlight % 3 === 0 ? "#ffffff" : highlight % 2 === 0 ? "#ff8fab" : "#bed7ff";
             context.lineWidth = 0.55 + seed * 1.15;
-            context.shadowBlur = 3 + gravityLock * 7;
+            context.shadowBlur = (3 + gravityLock * 7) * shadowQuality;
             context.beginPath();
             context.ellipse(0, 0, diskRadius * (0.96 + seed * 0.16), diskRadius * diskFlatten, 0, phase, phase + span);
             context.stroke();
           }
 
-          // Reapply a feathered absorption core so foreground disk streaks do
-          // not flatten the void into a hard geometric sticker.
-          paintVoid(1.12, horizonOpacity * 0.76, 2.3);
           context.restore();
 
           context.save();
@@ -2123,7 +2459,7 @@ const gateStyle = [
           context.restore();
         }
 
-        const burstLimit = width < 640 ? 120 : 220;
+        const burstLimit = Math.floor((width < 640 ? 120 : 220) * renderQuality);
         const spawnBurstWave = (waveIndex) => {
           const waveCounts = [48, 64, 76];
           const count = Math.floor(waveCounts[waveIndex] * densityScale);
@@ -2198,7 +2534,7 @@ const gateStyle = [
             context.strokeStyle = ring === 0 ? "rgba(255,245,249,0.96)" : "rgba(174,203,255,0.82)";
             context.lineWidth = 1 + (1 - delayed) * (6.4 - ring * 1.8);
             context.shadowColor = ring === 0 ? "rgba(255,73,130,0.86)" : "rgba(137,179,255,0.72)";
-            context.shadowBlur = 8 + (1 - delayed) * 22;
+            context.shadowBlur = (8 + (1 - delayed) * 22) * shadowQuality;
             context.beginPath();
             context.ellipse(
               originX,
@@ -2289,17 +2625,17 @@ const gateStyle = [
               context.globalAlpha = jetStrength * 0.2;
               context.fillStyle = jetGradient;
               context.shadowColor = "rgba(255, 71, 130, 0.94)";
-              context.shadowBlur = 34 + jetStrength * 46;
+              context.shadowBlur = (34 + jetStrength * 46) * shadowQuality;
               context.fill();
               traceJet(direction);
               context.globalAlpha = jetStrength * 0.62;
-              context.shadowBlur = 8 + jetStrength * 14;
+              context.shadowBlur = (8 + jetStrength * 14) * shadowQuality;
               context.fill();
               traceJet(direction, 0.3, 0.94, 0.58);
               context.globalAlpha = jetStrength * 0.86;
               context.fillStyle = "rgba(255, 244, 249, 0.88)";
               context.shadowColor = "rgba(255, 188, 213, 0.98)";
-              context.shadowBlur = 7 + jetStrength * 12;
+              context.shadowBlur = (7 + jetStrength * 12) * shadowQuality;
               context.fill();
             }
             context.restore();
@@ -2315,7 +2651,7 @@ const gateStyle = [
             context.strokeStyle = ring % 2 === 0 ? "#ffd2dc" : "#c9dcff";
             context.lineWidth = 0.8 + (1 - delayed) * (5.2 - ring * 0.68);
             context.shadowColor = ring % 2 === 0 ? "rgba(255,92,139,0.84)" : "rgba(157,192,255,0.7)";
-            context.shadowBlur = 6 + (1 - delayed) * 14;
+            context.shadowBlur = (6 + (1 - delayed) * 14) * shadowQuality;
             context.beginPath();
             context.ellipse(originX, originY, ringRadius, ringRadius * (0.54 + ring * 0.045), blackHoleAngle, 0, Math.PI * 2);
             context.stroke();
@@ -2323,7 +2659,7 @@ const gateStyle = [
 
           const rushStrength = Math.pow(Math.sin(clamp(detonationLinear / 0.84, 0, 1) * Math.PI), 1.15);
           if (rushStrength > 0.001) {
-            const rushCount = 12 + Math.floor(rushStrength * 22);
+            const rushCount = Math.floor((12 + rushStrength * 22) * renderQuality);
             for (let index = 0; index < rushCount; index += 1) {
               const seed = randomSeed(index + 9301);
               const angle = seed * Math.PI * 2 + blackHoleAngle + detonationLinear * (0.8 + seed * 1.4);
@@ -2342,7 +2678,7 @@ const gateStyle = [
               context.strokeStyle = streakGradient;
               context.lineWidth = 0.55 + seed * 1.7;
               context.shadowColor = index % 3 === 0 ? "rgba(255,79,130,0.8)" : "rgba(154,188,255,0.62)";
-              context.shadowBlur = 3 + rushStrength * 8;
+              context.shadowBlur = (3 + rushStrength * 8) * shadowQuality;
               context.beginPath();
               context.moveTo(startX, startY);
               context.quadraticCurveTo(
@@ -2366,7 +2702,7 @@ const gateStyle = [
             context.strokeStyle = arcIndex % 3 === 0 ? "#ffffff" : arcIndex % 2 === 0 ? "#ff9db3" : "#bfd6ff";
             context.lineWidth = 0.65 + (1 - delayed) * (2.2 + seed * 2.8);
             context.shadowColor = context.strokeStyle;
-            context.shadowBlur = 4 + (1 - delayed) * 8;
+            context.shadowBlur = (4 + (1 - delayed) * 8) * shadowQuality;
             context.beginPath();
             context.ellipse(
               originX,
@@ -2474,7 +2810,7 @@ const gateStyle = [
           }
         }
 
-        const rainLimit = width < 640 ? 88 : 152;
+        const rainLimit = Math.floor((width < 640 ? 88 : 152) * renderQuality);
         const rainDrive = rainBuild * (1 - rainStop);
         if (!reducedMotion && rainDrive > 0.001) {
           rainEmissionBudget += frameSeconds * (10 + rainDrive * 76) * densityScale;
@@ -3112,7 +3448,8 @@ const gateStyle = [
           queueEnergyFrame(minimumFrameInterval);
           return;
         }
-        resizeEnergyCanvas();
+        const renderStartedAt = performance.now();
+        if (energyCanvasWidth <= 0 || energyCanvasHeight <= 0) resizeEnergyCanvas();
         updateBurstPresentation(timestamp);
         updateGlitchState(timestamp);
         const width = energyCanvasWidth;
@@ -3120,6 +3457,7 @@ const gateStyle = [
         energyContext.clearRect(0, 0, width, height);
         drawScreenEnergy(timestamp);
         if (width <= 1 || height <= 1) {
+          updateRenderQuality(timestamp, performance.now() - renderStartedAt);
           queueEnergyFrame();
           return;
         }
@@ -3145,6 +3483,7 @@ const gateStyle = [
         const context = energyContext;
 
         if (localBeamOpacity <= 0.001) {
+          updateRenderQuality(timestamp, performance.now() - renderStartedAt);
           queueEnergyFrame();
           return;
         }
@@ -3430,6 +3769,7 @@ const gateStyle = [
 
         context.restore();
 
+        updateRenderQuality(timestamp, performance.now() - renderStartedAt);
         queueEnergyFrame();
       };
 
@@ -3660,6 +4000,10 @@ const gateStyle = [
         motionPhases = makeMotionPhases();
         screenParticleTimestamp = 0;
         lastEnergyPaintTimestamp = 0;
+        renderQuality = Math.max(renderQuality, 0.88);
+        renderCostEma = 0;
+        lastQualityAdjustment = 0;
+        lightningCoreLastPaintTimestamp = 0;
         energyFlowTimestamp = 0;
         energyFlowPhase = 0;
         beamHeadTimestamp = 0;
@@ -3693,6 +4037,7 @@ const gateStyle = [
         renderedGlitchTick = -1;
         energyContext?.clearRect(0, 0, energyCanvasWidth, energyCanvasHeight);
         burstContext?.clearRect(0, 0, burstCanvasWidth, burstCanvasHeight);
+        lightningCoreContext?.clearRect(0, 0, lightningCoreBufferSize, lightningCoreBufferSize);
         spaceLensRenderer?.clear();
         titleLensRenderer?.clear();
         gate.style.setProperty("--kisara-title-source-opacity", "1");
@@ -3741,6 +4086,8 @@ const gateStyle = [
           motionPhases = makeMotionPhases();
           screenParticleTimestamp = 0;
           lastEnergyPaintTimestamp = 0;
+          renderCostEma = 0;
+          lightningCoreLastPaintTimestamp = 0;
           energyFlowTimestamp = 0;
           energyFlowPhase = 0;
           beamHeadTimestamp = 0;
@@ -3888,16 +4235,32 @@ const gateStyle = [
         enterNextPage();
       });
 
-      window.addEventListener("resize", () => {
+      const refreshLayoutSize = () => {
         lastEnergyPaintTimestamp = 0;
         lastSpaceLensPaintTimestamp = 0;
         lastTitleLensPaintTimestamp = 0;
-        resizeEnergyCanvas();
-        resizeBurstCanvas();
+        resizeEnergyCanvas(true);
+        resizeBurstCanvas(true);
         spaceLensRenderer?.resize();
         titleLensRenderer?.resize();
         startEnergyAnimation();
-      }, { passive: true });
+      };
+      const scheduleLayoutSizeRefresh = () => {
+        if (layoutResizeFrame) return;
+        layoutResizeFrame = window.requestAnimationFrame(() => {
+          layoutResizeFrame = 0;
+          refreshLayoutSize();
+        });
+      };
+      window.addEventListener("resize", scheduleLayoutSizeRefresh, { passive: true });
+      const layoutResizeObserver = typeof ResizeObserver === "function"
+        ? new ResizeObserver(scheduleLayoutSizeRefresh)
+        : null;
+      if (layoutResizeObserver) {
+        for (const target of [gate, meterShell, title, energyCanvas, burstCanvas]) {
+          if (target) layoutResizeObserver.observe(target);
+        }
+      }
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "hidden") {
           if (energyFrame) window.cancelAnimationFrame(energyFrame);
