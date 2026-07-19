@@ -45,14 +45,14 @@ const gateStyle = [
     <div class="kisara-gate-visual" aria-hidden="true">
       <div class="kisara-gate-background kisara-gate-background-base"></div>
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
-      <div class="kisara-space-warp kisara-space-warp-primary">
-        <div class="kisara-space-warp-layer kisara-space-warp-base"></div>
-        <div class="kisara-space-warp-layer kisara-space-warp-fight"></div>
-      </div>
-      <div class="kisara-space-warp kisara-space-warp-shear">
-        <div class="kisara-space-warp-layer kisara-space-warp-base"></div>
-        <div class="kisara-space-warp-layer kisara-space-warp-fight"></div>
-      </div>
+      <canvas
+        class="kisara-space-lens-canvas"
+        data-kisara-space-lens
+        data-base-src={activeBackgroundUrl ?? ""}
+        data-fight-src={activeFightUrl ?? ""}
+        width="1280"
+        height="900"
+      ></canvas>
       <div class="kisara-gate-atmosphere"></div>
     </div>
     <canvas class="kisara-burst-canvas" data-kisara-burst-canvas width="1280" height="900" aria-hidden="true"></canvas>
@@ -197,6 +197,7 @@ const gateStyle = [
       const energyContext = energyCanvas?.getContext("2d");
       const burstCanvas = gate.querySelector("[data-kisara-burst-canvas]");
       const burstContext = burstCanvas?.getContext("2d");
+      const spaceLensCanvas = gate.querySelector("[data-kisara-space-lens]");
       const meterShell = gate.querySelector(".kisara-contract-meter");
       const title = gate.querySelector(".kisara-title");
       const cross = gate.querySelector(".kisara-title-cross");
@@ -252,6 +253,9 @@ const gateStyle = [
       let energyCanvasHeight = 0;
       let burstCanvasWidth = 0;
       let burstCanvasHeight = 0;
+      let spaceLensRenderer = null;
+      let spaceLensInitGeneration = 0;
+      let lastSpaceLensPaintTimestamp = 0;
       let pageMode = restoredBelowGate ? "next" : "gate";
       let scrollFrame = 0;
       let resetTransitionTimer = 0;
@@ -332,6 +336,356 @@ const gateStyle = [
         return value - Math.floor(value);
       };
       const nextParticleRandom = () => randomSeed((particleSerial += 1) * 1.61803398875 + 0.37);
+
+      const createSpaceLensRenderer = async () => {
+        if (!spaceLensCanvas || reducedMotion) return null;
+        const baseSource = spaceLensCanvas.dataset.baseSrc || spaceLensCanvas.dataset.fightSrc;
+        const fightSource = spaceLensCanvas.dataset.fightSrc || spaceLensCanvas.dataset.baseSrc;
+        if (!baseSource || !fightSource) return null;
+
+        const gl = spaceLensCanvas.getContext("webgl2", {
+          alpha: true,
+          antialias: false,
+          depth: false,
+          stencil: false,
+          premultipliedAlpha: true,
+          preserveDrawingBuffer: false,
+          powerPreference: "high-performance"
+        });
+        if (!gl) return null;
+
+        const vertexSource = `#version 300 es
+          precision highp float;
+          const vec2 POSITIONS[3] = vec2[3](
+            vec2(-1.0, -1.0),
+            vec2(3.0, -1.0),
+            vec2(-1.0, 3.0)
+          );
+          out vec2 vUv;
+          void main() {
+            vec2 position = POSITIONS[gl_VertexID];
+            vUv = position * 0.5 + 0.5;
+            gl_Position = vec4(position, 0.0, 1.0);
+          }
+        `;
+        const fragmentSource = `#version 300 es
+          precision highp float;
+          in vec2 vUv;
+          out vec4 outputColor;
+
+          uniform sampler2D uBaseTexture;
+          uniform sampler2D uFightTexture;
+          uniform vec2 uResolution;
+          uniform vec2 uBaseSize;
+          uniform vec2 uFightSize;
+          uniform vec2 uCenter;
+          uniform float uReveal;
+          uniform float uOpacity;
+          uniform float uGravity;
+          uniform float uCollapse;
+          uniform float uCrush;
+          uniform float uShockStrength;
+          uniform float uShockRadius;
+          uniform float uShockWidth;
+          uniform float uCoreRadius;
+          uniform float uLensRadius;
+          uniform float uTime;
+
+          vec2 coverUv(vec2 uv, vec2 imageSize, float scale) {
+            float viewportAspect = uResolution.x / max(1.0, uResolution.y);
+            float imageAspect = imageSize.x / max(1.0, imageSize.y);
+            vec2 mapped = uv;
+            if (imageAspect > viewportAspect) {
+              float visibleWidth = viewportAspect / imageAspect;
+              mapped.x = (mapped.x - 0.5) * visibleWidth + 0.5;
+            } else {
+              float visibleHeight = imageAspect / viewportAspect;
+              mapped.y = (mapped.y - 0.5) * visibleHeight + 0.5;
+            }
+            mapped = (mapped - 0.5) / scale + 0.5;
+            return clamp(mapped, vec2(0.001), vec2(0.999));
+          }
+
+          vec3 adjustSceneColor(vec3 color, float saturation, float brightness) {
+            float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+            return mix(vec3(luminance), color, saturation) * brightness;
+          }
+
+          vec3 sampleScene(vec2 uv) {
+            vec2 baseUv = coverUv(uv, uBaseSize, 1.045);
+            float fightScale = mix(1.06, 1.0, uReveal);
+            vec2 fightUv = coverUv(uv, uFightSize, fightScale);
+            vec3 baseColor = texture(uBaseTexture, baseUv).rgb;
+            vec3 fightColor = texture(uFightTexture, fightUv).rgb;
+            baseColor = adjustSceneColor(baseColor, 1.0 - uReveal * 0.26, 1.0 - uReveal * 0.14);
+            fightColor = adjustSceneColor(fightColor, 0.84 + uReveal * 0.36, 0.86 + uReveal * 0.22);
+            float baseOpacity = 0.98 - uReveal * 0.66;
+            float fightOpacity = uReveal * 0.98;
+            vec3 layered = baseColor * baseOpacity;
+            return mix(layered, fightColor, fightOpacity);
+          }
+
+          void main() {
+            float aspect = uResolution.x / max(1.0, uResolution.y);
+            vec2 point = vUv - uCenter;
+            point.x *= aspect;
+            float radius = length(point);
+            vec2 direction = point / max(radius, 0.0001);
+            vec2 tangent = vec2(-direction.y, direction.x);
+            float core = max(uCoreRadius, 0.004);
+            float massRadius = max(core, 0.052 - uCrush * 0.018);
+            float outsideCore = smoothstep(core * 0.96, core * 1.24, radius);
+            float gravityFalloff = 1.0 - smoothstep(core * 1.12, max(uLensRadius, core * 3.2), radius);
+            gravityFalloff *= outsideCore;
+
+            float inverseRadius = (massRadius * massRadius)
+              / max(radius * radius, massRadius * massRadius * 0.46);
+            float bend = min(
+              0.09,
+              inverseRadius * uGravity * (0.027 + uCollapse * 0.018 + uCrush * 0.026)
+            ) * gravityFalloff;
+
+            float waveWidth = max(uShockWidth, 0.006);
+            float waveCoordinate = (radius - uShockRadius) / waveWidth;
+            float waveEnvelope = exp(-waveCoordinate * waveCoordinate);
+            float waveDisplacement = -waveCoordinate * waveEnvelope * uShockStrength * 0.082;
+            float radialRipple = sin(radius / max(core, 0.012) * 3.1 - uTime * 0.52)
+              * gravityFalloff * uGravity * (0.0012 + uCollapse * 0.0018);
+            float spin = sin(radius / max(core, 0.012) * 2.4 + uTime * 0.18)
+              * gravityFalloff * uGravity * (0.0014 + uCollapse * 0.0024);
+
+            float edgeFade = smoothstep(0.0, 0.055, vUv.x)
+              * smoothstep(0.0, 0.055, vUv.y)
+              * smoothstep(0.0, 0.055, 1.0 - vUv.x)
+              * smoothstep(0.0, 0.055, 1.0 - vUv.y);
+            vec2 displacedPoint = point
+              + direction * (bend + waveDisplacement + radialRipple) * edgeFade
+              + tangent * spin * edgeFade;
+            vec2 displacedUv = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
+
+            float chroma = (
+              gravityFalloff * uGravity * 0.0012
+              + waveEnvelope * uShockStrength * 0.0046
+            ) * edgeFade;
+            vec2 chromaOffset = direction * chroma / vec2(aspect, 1.0);
+            vec3 centerColor = sampleScene(displacedUv);
+            vec3 positiveColor = sampleScene(displacedUv + chromaOffset);
+            vec3 negativeColor = sampleScene(displacedUv - chromaOffset);
+            vec3 color = vec3(positiveColor.r, centerColor.g, negativeColor.b);
+
+            float lensMask = max(
+              gravityFalloff * clamp(uGravity * 0.92, 0.0, 1.0),
+              waveEnvelope * uShockStrength
+            );
+            float alpha = clamp(lensMask * uOpacity * edgeFade, 0.0, 1.0);
+            outputColor = vec4(color * alpha, alpha);
+          }
+        `;
+
+        const compileShader = (type, source) => {
+          const shader = gl.createShader(type);
+          if (!shader) return null;
+          gl.shaderSource(shader, source);
+          gl.compileShader(shader);
+          if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            gl.deleteShader(shader);
+            return null;
+          }
+          return shader;
+        };
+        const vertexShader = compileShader(gl.VERTEX_SHADER, vertexSource);
+        const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentSource);
+        if (!vertexShader || !fragmentShader) return null;
+        const program = gl.createProgram();
+        if (!program) return null;
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        gl.deleteShader(vertexShader);
+        gl.deleteShader(fragmentShader);
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          gl.deleteProgram(program);
+          return null;
+        }
+        const vertexArray = gl.createVertexArray();
+        if (!vertexArray) {
+          gl.deleteProgram(program);
+          return null;
+        }
+
+        const loadTexture = (source) => new Promise((resolveTexture) => {
+          const image = new Image();
+          image.decoding = "async";
+          image.onload = () => {
+            const texture = gl.createTexture();
+            if (!texture) {
+              resolveTexture(null);
+              return;
+            }
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+            resolveTexture({
+              texture,
+              width: image.naturalWidth || image.width,
+              height: image.naturalHeight || image.height
+            });
+          };
+          image.onerror = () => resolveTexture(null);
+          image.src = source;
+        });
+
+        const [baseTexture, fightTexture] = await Promise.all([
+          loadTexture(baseSource),
+          loadTexture(fightSource)
+        ]);
+        if (!baseTexture || !fightTexture) {
+          if (baseTexture?.texture) gl.deleteTexture(baseTexture.texture);
+          if (fightTexture?.texture) gl.deleteTexture(fightTexture.texture);
+          gl.deleteProgram(program);
+          return null;
+        }
+
+        const uniforms = {
+          baseTexture: gl.getUniformLocation(program, "uBaseTexture"),
+          fightTexture: gl.getUniformLocation(program, "uFightTexture"),
+          resolution: gl.getUniformLocation(program, "uResolution"),
+          baseSize: gl.getUniformLocation(program, "uBaseSize"),
+          fightSize: gl.getUniformLocation(program, "uFightSize"),
+          center: gl.getUniformLocation(program, "uCenter"),
+          reveal: gl.getUniformLocation(program, "uReveal"),
+          opacity: gl.getUniformLocation(program, "uOpacity"),
+          gravity: gl.getUniformLocation(program, "uGravity"),
+          collapse: gl.getUniformLocation(program, "uCollapse"),
+          crush: gl.getUniformLocation(program, "uCrush"),
+          shockStrength: gl.getUniformLocation(program, "uShockStrength"),
+          shockRadius: gl.getUniformLocation(program, "uShockRadius"),
+          shockWidth: gl.getUniformLocation(program, "uShockWidth"),
+          coreRadius: gl.getUniformLocation(program, "uCoreRadius"),
+          lensRadius: gl.getUniformLocation(program, "uLensRadius"),
+          time: gl.getUniformLocation(program, "uTime")
+        };
+        let cssWidth = 0;
+        let cssHeight = 0;
+
+        const resize = () => {
+          const rect = spaceLensCanvas.getBoundingClientRect();
+          cssWidth = Math.max(1, Math.round(rect.width));
+          cssHeight = Math.max(1, Math.round(rect.height));
+          const mobile = cssWidth < 640;
+          const deviceScale = Math.min(window.devicePixelRatio || 1, 1);
+          let renderScale = mobile ? 0.68 : cssWidth < 1000 ? 0.86 : 1;
+          const maxPixels = mobile ? 360000 : 1300000;
+          const estimatedPixels = cssWidth * cssHeight * deviceScale * deviceScale * renderScale * renderScale;
+          if (estimatedPixels > maxPixels) renderScale *= Math.sqrt(maxPixels / estimatedPixels);
+          const pixelWidth = Math.max(1, Math.round(cssWidth * deviceScale * renderScale));
+          const pixelHeight = Math.max(1, Math.round(cssHeight * deviceScale * renderScale));
+          if (spaceLensCanvas.width !== pixelWidth || spaceLensCanvas.height !== pixelHeight) {
+            spaceLensCanvas.width = pixelWidth;
+            spaceLensCanvas.height = pixelHeight;
+          }
+          gl.viewport(0, 0, pixelWidth, pixelHeight);
+        };
+
+        const clear = () => {
+          spaceLensCanvas.style.opacity = "0";
+          spaceLensCanvas.dataset.active = "false";
+          gl.clearColor(0, 0, 0, 0);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+        };
+
+        const draw = (parameters) => {
+          resize();
+          gl.clearColor(0, 0, 0, 0);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+          gl.useProgram(program);
+          gl.bindVertexArray(vertexArray);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, baseTexture.texture);
+          gl.uniform1i(uniforms.baseTexture, 0);
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, fightTexture.texture);
+          gl.uniform1i(uniforms.fightTexture, 1);
+          gl.uniform2f(uniforms.resolution, cssWidth, cssHeight);
+          gl.uniform2f(uniforms.baseSize, baseTexture.width, baseTexture.height);
+          gl.uniform2f(uniforms.fightSize, fightTexture.width, fightTexture.height);
+          gl.uniform2f(uniforms.center, parameters.centerX, parameters.centerY);
+          gl.uniform1f(uniforms.reveal, parameters.reveal);
+          gl.uniform1f(uniforms.opacity, parameters.opacity);
+          gl.uniform1f(uniforms.gravity, parameters.gravity);
+          gl.uniform1f(uniforms.collapse, parameters.collapse);
+          gl.uniform1f(uniforms.crush, parameters.crush);
+          gl.uniform1f(uniforms.shockStrength, parameters.shockStrength);
+          gl.uniform1f(uniforms.shockRadius, parameters.shockRadius);
+          gl.uniform1f(uniforms.shockWidth, parameters.shockWidth);
+          gl.uniform1f(uniforms.coreRadius, parameters.coreRadius);
+          gl.uniform1f(uniforms.lensRadius, parameters.lensRadius);
+          gl.uniform1f(uniforms.time, parameters.time);
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+          spaceLensCanvas.style.opacity = "1";
+          spaceLensCanvas.dataset.active = "true";
+        };
+
+        const destroy = () => {
+          gl.deleteTexture(baseTexture.texture);
+          gl.deleteTexture(fightTexture.texture);
+          gl.deleteVertexArray(vertexArray);
+          gl.deleteProgram(program);
+          clear();
+        };
+
+        resize();
+        clear();
+        return { clear, destroy, draw, resize };
+      };
+
+      const startSpaceLens = () => {
+        if (!spaceLensCanvas || reducedMotion) return;
+        const generation = ++spaceLensInitGeneration;
+        spaceLensCanvas.dataset.state = "loading";
+        createSpaceLensRenderer().then((renderer) => {
+          if (generation !== spaceLensInitGeneration) {
+            renderer?.destroy();
+            return;
+          }
+          spaceLensRenderer = renderer;
+          spaceLensCanvas.dataset.state = renderer ? "ready" : "fallback";
+          if (renderer) startEnergyAnimation();
+        });
+      };
+
+      spaceLensCanvas?.addEventListener("webglcontextlost", (event) => {
+        event.preventDefault();
+        spaceLensInitGeneration += 1;
+        spaceLensRenderer = null;
+        spaceLensCanvas.style.opacity = "0";
+        spaceLensCanvas.dataset.state = "lost";
+      }, { passive: false });
+      spaceLensCanvas?.addEventListener("webglcontextrestored", () => {
+        startSpaceLens();
+      }, { passive: true });
+      startSpaceLens();
+
+      const drawSpaceLens = (timestamp, parameters) => {
+        if (!spaceLensRenderer || !spaceLensCanvas) return;
+        if (parameters.opacity <= 0.001 || pageMode !== "gate" || document.visibilityState !== "visible") {
+          if (spaceLensCanvas.dataset.active === "true") spaceLensRenderer.clear();
+          lastSpaceLensPaintTimestamp = 0;
+          return;
+        }
+        const minimumInterval = gate.clientWidth < 640 ? 1000 / 30 : 1000 / 60;
+        if (
+          lastSpaceLensPaintTimestamp > 0
+          && timestamp - lastSpaceLensPaintTimestamp < minimumInterval
+        ) return;
+        lastSpaceLensPaintTimestamp = timestamp;
+        spaceLensRenderer.draw(parameters);
+      };
+
       const glitchAlphabet = "0123456789XZ!?/#@$%&<>";
       const makeGlitchState = (timestamp, burst, released) => {
         const tick = Math.floor(timestamp / 72);
@@ -1056,112 +1410,22 @@ const gateStyle = [
           const horizonRadiusX = coreRadius * 1.08;
           const horizonRadiusY = coreRadius * (1.02 - collapseDepth * 0.16 - crushCompression * 0.1);
           const eventHorizon = context.createRadialGradient(
-            -coreRadius * 0.18,
-            -coreRadius * 0.2,
-            coreRadius * 0.035,
+            -coreRadius * 0.08,
+            -coreRadius * 0.1,
+            coreRadius * 0.02,
             0,
             0,
             coreRadius * 1.12
           );
-          eventHorizon.addColorStop(0, "rgba(17, 24, 63, 0.96)");
-          eventHorizon.addColorStop(0.18, "rgba(7, 11, 38, 0.98)");
-          eventHorizon.addColorStop(0.42, "rgba(3, 5, 23, 0.985)");
-          eventHorizon.addColorStop(0.7, "rgba(1, 2, 13, 0.99)");
-          eventHorizon.addColorStop(0.9, "rgba(14, 4, 28, 0.99)");
-          eventHorizon.addColorStop(1, "rgba(58, 9, 49, 0.54)");
-          context.save();
-          context.beginPath();
-          context.ellipse(0, 0, horizonRadiusX, horizonRadiusY, 0, 0, Math.PI * 2);
-          context.clip();
+          eventHorizon.addColorStop(0, "rgba(0, 0, 2, 1)");
+          eventHorizon.addColorStop(0.7, "rgba(0, 0, 3, 1)");
+          eventHorizon.addColorStop(0.9, "rgba(3, 0, 8, 1)");
+          eventHorizon.addColorStop(1, "rgba(34, 3, 28, 0.42)");
           context.globalAlpha = blackHoleOpacity;
           context.fillStyle = eventHorizon;
-          context.fillRect(-horizonRadiusX, -horizonRadiusY, horizonRadiusX * 2, horizonRadiusY * 2);
-
-          const abyssGlow = context.createRadialGradient(
-            -coreRadius * 0.14,
-            -coreRadius * 0.18,
-            0,
-            0,
-            0,
-            coreRadius * 0.92
-          );
-          abyssGlow.addColorStop(0, "rgba(132,161,255,0.24)");
-          abyssGlow.addColorStop(0.16, "rgba(62,82,166,0.15)");
-          abyssGlow.addColorStop(0.42, "rgba(22,25,78,0.07)");
-          abyssGlow.addColorStop(0.72, "rgba(112,40,116,0.045)");
-          abyssGlow.addColorStop(1, "rgba(0,0,7,0)");
-          context.globalCompositeOperation = "screen";
-          context.globalAlpha = blackHoleOpacity * (0.82 + gravityLock * 0.14) * (1 - crushCompression * 0.34);
-          context.fillStyle = abyssGlow;
-          context.fillRect(-horizonRadiusX, -horizonRadiusY, horizonRadiusX * 2, horizonRadiusY * 2);
-
-          const voidSpeed = 0.034 + gravityLock * 0.045 + collapseDepth * 0.12 + crushCompression * 0.18;
-          for (let ring = 0; ring < 7; ring += 1) {
-            const seed = randomSeed(ring + 19101);
-            const depth = 1 - ((time * voidSpeed * (0.72 + seed * 0.7) + seed) % 1);
-            const radius = coreRadius * (0.075 + Math.pow(depth, 1.72) * 0.82);
-            const fade = Math.pow(Math.sin(depth * Math.PI), 1.45) * (1 - crushCompression * 0.46);
-            context.globalAlpha = blackHoleOpacity * fade * (0.068 + seed * 0.075);
-            context.strokeStyle = ring % 3 === 0
-              ? "rgba(175,205,255,0.62)"
-              : ring % 2 === 0
-                ? "rgba(143,116,235,0.46)"
-                : "rgba(255,110,166,0.34)";
-            context.lineWidth = 0.35 + depth * 0.55;
-            context.beginPath();
-            context.ellipse(
-              0,
-              0,
-              radius,
-              radius * (0.68 + seed * 0.12),
-              (seed - 0.5) * 0.22 + time * 0.012,
-              0,
-              Math.PI * 2
-            );
-            context.stroke();
-          }
-
-          for (let wisp = 0; wisp < 6; wisp += 1) {
-            const seed = randomSeed(wisp + 19241);
-            const phase = time * (0.028 + seed * 0.026) + seed * Math.PI * 2;
-            const wispRadius = coreRadius * (0.24 + seed * 0.58);
-            const wispSpan = 0.55 + seed * 1.25;
-            context.globalAlpha = blackHoleOpacity * (0.04 + seed * 0.075) * (1 - crushCompression * 0.42);
-            context.strokeStyle = wisp % 3 === 0
-              ? "rgba(184,208,255,0.6)"
-              : wisp % 2 === 0
-                ? "rgba(142,118,239,0.48)"
-                : "rgba(224,105,183,0.38)";
-            context.lineWidth = 0.38 + seed * 0.72;
-            context.beginPath();
-            context.ellipse(
-              0,
-              0,
-              wispRadius,
-              wispRadius * (0.58 + seed * 0.18),
-              (seed - 0.5) * 0.32,
-              phase,
-              phase + wispSpan
-            );
-            context.stroke();
-          }
-
-          for (let mote = 0; mote < 18; mote += 1) {
-            const seed = randomSeed(mote + 19401);
-            const speed = voidSpeed * (0.48 + seed * 0.86);
-            const depth = 1 - ((time * speed + randomSeed(mote + 19491)) % 1);
-            const radius = coreRadius * Math.pow(depth, 1.76) * (0.76 + seed * 0.12);
-            const angle = seed * Math.PI * 2 + (1 - depth) * (1.2 + seed * 2.4) - time * 0.028;
-            const moteX = Math.cos(angle) * radius;
-            const moteY = Math.sin(angle) * radius * (0.7 + seed * 0.08);
-            const fade = Math.pow(Math.sin(depth * Math.PI), 1.7) * (1 - crushCompression * 0.52);
-            context.globalAlpha = blackHoleOpacity * fade * (0.18 + seed * 0.28);
-            context.fillStyle = mote % 5 === 0 ? "#f0f5ff" : mote % 2 === 0 ? "#9cb9ff" : "#d69ad9";
-            context.beginPath();
-            context.arc(moteX, moteY, 0.36 + seed * 0.82, 0, Math.PI * 2);
-            context.fill();
-          }
-          context.restore();
+          context.beginPath();
+          context.ellipse(0, 0, horizonRadiusX, horizonRadiusY, 0, 0, Math.PI * 2);
+          context.fill();
 
           context.globalCompositeOperation = "lighter";
           context.globalAlpha = blackHoleOpacity * (0.76 + gravityLock * 0.22);
@@ -1867,78 +2131,42 @@ const gateStyle = [
         const impactScale = 1 + shockwavePulse * 0.004 + impactFlash * 0.007;
         const gateDiagonal = Math.hypot(gate.clientWidth, gate.clientHeight);
         const gateShortSide = Math.min(gate.clientWidth, gate.clientHeight);
-        const warpRadius = shockwaveLinear > 0.001
+        const gateHeight = Math.max(1, gate.clientHeight);
+        const lensBuild = phaseProgress(burst, crossEnd, collapseStart - 0.006);
+        const lensBaseCoreRadius = clamp(gateShortSide * 0.09, 28, 82);
+        const lensCoreRadius = lensBaseCoreRadius
+          * (0.86 + lensBuild * 0.18)
+          * (1 - collapseDepth * 0.58)
+          * (1 - crushCompression * 0.48)
+          * (1 + shockwave * 0.05);
+        const lensShockRadiusPixels = shockwaveLinear > 0.001
           ? gateDiagonal * (0.035 + shockwave * 0.62)
           : gateShortSide * (0.07 + gravityPressure * 0.1);
-        const warpBand = shockwaveLinear > 0.001
+        const lensShockWidthPixels = shockwaveLinear > 0.001
           ? 42 + (1 - shockwave) * 82
           : 20 + gravityPressure * 34;
-        const warpInnerSoft = Math.max(0, warpRadius - warpBand * 1.2);
-        const warpInner = Math.max(0, warpRadius - warpBand * 0.54);
-        const warpOuter = warpRadius + warpBand * 0.54;
-        const warpOuterSoft = warpRadius + warpBand * 1.18;
-        const shearRadius = warpRadius + warpBand * (shockwaveLinear > 0.001 ? 0.42 : 0.34);
-        const shearBand = warpBand * (0.62 + shockwave * 0.18);
-        const warpShearInnerSoft = Math.max(0, shearRadius - shearBand * 1.08);
-        const warpShearInner = Math.max(0, shearRadius - shearBand * 0.46);
-        const warpShearOuter = shearRadius + shearBand * 0.46;
-        const warpShearOuterSoft = shearRadius + shearBand * 1.08;
-        const warpRecovery = 1 - blurRecovery;
-        const warpOpacity = clamp(
+        const lensRecovery = 1 - blurRecovery;
+        const lensOpacity = clamp(
           (
-            gravityPressure * 0.2 * (1 - shockwaveLinear)
+            gravityScreen * 0.34
+              + gravityPressure * 0.42
               + collapseDepth * 0.46
-              + Math.pow(Math.max(0, shockwavePulse), 0.72) * 0.96
-              + impactFlash * 0.14
-          ) * warpRecovery,
+              + Math.pow(Math.max(0, shockwavePulse), 0.78) * 0.92
+              + impactFlash * 0.08
+          ) * lensRecovery,
           0,
           1
         );
-        const warpShearOpacity = clamp(
-          (
-            gravityPressure * 0.1
-              + collapseDepth * 0.42
-              + crushCompression * 0.22
-              + Math.pow(Math.max(0, shockwavePulse), 0.76) * 0.72
-              + impactFlash * 0.08
-          ) * warpRecovery,
+        const lensGravity = clamp(
+          gravityPressure * 0.62 + collapseDepth * 0.76 + crushCompression * 0.5,
           0,
-          0.88
+          1.38
         );
-        const warpStrength = clamp(
-          gravityPressure * 0.28
-            + collapseDepth * 0.68
-            + crushCompression * 0.42
-            + Math.pow(Math.max(0, shockwavePulse), 0.72)
-            + impactFlash * 0.12,
-          0,
-          1.35
-        );
-        const warpPrimaryScale = 1
-          + gravityPressure * 0.036
-          + collapseDepth * 0.102
-          + crushCompression * 0.035
-          + shockwavePulse * 0.092;
-        const warpShearScale = 1
-          + gravityPressure * 0.014
-          + collapseDepth * 0.044
-          + shockwavePulse * 0.032;
-        const warpPrimaryRotation = (-1.4 * gravityPressure - 6.2 * collapseDepth + shockwavePulse * 4.6)
-          * (1 - blurRecovery);
-        const warpShearRotation = (2.5 * gravityPressure + 9.4 * collapseDepth - shockwavePulse * 7.2)
-          * (1 - blurRecovery);
-        const warpShearSkew = (-0.8 * gravityPressure - 2.2 * collapseDepth + shockwavePulse * 3.4)
-          * (1 - blurRecovery);
-        const tangentialAngle = -0.16 + Math.PI / 2;
-        const tangentialShift = (gravityPressure * 1.2 + collapseDepth * 5.8 + shockwavePulse * 13)
-          * (1 - blurRecovery);
-        const warpPrimaryShiftX = Math.sin(motionPhases.gravityX) * warpStrength * 2.4;
-        const warpPrimaryShiftY = Math.cos(motionPhases.gravityY) * warpStrength * 1.8;
-        const warpShearShiftX = Math.cos(tangentialAngle) * tangentialShift
-          + Math.cos(motionPhases.gravityY) * warpStrength * 1.8;
-        const warpShearShiftY = Math.sin(tangentialAngle) * tangentialShift
-          + Math.sin(motionPhases.gravityX) * warpStrength * 1.4;
-        const warpSurfaceBlur = Math.min(0.72, performanceBlur * 0.052);
+        const lensShockStrength = Math.pow(Math.max(0, shockwavePulse), 0.82) * lensRecovery;
+        const lensReveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
+        const lensRadius = gateShortSide
+          * (0.22 + gravityPressure * 0.13 + collapseDepth * 0.06)
+          / gateHeight;
         const crossPulse = 0.5 + 0.5 * Math.sin(
           motionPhases.crossPulse + Math.sin(motionPhases.crossPulseMod)
         );
@@ -1997,28 +2225,21 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-shift-x", `${(gravityDriftX * 1.65).toFixed(3)}px`);
         gate.style.setProperty("--kisara-fight-shift-y", `${(gravityDriftY * 1.45).toFixed(3)}px`);
         gate.style.setProperty("--kisara-gravity-scale", gravityScale.toFixed(4));
-        gate.style.setProperty("--kisara-warp-x", `${warpOriginX.toFixed(2)}px`);
-        gate.style.setProperty("--kisara-warp-y", `${warpOriginY.toFixed(2)}px`);
-        gate.style.setProperty("--kisara-warp-inner-soft", `${warpInnerSoft.toFixed(2)}px`);
-        gate.style.setProperty("--kisara-warp-inner", `${warpInner.toFixed(2)}px`);
-        gate.style.setProperty("--kisara-warp-outer", `${warpOuter.toFixed(2)}px`);
-        gate.style.setProperty("--kisara-warp-outer-soft", `${warpOuterSoft.toFixed(2)}px`);
-        gate.style.setProperty("--kisara-warp-opacity", warpOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-warp-shear-inner-soft", `${warpShearInnerSoft.toFixed(2)}px`);
-        gate.style.setProperty("--kisara-warp-shear-inner", `${warpShearInner.toFixed(2)}px`);
-        gate.style.setProperty("--kisara-warp-shear-outer", `${warpShearOuter.toFixed(2)}px`);
-        gate.style.setProperty("--kisara-warp-shear-outer-soft", `${warpShearOuterSoft.toFixed(2)}px`);
-        gate.style.setProperty("--kisara-warp-shear-opacity", warpShearOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-warp-primary-scale", warpPrimaryScale.toFixed(4));
-        gate.style.setProperty("--kisara-warp-shear-scale", warpShearScale.toFixed(4));
-        gate.style.setProperty("--kisara-warp-primary-rotation", `${warpPrimaryRotation.toFixed(3)}deg`);
-        gate.style.setProperty("--kisara-warp-shear-rotation", `${warpShearRotation.toFixed(3)}deg`);
-        gate.style.setProperty("--kisara-warp-shear-skew", `${warpShearSkew.toFixed(3)}deg`);
-        gate.style.setProperty("--kisara-warp-primary-shift-x", `${warpPrimaryShiftX.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-warp-primary-shift-y", `${warpPrimaryShiftY.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-warp-shear-shift-x", `${warpShearShiftX.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-warp-shear-shift-y", `${warpShearShiftY.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-warp-surface-blur", `${warpSurfaceBlur.toFixed(3)}px`);
+        drawSpaceLens(timestamp, {
+          centerX: clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1),
+          centerY: clamp(1 - warpOriginY / gateHeight, 0, 1),
+          reveal: lensReveal,
+          opacity: lensOpacity,
+          gravity: lensGravity,
+          collapse: collapseDepth,
+          crush: crushCompression,
+          shockStrength: lensShockStrength,
+          shockRadius: lensShockRadiusPixels / gateHeight,
+          shockWidth: Math.max(8, lensShockWidthPixels * 0.56) / gateHeight,
+          coreRadius: lensCoreRadius / gateHeight,
+          lensRadius,
+          time: timestamp / 1000
+        });
         gate.style.setProperty("--kisara-chromatic-shift", `${chromaticShift.toFixed(3)}px`);
         gate.style.setProperty("--kisara-impact-flash", impactFlash.toFixed(3));
         gate.style.setProperty("--kisara-impact-vignette", impactVignette.toFixed(3));
@@ -2691,6 +2912,8 @@ const gateStyle = [
         renderedGlitchTick = -1;
         energyContext?.clearRect(0, 0, energyCanvasWidth, energyCanvasHeight);
         burstContext?.clearRect(0, 0, burstCanvasWidth, burstCanvasHeight);
+        spaceLensRenderer?.clear();
+        lastSpaceLensPaintTimestamp = 0;
         render();
       };
 
@@ -2883,8 +3106,10 @@ const gateStyle = [
 
       window.addEventListener("resize", () => {
         lastEnergyPaintTimestamp = 0;
+        lastSpaceLensPaintTimestamp = 0;
         resizeEnergyCanvas();
         resizeBurstCanvas();
+        spaceLensRenderer?.resize();
         startEnergyAnimation();
       }, { passive: true });
       document.addEventListener("visibilitychange", () => {
@@ -2898,6 +3123,8 @@ const gateStyle = [
           lastEnergyPaintTimestamp = 0;
           energyFlowTimestamp = 0;
           beamHeadTimestamp = 0;
+          lastSpaceLensPaintTimestamp = 0;
+          spaceLensRenderer?.clear();
           return;
         }
         startEnergyAnimation();
