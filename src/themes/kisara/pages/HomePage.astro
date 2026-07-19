@@ -228,13 +228,14 @@ const gateStyle = [
       const crossFlashEnd = 0.72;
       const crossEnd = 0.82;
       const reformEnd = 0.9;
-      const collapseStart = 0.858;
-      const shockwaveStart = 0.91;
-      const detonationStart = 0.936;
-      const detonationEnd = 0.968;
-      const rainStart = 0.948;
-      const rainPeak = 0.986;
-      const releaseAutoplayDuration = 8200;
+      const collapseStart = 0.855;
+      const collapseEnd = 0.905;
+      const shockwaveStart = 0.925;
+      const detonationStart = 0.948;
+      const detonationEnd = 0.982;
+      const rainStart = 0.956;
+      const rainPeak = 0.992;
+      const releaseAutoplayDuration = 10600;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
       const startsComplete = reducedMotion && !restoredBelowGate;
       let progress = startsComplete ? 1 : 0;
@@ -342,6 +343,31 @@ const gateStyle = [
 
       const smoothstep = (value) => value * value * (3 - 2 * value);
       const phaseProgress = (value, start, end) => smoothstep(clamp((value - start) / (end - start), 0, 1));
+      const releaseAutoplayKeyframes = [
+        [0, crossEnd],
+        [0.14, collapseStart],
+        [0.45, collapseEnd],
+        [0.56, shockwaveStart],
+        [0.7, detonationStart],
+        [0.88, detonationEnd],
+        [1, 1]
+      ];
+      const mapReleaseAutoplayProgress = (value) => {
+        const timeline = clamp(value, 0, 1);
+        for (let index = 0; index < releaseAutoplayKeyframes.length - 1; index += 1) {
+          const [timeStart, progressStart] = releaseAutoplayKeyframes[index];
+          const [timeEnd, progressEnd] = releaseAutoplayKeyframes[index + 1];
+          if (timeline > timeEnd && index < releaseAutoplayKeyframes.length - 2) continue;
+          const local = clamp((timeline - timeStart) / Math.max(0.0001, timeEnd - timeStart), 0, 1);
+          const eased = index === 4
+            ? 1 - Math.pow(1 - local, 2.45)
+            : index === 2
+              ? Math.pow(smoothstep(local), 1.35)
+              : smoothstep(local);
+          return progressStart + (progressEnd - progressStart) * eased;
+        }
+        return 1;
+      };
       const randomSeed = (index) => {
         const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
         return value - Math.floor(value);
@@ -451,17 +477,22 @@ const gateStyle = [
               core,
               0.044 + uCollapse * 0.009 + uCrush * 0.01
             );
-            float lensReach = min(max(uLensRadius, massRadius * 4.0), 0.76);
+            float lensReach = min(max(uLensRadius, massRadius * 4.0), 0.94);
             float outsideCore = smoothstep(core * 0.98, core * 1.22, radius);
             float reachProgress = smoothstep(core * 1.15, lensReach, radius);
-            float radialReach = pow(max(0.0, 1.0 - reachProgress), 1.32);
+            float radialReach = pow(max(0.0, 1.0 - reachProgress), 1.12);
             float gravityField = outsideCore * radialReach;
             float sideDistance = abs(vUv.x - 0.5);
-            float sideMask = smoothstep(0.166, 0.225, sideDistance);
-            float sideDepth = smoothstep(0.18, 0.5, sideDistance);
-            float distortionField = gravityField
+            float sideMask = smoothstep(0.166, 0.195, sideDistance);
+            float sideDepth = smoothstep(0.166, 0.5, sideDistance);
+            float sideReach = max(
+              radialReach,
+              sideDepth * gravityStrength * (0.12 + uCollapse * 0.2 + uCrush * 0.24)
+            );
+            float distortionField = outsideCore
               * sideMask
-              * (0.62 + sideDepth * 0.58);
+              * sideReach
+              * (0.86 + sideDepth * 0.86);
 
             float einsteinRadius = massRadius * (
               1.0
@@ -473,8 +504,8 @@ const gateStyle = [
             float lensPull = (einsteinRadius * einsteinRadius)
               / (radius * radius + core * core * 2.15)
               * gravityStrength;
-            lensPull = min(lensPull, 0.64);
-            float primaryRadius = radius / (1.0 + lensPull * distortionField * 0.86);
+            lensPull = min(lensPull, 0.82);
+            float primaryRadius = radius / (1.0 + lensPull * distortionField * 1.18);
 
             float criticalRadius = einsteinRadius * sqrt(max(gravityStrength, 0.02));
             float ringWidth = max(massRadius * 0.2, 0.007);
@@ -493,13 +524,13 @@ const gateStyle = [
               * sideMask;
             float fieldBreath = sin(
               (radius - core) / max(lensReach - core, 0.01) * 9.0 - uTime * 0.56
-            ) * distortionField * uCollapse * 0.00085;
+            ) * distortionField * uCollapse * 0.0032;
 
             float frameDrag = massRadius / inverseRadius
               * distortionField
               * uCollapse
               * gravityStrength
-              * (0.044 + uCrush * 0.03);
+              * (0.078 + uCrush * 0.052);
             float dragCos = cos(frameDrag);
             float dragSin = sin(frameDrag);
             vec2 lensedDirection = vec2(
@@ -507,11 +538,36 @@ const gateStyle = [
               direction.x * dragSin + direction.y * dragCos
             );
             float sideSweep = sin(vUv.y * 5.4 - uTime * 0.34)
-              * (0.002 + uCollapse * 0.0045 + uCrush * 0.006)
+              * (0.006 + uCollapse * 0.012 + uCrush * 0.018)
               * gravityStrength
-              * gravityField
+              * sideReach
               * sideMask
               * sign(vUv.x - 0.5);
+            float sidePolarity = sign(vUv.x - 0.5);
+            float sideTension = gravityStrength
+              * sideMask
+              * (0.0045 + uCollapse * 0.015 + uCrush * 0.022)
+              * (0.5 + sideDepth * 0.72);
+            vec2 sideDisplacement = vec2(
+              -sidePolarity * sideTension,
+              sin(vUv.y * 10.5 + uTime * 0.86 + sidePolarity * 1.7)
+                * sideTension
+                * (0.38 + sideDepth * 0.34)
+            );
+            float sideFold = sin(vUv.y * 8.6 + sideDepth * 4.2 - uTime * 1.05)
+              * gravityStrength
+              * sideMask
+              * (0.006 + uCollapse * 0.016 + uCrush * 0.021)
+              * (0.48 + sideDepth * 0.52);
+            float sideTorsion = cos(sideDepth * 8.0 - vUv.y * 3.2 + uTime * 0.72)
+              * gravityStrength
+              * sideMask
+              * (0.003 + uCollapse * 0.009 + uCrush * 0.012);
+            sideDisplacement += vec2(sidePolarity * sideFold, sideTorsion);
+            sideDisplacement += vec2(
+              -sidePolarity * waveEnvelope * uShockStrength * (0.008 + waveWidth * 0.12),
+              cos(vUv.y * 13.0 - uTime * 1.1) * waveEnvelope * uShockStrength * 0.008
+            ) * sideMask;
 
             float edgeFade = smoothstep(0.0, 0.055, vUv.x)
               * smoothstep(0.0, 0.055, vUv.y)
@@ -523,9 +579,17 @@ const gateStyle = [
             vec2 displacedPoint = mix(point, lensedPoint, edgeFade);
             vec2 displacedUv = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
             displacedUv = mix(vUv, displacedUv, sideMask);
+            displacedUv += sideDisplacement * edgeFade;
 
             vec3 color = sampleScene(displacedUv);
-            color *= 1.0 + caustic * 0.045 + waveEnvelope * uShockStrength * sideMask * 0.018;
+            float refractionSheen = sin(vUv.y * 15.0 + sideDepth * 5.2 - uTime * 1.28)
+              * sideMask
+              * gravityStrength
+              * (0.012 + uCollapse * 0.022 + uCrush * 0.026);
+            color *= 1.0
+              + caustic * 0.065
+              + waveEnvelope * uShockStrength * sideMask * 0.028
+              + refractionSheen;
 
             float horizon = 1.0 - smoothstep(core * 0.98, core * 1.04, radius);
             color = mix(color, vec3(0.0), horizon * sideMask);
@@ -747,7 +811,15 @@ const gateStyle = [
           uniform float uShockWidth;
           uniform float uCoreRadius;
           uniform float uLensRadius;
+          uniform float uRelease;
+          uniform float uDissolve;
           uniform float uTime;
+
+          float hash21(vec2 point) {
+            point = fract(point * vec2(123.34, 456.21));
+            point += dot(point, point + 45.32);
+            return fract(point.x * point.y);
+          }
 
           void main() {
             vec2 pixel = vUv * uResolution;
@@ -795,10 +867,21 @@ const gateStyle = [
               * uShockStrength
               * (7.0 + waveWidth * 0.12);
 
+            float releaseReach = pow(uRelease, 1.18)
+              * field
+              * (10.0 + uCrush * 18.0 + uShockStrength * 16.0);
+            float releaseFlutter = sin(
+              normalizedPoint.x * 8.0
+              + normalizedPoint.y * 5.0
+              - uTime * 5.2
+            ) * field * uRelease * (2.0 + uShockStrength * 4.5);
+
             vec2 sourcePixel = pixel
               + vec2(ribbonShear + breathing, sideBend)
               + tangent * orbitBend
-              + direction * shockPull;
+              + direction * shockPull
+              - direction * releaseReach
+              + tangent * releaseFlutter;
             vec2 sourceUv = sourcePixel / uResolution;
             float edge = smoothstep(0.0, 0.025, sourceUv.x)
               * smoothstep(0.0, 0.025, sourceUv.y)
@@ -806,8 +889,24 @@ const gateStyle = [
               * smoothstep(0.0, 0.025, 1.0 - sourceUv.y);
             vec4 titleColor = texture(uTitleTexture, clamp(sourceUv, vec2(0.001), vec2(0.999)));
             float caustic = orbitBand * field * pressure;
-            titleColor.rgb *= 1.0 + caustic * 0.12 + waveEnvelope * uShockStrength * 0.08;
-            float alpha = titleColor.a * edge * clamp(uOpacity, 0.0, 1.0);
+            float dissolveNoise = mix(
+              hash21(floor(pixel / 9.0)),
+              0.5 + 0.5 * sin(pixel.x * 0.045 - pixel.y * 0.072 + uTime * 4.2),
+              0.42
+            );
+            float dissolveMask = 1.0 - smoothstep(
+              dissolveNoise - 0.16,
+              dissolveNoise + 0.16,
+              clamp(uDissolve, 0.0, 1.0)
+            );
+            titleColor.rgb *= 1.0
+              + caustic * 0.12
+              + waveEnvelope * uShockStrength * 0.08
+              + uRelease * dissolveMask * 0.24;
+            float alpha = titleColor.a
+              * edge
+              * dissolveMask
+              * clamp(uOpacity, 0.0, 1.0);
             outputColor = vec4(titleColor.rgb * edge * uOpacity, alpha);
           }
         `;
@@ -860,6 +959,8 @@ const gateStyle = [
           shockWidth: gl.getUniformLocation(program, "uShockWidth"),
           coreRadius: gl.getUniformLocation(program, "uCoreRadius"),
           lensRadius: gl.getUniformLocation(program, "uLensRadius"),
+          release: gl.getUniformLocation(program, "uRelease"),
+          dissolve: gl.getUniformLocation(program, "uDissolve"),
           time: gl.getUniformLocation(program, "uTime")
         };
         let cssWidth = 0;
@@ -974,6 +1075,8 @@ const gateStyle = [
           gl.uniform1f(uniforms.shockWidth, parameters.shockWidth * renderScale);
           gl.uniform1f(uniforms.coreRadius, parameters.coreRadius * renderScale);
           gl.uniform1f(uniforms.lensRadius, parameters.lensRadius * renderScale);
+          gl.uniform1f(uniforms.release, parameters.release);
+          gl.uniform1f(uniforms.dissolve, parameters.dissolve);
           gl.uniform1f(uniforms.time, parameters.time);
           gl.drawArrays(gl.TRIANGLES, 0, 3);
           titleLensCanvas.style.opacity = "1";
@@ -1066,9 +1169,14 @@ const gateStyle = [
           gate.style.setProperty("--kisara-title-source-opacity", "1");
           return;
         }
+        const sourceOpacity = clamp(
+          parameters.sourceOpacity ?? (1 - parameters.opacity),
+          0,
+          1
+        );
         if (parameters.opacity <= 0.001 || pageMode !== "gate" || document.visibilityState !== "visible") {
           if (titleLensCanvas.dataset.active === "true") titleLensRenderer.clear();
-          gate.style.setProperty("--kisara-title-source-opacity", "1");
+          gate.style.setProperty("--kisara-title-source-opacity", sourceOpacity.toFixed(4));
           lastTitleLensPaintTimestamp = 0;
           return;
         }
@@ -1081,7 +1189,7 @@ const gateStyle = [
         titleLensRenderer.draw(parameters);
         gate.style.setProperty(
           "--kisara-title-source-opacity",
-          (1 - parameters.opacity).toFixed(4)
+          sourceOpacity.toFixed(4)
         );
       };
 
@@ -1224,16 +1332,18 @@ const gateStyle = [
         const wakeOpacity = clamp(1 - dissolve, 0, 1);
         const afterglow = phaseProgress(burst, detonationStart, detonationEnd)
           * (1 - phaseProgress(burst, rainPeak, 1));
+        const aftermath = phaseProgress(burst, detonationStart + 0.006, detonationEnd)
+          * (1 - phaseProgress(burst, rainPeak, 1));
         const blackHoleBuild = phaseProgress(burst, crossEnd, collapseStart - 0.006);
-        const gravityLock = phaseProgress(burst, 0.85, shockwaveStart);
-        const collapse = phaseProgress(burst, collapseStart, shockwaveStart);
+        const gravityLock = phaseProgress(burst, 0.85, collapseEnd);
+        const collapse = phaseProgress(burst, collapseStart, collapseEnd);
         const collapseDepth = Math.pow(collapse, 1.48);
         const terminalCrush = phaseProgress(collapse, 0.62, 1);
         const crushCompression = Math.pow(terminalCrush, 1.85);
         const blackHoleFade = 1 - phaseProgress(
           detonationLinear,
-          0.08,
-          0.78
+          0.18,
+          0.92
         );
         const blackHoleOpacity = blackHoleBuild * blackHoleFade;
         const blackHoleAngle = -0.16 + Math.sin(time * 0.43) * 0.025 - collapseDepth * 0.16;
@@ -1805,33 +1915,64 @@ const gateStyle = [
           context.fillStyle = halo;
           context.fillRect(-diskRadius * 1.12, -diskRadius, diskRadius * 2.24, diskRadius * 2);
 
-          context.globalCompositeOperation = "source-over";
-          const horizonRadiusX = coreRadius * 1.08;
-          const horizonRadiusY = coreRadius * (1.02 - collapseDepth * 0.16 - crushCompression * 0.1);
-          const horizonOpacity = clamp(blackHoleOpacity * 1.45, 0, 1);
-          context.globalAlpha = horizonOpacity;
-          context.fillStyle = "rgba(0, 0, 0, 1)";
-          context.beginPath();
-          context.ellipse(0, 0, horizonRadiusX, horizonRadiusY, 0, 0, Math.PI * 2);
-          context.fill();
+          const horizonRadiusX = coreRadius * 0.94;
+          const horizonRadiusY = coreRadius * (0.58 - collapseDepth * 0.07 - crushCompression * 0.045);
+          const horizonOpacity = clamp(blackHoleOpacity * 1.14, 0, 0.93);
+          const paintVoid = (scale, opacity, depthShift = 0) => {
+            const pulse = 1 + Math.sin(time * 0.46 + depthShift) * 0.012 * (1 - crushCompression);
+            const radius = horizonRadiusX * scale * pulse;
+            context.save();
+            context.scale(1, horizonRadiusY / Math.max(1, horizonRadiusX));
+            const voidGradient = context.createRadialGradient(
+              -horizonRadiusX * (0.08 + depthShift * 0.015),
+              -horizonRadiusX * 0.045,
+              0,
+              0,
+              0,
+              radius
+            );
+            voidGradient.addColorStop(0, "rgba(0, 0, 2, 0.995)");
+            voidGradient.addColorStop(0.16, "rgba(0, 0, 3, 0.985)");
+            voidGradient.addColorStop(0.36, "rgba(1, 0, 6, 0.88)");
+            voidGradient.addColorStop(0.58, "rgba(4, 1, 12, 0.54)");
+            voidGradient.addColorStop(0.78, "rgba(10, 3, 20, 0.2)");
+            voidGradient.addColorStop(1, "rgba(16, 5, 28, 0)");
+            context.globalCompositeOperation = "source-over";
+            context.globalAlpha = opacity;
+            context.shadowBlur = 0;
+            context.fillStyle = voidGradient;
+            context.fillRect(-radius, -radius, radius * 2, radius * 2);
+            context.restore();
+          };
+
+          paintVoid(2.15, horizonOpacity * 0.68, 0.4);
+          paintVoid(1.08, horizonOpacity * 0.84, 1.1);
 
           context.globalCompositeOperation = "lighter";
-          context.globalAlpha = blackHoleOpacity * (0.34 + gravityLock * 0.12);
-          context.strokeStyle = "rgba(255, 166, 195, 0.7)";
-          context.lineWidth = 0.65 + gravityLock * 0.72;
-          context.shadowColor = "rgba(255, 66, 123, 0.96)";
-          context.shadowBlur = 5 + gravityLock * 8;
-          context.beginPath();
-          context.ellipse(
-            0,
-            0,
-            horizonRadiusX * 1.02,
-            horizonRadiusY * 1.02,
-            0,
-            0,
-            Math.PI * 2
-          );
-          context.stroke();
+          for (let rim = 0; rim < 3; rim += 1) {
+            const rimPhase = time * (0.18 + rim * 0.035) + rim * 2.1;
+            const rimSpan = 0.38 + rim * 0.17;
+            context.globalAlpha = blackHoleOpacity * (0.16 + gravityLock * 0.1) * (1 - rim * 0.2);
+            context.strokeStyle = rim === 1
+              ? "rgba(255, 226, 236, 0.82)"
+              : rim === 0
+                ? "rgba(255, 111, 154, 0.7)"
+                : "rgba(161, 195, 255, 0.62)";
+            context.lineWidth = 0.55 + gravityLock * 0.62 + rim * 0.18;
+            context.shadowColor = context.strokeStyle;
+            context.shadowBlur = 4 + gravityLock * 7;
+            context.beginPath();
+            context.ellipse(
+              0,
+              0,
+              horizonRadiusX * (1.03 + rim * 0.025),
+              horizonRadiusY * (1.04 + rim * 0.04),
+              0,
+              rimPhase,
+              rimPhase + rimSpan
+            );
+            context.stroke();
+          }
 
           for (let band = 0; band < 3; band += 1) {
             context.globalAlpha = blackHoleOpacity * (0.34 + band * 0.082) * (0.8 + gravityLock * 0.46);
@@ -1886,23 +2027,9 @@ const gateStyle = [
             context.stroke();
           }
 
-          // Keep the event horizon optically empty even when foreground disk
-          // streaks and orbit highlights cross its silhouette.
-          context.globalCompositeOperation = "source-over";
-          context.globalAlpha = horizonOpacity;
-          context.shadowBlur = 0;
-          context.fillStyle = "rgba(0, 0, 0, 1)";
-          context.beginPath();
-          context.ellipse(
-            0,
-            0,
-            horizonRadiusX,
-            horizonRadiusY,
-            0,
-            0,
-            Math.PI * 2
-          );
-          context.fill();
+          // Reapply a feathered absorption core so foreground disk streaks do
+          // not flatten the void into a hard geometric sticker.
+          paintVoid(1.12, horizonOpacity * 0.76, 2.3);
           context.restore();
 
           context.save();
@@ -1913,9 +2040,10 @@ const gateStyle = [
           context.restore();
         }
 
-        const burstLimit = width < 640 ? 110 : 210;
+        const burstLimit = width < 640 ? 120 : 220;
         const spawnBurstWave = (waveIndex) => {
-          const count = Math.floor((waveIndex === 0 ? 58 : 82) * densityScale);
+          const waveCounts = [48, 64, 76];
+          const count = Math.floor(waveCounts[waveIndex] * densityScale);
           for (let index = 0; index < count && burstParticles.length < burstLimit; index += 1) {
             const angle = nextParticleRandom() * Math.PI * 2;
             const spawnRadius = coreRadius * (0.82 + nextParticleRandom() * 0.92);
@@ -1946,7 +2074,7 @@ const gateStyle = [
               velocityX,
               velocityY,
               age: 0,
-              life: 2.05 + nextParticleRandom() * 2.2 + waveIndex * 0.28,
+              life: 3.15 + nextParticleRandom() * 3.25 + waveIndex * 0.34,
               size: 0.58 + nextParticleRandom() * (1.52 + waveIndex * 0.34),
               drag: 0.38 + nextParticleRandom() * 0.44,
               gravity: 2 + nextParticleRandom() * 12,
@@ -2004,7 +2132,7 @@ const gateStyle = [
         }
 
         if (!reducedMotion) {
-          const waveThresholds = [0.08, 0.42];
+          const waveThresholds = [0.06, 0.34, 0.66];
           for (let waveIndex = 0; waveIndex < waveThresholds.length; waveIndex += 1) {
             const waveBit = 1 << waveIndex;
             if (detonationLinear >= waveThresholds[waveIndex] && (burstWaveMask & waveBit) === 0) {
@@ -2263,10 +2391,10 @@ const gateStyle = [
           }
         }
 
-        const rainLimit = width < 640 ? 80 : 140;
+        const rainLimit = width < 640 ? 88 : 152;
         const rainDrive = rainBuild * (1 - rainStop);
         if (!reducedMotion && rainDrive > 0.001) {
-          rainEmissionBudget += frameSeconds * (12 + rainDrive * 88) * densityScale;
+          rainEmissionBudget += frameSeconds * (10 + rainDrive * 76) * densityScale;
           while (rainEmissionBudget >= 1 && rainParticles.length < rainLimit) {
             rainEmissionBudget -= 1;
             const angle = nextParticleRandom() * Math.PI * 2;
@@ -2280,8 +2408,8 @@ const gateStyle = [
               velocityX: Math.cos(angle) * outwardSpeed + (nextParticleRandom() - 0.5) * 46,
               velocityY: Math.sin(angle) * outwardSpeed * 0.62 - 34 - nextParticleRandom() * 96,
               age: 0,
-              life: 2.65 + nextParticleRandom() * 2.45,
-              gravity: 28 + nextParticleRandom() * 42,
+              life: 3.4 + nextParticleRandom() * 2.8,
+              gravity: 18 + nextParticleRandom() * 34,
               size: 0.48 + nextParticleRandom() * 1.36,
               phase: nextParticleRandom() * Math.PI * 2,
               tint: Math.floor(nextParticleRandom() * 7)
@@ -2342,6 +2470,86 @@ const gateStyle = [
           }
         }
 
+        if (aftermath > 0.001) {
+          context.save();
+          context.globalCompositeOperation = "lighter";
+          context.lineCap = "round";
+          for (let echo = 0; echo < 3; echo += 1) {
+            const echoProgress = phaseProgress(
+              burst,
+              detonationStart + 0.004 + echo * 0.008,
+              1
+            );
+            if (echoProgress <= 0.001 || echoProgress >= 0.9995) continue;
+            const echoEase = 1 - Math.pow(1 - echoProgress, 2.7);
+            const echoRadius = coreRadius * (0.8 + echo * 0.28)
+              + echoEase * maxRadius * (0.48 + echo * 0.17);
+            const echoAlpha = Math.pow(Math.sin(echoProgress * Math.PI), 1.1)
+              * aftermath
+              * (0.22 - echo * 0.045);
+            context.globalAlpha = echoAlpha;
+            context.strokeStyle = echo === 1
+              ? "rgba(190, 211, 255, 0.78)"
+              : "rgba(255, 164, 190, 0.82)";
+            context.lineWidth = 0.7 + (1 - echoProgress) * (4.8 - echo * 0.8);
+            context.shadowColor = context.strokeStyle;
+            context.shadowBlur = 7 + (1 - echoProgress) * 15;
+            context.beginPath();
+            context.ellipse(
+              originX,
+              originY,
+              echoRadius,
+              echoRadius * (0.58 + echo * 0.055),
+              blackHoleAngle + echo * 0.08,
+              0,
+              Math.PI * 2
+            );
+            context.stroke();
+          }
+
+          const ribbonCount = width < 640 ? 5 : 8;
+          for (let ribbon = 0; ribbon < ribbonCount; ribbon += 1) {
+            const seed = randomSeed(ribbon + 16103);
+            const ribbonProgress = phaseProgress(
+              burst,
+              detonationStart + seed * 0.014,
+              1
+            );
+            if (ribbonProgress <= 0.001 || ribbonProgress >= 0.9995) continue;
+            const angle = seed * Math.PI * 2 + blackHoleAngle + ribbonProgress * (0.42 + seed * 0.7);
+            const startRadius = coreRadius * (0.8 + seed * 1.1);
+            const endRadius = startRadius + (1 - Math.pow(1 - ribbonProgress, 2.3))
+              * maxRadius
+              * (0.34 + seed * 0.34);
+            const bend = (seed - 0.5) * maxRadius * 0.18 * ribbonProgress;
+            const startX = originX + Math.cos(angle) * startRadius;
+            const startY = originY + Math.sin(angle) * startRadius * 0.62;
+            const endX = originX + Math.cos(angle + (seed - 0.5) * 0.72) * endRadius;
+            const endY = originY + Math.sin(angle + (seed - 0.5) * 0.72) * endRadius * 0.68;
+            const ribbonGradient = context.createLinearGradient(startX, startY, endX, endY);
+            ribbonGradient.addColorStop(0, ribbon % 3 === 0 ? "rgba(255,255,255,0.72)" : "rgba(255,111,154,0.54)");
+            ribbonGradient.addColorStop(0.42, ribbon % 2 === 0 ? "rgba(255,95,145,0.28)" : "rgba(168,194,255,0.24)");
+            ribbonGradient.addColorStop(1, "rgba(132,164,255,0)");
+            context.globalAlpha = aftermath
+              * Math.pow(Math.sin(ribbonProgress * Math.PI), 1.28)
+              * (0.1 + seed * 0.14);
+            context.strokeStyle = ribbonGradient;
+            context.lineWidth = 0.65 + seed * 1.45;
+            context.shadowColor = ribbon % 2 === 0 ? "rgba(255,80,132,0.72)" : "rgba(146,184,255,0.62)";
+            context.shadowBlur = 4 + aftermath * 8;
+            context.beginPath();
+            context.moveTo(startX, startY);
+            context.quadraticCurveTo(
+              originX + Math.cos(angle + 0.5) * (startRadius + endRadius) * 0.42 + Math.cos(angle + Math.PI / 2) * bend,
+              originY + Math.sin(angle + 0.5) * (startRadius + endRadius) * 0.27 + Math.sin(angle + Math.PI / 2) * bend * 0.62,
+              endX,
+              endY
+            );
+            context.stroke();
+          }
+          context.restore();
+        }
+
         if (afterglow > 0.001) {
           const afterglowRadius = Math.min(maxRadius * 0.5, 120 + afterglow * Math.min(width, height) * 0.48);
           const glow = context.createRadialGradient(originX, originY, 0, originX, originY, afterglowRadius);
@@ -2369,7 +2577,7 @@ const gateStyle = [
         const releaseFlash = Math.pow(Math.sin(crossReleaseLinear * Math.PI), 1.45);
         const reform = phaseProgress(burst, crossEnd, reformEnd);
         const pressure = phaseProgress(burst, 0.7, 0.94);
-        const collapse = phaseProgress(burst, collapseStart, shockwaveStart);
+        const collapse = phaseProgress(burst, collapseStart, collapseEnd);
         const collapseDepth = Math.pow(collapse, 1.48);
         const terminalCrush = phaseProgress(collapse, 0.62, 1);
         const crushCompression = Math.pow(terminalCrush, 1.85);
@@ -2519,7 +2727,7 @@ const gateStyle = [
           + detonationRush * 5.8;
         const performanceBlur = preBlastBlur + gravityBlur + impactBlur * (1 - blurRecovery);
         const gravityScreen = phaseProgress(burst, crossEnd, 0.874)
-          * (1 - phaseProgress(burst, detonationEnd, 1));
+          * (1 - phaseProgress(burst, rainPeak, 1));
         const gravityPressure = phaseProgress(burst, 0.852, shockwaveStart);
         const inversionFlash = Math.exp(-Math.pow((detonationLinear - 0.12) / 0.075, 2));
         const ruptureFlash = Math.exp(-Math.pow((detonationLinear - 0.38) / 0.16, 2)) * 0.68;
@@ -2562,7 +2770,7 @@ const gateStyle = [
         const lensShockWidthPixels = shockwaveLinear > 0.001
           ? 42 + (1 - shockwave) * 82
           : 20 + gravityPressure * 34;
-        const lensRecovery = 1 - blurRecovery;
+        const lensRecovery = 1 - phaseProgress(burst, rainPeak - 0.006, 1);
         const lensOpacity = clamp(
           (
             gravityScreen * 0.56
@@ -2570,6 +2778,7 @@ const gateStyle = [
               + collapseDepth * 0.74
               + Math.pow(Math.max(0, shockwavePulse), 0.74) * 1.02
               + impactFlash * 0.12
+              + impactTail * 0.32
           ) * lensRecovery,
           0,
           1
@@ -2584,26 +2793,39 @@ const gateStyle = [
         const lensRadius = gateShortSide
           * (0.36 + gravityPressure * 0.24 + collapseDepth * 0.14)
           / gateHeight;
-        const titleWarpFade = 1 - phaseProgress(burst, detonationStart - 0.004, detonationEnd);
+        const titleRupture = phaseProgress(burst, shockwaveStart + 0.004, detonationEnd);
+        const titleDissolve = phaseProgress(burst, detonationStart + 0.006, rainPeak);
+        const titleRestore = phaseProgress(burst, rainPeak - 0.002, 1);
         const titleWarp = clamp(
-          (
-            gravityScreen * 0.76
-              + gravityPressure * 0.68
-              + collapseDepth * 0.96
-              + crushCompression * 0.64
-          ) * titleWarpFade,
+          gravityScreen * 0.76
+            + gravityPressure * 0.68
+            + collapseDepth * 0.96
+            + crushCompression * 0.64
+            + shockwavePulse * 0.42
+            + detonationRush * 0.2,
           0,
           1
         );
+        const titleLensIngress = smoothstep(clamp((titleWarp - 0.025) / 0.56, 0, 1));
         const titleLensOpacity = titleLensRenderer
-          ? smoothstep(clamp((titleWarp - 0.025) / 0.56, 0, 1))
+          ? titleLensIngress * (1 - phaseProgress(burst, 0.997, 1))
           : 0;
+        const titleSourceOpacity = titleLensRenderer
+          ? Math.max(1 - titleLensIngress, titleRestore)
+          : 1;
         const titleLensStrengthScale = gate.clientWidth < 640
           ? 0.58
           : gate.clientWidth < 900
             ? 0.72
             : 0.82;
-        const titleBlur = performanceBlur * (1 - titleLensOpacity * 0.74);
+        const spaceLensStrengthScale = gate.clientWidth < 640
+          ? 0.58
+          : gate.clientWidth < 900
+            ? 0.78
+            : 1;
+        const titleBlur = titleSourceOpacity > 0.001
+          ? performanceBlur * 0.34 + (1 - titleRestore) * 8.5
+          : performanceBlur * 0.28;
         let titleLensCenterX = titleLensCanvas?.clientWidth * 0.5 || 0;
         let titleLensCenterY = titleLensCanvas?.clientHeight * 0.5 || 0;
         if (titleLensCanvas && title) {
@@ -2676,10 +2898,10 @@ const gateStyle = [
           centerY: clamp(1 - warpOriginY / gateHeight, 0, 1),
           reveal: lensReveal,
           opacity: lensOpacity,
-          gravity: lensGravity,
-          collapse: collapseDepth,
-          crush: crushCompression,
-          shockStrength: lensShockStrength,
+          gravity: lensGravity * spaceLensStrengthScale,
+          collapse: collapseDepth * (0.62 + spaceLensStrengthScale * 0.38),
+          crush: crushCompression * (0.56 + spaceLensStrengthScale * 0.44),
+          shockStrength: lensShockStrength * (0.68 + spaceLensStrengthScale * 0.32),
           shockRadius: lensShockRadiusPixels / gateHeight,
           shockWidth: Math.max(8, lensShockWidthPixels * 0.56) / gateHeight,
           coreRadius: lensCoreRadius / gateHeight,
@@ -2699,6 +2921,9 @@ const gateStyle = [
           shockWidth: Math.max(12, lensShockWidthPixels * 0.72),
           coreRadius: lensCoreRadius,
           lensRadius: gateShortSide * (0.42 + gravityPressure * 0.2 + collapseDepth * 0.12),
+          release: titleRupture,
+          dissolve: titleDissolve,
+          sourceOpacity: titleSourceOpacity,
           time: timestamp / 1000
         });
         gate.style.setProperty("--kisara-chromatic-shift", `${chromaticShift.toFixed(3)}px`);
@@ -3211,7 +3436,7 @@ const gateStyle = [
         progress = clamp(progress + velocity * frameRatio, 0, 1);
         if (burstAutoplay) {
           const autoplayProgress = clamp((timestamp - burstAutoplayStartedAt) / releaseAutoplayDuration, 0, 1);
-          burstProgress = crossEnd + (1 - crossEnd) * autoplayProgress;
+          burstProgress = mapReleaseAutoplayProgress(autoplayProgress);
           targetBurstProgress = 1;
           burstVelocity = 0;
           if (autoplayProgress >= 1) {
