@@ -289,6 +289,14 @@ a {
   --kisara-fight-shift-x: 0px;
   --kisara-fight-shift-y: 0px;
   --kisara-gravity-scale: 1;
+  --kisara-warp-x: 50%;
+  --kisara-warp-y: 50%;
+  --kisara-warp-inner-soft: 0px;
+  --kisara-warp-inner: 0px;
+  --kisara-warp-outer: 0px;
+  --kisara-warp-outer-soft: 0px;
+  --kisara-warp-opacity: 0;
+  --kisara-warp-scale: 1;
   --kisara-chromatic-shift: 0px;
   --kisara-impact-flash: 0;
   --kisara-impact-vignette: 0;
@@ -354,8 +362,7 @@ a {
 .kisara-screen-impact::after {
   z-index: 1;
   opacity: var(--kisara-impact-vignette);
-  transform: translate3d(var(--kisara-screen-shake-x), var(--kisara-screen-shake-y), 0)
-    scale(var(--kisara-impact-scale));
+  transform: scale(var(--kisara-impact-scale));
   background:
     radial-gradient(circle at calc(50% + var(--kisara-chromatic-shift)) 50%, transparent 0 18%, rgba(255, 45, 96, 0.12) 38%, transparent 67%),
     radial-gradient(circle at calc(50% - var(--kisara-chromatic-shift)) 50%, transparent 0 20%, rgba(112, 159, 255, 0.12) 41%, transparent 70%),
@@ -375,8 +382,7 @@ a {
   overflow: hidden;
   background: #111636;
   isolation: isolate;
-  transform: translate3d(var(--kisara-screen-shake-x), var(--kisara-screen-shake-y), 0);
-  will-change: transform;
+  transform: translateZ(0);
 }
 
 .kisara-gate-background {
@@ -405,8 +411,62 @@ a {
     scale(var(--kisara-gravity-scale));
 }
 
+.kisara-space-warp,
+.kisara-space-warp-layer {
+  position: absolute;
+  pointer-events: none;
+}
+
+.kisara-space-warp {
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  opacity: var(--kisara-warp-opacity);
+  transform: translateZ(0);
+  -webkit-mask-image: radial-gradient(
+    circle at var(--kisara-warp-x) var(--kisara-warp-y),
+    transparent 0 var(--kisara-warp-inner-soft),
+    rgba(0, 0, 0, 0.9) var(--kisara-warp-inner),
+    #000 var(--kisara-warp-outer),
+    transparent var(--kisara-warp-outer-soft)
+  );
+  mask-image: radial-gradient(
+    circle at var(--kisara-warp-x) var(--kisara-warp-y),
+    transparent 0 var(--kisara-warp-inner-soft),
+    rgba(0, 0, 0, 0.9) var(--kisara-warp-inner),
+    #000 var(--kisara-warp-outer),
+    transparent var(--kisara-warp-outer-soft)
+  );
+  filter: saturate(1.1) contrast(1.045);
+  mix-blend-mode: screen;
+  will-change: opacity, mask-image, -webkit-mask-image;
+}
+
+.kisara-space-warp-layer {
+  inset: -42px;
+  background-position: var(--kisara-gate-background-position);
+  background-size: cover;
+  background-repeat: no-repeat;
+  transform-origin: var(--kisara-warp-x) var(--kisara-warp-y);
+  will-change: opacity, filter, transform;
+}
+
+.kisara-space-warp-base {
+  background-image: var(--kisara-gate-background-image);
+  opacity: var(--kisara-bg-opacity);
+  filter: blur(var(--kisara-performance-blur)) saturate(var(--kisara-bg-saturation)) brightness(calc(var(--kisara-bg-brightness) + 0.05));
+  transform: scale(1.06) scale(var(--kisara-warp-scale));
+}
+
+.kisara-space-warp-fight {
+  background-image: var(--kisara-fight-background-image);
+  opacity: var(--kisara-fight-opacity);
+  filter: blur(var(--kisara-performance-blur)) saturate(calc(var(--kisara-fight-saturation) + 0.08)) brightness(calc(var(--kisara-fight-brightness) + 0.06));
+  transform: scale(var(--kisara-fight-scale)) scale(var(--kisara-warp-scale));
+}
+
 .kisara-gate-atmosphere {
-  z-index: 0;
+  z-index: 2;
   background: linear-gradient(180deg, rgba(7, 10, 31, 0.34), rgba(7, 10, 31, 0.58));
   filter: blur(var(--kisara-performance-blur));
 }
