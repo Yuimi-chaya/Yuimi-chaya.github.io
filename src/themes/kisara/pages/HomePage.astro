@@ -68,6 +68,7 @@ const gateStyle = [
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
+      <span class="kisara-title-enchant" aria-hidden="true">Kisara</span>
       <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
       <canvas
         class="kisara-title-data-canvas"
@@ -240,6 +241,9 @@ const gateStyle = [
       const damping = 0.76;
       const burstDamping = 0.86;
       const settleDistance = 0.00035;
+      const chargeIntroDuration = 2700;
+      const chargeHandoffStart = 0.015;
+      const chargeHandoffEnd = 0.18;
       const glossFadeEnd = 0.42;
       const crossStart = 0.46;
       const crossBuildEnd = 0.58;
@@ -265,6 +269,10 @@ const gateStyle = [
       let burstAutoplay = false;
       let burstAutoplayComplete = startsComplete;
       let burstAutoplayStartedAt = 0;
+      let chargeIntroProgress = startsComplete ? 1 : 0;
+      let chargeIntroActive = false;
+      let chargeIntroComplete = startsComplete;
+      let chargeIntroStartedAt = 0;
       let animationFrame = 0;
       let lastFrameTime = 0;
       let touchY = null;
@@ -288,6 +296,7 @@ const gateStyle = [
       let titleDataPixelRatio = 1;
       let titleDataCells = [];
       let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
+      let titleLayout = { width: 0, height: 0, left: 0, top: 0 };
       let renderQuality = 1;
       let renderCostEma = 0;
       let lastQualityAdjustment = 0;
@@ -449,6 +458,411 @@ const gateStyle = [
         }
         path.closePath();
         return path;
+      };
+      const pointOnQuadraticCurve = (start, control, end, progress) => {
+        const inverse = 1 - progress;
+        return {
+          x: inverse * inverse * start.x + 2 * inverse * progress * control.x + progress * progress * end.x,
+          y: inverse * inverse * start.y + 2 * inverse * progress * control.y + progress * progress * end.y
+        };
+      };
+      const pointOnCubicCurve = (start, controlA, controlB, end, progress) => {
+        const inverse = 1 - progress;
+        const inverseSquared = inverse * inverse;
+        const progressSquared = progress * progress;
+        return {
+          x: inverseSquared * inverse * start.x
+            + 3 * inverseSquared * progress * controlA.x
+            + 3 * inverse * progressSquared * controlB.x
+            + progressSquared * progress * end.x,
+          y: inverseSquared * inverse * start.y
+            + 3 * inverseSquared * progress * controlA.y
+            + 3 * inverse * progressSquared * controlB.y
+            + progressSquared * progress * end.y
+        };
+      };
+      const tangentOnCubicCurve = (start, controlA, controlB, end, progress) => {
+        const inverse = 1 - progress;
+        return {
+          x: 3 * inverse * inverse * (controlA.x - start.x)
+            + 6 * inverse * progress * (controlB.x - controlA.x)
+            + 3 * progress * progress * (end.x - controlB.x),
+          y: 3 * inverse * inverse * (controlA.y - start.y)
+            + 6 * inverse * progress * (controlB.y - controlA.y)
+            + 3 * progress * progress * (end.y - controlB.y)
+        };
+      };
+      const getChargeFlightGeometry = (introProgress, width, height) => {
+        const flight = phaseProgress(introProgress, 0.16, 0.78);
+        const impact = phaseProgress(introProgress, 0.72, 0.88);
+        const enchant = phaseProgress(introProgress, 0.75, 1);
+        const baseY = meterLayout.top + meterLayout.height * 0.5;
+        const initialTail = {
+          x: meterLayout.left - 2,
+          y: baseY
+        };
+        const baseHead = {
+          x: meterLayout.left + meterLayout.width - clamp(24 + meterLayout.width * 0.038, 32, 48),
+          y: baseY
+        };
+        const target = {
+          x: titleLayout.left + titleLayout.width * 0.53,
+          y: titleLayout.top + titleLayout.height * 0.57
+        };
+        const turnPoint = {
+          x: clamp(baseHead.x + Math.min(width * 0.145, 176), baseHead.x + 28, width - 24),
+          y: clamp(baseY + Math.min(height * 0.17, 138), baseY + 42, height - 64)
+        };
+        const tailLag = 0.46;
+        const pointOnFlightPath = (pathProgress) => {
+          if (pathProgress <= 0) {
+            const gather = smoothstep(clamp((pathProgress + tailLag) / tailLag, 0, 1));
+            return {
+              x: initialTail.x + (baseHead.x - initialTail.x) * gather,
+              y: initialTail.y + (baseHead.y - initialTail.y) * gather
+            };
+          }
+          if (pathProgress < 0.46) {
+            const launch = smoothstep(pathProgress / 0.46);
+            return pointOnQuadraticCurve(
+              baseHead,
+              {
+                x: turnPoint.x + Math.min(width * 0.035, 42),
+                y: baseY + Math.min(height * 0.045, 38)
+              },
+              turnPoint,
+              launch
+            );
+          }
+          const returnProgress = smoothstep(clamp((pathProgress - 0.46) / 0.54, 0, 1));
+          return pointOnCubicCurve(
+            turnPoint,
+            {
+              x: turnPoint.x + Math.min(width * 0.045, 54),
+              y: turnPoint.y + Math.min(height * 0.08, 62)
+            },
+            {
+              x: target.x + Math.min(width * 0.2, 230),
+              y: turnPoint.y + Math.min(height * 0.035, 30)
+            },
+            target,
+            returnProgress
+          );
+        };
+        const tangentOnFlightPath = (pathProgress) => {
+          const sampleDistance = 0.004;
+          const before = pointOnFlightPath(Math.max(-tailLag, pathProgress - sampleDistance));
+          const after = pointOnFlightPath(Math.min(1, pathProgress + sampleDistance));
+          const length = Math.max(0.001, Math.hypot(after.x - before.x, after.y - before.y));
+          return {
+            x: (after.x - before.x) / length,
+            y: (after.y - before.y) / length
+          };
+        };
+        const rawHead = pointOnFlightPath(flight);
+        const tailProgress = flight - tailLag;
+        const rawTail = pointOnFlightPath(tailProgress);
+        const tailTangent = tangentOnFlightPath(tailProgress);
+        const headTangent = tangentOnFlightPath(flight);
+        const beamLength = Math.hypot(rawHead.x - rawTail.x, rawHead.y - rawTail.y);
+        const handleLength = clamp(beamLength * 0.36, 24, meterLayout.width * 0.44);
+        const rawControlA = {
+          x: rawTail.x + tailTangent.x * handleLength,
+          y: rawTail.y + tailTangent.y * handleLength
+        };
+        const rawControlB = {
+          x: rawHead.x - headTangent.x * handleLength,
+          y: rawHead.y - headTangent.y * handleLength
+        };
+        const poseInfluence = 1 - phaseProgress(introProgress, chargeHandoffStart, 0.22);
+        const meterCenterX = meterLayout.left + meterLayout.width * 0.5;
+        const meterCenterY = baseY;
+        const poseAngle = beamPose.angle * poseInfluence * Math.PI / 180;
+        const poseScaleX = 1 + (beamPose.scaleX - 1) * poseInfluence;
+        const poseScaleY = 1 + (beamPose.scaleY - 1) * poseInfluence;
+        const poseTranslateX = (beamPose.anchorX + beamPose.shakeX) * poseInfluence;
+        const poseTranslateY = (beamPose.anchorY + beamPose.shakeY + beamPose.lift) * poseInfluence;
+        const applyMeterPose = (point) => {
+          if (poseInfluence <= 0.0005) return point;
+          const localX = (point.x - meterCenterX) * poseScaleX;
+          const localY = (point.y - meterCenterY) * poseScaleY;
+          return {
+            x: meterCenterX + localX * Math.cos(poseAngle) - localY * Math.sin(poseAngle) + poseTranslateX,
+            y: meterCenterY + localX * Math.sin(poseAngle) + localY * Math.cos(poseAngle) + poseTranslateY
+          };
+        };
+        const tail = applyMeterPose(rawTail);
+        const head = applyMeterPose(rawHead);
+        const controlA = applyMeterPose(rawControlA);
+        const controlB = applyMeterPose(rawControlB);
+        return {
+          flight,
+          impact,
+          enchant,
+          tail,
+          head,
+          target,
+          controlA,
+          controlB
+        };
+      };
+      const drawChargeFlightBeam = (context, timestamp, geometry, opacity, intensity, viewportWidth) => {
+        if (opacity <= 0.001) return;
+        const sampleCount = viewportWidth < 640 ? 48 : 68;
+        const centerSamples = [];
+        const upperPoints = [];
+        const lowerPoints = [];
+        const impactPulse = Math.sin(geometry.impact * Math.PI);
+        const time = timestamp / 1000;
+        const thicknessAt = (unit) => {
+          const growth = Math.pow(smoothstep(unit), 0.78);
+          const shoulder = Math.exp(-Math.pow((unit - 0.68) / 0.25, 2));
+          const breathing = 1 + Math.sin(unit * fullTurn * 2 - energyFlowPhase * 2) * 0.035;
+          return (
+            2.7
+              + growth * (27 - geometry.flight * 4)
+              + shoulder * (4.1 - geometry.flight * 0.7)
+              + impactPulse * growth * 5
+          ) * breathing;
+        };
+
+        for (let index = 0; index <= sampleCount; index += 1) {
+          const unit = index / sampleCount;
+          const point = pointOnCubicCurve(
+            geometry.tail,
+            geometry.controlA,
+            geometry.controlB,
+            geometry.head,
+            unit
+          );
+          const tangent = tangentOnCubicCurve(
+            geometry.tail,
+            geometry.controlA,
+            geometry.controlB,
+            geometry.head,
+            unit
+          );
+          const tangentLength = Math.max(0.001, Math.hypot(tangent.x, tangent.y));
+          const normalX = -tangent.y / tangentLength;
+          const normalY = tangent.x / tangentLength;
+          const edgeTaper = Math.sin(unit * Math.PI);
+          const softWave = (
+            Math.sin(unit * fullTurn * 1.22 - energyFlowPhase)
+            + Math.sin(unit * fullTurn * 2.7 + energyFlowPhase + 0.8) * 0.34
+          ) * edgeTaper * (6.9 + geometry.flight * 2.6);
+          const center = {
+            x: point.x + normalX * softWave,
+            y: point.y + normalY * softWave,
+            normalX,
+            normalY,
+            tangentX: tangent.x / tangentLength,
+            tangentY: tangent.y / tangentLength,
+            thickness: thicknessAt(unit),
+            unit
+          };
+          centerSamples.push(center);
+          upperPoints.push({
+            x: center.x + normalX * center.thickness,
+            y: center.y + normalY * center.thickness
+          });
+          lowerPoints.push({
+            x: center.x - normalX * center.thickness,
+            y: center.y - normalY * center.thickness
+          });
+        }
+
+        const headSample = centerSamples[centerSamples.length - 1];
+        const headNosePoints = [];
+        const headNoseSegments = 12;
+        for (let step = 1; step < headNoseSegments; step += 1) {
+          const angle = Math.PI * 0.5 - Math.PI * step / headNoseSegments;
+          headNosePoints.push({
+            x: headSample.x
+              + headSample.tangentX * Math.cos(angle) * headSample.thickness * 0.88
+              + headSample.normalX * Math.sin(angle) * headSample.thickness,
+            y: headSample.y
+              + headSample.tangentY * Math.cos(angle) * headSample.thickness * 0.88
+              + headSample.normalY * Math.sin(angle) * headSample.thickness
+          });
+        }
+        const envelope = createClosedCanvasPath([
+          ...upperPoints,
+          ...headNosePoints,
+          ...lowerPoints.reverse()
+        ]);
+        const bodyGradient = context.createLinearGradient(
+          geometry.tail.x,
+          geometry.tail.y,
+          geometry.head.x,
+          geometry.head.y
+        );
+        bodyGradient.addColorStop(0, "rgba(104, 158, 255, 0)");
+        bodyGradient.addColorStop(0.16, "rgba(129, 178, 255, 0.18)");
+        bodyGradient.addColorStop(0.5, "rgba(255, 83, 136, 0.72)");
+        bodyGradient.addColorStop(0.82, "rgba(255, 155, 190, 0.96)");
+        bodyGradient.addColorStop(1, "rgba(255, 118, 167, 0.98)");
+
+        context.save();
+        context.globalCompositeOperation = "lighter";
+        const flightEnergy = 0.8 + geometry.flight * 0.2;
+        context.globalAlpha = opacity * intensity * flightEnergy * 0.2;
+        context.fillStyle = bodyGradient;
+        context.shadowColor = "rgba(255, 72, 130, 0.96)";
+        context.shadowBlur = 34 + geometry.flight * 22 + impactPulse * 24;
+        context.fill(envelope);
+        context.globalAlpha = opacity * intensity * flightEnergy * 0.9;
+        context.shadowColor = "rgba(255, 135, 172, 0.9)";
+        context.shadowBlur = 10 + geometry.flight * 12;
+        context.fill(envelope);
+
+        context.save();
+        context.clip(envelope);
+        context.shadowBlur = 0;
+        for (let strand = 0; strand < 3; strand += 1) {
+          const offset = strand * fullTurn / 3;
+          const strandSamples = centerSamples.map((sample) => {
+            const phase = sample.unit * fullTurn * 3 - energyFlowPhase * 2 + offset;
+            const radius = sample.thickness * (0.42 + strand * 0.035);
+            return {
+              x: sample.x + sample.normalX * Math.sin(phase) * radius,
+              y: sample.y + sample.normalY * Math.sin(phase) * radius,
+              depth: Math.cos(phase)
+            };
+          });
+          for (let pass = 0; pass < 2; pass += 1) {
+            const frontPass = pass === 1;
+            context.lineCap = "round";
+            context.strokeStyle = frontPass ? "#fff7fb" : "#739cff";
+            const depthBuckets = Array.from({ length: 4 }, () => new Path2D());
+            for (let index = 1; index < strandSamples.length; index += 1) {
+              const previous = strandSamples[index - 1];
+              const point = strandSamples[index];
+              const midpointDepth = (previous.depth + point.depth) * 0.5;
+              const depthWeight = frontPass
+                ? smoothstep(clamp((midpointDepth + 0.28) / 1.28, 0, 1))
+                : smoothstep(clamp((0.28 - midpointDepth) / 1.28, 0, 1));
+              const visibility = 0.3 + depthWeight * 0.7;
+              const bucket = Math.min(depthBuckets.length - 1, Math.floor(visibility * depthBuckets.length));
+              depthBuckets[bucket].moveTo(previous.x, previous.y);
+              depthBuckets[bucket].lineTo(point.x, point.y);
+            }
+            const baseAlpha = opacity * intensity * (frontPass ? 0.58 : 0.2);
+            const baseWidth = frontPass ? 1.25 + geometry.flight * 1.65 : 0.8;
+            for (let bucket = 0; bucket < depthBuckets.length; bucket += 1) {
+              const bucketWeight = (bucket + 0.5) / depthBuckets.length;
+              context.globalAlpha = baseAlpha * bucketWeight;
+              context.lineWidth = baseWidth * (0.84 + bucketWeight * 0.16);
+              context.stroke(depthBuckets[bucket]);
+            }
+          }
+        }
+        context.restore();
+
+        for (let strand = 0; strand < 2; strand += 1) {
+          const phaseOffset = strand * Math.PI + energyFlowPhase * (strand === 0 ? -1 : 1);
+          const outsidePoints = centerSamples.map((sample) => {
+            const edgeFade = Math.sin(sample.unit * Math.PI);
+            const orbitPhase = sample.unit * fullTurn * (1.18 + strand * 0.22) + phaseOffset;
+            const radius = sample.thickness * (1.18 + strand * 0.16) + 5 + geometry.flight * 7;
+            return {
+              x: sample.x + sample.normalX * Math.sin(orbitPhase) * radius * edgeFade
+                + sample.tangentX * Math.cos(orbitPhase) * 3.5,
+              y: sample.y + sample.normalY * Math.sin(orbitPhase) * radius * edgeFade
+                + sample.tangentY * Math.cos(orbitPhase) * 3.5
+            };
+          });
+          context.globalAlpha = opacity * (0.32 + geometry.flight * 0.28);
+          context.strokeStyle = strand === 0 ? "rgba(255, 229, 239, 0.96)" : "rgba(144, 185, 255, 0.82)";
+          context.lineWidth = 1.1 + geometry.flight * 1.1;
+          context.shadowColor = strand === 0 ? "rgba(255, 86, 139, 0.88)" : "rgba(112, 160, 255, 0.78)";
+          context.shadowBlur = 8 + geometry.flight * 8;
+          context.stroke(createSmoothCanvasPath(outsidePoints));
+        }
+
+        const headAngle = Math.atan2(headSample.tangentY, headSample.tangentX);
+        const headRadius = headSample.thickness * (0.72 + impactPulse * 0.18);
+        context.save();
+        context.translate(geometry.head.x, geometry.head.y);
+        context.rotate(headAngle);
+        const headGradient = context.createRadialGradient(
+          headRadius * 0.18,
+          0,
+          0,
+          0,
+          0,
+          headRadius * 1.65
+        );
+        headGradient.addColorStop(0, "rgba(255,255,255,1)");
+        headGradient.addColorStop(0.28, "rgba(255,235,244,0.96)");
+        headGradient.addColorStop(0.64, "rgba(255,76,132,0.42)");
+        headGradient.addColorStop(1, "rgba(255,76,132,0)");
+        context.globalAlpha = opacity * intensity;
+        context.fillStyle = headGradient;
+        context.shadowColor = "rgba(255, 235, 245, 0.92)";
+        context.shadowBlur = 16 + impactPulse * 28;
+        context.beginPath();
+        context.ellipse(0, 0, headRadius * 1.38, headRadius * 0.92, 0, 0, fullTurn);
+        context.fill();
+        context.restore();
+
+        if (geometry.impact > 0.001) {
+          const ringReach = 28 + geometry.impact * Math.min(190, viewportWidth * 0.16);
+          const impactFade = 1 - phaseProgress(geometry.impact, 0.72, 1);
+          const impactGlow = context.createRadialGradient(
+            geometry.target.x,
+            geometry.target.y,
+            0,
+            geometry.target.x,
+            geometry.target.y,
+            ringReach * 1.15
+          );
+          impactGlow.addColorStop(0, "rgba(255,255,255,0.98)");
+          impactGlow.addColorStop(0.16, "rgba(255,199,218,0.72)");
+          impactGlow.addColorStop(0.5, "rgba(255,62,125,0.24)");
+          impactGlow.addColorStop(1, "rgba(255,62,125,0)");
+          context.globalAlpha = opacity * (0.5 + impactPulse * 0.5);
+          context.fillStyle = impactGlow;
+          context.fillRect(
+            geometry.target.x - ringReach * 1.2,
+            geometry.target.y - ringReach * 1.2,
+            ringReach * 2.4,
+            ringReach * 2.4
+          );
+          for (let ring = 0; ring < 3; ring += 1) {
+            const ringProgress = clamp(geometry.impact * 1.22 - ring * 0.12, 0, 1);
+            context.globalAlpha = opacity * impactFade * (0.62 - ring * 0.14);
+            context.strokeStyle = ring === 1 ? "rgba(139,181,255,0.9)" : "rgba(255,239,245,0.96)";
+            context.lineWidth = 1.2 + (1 - ringProgress) * 2.4;
+            context.beginPath();
+            context.ellipse(
+              geometry.target.x,
+              geometry.target.y,
+              18 + ringProgress * (ringReach + ring * 22),
+              8 + ringProgress * (ringReach * 0.42 + ring * 9),
+              -0.18 + ring * 0.1,
+              0,
+              fullTurn
+            );
+            context.stroke();
+          }
+          const sparkCount = viewportWidth < 640 ? 18 : 28;
+          for (let spark = 0; spark < sparkCount; spark += 1) {
+            const seed = randomSeed(spark + 19103);
+            const angle = -Math.PI * 0.92 + seed * Math.PI * 1.84;
+            const travel = phaseProgress(geometry.impact, seed * 0.22, 0.76 + seed * 0.16);
+            const distance = travel * (28 + seed * 128);
+            const x = geometry.target.x + Math.cos(angle) * distance;
+            const y = geometry.target.y + Math.sin(angle) * distance * 0.58;
+            context.globalAlpha = opacity * (1 - travel) * (0.38 + seed * 0.62);
+            context.strokeStyle = spark % 3 === 0 ? "#b8d3ff" : "#fff3f7";
+            context.lineWidth = 0.7 + seed * 1.3;
+            context.beginPath();
+            context.moveTo(x - Math.cos(angle) * (4 + seed * 9), y - Math.sin(angle) * (3 + seed * 6));
+            context.lineTo(x, y);
+            context.stroke();
+          }
+        }
+        context.restore();
       };
       const nextParticleRandom = () => randomSeed((particleSerial += 1) * 1.61803398875 + 0.37);
 
@@ -2441,6 +2855,12 @@ const gateStyle = [
           left: meterShell?.offsetLeft ?? (width - Math.min(620, width * 0.78)) / 2,
           top: meterShell?.offsetTop ?? height * 0.58
         };
+        titleLayout = {
+          width: title?.offsetWidth || Math.min(width * 0.82, 880),
+          height: title?.offsetHeight || Math.min(height * 0.24, 190),
+          left: title?.offsetLeft ?? width * 0.09,
+          top: title?.offsetTop ?? height * 0.28
+        };
       };
 
       const trimParticlePool = (particles, limit, seedOffset) => {
@@ -2912,16 +3332,20 @@ const gateStyle = [
         );
         const angleRadians = beamPose.angle * Math.PI / 180;
         const headOffset = (localFrontX - meterWidth * 0.5) * beamPose.scaleX;
-        const stableOriginX = clamp(
+        const chargeFlight = getChargeFlightGeometry(chargeIntroProgress, width, height);
+        const rigidOriginX = clamp(
           meterLeft + meterWidth * 0.5 + beamPose.anchorX + Math.cos(angleRadians) * headOffset,
           width * 0.04,
           width * 0.96
         );
-        const stableOriginY = clamp(
+        const rigidOriginY = clamp(
           meterTop + meterHeight * 0.5 + beamPose.anchorY + beamPose.lift + Math.sin(angleRadians) * headOffset,
           height * 0.08,
           height * 0.92
         );
+        const flightBlend = phaseProgress(chargeIntroProgress, 0.14, 0.22);
+        const stableOriginX = rigidOriginX + (chargeFlight.head.x - rigidOriginX) * flightBlend;
+        const stableOriginY = rigidOriginY + (chargeFlight.head.y - rigidOriginY) * flightBlend;
         const originX = clamp(stableOriginX + beamPose.shakeX * 0.36, width * 0.04, width * 0.96);
         const originY = clamp(stableOriginY + beamPose.shakeY * 0.36, height * 0.08, height * 0.92);
         const headFrameSeconds = beamHeadTimestamp
@@ -3020,6 +3444,21 @@ const gateStyle = [
             context.fill();
           }
         }
+
+        const chargeFlightOpacity = phaseProgress(
+          chargeIntroProgress,
+          chargeHandoffStart,
+          chargeHandoffEnd
+        )
+          * (1 - phaseProgress(chargeIntroProgress, 0.86, 1));
+        drawChargeFlightBeam(
+          context,
+          timestamp,
+          chargeFlight,
+          chargeFlightOpacity,
+          intensity,
+          width
+        );
 
         if (fill <= 0.018) wakePrimed = false;
         const wakeLimit = Math.floor((width < 640 ? 175 : 280) * (0.8 + renderQuality * 0.2));
@@ -4161,6 +4600,12 @@ const gateStyle = [
       const updateBurstPresentation = (timestamp, advanceCharge = true) => {
         const fill = clamp(energyProgress, 0, 1);
         const burst = clamp(burstProgress, 0, 1);
+        const intro = clamp(chargeIntroProgress, 0, 1);
+        const introImpactLinear = clamp((intro - 0.72) / 0.16, 0, 1);
+        const introImpactPulse = Math.sin(introImpactLinear * Math.PI);
+        const introEnchant = phaseProgress(intro, 0.75, 1);
+        const introEnchantHold = introEnchant * (1 - phaseProgress(burst, 0.035, 0.34));
+        const introDetach = phaseProgress(intro, chargeHandoffStart, chargeHandoffEnd);
         const crossBuildLinear = clamp((burst - crossStart) / (crossBuildEnd - crossStart), 0, 1);
         const crossFlashLinear = clamp((burst - crossBuildEnd) / (crossFlashEnd - crossBuildEnd), 0, 1);
         const crossReleaseLinear = clamp((burst - crossFlashEnd) / (crossEnd - crossFlashEnd), 0, 1);
@@ -4307,7 +4752,8 @@ const gateStyle = [
           warpOriginY = crossCenterY;
         }
         const fadeOut = phaseProgress(burst, 0.015, 0.13);
-        const beamOpacity = burst <= 0.001 ? 1 : clamp(1 - fadeOut, 0, 1);
+        const beamOpacity = (burst <= 0.001 ? 1 : clamp(1 - fadeOut, 0, 1))
+          * (1 - introDetach);
         const preBlastBlur = phaseProgress(burst, glossFadeEnd, crossStart + 0.04)
           * (1 - phaseProgress(burst, crossEnd, reformEnd)) * 4.8;
         const gravityBlur = phaseProgress(burst, crossEnd, 0.86)
@@ -4464,6 +4910,19 @@ const gateStyle = [
           + Math.sin(motionPhases.crossRotation) * (0.7 + crossStrobe * 3.8);
         const crossShakeX = Math.sin(motionPhases.crossShakeX) * (0.35 + crossStrobe * 2.6 + releaseFlash * 2.2);
         const crossShakeY = Math.cos(motionPhases.crossShakeY) * (0.3 + crossStrobe * 2.1 + releaseFlash * 1.8);
+        const introKickFade = 1 - phaseProgress(introImpactLinear, 0.58, 1);
+        const introKickX = Math.sin(introImpactLinear * Math.PI * 5.2)
+          * introImpactPulse * introKickFade * 4.6;
+        const introKickY = Math.cos(introImpactLinear * Math.PI * 4.4)
+          * introImpactPulse * introKickFade * 2.8;
+        const enchantOpacity = clamp(introImpactPulse * 0.92 + introEnchantHold * 0.58, 0, 1);
+        const enchantPulse = clamp(
+          introImpactPulse * 1.16
+            + introEnchantHold * (0.24 + Math.sin(timestamp / 132) * 0.08),
+          0,
+          1.3
+        );
+        const enchantFlow = ((timestamp * 0.034 + intro * 178) % 240) - 70;
         beamPose = {
           shakeX,
           shakeY,
@@ -4474,6 +4933,10 @@ const gateStyle = [
           scaleY: beamScaleY,
           angle: beamAngle
         };
+        const normalChargeFrame = advanceCharge
+          && burst <= 0.001
+          && !chargeIntroActive
+          && !chargeIntroComplete;
         meterShell?.style.setProperty("--kisara-beam-shake-x", `${shakeX.toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-shake-y", `${shakeY.toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-anchor-x", `${beamAnchorX.toFixed(3)}px`);
@@ -4483,9 +4946,16 @@ const gateStyle = [
         meterShell?.style.setProperty("--kisara-beam-scale-x", beamScaleX.toFixed(4));
         meterShell?.style.setProperty("--kisara-beam-scale-y", beamScaleY.toFixed(4));
         meterShell?.style.setProperty("--kisara-beam-angle", `${beamAngle.toFixed(3)}deg`);
+        if (normalChargeFrame) return;
         meterShell?.style.setProperty("--kisara-beam-opacity", beamOpacity.toFixed(3));
         meterShell?.style.setProperty("--kisara-beam-glow", `${(pressure * 12 + detonationRush * 45).toFixed(3)}px`);
         meterShell?.style.setProperty("--kisara-beam-brightness", (1 + pressure * 0.16 + detonationRush * 0.62).toFixed(3));
+        gate.style.setProperty("--kisara-enchant-progress", introEnchant.toFixed(4));
+        gate.style.setProperty("--kisara-enchant-opacity", enchantOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-enchant-pulse", enchantPulse.toFixed(3));
+        gate.style.setProperty("--kisara-enchant-flow", `${enchantFlow.toFixed(3)}%`);
+        gate.style.setProperty("--kisara-title-impact-x", `${introKickX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-title-impact-y", `${introKickY.toFixed(3)}px`);
         gate.style.setProperty("--kisara-performance-blur", `${performanceBlur.toFixed(3)}px`);
         gate.style.setProperty("--kisara-screen-shake-x", `${screenShakeX.toFixed(3)}px`);
         gate.style.setProperty("--kisara-screen-shake-y", `${screenShakeY.toFixed(3)}px`);
@@ -4641,17 +5111,23 @@ const gateStyle = [
           : 1 / 60;
         energyFlowTimestamp = timestamp;
         const flowSpeed = 2.15 + fill * 1.25 + beamMotionEnergy * 0.62;
-        energyFlowPhase = (energyFlowPhase + flowFrameSeconds * flowSpeed) % fullTurn;
-        const flowUnit = energyFlowPhase / fullTurn;
+        energyFlowPhase += flowFrameSeconds * flowSpeed;
+        const flowUnit = ((energyFlowPhase / fullTurn) % 1 + 1) % 1;
         const centerY = height / 2;
         const fadeOut = phaseProgress(burstProgress, 0.015, 0.13);
-        const localBeamOpacity = burstProgress <= 0.001 ? 1 : clamp(1 - fadeOut, 0, 1);
+        const detach = phaseProgress(
+          chargeIntroProgress,
+          chargeHandoffStart,
+          chargeHandoffEnd
+        );
+        const localBeamOpacity = (burstProgress <= 0.001 ? 1 : clamp(1 - fadeOut, 0, 1))
+          * (1 - detach);
         const intensity = 0.12 + fill * 0.88;
-        const startThickness = 0.7 + fill * 1.45;
-        const endThickness = 2.4 + fill * 31;
-        const frontRadius = 4.5 + fill * 21;
+        const startThickness = 1.05 + fill * 1.7;
+        const endThickness = 3.4 + fill * 27;
+        const frontRadius = 5.5 + fill * 20;
         const frontX = clamp(width * fill, 3, Math.max(3, width - frontRadius * 2.05));
-        const noseLength = Math.min(34, Math.max(5, frontRadius * 0.9 + frontX * 0.035));
+        const noseLength = Math.min(44, Math.max(7, frontRadius * 1.08 + frontX * 0.028));
         const bodyEndX = Math.max(1, frontX - noseLength);
         const context = energyContext;
 
@@ -4661,85 +5137,114 @@ const gateStyle = [
           return;
         }
 
+        const centerlineAt = (x) => {
+          const unit = clamp(x / Math.max(bodyEndX, 1), 0, 1);
+          const edgeTaper = Math.sin(unit * Math.PI);
+          const primary = Math.sin(unit * fullTurn * 1.22 - energyFlowPhase);
+          const secondary = Math.sin(unit * fullTurn * 2.7 + energyFlowPhase + 0.8) * 0.34;
+          return centerY + (primary + secondary) * edgeTaper * (1.65 + fill * 5.25);
+        };
         const thicknessAt = (x) => {
           const unit = clamp(x / Math.max(bodyEndX, 1), 0, 1);
-          const tailEase = smoothstep(clamp(unit / 0.62, 0, 1));
-          const cone = startThickness * 0.26
-            + (endThickness - startThickness * 0.26) * Math.pow(unit, 1.16);
-          const breathing = 1 + Math.sin(unit * fullTurn * 2 - energyFlowPhase * 2) * (0.008 + fill * 0.01);
-          return cone * (0.78 + tailEase * 0.22) * breathing;
+          const growth = Math.pow(unit, 0.56) * (0.78 + smoothstep(unit) * 0.22);
+          const shoulder = Math.exp(-Math.pow((unit - 0.68) / 0.25, 2));
+          const tailBloom = smoothstep(clamp(unit / 0.18, 0, 1));
+          const body = startThickness * (0.5 + tailBloom * 0.5)
+            + (endThickness - startThickness) * growth
+            + shoulder * (0.8 + fill * 3.2);
+          const breathing = 1 + (
+            Math.sin(unit * fullTurn * 2 - energyFlowPhase * 2)
+            + Math.sin(unit * fullTurn * 4 + energyFlowPhase) * 0.24
+          ) * (0.018 + fill * 0.018);
+          return body * breathing;
         };
 
         const traceBeamEnvelope = () => {
           const segments = Math.max(36, Math.min(96, Math.ceil(bodyEndX / 5.5)));
-          context.beginPath();
+          const upper = [];
+          const lower = [];
           for (let segment = 0; segment <= segments; segment += 1) {
             const x = bodyEndX * segment / segments;
-            const unit = x / Math.max(bodyEndX, 1);
             const localThickness = thicknessAt(x);
-            const ripple = (
-              Math.sin(unit * fullTurn * 2 - energyFlowPhase * 2)
-              + Math.sin(unit * fullTurn * 5 + energyFlowPhase + 0.7) * 0.28
-            ) * localThickness * (0.012 + fill * 0.012);
-            const y = centerY - localThickness - ripple;
-            if (segment === 0) context.moveTo(x, y);
-            else context.lineTo(x, y);
+            const localCenter = centerlineAt(x);
+            upper.push({ x, y: localCenter - localThickness });
+            lower.push({ x, y: localCenter + localThickness });
           }
-          context.bezierCurveTo(
-            bodyEndX + noseLength * 0.46,
-            centerY - endThickness * 0.96,
-            frontX - frontRadius * 0.12,
-            centerY - frontRadius * 0.52,
+          const noseCenter = centerlineAt(bodyEndX);
+          const upperEnd = upper[upper.length - 1];
+          const upperPrevious = upper[Math.max(0, upper.length - 2)];
+          const lowerEnd = lower[lower.length - 1];
+          const lowerPrevious = lower[Math.max(0, lower.length - 2)];
+          const upperTangentLength = Math.max(
+            0.001,
+            Math.hypot(upperEnd.x - upperPrevious.x, upperEnd.y - upperPrevious.y)
+          );
+          const lowerTangentLength = Math.max(
+            0.001,
+            Math.hypot(lowerPrevious.x - lowerEnd.x, lowerPrevious.y - lowerEnd.y)
+          );
+          const upperTangent = {
+            x: (upperEnd.x - upperPrevious.x) / upperTangentLength,
+            y: (upperEnd.y - upperPrevious.y) / upperTangentLength
+          };
+          const lowerTangent = {
+            x: (lowerPrevious.x - lowerEnd.x) / lowerTangentLength,
+            y: (lowerPrevious.y - lowerEnd.y) / lowerTangentLength
+          };
+          const shoulderReach = Math.min(noseLength * 0.74, frontRadius * 0.92);
+          const tipControlY = frontRadius * 0.86;
+          const path = new Path2D();
+          path.moveTo(upper[0].x, upper[0].y);
+          for (let index = 1; index < upper.length; index += 1) {
+            path.lineTo(upper[index].x, upper[index].y);
+          }
+          path.bezierCurveTo(
+            upperEnd.x + upperTangent.x * shoulderReach,
+            upperEnd.y + upperTangent.y * shoulderReach,
             frontX,
-            centerY
+            noseCenter - tipControlY,
+            frontX,
+            noseCenter
           );
-          context.bezierCurveTo(
-            frontX - frontRadius * 0.12,
-            centerY + frontRadius * 0.52,
-            bodyEndX + noseLength * 0.46,
-            centerY + endThickness * 0.96,
-            bodyEndX,
-            centerY + thicknessAt(bodyEndX)
+          path.bezierCurveTo(
+            frontX,
+            noseCenter + tipControlY,
+            lowerEnd.x - lowerTangent.x * shoulderReach,
+            lowerEnd.y - lowerTangent.y * shoulderReach,
+            lowerEnd.x,
+            lowerEnd.y
           );
-          for (let segment = segments - 1; segment >= 0; segment -= 1) {
-            const x = bodyEndX * segment / segments;
-            const unit = x / Math.max(bodyEndX, 1);
-            const localThickness = thicknessAt(x);
-            const ripple = (
-              Math.sin(unit * fullTurn * 2 + energyFlowPhase * 2 + 1.1)
-              + Math.cos(unit * fullTurn * 4 - energyFlowPhase) * 0.26
-            ) * localThickness * (0.012 + fill * 0.012);
-            context.lineTo(x, centerY + localThickness + ripple);
+          for (let index = lower.length - 2; index >= 0; index -= 1) {
+            path.lineTo(lower[index].x, lower[index].y);
           }
-          context.closePath();
+          path.closePath();
+          return path;
         };
 
         context.save();
         context.globalCompositeOperation = "lighter";
         const beamGradient = context.createLinearGradient(0, 0, frontX, 0);
-        beamGradient.addColorStop(0, "rgba(100, 150, 255, 0)");
-        beamGradient.addColorStop(0.1, "rgba(112, 161, 255, 0.025)");
-        beamGradient.addColorStop(0.34, "rgba(147, 187, 255, 0.24)");
+        beamGradient.addColorStop(0, "rgba(100, 150, 255, 0.035)");
+        beamGradient.addColorStop(0.1, "rgba(112, 161, 255, 0.1)");
+        beamGradient.addColorStop(0.34, "rgba(147, 187, 255, 0.3)");
         beamGradient.addColorStop(0.62, "rgba(255, 108, 150, 0.7)");
         beamGradient.addColorStop(0.84, "rgba(255, 191, 211, 0.94)");
         beamGradient.addColorStop(1, "rgba(255, 255, 255, 0.99)");
 
-        traceBeamEnvelope();
+        const beamEnvelope = traceBeamEnvelope();
         context.globalAlpha = localBeamOpacity * intensity * 0.16;
         context.fillStyle = beamGradient;
         context.shadowColor = "rgba(255, 83, 127, 0.88)";
         context.shadowBlur = 24 + fill * 22;
-        context.fill();
+        context.fill(beamEnvelope);
 
-        traceBeamEnvelope();
         context.globalAlpha = localBeamOpacity * intensity * 0.82;
         context.shadowColor = "rgba(255, 124, 158, 0.92)";
         context.shadowBlur = 7 + fill * 10;
-        context.fill();
+        context.fill(beamEnvelope);
 
         context.save();
-        traceBeamEnvelope();
-        context.clip();
+        context.clip(beamEnvelope);
         context.shadowBlur = 0;
 
         const coreGradient = context.createLinearGradient(0, 0, frontX, 0);
@@ -4763,53 +5268,58 @@ const gateStyle = [
         helixShadowGradient.addColorStop(0.66, "rgba(129, 26, 78, 0.42)");
         helixShadowGradient.addColorStop(0.94, "rgba(185, 43, 96, 0.16)");
         helixShadowGradient.addColorStop(1, "rgba(185, 43, 96, 0)");
-        const helixSegments = Math.max(42, Math.min(84, Math.ceil(bodyEndX / 6)));
+        const helixSegments = Math.max(
+          38,
+          Math.round((width < 420 ? 54 : 72) * (0.78 + renderQuality * 0.22))
+        );
         const helixStrands = 3;
-        for (let depthPass = 0; depthPass < 2; depthPass += 1) {
-          const frontPass = depthPass === 1;
-          context.globalCompositeOperation = frontPass ? "lighter" : "source-over";
-          context.strokeStyle = frontPass ? helixGradient : helixShadowGradient;
-          context.lineCap = "round";
-          for (let strand = 0; strand < helixStrands; strand += 1) {
-            const strandOffset = strand * fullTurn / helixStrands;
-            let previousX = 0;
-            let previousUnit = 0;
-            const previousThickness = thicknessAt(0) * (0.8 + strand * 0.035);
-            const previousPhase = -energyFlowPhase * 2 + strandOffset;
-            let previousDepth = Math.cos(previousPhase);
-            let previousY = centerY
-              + Math.sin(previousPhase) * previousThickness * (0.4 + strand * 0.025)
-              + Math.sin(energyFlowPhase + strandOffset * 0.5) * previousThickness * 0.05;
-            for (let segment = 1; segment <= helixSegments; segment += 1) {
+        for (let strand = 0; strand < helixStrands; strand += 1) {
+          const strandOffset = strand * fullTurn / helixStrands;
+          const strandSamples = [];
+          for (let segment = 0; segment <= helixSegments; segment += 1) {
               const x = bodyEndX * segment / helixSegments;
               const unit = x / Math.max(bodyEndX, 1);
               const localThickness = thicknessAt(x) * (0.8 + strand * 0.035);
               const spiralPhase = unit * fullTurn * 3 - energyFlowPhase * 2 + strandOffset;
               const counterPhase = unit * fullTurn * 6 + energyFlowPhase + strandOffset * 0.5;
-              const depth = Math.cos(spiralPhase);
-              const y = centerY
+            strandSamples.push({
+              x,
+              y: centerlineAt(x)
                 + Math.sin(spiralPhase) * localThickness * (0.4 + strand * 0.025)
-                + Math.sin(counterPhase) * localThickness * 0.05;
-              const midpointUnit = (previousUnit + unit) * 0.5;
-              const midpointDepth = (previousDepth + depth) * 0.5;
+                + Math.sin(counterPhase) * localThickness * 0.05,
+              depth: Math.cos(spiralPhase),
+              unit
+            });
+          }
+          for (let depthPass = 0; depthPass < 2; depthPass += 1) {
+            const frontPass = depthPass === 1;
+            context.globalCompositeOperation = frontPass ? "lighter" : "source-over";
+            context.strokeStyle = frontPass ? helixGradient : helixShadowGradient;
+            context.lineCap = "round";
+            const depthBuckets = Array.from({ length: 4 }, () => new Path2D());
+            for (let segment = 1; segment < strandSamples.length; segment += 1) {
+              const previous = strandSamples[segment - 1];
+              const point = strandSamples[segment];
+              const midpointUnit = (previous.unit + point.unit) * 0.5;
+              const midpointDepth = (previous.depth + point.depth) * 0.5;
               const depthWeight = frontPass
                 ? smoothstep(clamp((midpointDepth + 0.34) / 1.34, 0, 1))
                 : smoothstep(clamp((0.34 - midpointDepth) / 1.34, 0, 1));
               const edgeFade = smoothstep(clamp(midpointUnit / 0.13, 0, 1))
                 * (1 - smoothstep(clamp((midpointUnit - 0.88) / 0.12, 0, 1)));
-              context.globalAlpha = localBeamOpacity * intensity * edgeFade
-                * (frontPass ? 0.7 : 0.24)
-                * (0.28 + depthWeight * 0.72);
-              context.lineWidth = (frontPass ? 1.05 + fill * 2.15 : 0.62 + fill * 1.02)
-                * (0.7 + depthWeight * 0.48);
-              context.beginPath();
-              context.moveTo(previousX, previousY);
-              context.lineTo(x, y);
-              context.stroke();
-              previousX = x;
-              previousUnit = unit;
-              previousDepth = depth;
-              previousY = y;
+              const visibility = edgeFade * (0.28 + depthWeight * 0.72);
+              if (visibility <= 0.018) continue;
+              const bucket = Math.min(depthBuckets.length - 1, Math.floor(visibility * depthBuckets.length));
+              depthBuckets[bucket].moveTo(previous.x, previous.y);
+              depthBuckets[bucket].lineTo(point.x, point.y);
+            }
+            const baseAlpha = localBeamOpacity * intensity * (frontPass ? 0.7 : 0.24);
+            const baseWidth = frontPass ? 1.05 + fill * 2.15 : 0.62 + fill * 1.02;
+            for (let bucket = 0; bucket < depthBuckets.length; bucket += 1) {
+              const bucketWeight = (bucket + 0.5) / depthBuckets.length;
+              context.globalAlpha = baseAlpha * bucketWeight;
+              context.lineWidth = baseWidth * (0.72 + bucketWeight * 0.4);
+              context.stroke(depthBuckets[bucket]);
             }
           }
         }
@@ -4826,9 +5336,9 @@ const gateStyle = [
           context.strokeStyle = pulse % 2 === 0 ? "rgba(255, 245, 249, 0.9)" : "rgba(178, 211, 255, 0.82)";
           context.lineWidth = 0.55 + fill * 0.9;
           context.beginPath();
-          context.ellipse(
-            x,
-            centerY,
+            context.ellipse(
+              x,
+              centerlineAt(x),
             1.4 + fill * 2.8 + beamMotionEnergy * 2.6,
             localThickness * (0.18 + fill * 0.1),
             0,
@@ -4851,7 +5361,7 @@ const gateStyle = [
             - energyFlowPhase * (1 + fragment % 2)
             + seed * fullTurn;
           const depth = 0.5 + Math.cos(spiralPhase) * 0.5;
-          const y = centerY + Math.sin(spiralPhase) * localThickness * (0.28 + seed * 0.18);
+          const y = centerlineAt(x) + Math.sin(spiralPhase) * localThickness * (0.28 + seed * 0.18);
           const size = (0.72 + fill * 1.5 + beamMotionEnergy * 0.42)
             * (0.62 + seed * 0.72)
             * (0.68 + depth * 0.5);
@@ -4874,23 +5384,113 @@ const gateStyle = [
           context.restore();
         }
 
+        const frontCenterY = centerlineAt(bodyEndX);
         const headCoreX = frontX - frontRadius * 0.48;
-        const headGlow = context.createRadialGradient(headCoreX, centerY, 0, headCoreX, centerY, frontRadius * 1.35);
+        const headGlow = context.createRadialGradient(headCoreX, frontCenterY, 0, headCoreX, frontCenterY, frontRadius * 1.35);
         headGlow.addColorStop(0, "rgba(255, 255, 255, 0.98)");
         headGlow.addColorStop(0.24, "rgba(255, 244, 248, 0.9)");
         headGlow.addColorStop(0.62, "rgba(255, 104, 145, 0.36)");
         headGlow.addColorStop(1, "rgba(255, 86, 128, 0)");
         context.globalAlpha = localBeamOpacity * intensity;
         context.fillStyle = headGlow;
-        context.fillRect(headCoreX - frontRadius * 1.35, centerY - frontRadius * 1.35, frontRadius * 2.7, frontRadius * 2.7);
+        context.fillRect(headCoreX - frontRadius * 1.35, frontCenterY - frontRadius * 1.35, frontRadius * 2.7, frontRadius * 2.7);
         context.restore();
+
+        const overcharge = phaseProgress(fill, 0.46, 0.74);
+        if (overcharge > 0.001) {
+          context.save();
+          context.globalCompositeOperation = "lighter";
+          context.lineCap = "round";
+          const orbitSegments = Math.max(
+            30,
+            Math.round((width < 420 ? 36 : 48) * (0.8 + renderQuality * 0.2))
+          );
+          for (let strand = 0; strand < 3; strand += 1) {
+            const phaseOffset = strand * fullTurn / 3 + energyFlowPhase * (strand % 2 === 0 ? -1 : 1);
+            const orbitSamples = [];
+            for (let segment = 0; segment <= orbitSegments; segment += 1) {
+              const unit = 0.12 + segment / orbitSegments * 0.88;
+              const x = bodyEndX * unit;
+              const localThickness = thicknessAt(x);
+              const orbitPhase = unit * fullTurn * (1.18 + strand * 0.16) + phaseOffset;
+              const edgeFade = Math.sin(clamp((unit - 0.1) / 0.9, 0, 1) * Math.PI);
+              const orbitRadius = (localThickness * (1.12 + strand * 0.12) + 2.5 + overcharge * 4.8)
+                * edgeFade;
+              orbitSamples.push({
+                x: x + Math.cos(orbitPhase) * (1.8 + overcharge * 3.2),
+                y: centerlineAt(x) + Math.sin(orbitPhase) * orbitRadius,
+                depth: Math.cos(orbitPhase)
+              });
+            }
+            context.strokeStyle = strand === 1
+              ? "rgba(139, 181, 255, 0.92)"
+              : "rgba(255, 226, 237, 0.98)";
+            context.shadowColor = strand === 1
+              ? "rgba(111, 160, 255, 0.82)"
+              : "rgba(255, 77, 132, 0.9)";
+            for (let pass = 0; pass < 2; pass += 1) {
+              const frontPass = pass === 1;
+              context.shadowBlur = frontPass ? 6 + overcharge * 9 : 2;
+              const depthBuckets = Array.from({ length: 4 }, () => new Path2D());
+              for (let segment = 1; segment < orbitSamples.length; segment += 1) {
+                const previous = orbitSamples[segment - 1];
+                const point = orbitSamples[segment];
+                const midpointDepth = (previous.depth + point.depth) * 0.5;
+                const depthWeight = frontPass
+                  ? smoothstep(clamp((midpointDepth + 0.3) / 1.3, 0, 1))
+                  : smoothstep(clamp((0.3 - midpointDepth) / 1.3, 0, 1));
+                const visibility = 0.26 + depthWeight * 0.74;
+                const bucket = Math.min(depthBuckets.length - 1, Math.floor(visibility * depthBuckets.length));
+                depthBuckets[bucket].moveTo(previous.x, previous.y);
+                depthBuckets[bucket].lineTo(point.x, point.y);
+              }
+              const baseAlpha = localBeamOpacity * overcharge * (frontPass ? 0.68 : 0.25);
+              const baseWidth = frontPass ? 1.15 + overcharge * 1.75 : 0.7 + overcharge * 0.58;
+              for (let bucket = 0; bucket < depthBuckets.length; bucket += 1) {
+                const bucketWeight = (bucket + 0.5) / depthBuckets.length;
+                context.globalAlpha = baseAlpha * bucketWeight;
+                context.lineWidth = baseWidth * (0.74 + bucketWeight * 0.36);
+                context.stroke(depthBuckets[bucket]);
+              }
+            }
+          }
+
+          const haloCount = width < 420 ? 2 : 3;
+          for (let halo = 0; halo < haloCount; halo += 1) {
+            const pulse = 0.5 + Math.sin(energyFlowPhase * (2 + halo) + halo * 2.2) * 0.5;
+            const haloX = bodyEndX * (0.58 + halo * 0.12);
+            const haloY = centerlineAt(haloX);
+            const haloThickness = thicknessAt(haloX);
+            context.globalAlpha = localBeamOpacity * overcharge * (0.26 + pulse * 0.22);
+            context.strokeStyle = halo % 2 === 0
+              ? "rgba(255, 241, 246, 0.96)"
+              : "rgba(151, 191, 255, 0.88)";
+            context.lineWidth = 0.8 + overcharge * 1.15;
+            context.shadowColor = halo % 2 === 0
+              ? "rgba(255, 88, 139, 0.92)"
+              : "rgba(111, 160, 255, 0.84)";
+            context.shadowBlur = 7 + pulse * 8;
+            context.beginPath();
+            context.ellipse(
+              haloX,
+              haloY,
+              6 + overcharge * (10 + halo * 4),
+              haloThickness * (1.12 + overcharge * 0.3),
+              -0.12 + halo * 0.1,
+              -Math.PI * (0.78 + pulse * 0.08),
+              Math.PI * (0.78 + pulse * 0.08)
+            );
+            context.stroke();
+          }
+          context.restore();
+        }
 
         const auraGlow = context.createRadialGradient(
           frontX - frontRadius * 0.34,
-          centerY,
+          frontCenterY,
           frontRadius * 0.12,
           frontX - frontRadius * 0.34,
-          centerY,
+          frontCenterY,
           frontRadius * 1.7
         );
         auraGlow.addColorStop(0, "rgba(255, 250, 252, 0.34)");
@@ -4899,14 +5499,22 @@ const gateStyle = [
         context.globalAlpha = localBeamOpacity * intensity * 0.72;
         context.fillStyle = auraGlow;
         context.beginPath();
-        context.arc(frontX - frontRadius * 0.34, centerY, frontRadius * 1.7, 0, Math.PI * 2);
+        context.ellipse(
+          frontX - frontRadius * 0.34,
+          frontCenterY,
+          frontRadius * 1.72,
+          frontRadius * 1.28,
+          0,
+          0,
+          Math.PI * 2
+        );
         context.fill();
 
         const impactStrength = clamp(fill * 0.34 + beamMotionEnergy * 0.92, 0, 1.18);
         if (impactStrength > 0.025) {
           context.save();
           context.globalCompositeOperation = "lighter";
-          context.translate(frontX - frontRadius * 0.2, centerY);
+          context.translate(frontX - frontRadius * 0.2, frontCenterY);
           for (let ring = 0; ring < 2; ring += 1) {
             const pulse = 0.5 + Math.sin(energyFlowPhase * (3 + ring) + ring * 1.4) * 0.5;
             context.globalAlpha = localBeamOpacity * impactStrength * (0.22 - ring * 0.065) * (0.72 + pulse * 0.28);
@@ -4965,6 +5573,7 @@ const gateStyle = [
         const percent = Math.round(progress * 100);
         const fillComplete = targetProgress >= 0.9995 && fill >= 0.999 && Math.abs(velocity) < 0.001;
         const burstComplete = fillComplete
+          && chargeIntroComplete
           && targetBurstProgress >= 0.9995
           && burstProgress >= 0.999
           && Math.abs(burstVelocity) < 0.001
@@ -5009,13 +5618,17 @@ const gateStyle = [
           renderedGlitchTick = glitchTick;
         }
         gate.classList.toggle("is-complete", fillComplete);
+        gate.classList.toggle("is-enchanting", chargeIntroActive);
+        gate.classList.toggle("is-enchanted", chargeIntroComplete && fillComplete);
         gate.classList.toggle("is-bursting", burstProgress > 0.001 && !burstComplete);
         gate.classList.toggle("is-burst-complete", burstComplete);
         gate.classList.toggle("is-released", pageMode === "next");
         gate.classList.toggle("is-receding", velocity < -0.0003);
         setPostReleaseActive(burstComplete && pageMode === "gate");
         if (cue) {
-          cue.textContent = burstAutoplay
+          cue.textContent = chargeIntroActive
+            ? "ENERGY VECTOR / ENCHANTING"
+            : burstAutoplay
             ? "AUTOMATIC RELEASE / STAND BY"
             : burstComplete
             ? "SIGNAL RELEASED / CONTINUE"
@@ -5023,6 +5636,17 @@ const gateStyle = [
               ? "OVERCHARGE / BREAK THE SEAL"
               : "SCROLL / SIGN THE CONTRACT";
         }
+      };
+
+      const startChargeIntro = (timestamp) => {
+        if (chargeIntroActive || chargeIntroComplete || pageMode !== "gate") return;
+        progress = 1;
+        targetProgress = 1;
+        velocity = 0;
+        energyProgress = 1;
+        chargeIntroActive = true;
+        chargeIntroStartedAt = timestamp;
+        chargeIntroProgress = 0;
       };
 
       const startReleaseAutoplay = (timestamp) => {
@@ -5043,6 +5667,19 @@ const gateStyle = [
         const spring = (targetProgress - progress) * springStrength * frameRatio;
         velocity = (velocity + spring) * Math.pow(damping, frameRatio);
         progress = clamp(progress + velocity * frameRatio, 0, 1);
+        const fillReadyForIntro = targetProgress >= 0.9995 && progress >= 0.995;
+        if (fillReadyForIntro && !chargeIntroActive && !chargeIntroComplete) {
+          startChargeIntro(timestamp);
+        }
+        if (chargeIntroActive) {
+          chargeIntroProgress = clamp((timestamp - chargeIntroStartedAt) / chargeIntroDuration, 0, 1);
+          if (chargeIntroProgress >= 1) {
+            chargeIntroProgress = 1;
+            chargeIntroActive = false;
+            chargeIntroComplete = true;
+            chargeIntroStartedAt = 0;
+          }
+        }
         if (burstAutoplay) {
           const autoplayProgress = clamp((timestamp - burstAutoplayStartedAt) / releaseAutoplayDuration, 0, 1);
           burstProgress = mapReleaseAutoplayProgress(autoplayProgress);
@@ -5066,7 +5703,8 @@ const gateStyle = [
           }
         }
 
-        const settled = !burstAutoplay
+        const settled = !chargeIntroActive
+          && !burstAutoplay
           && Math.abs(targetProgress - progress) < settleDistance
           && Math.abs(velocity) < settleDistance
           && Math.abs(targetBurstProgress - burstProgress) < settleDistance
@@ -5166,6 +5804,10 @@ const gateStyle = [
         burstAutoplay = false;
         burstAutoplayComplete = false;
         burstAutoplayStartedAt = 0;
+        chargeIntroProgress = 0;
+        chargeIntroActive = false;
+        chargeIntroComplete = false;
+        chargeIntroStartedAt = 0;
         energyProgress = 0;
         poseTimestamp = 0;
         poseClock = 0;
@@ -5179,7 +5821,6 @@ const gateStyle = [
         lastQualityAdjustment = 0;
         singularityFieldLastPaintTimestamp = 0;
         energyFlowTimestamp = 0;
-        energyFlowPhase = 0;
         beamHeadTimestamp = 0;
         beamHeadX = 0;
         beamHeadY = 0;
@@ -5270,7 +5911,6 @@ const gateStyle = [
           renderCostEma = 0;
           singularityFieldLastPaintTimestamp = 0;
           energyFlowTimestamp = 0;
-          energyFlowPhase = 0;
           beamHeadTimestamp = 0;
           beamHeadVelocityX = 0;
           beamHeadVelocityY = 0;
@@ -5280,12 +5920,21 @@ const gateStyle = [
       };
 
       const addProgress = (delta) => {
-        if (burstAutoplay || burstAutoplayComplete) return;
+        if (chargeIntroActive || burstAutoplay || burstAutoplayComplete) return;
         const boundedDelta = clamp(delta, -180, 180);
-        const fillComplete = targetProgress >= 0.9995
-          && progress >= 0.999
-          && Math.abs(velocity) < 0.001;
+        const fillComplete = targetProgress >= 0.9995 && progress >= 0.995;
         const burstInProgress = targetBurstProgress > 0.0005 || burstProgress > 0.0005;
+        if (fillComplete && !chargeIntroComplete) {
+          startChargeIntro(performance.now());
+          startAnimation();
+          return;
+        }
+        if (delta < 0 && chargeIntroComplete && !burstInProgress) {
+          chargeIntroProgress = 0;
+          chargeIntroActive = false;
+          chargeIntroComplete = false;
+          chargeIntroStartedAt = 0;
+        }
         if ((delta > 0 && fillComplete) || (delta < 0 && burstInProgress)) {
           targetBurstProgress = clamp(targetBurstProgress + boundedDelta / burstDistance, 0, crossEnd);
           burstVelocity += boundedDelta / burstDistance * 0.045;
@@ -5308,7 +5957,8 @@ const gateStyle = [
 
       const shouldCaptureGate = (delta) => {
         if (window.scrollY > 2 || delta === 0) return false;
-        if (burstAutoplay) return true;
+        if (chargeIntroActive || burstAutoplay) return true;
+        if (delta > 0 && isFillComplete() && !chargeIntroComplete) return true;
         if (delta > 0) return !isComplete();
         return targetBurstProgress > 0.0005
           || burstProgress > 0.0005
@@ -5420,6 +6070,10 @@ const gateStyle = [
         burstAutoplay = false;
         burstAutoplayComplete = true;
         burstAutoplayStartedAt = 0;
+        chargeIntroProgress = 1;
+        chargeIntroActive = false;
+        chargeIntroComplete = true;
+        chargeIntroStartedAt = 0;
         render();
         enterNextPage();
       });

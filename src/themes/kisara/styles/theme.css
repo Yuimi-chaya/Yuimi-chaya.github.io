@@ -243,6 +243,12 @@ a {
   --kisara-burst-progress: 0%;
   --kisara-gloss-position: -18%;
   --kisara-gloss-opacity: 0;
+  --kisara-enchant-progress: 0;
+  --kisara-enchant-opacity: 0;
+  --kisara-enchant-pulse: 0;
+  --kisara-enchant-flow: 0%;
+  --kisara-title-impact-x: 0px;
+  --kisara-title-impact-y: 0px;
   --kisara-beam-shake-x: 0px;
   --kisara-beam-shake-y: 0px;
   --kisara-beam-anchor-x: 0px;
@@ -475,7 +481,11 @@ a {
   font-weight: 700;
   line-height: 0.86;
   letter-spacing: 0;
-  transform: translate3d(var(--kisara-screen-shake-x), var(--kisara-screen-shake-y), 0)
+  transform: translate3d(
+      calc(var(--kisara-screen-shake-x) + var(--kisara-title-impact-x)),
+      calc(var(--kisara-screen-shake-y) + var(--kisara-title-impact-y)),
+      0
+    )
     scale(var(--kisara-impact-scale));
   transform-origin: 50% 50%;
   will-change: transform;
@@ -567,6 +577,44 @@ a {
   -webkit-filter: blur(var(--kisara-title-blur));
   text-shadow: 0 12px 30px rgba(5, 8, 28, 0.4);
   will-change: filter;
+}
+
+.kisara-title > .kisara-title-enchant {
+  z-index: 2;
+  opacity: min(var(--kisara-enchant-opacity, 0), var(--kisara-title-source-opacity));
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background-image:
+    radial-gradient(
+      circle at 53% 57%,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(255, 226, 239, 0.98) 14%,
+      rgba(255, 79, 137, 0.9) 34%,
+      rgba(126, 170, 255, 0.76) 58%,
+      transparent 78%
+    ),
+    repeating-linear-gradient(
+      112deg,
+      rgba(255, 255, 255, 0) 0 7%,
+      rgba(255, 244, 248, 0.92) 8% 9.2%,
+      rgba(255, 77, 135, 0.46) 10.2% 12.5%,
+      rgba(255, 255, 255, 0) 14% 22%
+    ),
+    linear-gradient(180deg, #fff8fb 0%, #ff7da1 48%, #7fa8ff 100%);
+  background-size: 100% 100%, 240% 100%, 100% 100%;
+  background-position: center, var(--kisara-enchant-flow, 0%) 50%, center;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-stroke: 1px rgba(255, 236, 244, 0.62);
+  clip-path: circle(calc(4% + var(--kisara-enchant-progress, 0) * 126%) at 53% 57%);
+  mix-blend-mode: screen;
+  filter: none;
+  -webkit-filter: none;
+  text-shadow:
+    0 0 calc(5px + var(--kisara-enchant-pulse, 0) * 7px) rgba(255, 246, 250, 0.94),
+    0 0 calc(14px + var(--kisara-enchant-pulse, 0) * 20px) rgba(255, 55, 121, 0.72),
+    0 0 calc(24px + var(--kisara-enchant-pulse, 0) * 28px) rgba(103, 151, 255, 0.46);
+  will-change: opacity, clip-path, background-position;
 }
 
 .kisara-title > .kisara-title-gloss {
@@ -908,9 +956,9 @@ a {
 .kisara-energy-canvas {
   position: absolute;
   z-index: 2;
-  inset: -2px -4px;
+  inset: -16px -4px;
   width: calc(100% + 8px);
-  height: calc(100% + 4px);
+  height: calc(100% + 32px);
   pointer-events: none;
 }
 
