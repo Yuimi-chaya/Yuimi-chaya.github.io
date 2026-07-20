@@ -492,8 +492,20 @@ const gateStyle = [
             + 3 * progress * progress * (end.y - controlB.y)
         };
       };
+      const velocityPreservingEase = (value, startSlope, endSlope) => {
+        const progress = clamp(value, 0, 1);
+        const progressSquared = progress * progress;
+        const progressCubed = progressSquared * progress;
+        return clamp(
+          (-2 * progressCubed + 3 * progressSquared)
+            + (progressCubed - 2 * progressSquared + progress) * startSlope
+            + (progressCubed - progressSquared) * endSlope,
+          0,
+          1
+        );
+      };
       const getChargeFlightGeometry = (introProgress, width, height) => {
-        const flight = phaseProgress(introProgress, 0.16, 0.78);
+        const flight = phaseProgress(introProgress, 0.018, 0.78);
         const impact = phaseProgress(introProgress, 0.72, 0.88);
         const enchant = phaseProgress(introProgress, 0.75, 1);
         const baseY = meterLayout.top + meterLayout.height * 0.5;
@@ -513,6 +525,8 @@ const gateStyle = [
           x: clamp(baseHead.x + Math.min(width * 0.145, 176), baseHead.x + 28, width - 24),
           y: clamp(baseY + Math.min(height * 0.17, 138), baseY + 42, height - 64)
         };
+        const turnHandle = Math.min(height * 0.07, 56);
+        const turnExitHandle = turnHandle * 0.783;
         const tailLag = 0.46;
         const pointOnFlightPath = (pathProgress) => {
           if (pathProgress <= 0) {
@@ -523,23 +537,27 @@ const gateStyle = [
             };
           }
           if (pathProgress < 0.46) {
-            const launch = smoothstep(pathProgress / 0.46);
+            const launch = velocityPreservingEase(pathProgress / 0.46, 0.68, 0.82);
             return pointOnQuadraticCurve(
               baseHead,
               {
-                x: turnPoint.x + Math.min(width * 0.035, 42),
-                y: baseY + Math.min(height * 0.045, 38)
+                x: turnPoint.x,
+                y: turnPoint.y - turnHandle
               },
               turnPoint,
               launch
             );
           }
-          const returnProgress = smoothstep(clamp((pathProgress - 0.46) / 0.54, 0, 1));
+          const returnProgress = velocityPreservingEase(
+            (pathProgress - 0.46) / 0.54,
+            0.82,
+            0.14
+          );
           return pointOnCubicCurve(
             turnPoint,
             {
-              x: turnPoint.x + Math.min(width * 0.045, 54),
-              y: turnPoint.y + Math.min(height * 0.08, 62)
+              x: turnPoint.x,
+              y: turnPoint.y + turnExitHandle
             },
             {
               x: target.x + Math.min(width * 0.2, 230),
