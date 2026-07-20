@@ -1060,6 +1060,9 @@ const gateStyle = [
               y: y / titleDataPixelRatio,
               ring,
               maskStrength,
+              edgeStrength: ring === 0
+                ? maskStrength
+                : clamp(maskStrength * (1 - (ring - 1) * 0.2), 0, 1),
               sourceRed: sourceColor.red,
               sourceGreen: sourceColor.green,
               sourceBlue: sourceColor.blue,
@@ -1670,7 +1673,7 @@ const gateStyle = [
         titleDataContext.clearRect(0, 0, titleDataCanvas.width, titleDataCanvas.height);
         titleDataContext.setTransform(titleDataPixelRatio, 0, 0, titleDataPixelRatio, 0, 0);
         titleDataContext.save();
-        titleDataContext.globalCompositeOperation = "lighter";
+        titleDataContext.globalCompositeOperation = "source-over";
         titleDataContext.lineWidth = 0.72;
 
         const width = titleDataCanvasWidth;
@@ -1682,7 +1685,8 @@ const gateStyle = [
         const phase = postReleaseDataPhase;
         const time = timestamp / 1000;
 
-        for (const cell of titleDataCells) {
+        const drawTitleDataCell = (cell, edgePass) => {
+          if (edgePass ? cell.ring === 0 : cell.ring > 0) return;
           const normalizedX = cell.x / Math.max(1, width);
           const normalizedY = cell.y / Math.max(1, height);
           const cellCoordinate = (
@@ -1719,6 +1723,9 @@ const gateStyle = [
             2
           ));
           const ringWeight = [1, 0.74, 0.46, 0.27][cell.ring] ?? 0.2;
+          const edgeBleed = cell.ring === 0
+            ? 1
+            : [0, 0.38, 0.16, 0.055][cell.ring] ?? 0.04;
           const erosionGate = cell.ring === 0
             ? 1
             : clamp(dataFront * 1.42 + dataMask * (0.2 - cell.ring * 0.025), 0, 1);
@@ -1727,7 +1734,8 @@ const gateStyle = [
             (dataMask * (0.54 + dataSettle * 0.24) + dataFront * 0.52)
               * ringWeight
               * erosionGate
-              * cell.maskStrength
+              * cell.edgeStrength
+              * edgeBleed
               * pulse,
             0,
             1
@@ -1756,7 +1764,11 @@ const gateStyle = [
           const top = cell.y - size * 0.5;
 
           if (dataFront > 0.52 && cell.flicker > 0.64) {
-            const glowSize = size * (1.42 + dataFront * 0.28);
+            const glowSize = size * (
+              cell.ring === 0
+                ? 1.28 + dataFront * 0.2
+                : 1.04 + dataFront * 0.12
+            );
             titleDataContext.fillStyle = `rgba(${renderRed}, ${renderGreen}, ${renderBlue}, ${alpha * 0.2})`;
             titleDataContext.fillRect(
               cell.x - glowSize * 0.5,
@@ -1772,7 +1784,15 @@ const gateStyle = [
             titleDataContext.strokeStyle = `rgba(255, 244, 250, ${alpha * (0.22 + dataFront * 0.58)})`;
             titleDataContext.strokeRect(left + 0.35, top + 0.35, Math.max(0, size - 0.7), Math.max(0, size - 0.7));
           }
-        }
+        };
+
+        for (const cell of titleDataCells) drawTitleDataCell(cell, false);
+        titleDataContext.setTransform(1, 0, 0, 1, 0, 0);
+        titleDataContext.globalCompositeOperation = "destination-in";
+        titleDataContext.drawImage(titleDataMaskCanvas, 0, 0);
+        titleDataContext.globalCompositeOperation = "source-over";
+        titleDataContext.setTransform(titleDataPixelRatio, 0, 0, titleDataPixelRatio, 0, 0);
+        for (const cell of titleDataCells) drawTitleDataCell(cell, true);
 
         titleDataContext.restore();
         titleDataCanvas.style.opacity = (postReleaseDataOpacity * intro).toFixed(3);

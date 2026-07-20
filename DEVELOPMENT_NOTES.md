@@ -421,3 +421,10 @@
 - Parameterized the launch as one shared path for both endpoints. The head leads while the tail follows `0.46` path units behind, so the left edge leaves the meter instead of staying pinned while the body turns back toward the title.
 - Reused per-strand helix/orbit samples across front/back passes and replaced hundreds of per-segment `stroke()` calls with four depth-batched paths per pass. A normal-charge fast path now skips unrelated gate-wide CSS/WebGL presentation writes.
 - Browser validation covered desktop `1280x720`, mobile `375x844`, `77%` charge, the full-meter handoff, tail departure, U-turn progression, and zero positive horizontal overflow. A 3-second desktop CDP sample at `77%` reduced `TaskDuration` from about `1.33s` to `0.65s` and `RecalcStyleDuration` from about `0.79s` to `0.05s`; these are local comparative samples, not a formal benchmark. `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind) passed.
+
+### 2026-07-20 Kisara post-release flow and title-mask integration
+
+- Added rollback checkpoint `a20782e` for the post-release highlight flow. Eye and pale-blade particles now follow an eight-segment angular spring chain: the source turns first, older particles follow delayed segments, and direction changes travel through the stream as an upward whip instead of splitting into two binary exhaust branches.
+- Rebuilt the final parallax title-data composite into two passes. Interior cells render first and are clipped with the rasterized `Kisara` alpha mask via `destination-in`; neighboring ring cells render afterward with distance-weighted opacity, preserving controlled pixel erosion beyond the glyph edge.
+- Changed the title-data Canvas from additive `lighter`/screen blending to sampled-color `source-over` compositing, reduced its oversized bounds, lowered it beneath the sharp gloss layer, and softened the external glow so the blocks read as title material rather than a separate transparent overlay.
+- `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind) passed. Exact final-stage visual acceptance remains pending user review in the local preview.
