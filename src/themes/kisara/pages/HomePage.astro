@@ -26,6 +26,11 @@ const findThemeAsset = (baseName: string) => {
 };
 const activeBackgroundUrl = findThemeAsset("gate-background");
 const activeFightUrl = findThemeAsset("fight");
+const fightProtectionMaskUrl = existsSync(
+  resolve("public/themes/kisara/assets/fight-distortion-protect.svg")
+)
+  ? "/themes/kisara/assets/fight-distortion-protect.svg"
+  : null;
 const channelLinks = [
   { index: "01", label: "READ THE LOG", note: "开发与部署记录", href: getThemePath("kisara", "/blog/"), icon: "tabler:book-2" },
   { index: "02", label: "OPEN THE LAB", note: "项目与互动实验", href: getThemePath("kisara", "/projects/"), icon: "tabler:flask-2" },
@@ -51,6 +56,7 @@ const gateStyle = [
         data-kisara-space-lens
         data-base-src={activeBackgroundUrl ?? ""}
         data-fight-src={activeFightUrl ?? ""}
+        data-protection-src={fightProtectionMaskUrl ?? ""}
         width="1280"
         height="900"
       ></canvas>
@@ -2318,6 +2324,7 @@ const gateStyle = [
         if (!spaceLensCanvas || reducedMotion) return null;
         const baseSource = spaceLensCanvas.dataset.baseSrc || spaceLensCanvas.dataset.fightSrc;
         const fightSource = spaceLensCanvas.dataset.fightSrc || spaceLensCanvas.dataset.baseSrc;
+        const protectionSource = spaceLensCanvas.dataset.protectionSrc;
         if (!baseSource || !fightSource) return null;
 
         const gl = spaceLensCanvas.getContext("webgl2", {
@@ -2352,6 +2359,7 @@ const gateStyle = [
 
           uniform sampler2D uBaseTexture;
           uniform sampler2D uFightTexture;
+          uniform sampler2D uProtectionTexture;
           uniform vec2 uResolution;
           uniform vec2 uBaseSize;
           uniform vec2 uFightSize;
@@ -2413,6 +2421,12 @@ const gateStyle = [
             return texture(uFightTexture, fightUv).rgb;
           }
 
+          float sampleProtection(vec2 uv) {
+            vec2 fightUv = coverUv(uv, uFightSize, 1.0);
+            float protection = texture(uProtectionTexture, fightUv).a;
+            return smoothstep(0.04, 0.96, protection);
+          }
+
           void main() {
             float aspect = uResolution.x / max(1.0, uResolution.y);
             vec2 point = vUv - uCenter;
@@ -2435,15 +2449,16 @@ const gateStyle = [
             float reachProgress = smoothstep(core * 1.15, lensReach, radius);
             float radialReach = pow(max(0.0, 1.0 - reachProgress), 1.12);
             float gravityField = outsideCore * radialReach;
+            float sourceProtection = sampleProtection(vUv);
+            float distortionMask = 1.0 - sourceProtection;
             float sideDistance = abs(vUv.x - 0.5);
-            float sideMask = smoothstep(0.166, 0.195, sideDistance);
-            float sideDepth = smoothstep(0.166, 0.5, sideDistance);
+            float sideDepth = smoothstep(0.0, 0.5, sideDistance);
             float sideReach = max(
               radialReach,
               sideDepth * gravityStrength * (0.12 + uCollapse * 0.2 + uCrush * 0.24)
             );
             float distortionField = outsideCore
-              * sideMask
+              * distortionMask
               * sideReach
               * (0.86 + sideDepth * 0.86);
 
@@ -2474,7 +2489,7 @@ const gateStyle = [
               * waveEnvelope
               * uShockStrength
               * (0.009 + waveWidth * 0.065)
-              * sideMask;
+              * distortionMask;
             float fieldBreath = sin(
               (radius - core) / max(lensReach - core, 0.01) * 9.0 - uTime * 0.56
             ) * distortionField * uCollapse * 0.0032;
@@ -2494,11 +2509,11 @@ const gateStyle = [
               * (0.006 + uCollapse * 0.012 + uCrush * 0.018)
               * gravityStrength
               * sideReach
-              * sideMask
+              * distortionMask
               * sign(vUv.x - 0.5);
             float sidePolarity = sign(vUv.x - 0.5);
             float sideTension = gravityStrength
-              * sideMask
+              * distortionMask
               * (0.0045 + uCollapse * 0.015 + uCrush * 0.022)
               * (0.5 + sideDepth * 0.72);
             vec2 sideDisplacement = vec2(
@@ -2509,18 +2524,18 @@ const gateStyle = [
             );
             float sideFold = sin(vUv.y * 8.6 + sideDepth * 4.2 - uTime * 1.05)
               * gravityStrength
-              * sideMask
+              * distortionMask
               * (0.006 + uCollapse * 0.016 + uCrush * 0.021)
               * (0.48 + sideDepth * 0.52);
             float sideTorsion = cos(sideDepth * 8.0 - vUv.y * 3.2 + uTime * 0.72)
               * gravityStrength
-              * sideMask
+              * distortionMask
               * (0.003 + uCollapse * 0.009 + uCrush * 0.012);
             sideDisplacement += vec2(sidePolarity * sideFold, sideTorsion);
             sideDisplacement += vec2(
               -sidePolarity * waveEnvelope * uShockStrength * (0.008 + waveWidth * 0.12),
               cos(vUv.y * 13.0 - uTime * 1.1) * waveEnvelope * uShockStrength * 0.008
-            ) * sideMask;
+            ) * distortionMask;
 
             float edgeFade = smoothstep(0.0, 0.055, vUv.x)
               * smoothstep(0.0, 0.055, vUv.y)
@@ -2530,25 +2545,27 @@ const gateStyle = [
               primaryRadius + waveDisplacement + fieldBreath
             ) + tangent * sideSweep;
             vec2 displacedPoint = mix(point, lensedPoint, edgeFade);
-            vec2 displacedUv = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
-            displacedUv = mix(vUv, displacedUv, sideMask);
-            displacedUv += sideDisplacement * edgeFade;
+            vec2 displacedCandidate = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
+            displacedCandidate += sideDisplacement * edgeFade;
+            float destinationProtection = sampleProtection(displacedCandidate);
+            float finalDistortionMask = distortionMask * (1.0 - destinationProtection * 0.88);
+            vec2 displacedUv = mix(vUv, displacedCandidate, finalDistortionMask);
 
             vec3 color = sampleScene(displacedUv);
             float refractionSheen = sin(vUv.y * 15.0 + sideDepth * 5.2 - uTime * 1.28)
-              * sideMask
+              * finalDistortionMask
               * gravityStrength
               * (0.012 + uCollapse * 0.022 + uCrush * 0.026);
             color *= 1.0
-              + caustic * 0.065
-              + waveEnvelope * uShockStrength * sideMask * 0.028
+              + caustic * finalDistortionMask * 0.065
+              + waveEnvelope * uShockStrength * finalDistortionMask * 0.028
               + refractionSheen;
 
             float horizon = 1.0 - smoothstep(core * 0.98, core * 1.04, radius);
-            color = mix(color, vec3(0.0), horizon * sideMask);
+            color = mix(color, vec3(0.0), horizon * finalDistortionMask);
             float lensAlpha = max(
               clamp(uOpacity, 0.0, 1.0),
-              horizon * sideMask * smoothstep(0.05, 0.15, gravityStrength)
+              horizon * finalDistortionMask * smoothstep(0.05, 0.15, gravityStrength)
             );
 
             vec2 pixel = vUv * uResolution;
@@ -2679,13 +2696,44 @@ const gateStyle = [
           image.src = source;
         });
 
-        const [baseTexture, fightTexture] = await Promise.all([
+        const createTransparentTexture = () => {
+          const texture = gl.createTexture();
+          if (!texture) return null;
+          gl.bindTexture(gl.TEXTURE_2D, texture);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            1,
+            1,
+            0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            new Uint8Array([0, 0, 0, 0])
+          );
+          return { texture, width: 1, height: 1 };
+        };
+
+        const [baseTexture, fightTexture, loadedProtectionTexture] = await Promise.all([
           loadTexture(baseSource),
-          loadTexture(fightSource)
+          loadTexture(fightSource),
+          protectionSource ? loadTexture(protectionSource) : Promise.resolve(null)
         ]);
         if (!baseTexture || !fightTexture) {
           if (baseTexture?.texture) gl.deleteTexture(baseTexture.texture);
           if (fightTexture?.texture) gl.deleteTexture(fightTexture.texture);
+          if (loadedProtectionTexture?.texture) gl.deleteTexture(loadedProtectionTexture.texture);
+          gl.deleteProgram(program);
+          return null;
+        }
+        const protectionTexture = loadedProtectionTexture ?? createTransparentTexture();
+        if (!protectionTexture) {
+          gl.deleteTexture(baseTexture.texture);
+          gl.deleteTexture(fightTexture.texture);
           gl.deleteProgram(program);
           return null;
         }
@@ -2693,6 +2741,7 @@ const gateStyle = [
         const uniforms = {
           baseTexture: gl.getUniformLocation(program, "uBaseTexture"),
           fightTexture: gl.getUniformLocation(program, "uFightTexture"),
+          protectionTexture: gl.getUniformLocation(program, "uProtectionTexture"),
           resolution: gl.getUniformLocation(program, "uResolution"),
           baseSize: gl.getUniformLocation(program, "uBaseSize"),
           fightSize: gl.getUniformLocation(program, "uFightSize"),
@@ -2759,6 +2808,9 @@ const gateStyle = [
           gl.activeTexture(gl.TEXTURE1);
           gl.bindTexture(gl.TEXTURE_2D, fightTexture.texture);
           gl.uniform1i(uniforms.fightTexture, 1);
+          gl.activeTexture(gl.TEXTURE2);
+          gl.bindTexture(gl.TEXTURE_2D, protectionTexture.texture);
+          gl.uniform1i(uniforms.protectionTexture, 2);
           gl.uniform2f(uniforms.resolution, cssWidth, cssHeight);
           gl.uniform2f(uniforms.baseSize, baseTexture.width, baseTexture.height);
           gl.uniform2f(uniforms.fightSize, fightTexture.width, fightTexture.height);
@@ -2784,6 +2836,7 @@ const gateStyle = [
         const destroy = () => {
           gl.deleteTexture(baseTexture.texture);
           gl.deleteTexture(fightTexture.texture);
+          gl.deleteTexture(protectionTexture.texture);
           gl.deleteVertexArray(vertexArray);
           gl.deleteProgram(program);
           clear();
