@@ -459,13 +459,6 @@ const gateStyle = [
         path.closePath();
         return path;
       };
-      const pointOnQuadraticCurve = (start, control, end, progress) => {
-        const inverse = 1 - progress;
-        return {
-          x: inverse * inverse * start.x + 2 * inverse * progress * control.x + progress * progress * end.x,
-          y: inverse * inverse * start.y + 2 * inverse * progress * control.y + progress * progress * end.y
-        };
-      };
       const pointOnCubicCurve = (start, controlA, controlB, end, progress) => {
         const inverse = 1 - progress;
         const inverseSquared = inverse * inverse;
@@ -492,20 +485,33 @@ const gateStyle = [
             + 3 * progress * progress * (end.y - controlB.y)
         };
       };
-      const velocityPreservingEase = (value, startSlope, endSlope) => {
+      const smootherstep = (value) => {
         const progress = clamp(value, 0, 1);
         const progressSquared = progress * progress;
         const progressCubed = progressSquared * progress;
-        return clamp(
-          (-2 * progressCubed + 3 * progressSquared)
-            + (progressCubed - 2 * progressSquared + progress) * startSlope
-            + (progressCubed - progressSquared) * endSlope,
-          0,
-          1
-        );
+        return progressCubed * (progress * (progress * 6 - 15) + 10);
+      };
+      const pointOnQuinticCurve = (start, controlA, controlB, controlC, controlD, end, progress) => {
+        const inverse = 1 - progress;
+        const inverseSquared = inverse * inverse;
+        const progressSquared = progress * progress;
+        return {
+          x: inverseSquared * inverseSquared * inverse * start.x
+            + 5 * inverseSquared * inverseSquared * progress * controlA.x
+            + 10 * inverseSquared * inverse * progressSquared * controlB.x
+            + 10 * inverseSquared * progressSquared * progress * controlC.x
+            + 5 * inverse * progressSquared * progressSquared * controlD.x
+            + progressSquared * progressSquared * progress * end.x,
+          y: inverseSquared * inverseSquared * inverse * start.y
+            + 5 * inverseSquared * inverseSquared * progress * controlA.y
+            + 10 * inverseSquared * inverse * progressSquared * controlB.y
+            + 10 * inverseSquared * progressSquared * progress * controlC.y
+            + 5 * inverse * progressSquared * progressSquared * controlD.y
+            + progressSquared * progressSquared * progress * end.y
+        };
       };
       const getChargeFlightGeometry = (introProgress, width, height) => {
-        const flight = phaseProgress(introProgress, 0.018, 0.78);
+        const flight = smootherstep((introProgress - 0.006) / 0.794);
         const impact = phaseProgress(introProgress, 0.72, 0.88);
         const enchant = phaseProgress(introProgress, 0.75, 1);
         const baseY = meterLayout.top + meterLayout.height * 0.5;
@@ -525,47 +531,127 @@ const gateStyle = [
           x: clamp(baseHead.x + Math.min(width * 0.145, 176), baseHead.x + 28, width - 24),
           y: clamp(baseY + Math.min(height * 0.17, 138), baseY + 42, height - 64)
         };
-        const turnHandle = Math.min(height * 0.07, 56);
-        const turnExitHandle = turnHandle * 0.783;
+        const flightControlA = {
+          x: baseHead.x + Math.min(width * 0.11, 140),
+          y: baseY + Math.min(height * 0.035, 26)
+        };
+        const flightControlB = {
+          x: turnPoint.x + Math.min(width * 0.035, 40),
+          y: turnPoint.y - Math.min(height * 0.035, 26)
+        };
+        const flightControlC = {
+          x: turnPoint.x + Math.min(width * 0.025, 30),
+          y: turnPoint.y + Math.min(height * 0.065, 48)
+        };
+        const flightControlD = {
+          x: target.x + Math.min(width * 0.21, 240),
+          y: turnPoint.y + Math.min(height * 0.025, 20)
+        };
         const tailLag = 0.46;
-        const pointOnFlightPath = (pathProgress) => {
-          if (pathProgress <= 0) {
-            const gather = smoothstep(clamp((pathProgress + tailLag) / tailLag, 0, 1));
-            return {
-              x: initialTail.x + (baseHead.x - initialTail.x) * gather,
-              y: initialTail.y + (baseHead.y - initialTail.y) * gather
-            };
-          }
-          if (pathProgress < 0.46) {
-            const launch = velocityPreservingEase(pathProgress / 0.46, 0.68, 0.82);
-            return pointOnQuadraticCurve(
-              baseHead,
-              {
-                x: turnPoint.x,
-                y: turnPoint.y - turnHandle
-              },
-              turnPoint,
-              launch
+        const mainPathControls = [
+          baseHead,
+          flightControlA,
+          flightControlB,
+          flightControlC,
+          flightControlD,
+          target
+        ];
+        const mainPathSamples = [];
+        const mainPathSampleCount = 96;
+        let mainPathLength = 0;
+        let previousMainPathPoint = baseHead;
+        for (let index = 0; index <= mainPathSampleCount; index += 1) {
+          const parameter = index / mainPathSampleCount;
+          const point = pointOnQuinticCurve(...mainPathControls, parameter);
+          if (index > 0) {
+            mainPathLength += Math.hypot(
+              point.x - previousMainPathPoint.x,
+              point.y - previousMainPathPoint.y
             );
           }
-          const returnProgress = velocityPreservingEase(
-            (pathProgress - 0.46) / 0.54,
-            0.82,
-            0.14
-          );
-          return pointOnCubicCurve(
-            turnPoint,
-            {
-              x: turnPoint.x,
-              y: turnPoint.y + turnExitHandle
-            },
-            {
-              x: target.x + Math.min(width * 0.2, 230),
-              y: turnPoint.y + Math.min(height * 0.035, 30)
-            },
-            target,
-            returnProgress
-          );
+          mainPathSamples.push({ parameter, distance: mainPathLength });
+          previousMainPathPoint = point;
+        }
+        const mainPathParameterAt = (distanceProgress) => {
+          const targetDistance = clamp(distanceProgress, 0, 1) * mainPathLength;
+          let sampleIndex = 1;
+          while (
+            sampleIndex < mainPathSamples.length - 1
+            && mainPathSamples[sampleIndex].distance < targetDistance
+          ) {
+            sampleIndex += 1;
+          }
+          const before = mainPathSamples[sampleIndex - 1];
+          const after = mainPathSamples[sampleIndex];
+          const segmentLength = Math.max(0.0001, after.distance - before.distance);
+          const segmentProgress = (targetDistance - before.distance) / segmentLength;
+          return before.parameter + (after.parameter - before.parameter) * segmentProgress;
+        };
+        const pointOnMainFlightPath = (distanceProgress) => pointOnQuinticCurve(
+          ...mainPathControls,
+          mainPathParameterAt(distanceProgress)
+        );
+        const derivativeSample = 0.003;
+        const flightStartPointA = pointOnMainFlightPath(derivativeSample);
+        const flightStartPointB = pointOnMainFlightPath(derivativeSample * 2);
+        const flightStartTangent = {
+          x: (-3 * baseHead.x + 4 * flightStartPointA.x - flightStartPointB.x)
+            / (2 * derivativeSample),
+          y: (-3 * baseHead.y + 4 * flightStartPointA.y - flightStartPointB.y)
+            / (2 * derivativeSample)
+        };
+        const flightStartAcceleration = {
+          x: (baseHead.x - 2 * flightStartPointA.x + flightStartPointB.x)
+            / (derivativeSample * derivativeSample),
+          y: (baseHead.y - 2 * flightStartPointA.y + flightStartPointB.y)
+            / (derivativeSample * derivativeSample)
+        };
+        const gatherDistance = {
+          x: baseHead.x - initialTail.x,
+          y: baseHead.y - initialTail.y
+        };
+        const gatherStartTangent = {
+          x: gatherDistance.x * 0.62,
+          y: gatherDistance.y * 0.62
+        };
+        const gatherEndTangent = {
+          x: flightStartTangent.x * tailLag,
+          y: flightStartTangent.y * tailLag
+        };
+        const gatherEndAcceleration = {
+          x: flightStartAcceleration.x * tailLag * tailLag,
+          y: flightStartAcceleration.y * tailLag * tailLag
+        };
+        const gatherControlA = {
+          x: initialTail.x + gatherStartTangent.x / 5,
+          y: initialTail.y + gatherStartTangent.y / 5
+        };
+        const gatherControlB = {
+          x: gatherControlA.x * 2 - initialTail.x,
+          y: gatherControlA.y * 2 - initialTail.y
+        };
+        const gatherControlD = {
+          x: baseHead.x - gatherEndTangent.x / 5,
+          y: baseHead.y - gatherEndTangent.y / 5
+        };
+        const gatherControlC = {
+          x: gatherEndAcceleration.x / 20 - baseHead.x + gatherControlD.x * 2,
+          y: gatherEndAcceleration.y / 20 - baseHead.y + gatherControlD.y * 2
+        };
+        const pointOnFlightPath = (pathProgress) => {
+          if (pathProgress <= 0) {
+            const gather = clamp((pathProgress + tailLag) / tailLag, 0, 1);
+            return pointOnQuinticCurve(
+              initialTail,
+              gatherControlA,
+              gatherControlB,
+              gatherControlC,
+              gatherControlD,
+              baseHead,
+              gather
+            );
+          }
+          return pointOnMainFlightPath(pathProgress);
         };
         const tangentOnFlightPath = (pathProgress) => {
           const sampleDistance = 0.004;
