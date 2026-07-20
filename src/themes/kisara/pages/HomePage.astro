@@ -396,12 +396,16 @@ const gateStyle = [
       const smoothstep = (value) => value * value * (3 - 2 * value);
       const phaseProgress = (value, start, end) => smoothstep(clamp((value - start) / (end - start), 0, 1));
       const releaseAutoplayKeyframes = [
-        [0, crossEnd],
-        [0.14, collapseStart],
-        [0.45, collapseEnd],
-        [0.56, shockwaveStart],
-        [0.7, detonationStart],
-        [0.88, detonationEnd],
+        [0, glossFadeEnd],
+        [0.045, crossStart],
+        [0.12, crossBuildEnd],
+        [0.22, crossFlashEnd],
+        [0.31, crossEnd],
+        [0.47, collapseStart],
+        [0.67, collapseEnd],
+        [0.75, shockwaveStart],
+        [0.84, detonationStart],
+        [0.94, detonationEnd],
         [1, 1]
       ];
       const mapReleaseAutoplayProgress = (value) => {
@@ -411,9 +415,9 @@ const gateStyle = [
           const [timeEnd, progressEnd] = releaseAutoplayKeyframes[index + 1];
           if (timeline > timeEnd && index < releaseAutoplayKeyframes.length - 2) continue;
           const local = clamp((timeline - timeStart) / Math.max(0.0001, timeEnd - timeStart), 0, 1);
-          const eased = index === 4
+          const eased = index === 8
             ? 1 - Math.pow(1 - local, 2.45)
-            : index === 2
+            : index === 6
               ? Math.pow(smoothstep(local), 1.35)
               : smoothstep(local);
           return progressStart + (progressEnd - progressStart) * eased;
@@ -6373,7 +6377,7 @@ const gateStyle = [
         burstAutoplay = true;
         burstAutoplayStartedAt = timestamp;
         targetBurstProgress = 1;
-        burstProgress = Math.max(crossEnd, burstProgress);
+        burstProgress = clamp(burstProgress, glossFadeEnd, crossStart);
         burstVelocity = 0;
       };
 
@@ -6415,8 +6419,10 @@ const gateStyle = [
           burstProgress = clamp(burstProgress + burstVelocity * frameRatio, 0, 1);
           if (
             !burstAutoplayComplete
-            && targetBurstProgress >= crossEnd - 0.0005
-            && burstProgress >= crossEnd - 0.0007
+            && chargeIntroComplete
+            && targetProgress >= 0.9995
+            && progress >= 0.999
+            && burstProgress >= glossFadeEnd - 0.0007
           ) {
             startReleaseAutoplay(timestamp);
           }
