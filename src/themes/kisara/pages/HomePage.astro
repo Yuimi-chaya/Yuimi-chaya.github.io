@@ -73,6 +73,8 @@ const gateStyle = [
     <div class="kisara-screen-impact" aria-hidden="true">
       <span class="kisara-warning-monochrome"></span>
       <span class="kisara-warning-focus"></span>
+      <span class="kisara-warning-exposure"></span>
+      <span class="kisara-warning-shockwave"></span>
       <i class="kisara-title-cross">
         <span class="kisara-cross-ring"></span>
         <span class="kisara-cross-ray kisara-cross-ray-north"></span>
@@ -5885,6 +5887,49 @@ const gateStyle = [
           0,
           1.24
         ) * warningTail;
+        const warningExposureRise = phaseProgress(
+          burst,
+          crossBuildEnd - 0.018,
+          crossFlashEnd - 0.034
+        );
+        const warningExposureFall = 1 - phaseProgress(
+          burst,
+          crossFlashEnd + 0.006,
+          crossEnd - 0.012
+        );
+        const warningExposure = clamp(
+          warningExposureRise
+            * warningExposureFall
+            * (0.68 + crossStrobe * 0.42),
+          0,
+          1.18
+        ) * warningTail;
+        const warningCoreExposure = clamp(
+          crossBuild * 0.18
+            + crossFlash * 0.62
+            + releaseFlash * 1.06
+            + crossCollapse * 0.28,
+          0,
+          1.28
+        ) * warningTail;
+        const warningWaveProgress = phaseProgress(
+          burst,
+          crossBuildEnd + 0.008,
+          crossEnd - 0.006
+        );
+        const warningWavePulse = Math.pow(
+          Math.sin(warningWaveProgress * Math.PI),
+          0.62
+        );
+        const warningWaveOpacity = clamp(
+          warningWavePulse * (0.58 + crossStrobe * 0.34),
+          0,
+          0.92
+        ) * warningTail;
+        const warningWaveSize = Math.max(
+          84,
+          reconstructionFarthest * 2.08 * (0.08 + warningWaveProgress * 0.92)
+        );
         const warningAperture = clamp(
           36
             - crossBuild * 10
@@ -6007,6 +6052,14 @@ const gateStyle = [
         gate.style.setProperty("--kisara-warning-monochrome", warningMonochrome.toFixed(3));
         gate.style.setProperty("--kisara-warning-focus", warningFocus.toFixed(3));
         gate.style.setProperty("--kisara-warning-pulse", warningPulse.toFixed(3));
+        gate.style.setProperty("--kisara-warning-exposure", warningExposure.toFixed(3));
+        gate.style.setProperty("--kisara-warning-core-exposure", warningCoreExposure.toFixed(3));
+        gate.style.setProperty("--kisara-warning-wave-opacity", warningWaveOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-warning-wave-size", `${warningWaveSize.toFixed(3)}px`);
+        gate.style.setProperty(
+          "--kisara-warning-wave-width",
+          `${(1.15 + warningWavePulse * 2.35).toFixed(3)}px`
+        );
         gate.style.setProperty("--kisara-warning-aperture", `${warningAperture.toFixed(2)}%`);
         gate.style.setProperty("--kisara-warning-saturation", (1 - warningMonochrome * 0.98).toFixed(3));
         gate.style.setProperty("--kisara-warning-contrast", (1 + warningMonochrome * 0.58 + warningPulse * 0.14).toFixed(3));
