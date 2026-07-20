@@ -2092,9 +2092,8 @@ const gateStyle = [
         titleDataCanvas.style.opacity = liquidOpacity.toFixed(3);
       };
 
-      const drawPostReleaseTitleLens = (timestamp, intro) => {
+      const drawPostReleaseTitleLens = (timestamp) => {
         if (!titleLensCanvas) return;
-        const lensIntro = smoothstep(clamp(intro, 0, 1));
         const direction = postReleaseDirection > 0 ? -1 : 1;
         const parallax = postReleaseMaxX > 0
           ? clamp(postReleaseX / postReleaseMaxX, -1, 1)
@@ -2102,7 +2101,7 @@ const gateStyle = [
         drawTitleLens(timestamp, {
           centerX: titleLensCanvas.clientWidth * 0.5,
           centerY: titleLensCanvas.clientHeight * 0.5,
-          opacity: lensIntro,
+          opacity: 1,
           strength: 0,
           gravity: 0,
           collapse: 0,
@@ -2114,8 +2113,8 @@ const gateStyle = [
           lensRadius: 1,
           release: 0,
           dissolve: 0,
-          sourceOpacity: 1 - lensIntro,
-          finalFlow: lensIntro,
+          sourceOpacity: 0,
+          finalFlow: 1,
           liquidPhase: postReleaseDataPhase,
           liquidPressure: clamp(
             0.2 + postReleaseDataPressure * 0.92 + postReleaseFlowWhip * 0.24,
@@ -2167,7 +2166,7 @@ const gateStyle = [
         gate.style.setProperty("--kisara-post-parallax-y", `${postReleaseY.toFixed(3)}px`);
         gate.style.setProperty("--kisara-post-release-opacity", intro.toFixed(3));
         updatePostReleaseDataStream(timestamp, frameSeconds, intro);
-        drawPostReleaseTitleLens(timestamp, intro);
+        drawPostReleaseTitleLens(timestamp);
         clearPostReleaseCanvas();
         drawPostReleaseHighlights(postReleaseContext, timestamp, intro);
         updatePostReleaseParticles(
@@ -2249,6 +2248,7 @@ const gateStyle = [
         postReleaseDataOpacity = 0;
         postReleaseDataPressure = 0;
         postReleaseStartedAt = performance.now();
+        if (titleLensRenderer) gate.style.setProperty("--kisara-title-source-opacity", "0");
         startPostReleaseAnimation();
       };
 
@@ -5756,6 +5756,11 @@ const gateStyle = [
         const lensRadius = gateShortSide
           * (0.36 + gravityPressure * 0.24 + collapseDepth * 0.14)
           / gateHeight;
+        const reconstructionLinear = clamp(
+          (burst - detonationEnd) / Math.max(0.0001, 1 - detonationEnd),
+          0,
+          1
+        );
         const titleRupture = phaseProgress(burst, shockwaveStart + 0.004, detonationEnd);
         const titleDissolve = phaseProgress(burst, detonationStart + 0.006, rainPeak);
         const titleRestore = phaseProgress(burst, rainPeak - 0.002, 1);
@@ -5770,11 +5775,22 @@ const gateStyle = [
           1
         );
         const titleLensIngress = smoothstep(clamp((titleWarp - 0.025) / 0.56, 0, 1));
+        const titleLiquidHandoff = titleLensRenderer
+          ? phaseProgress(reconstructionLinear, 0.42, 1)
+          : 0;
+        const titleLegacyLensOpacity = titleLensIngress
+          * (1 - phaseProgress(burst, 0.997, 1));
         const titleLensOpacity = titleLensRenderer
-          ? titleLensIngress * (1 - phaseProgress(burst, 0.997, 1))
+          ? Math.max(
+              titleLegacyLensOpacity * (1 - titleLiquidHandoff),
+              titleLiquidHandoff
+            )
           : 0;
         const titleSourceOpacity = titleLensRenderer
-          ? Math.max(1 - titleLensIngress, titleRestore)
+          ? Math.min(
+              Math.max(1 - titleLensIngress, titleRestore),
+              1 - titleLiquidHandoff
+            )
           : 1;
         const titleLensStrengthScale = gate.clientWidth < 640
           ? 0.58
@@ -5790,11 +5806,6 @@ const gateStyle = [
         const titleBlur = titleSourceOpacity > 0.001
           ? performanceBlur * 0.34 + chargeTitleBlur * (1 - titleRestore)
           : performanceBlur * 0.28;
-        const reconstructionLinear = clamp(
-          (burst - detonationEnd) / Math.max(0.0001, 1 - detonationEnd),
-          0,
-          1
-        );
         const reconstructionOpacity = phaseProgress(reconstructionLinear, 0.015, 0.16)
           * (1 - phaseProgress(reconstructionLinear, 0.88, 1))
           * 0.92;
@@ -6026,22 +6037,29 @@ const gateStyle = [
           time: timestamp / 1000
         });
         if (!postReleaseActive) {
+          const titleLegacyWeight = 1 - titleLiquidHandoff;
           drawTitleLens(timestamp, {
             centerX: titleLensCenterX,
             centerY: titleLensCenterY,
             opacity: titleLensOpacity,
-            strength: titleWarp * titleLensStrengthScale,
-            gravity: lensGravity * (0.72 + titleLensStrengthScale * 0.28),
-            collapse: collapseDepth,
-            crush: crushCompression,
-            shockStrength: lensShockStrength * titleLensStrengthScale,
+            strength: titleWarp * titleLensStrengthScale * titleLegacyWeight,
+            gravity: lensGravity * (0.72 + titleLensStrengthScale * 0.28) * titleLegacyWeight,
+            collapse: collapseDepth * titleLegacyWeight,
+            crush: crushCompression * titleLegacyWeight,
+            shockStrength: lensShockStrength * titleLensStrengthScale * titleLegacyWeight,
             shockRadius: lensShockRadiusPixels,
             shockWidth: Math.max(12, lensShockWidthPixels * 0.72),
             coreRadius: lensCoreRadius,
             lensRadius: gateShortSide * (0.42 + gravityPressure * 0.2 + collapseDepth * 0.12),
-            release: titleRupture,
-            dissolve: titleDissolve,
+            release: titleRupture * titleLegacyWeight,
+            dissolve: titleDissolve * titleLegacyWeight,
             sourceOpacity: titleSourceOpacity,
+            finalFlow: titleLiquidHandoff,
+            liquidPhase: postReleaseDataPhase,
+            liquidPressure: 0.2 + titleLiquidHandoff * 0.08,
+            flowDirection: -1,
+            flowFront: 0.5,
+            parallax: 0,
             time: timestamp / 1000
           });
         }
