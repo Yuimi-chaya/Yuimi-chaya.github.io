@@ -74,9 +74,12 @@ const gateStyle = [
       <span class="kisara-warning-monochrome"></span>
       <span class="kisara-warning-focus"></span>
       <span class="kisara-warning-exposure"></span>
-      <span class="kisara-warning-shockwave"></span>
+      <span class="kisara-warning-shockwave">
+        <i class="kisara-warning-wave-arc kisara-warning-wave-arc-a"></i>
+        <i class="kisara-warning-wave-arc kisara-warning-wave-arc-b"></i>
+        <i class="kisara-warning-wave-arc kisara-warning-wave-arc-c"></i>
+      </span>
       <i class="kisara-title-cross">
-        <span class="kisara-cross-ring"></span>
         <span class="kisara-cross-ray kisara-cross-ray-north"></span>
         <span class="kisara-cross-ray kisara-cross-ray-east"></span>
         <span class="kisara-cross-ray kisara-cross-ray-south"></span>
@@ -5042,46 +5045,47 @@ const gateStyle = [
         };
 
         if (!reducedMotion && shockwaveLinear > 0.001 && shockwaveLinear < 0.9995) {
-          const waveRadius = coreRadius * 1.1 + shockwave * maxRadius * 1.08;
-          const waveBand = 28 + (1 - shockwave) * 74;
-          const waveOuter = Math.max(1, waveRadius + waveBand);
-          const innerStop = clamp((waveRadius - waveBand) / waveOuter, 0, 0.96);
-          const brightInnerStop = clamp((waveRadius - waveBand * 0.2) / waveOuter, innerStop, 0.985);
-          const brightOuterStop = clamp((waveRadius + waveBand * 0.18) / waveOuter, brightInnerStop, 0.995);
-          const waveGradient = context.createRadialGradient(originX, originY, 0, originX, originY, waveOuter);
-          waveGradient.addColorStop(0, "rgba(3,2,12,0)");
-          waveGradient.addColorStop(innerStop, "rgba(7,4,18,0)");
-          waveGradient.addColorStop(brightInnerStop, "rgba(255,92,143,0.12)");
-          waveGradient.addColorStop(brightOuterStop, "rgba(255,248,251,0.32)");
-          waveGradient.addColorStop(1, "rgba(144,181,255,0)");
           context.save();
           context.globalCompositeOperation = "lighter";
-          context.globalAlpha = Math.pow(Math.sin(shockwaveLinear * Math.PI), 0.82) * 0.92;
-          context.fillStyle = waveGradient;
-          context.fillRect(0, 0, width, height);
           context.lineCap = "round";
+          const fragmentPulse = Math.pow(Math.sin(shockwaveLinear * Math.PI), 0.78);
           for (let ring = 0; ring < 2; ring += 1) {
             const delayed = clamp((shockwaveLinear - ring * 0.09) / (1 - ring * 0.09), 0, 1);
             if (delayed <= 0.001) continue;
             const ringEase = 1 - Math.pow(1 - delayed, 3.4);
             const ringRadius = coreRadius * 1.2 + ringEase * maxRadius * (1.02 + ring * 0.08);
             const ringFade = Math.pow(Math.sin(delayed * Math.PI), 0.9);
-            context.globalAlpha = ringFade * (0.34 - ring * 0.1);
-            context.strokeStyle = ring === 0 ? "rgba(255,245,249,0.96)" : "rgba(174,203,255,0.82)";
-            context.lineWidth = 1 + (1 - delayed) * (6.4 - ring * 1.8);
-            context.shadowColor = ring === 0 ? "rgba(255,73,130,0.86)" : "rgba(137,179,255,0.72)";
-            context.shadowBlur = (8 + (1 - delayed) * 22) * shadowQuality;
-            context.beginPath();
-            context.ellipse(
-              originX,
-              originY,
-              ringRadius,
-              ringRadius * (0.72 + ring * 0.06),
-              blackHoleAngle,
-              0,
-              Math.PI * 2
-            );
-            context.stroke();
+            const fragmentCount = ring === 0 ? 4 : 3;
+            for (let fragment = 0; fragment < fragmentCount; fragment += 1) {
+              const seed = randomSeed(8401 + ring * 37 + fragment * 11);
+              const startAngle = fragment / fragmentCount * Math.PI * 2
+                + (seed - 0.5) * 0.42
+                + delayed * (ring === 0 ? 0.16 : -0.12);
+              const span = 0.24 + seed * 0.34;
+              context.globalAlpha = fragmentPulse
+                * ringFade
+                * (0.16 - ring * 0.035)
+                * (0.76 + seed * 0.3);
+              context.strokeStyle = fragment % 3 === 0
+                ? "rgba(255,248,251,0.9)"
+                : ring === 0
+                  ? "rgba(255,126,164,0.64)"
+                  : "rgba(171,201,255,0.58)";
+              context.lineWidth = 0.75 + (1 - delayed) * (1.9 - ring * 0.35) + seed * 0.55;
+              context.shadowColor = ring === 0 ? "rgba(255,73,130,0.64)" : "rgba(137,179,255,0.54)";
+              context.shadowBlur = (4 + (1 - delayed) * 8) * shadowQuality;
+              context.beginPath();
+              context.ellipse(
+                originX,
+                originY,
+                ringRadius,
+                ringRadius * (0.72 + ring * 0.06),
+                blackHoleAngle,
+                startAngle,
+                startAngle + span
+              );
+              context.stroke();
+            }
           }
           context.restore();
         }
@@ -5177,20 +5181,41 @@ const gateStyle = [
             context.restore();
           }
 
+          context.lineCap = "round";
           for (let ring = 0; ring < 3; ring += 1) {
             const delayed = clamp((detonationLinear - ring * 0.14) / (1 - ring * 0.14), 0, 1);
             if (delayed <= 0) continue;
             const ringEase = 1 - Math.pow(1 - delayed, 3);
             const ringRadius = ringEase * maxRadius * (0.62 + ring * 0.12);
             const ringAlpha = Math.pow(Math.sin(delayed * Math.PI), 1.42) * (0.3 - ring * 0.054);
-            context.globalAlpha = ringAlpha;
-            context.strokeStyle = ring % 2 === 0 ? "#ffd2dc" : "#c9dcff";
-            context.lineWidth = 0.8 + (1 - delayed) * (5.2 - ring * 0.68);
-            context.shadowColor = ring % 2 === 0 ? "rgba(255,92,139,0.84)" : "rgba(157,192,255,0.7)";
-            context.shadowBlur = (6 + (1 - delayed) * 14) * shadowQuality;
-            context.beginPath();
-            context.ellipse(originX, originY, ringRadius, ringRadius * (0.54 + ring * 0.045), blackHoleAngle, 0, Math.PI * 2);
-            context.stroke();
+            const fragmentCount = ring === 0 ? 4 : 3;
+            for (let fragment = 0; fragment < fragmentCount; fragment += 1) {
+              const seed = randomSeed(11603 + ring * 31 + fragment * 13);
+              const startAngle = fragment / fragmentCount * Math.PI * 2
+                + (seed - 0.5) * 0.52
+                + delayed * (ring % 2 === 0 ? 0.2 : -0.16);
+              const span = 0.2 + seed * 0.3;
+              context.globalAlpha = ringAlpha * (0.46 + seed * 0.34);
+              context.strokeStyle = fragment % 3 === 0
+                ? "rgba(255,244,249,0.82)"
+                : ring % 2 === 0
+                  ? "rgba(255,119,157,0.58)"
+                  : "rgba(177,204,255,0.54)";
+              context.lineWidth = 0.65 + (1 - delayed) * (1.8 - ring * 0.18) + seed * 0.38;
+              context.shadowColor = ring % 2 === 0 ? "rgba(255,92,139,0.62)" : "rgba(157,192,255,0.52)";
+              context.shadowBlur = (4 + (1 - delayed) * 7) * shadowQuality;
+              context.beginPath();
+              context.ellipse(
+                originX,
+                originY,
+                ringRadius,
+                ringRadius * (0.54 + ring * 0.045),
+                blackHoleAngle,
+                startAngle,
+                startAngle + span
+              );
+              context.stroke();
+            }
           }
 
           const rushStrength = Math.pow(Math.sin(clamp(detonationLinear / 0.84, 0, 1) * Math.PI), 1.15);
@@ -5838,7 +5863,12 @@ const gateStyle = [
           motionPhases.crossPulse + Math.sin(motionPhases.crossPulseMod)
         );
         const crossStrobe = clamp(crossFlash * (0.42 + crossPulse * 0.64) + releaseFlash * 1.18, 0, 1.35);
-        const crossRayProgress = clamp(crossBuild * (1 - crossCollapse), 0, 1);
+        const crossWaveExit = 1 - smoothstep(clamp(
+          (burst - (crossFlashEnd - 0.045)) / ((crossEnd - 0.05) - (crossFlashEnd - 0.045)),
+          0,
+          1
+        ));
+        const crossRayProgress = clamp(crossBuild * (1 - crossCollapse) * crossWaveExit, 0, 1);
         const crossRayBreath = 0.72 + crossBuild * 0.28 + crossStrobe * 0.22;
         const crossRingProgress = crossReleaseLinear;
         const crossRingOpacity = clamp(releaseFlash * (0.68 + crossPulse * 0.32), 0, 1);
@@ -5847,13 +5877,18 @@ const gateStyle = [
         const crossSparkProgress = clamp(crossFlash * (1 - crossReleaseLinear) + releaseFlash * 0.26, 0, 1);
         const crossSparkOpacity = clamp(Math.sin(crossFlashLinear * Math.PI) * 0.82 * (1 - crossReleaseLinear) + releaseFlash * 0.34, 0, 1);
         const crossSparkDistance = crossSparkProgress * Math.min(168, gate.clientWidth * 0.14);
-        const crossCoreOpacity = clamp(crossBuild * 0.52 + crossFlash * 0.2 + releaseFlash * 0.98, 0, 1);
+        const crossCoreOpacity = clamp(
+          (crossBuild * 0.52 + crossFlash * 0.2 + releaseFlash * 0.98)
+            * (0.22 + crossWaveExit * 0.78),
+          0,
+          1
+        );
         const crossCoreScale = 0.16 + crossBuild * 0.46 + crossFlash * 0.14 + releaseFlash * 0.76 + crossCollapse * 0.12;
         const crossOpacity = clamp(
           crossBuild * (1 - crossReleaseLinear) * (0.68 + crossPulse * 0.24) + releaseFlash * 0.86,
           0,
           1
-        );
+        ) * crossWaveExit;
         const crossScale = 0.68 + crossBuild * 0.22 + crossFlash * 0.08 - crossCollapse * 0.14 + releaseFlash * 0.12;
         // Keep the spin on one clock so the eased release keyframes cannot pause it at phase boundaries.
         const crossAutoplayTimeline = burstAutoplay && burstAutoplayStartedAt > 0
@@ -5900,28 +5935,28 @@ const gateStyle = [
         ) * warningTail;
         const warningExposureRise = phaseProgress(
           burst,
-          crossBuildEnd - 0.018,
-          crossFlashEnd - 0.034
+          crossBuildEnd - 0.04,
+          crossFlashEnd - 0.055
         );
         const warningExposureFall = 1 - phaseProgress(
           burst,
-          crossFlashEnd + 0.006,
-          crossEnd - 0.012
+          crossFlashEnd + 0.012,
+          crossEnd - 0.004
         );
         const warningExposure = clamp(
           warningExposureRise
             * warningExposureFall
-            * (0.68 + crossStrobe * 0.42),
+            * (0.46 + crossStrobe * 0.28),
           0,
-          1.18
+          0.52
         ) * warningTail;
         const warningCoreExposure = clamp(
-          crossBuild * 0.18
-            + crossFlash * 0.62
-            + releaseFlash * 1.06
-            + crossCollapse * 0.28,
+          crossBuild * 0.34
+            + crossFlash * 1.02
+            + releaseFlash * 1.56
+            + crossCollapse * 0.5,
           0,
-          1.28
+          1.9
         ) * warningTail;
         const warningWaveProgress = phaseProgress(
           burst,
@@ -5933,14 +5968,20 @@ const gateStyle = [
           0.62
         );
         const warningWaveOpacity = clamp(
-          warningWavePulse * (0.58 + crossStrobe * 0.34),
+          warningWavePulse * (0.62 + crossStrobe * 0.34),
           0,
-          0.92
+          0.88
         ) * warningTail;
         const warningWaveSize = Math.max(
-          84,
-          reconstructionFarthest * 2.08 * (0.08 + warningWaveProgress * 0.92)
+          96,
+          reconstructionFarthest * 1.42 * (0.1 + warningWaveProgress * 0.9)
         );
+        const warningWaveBand = 3.2 - warningWaveProgress * 1.4;
+        const warningWaveInner = 50 - warningWaveBand;
+        const warningWaveHotInner = 50 - warningWaveBand * 0.28;
+        const warningWaveHotOuter = 50 + warningWaveBand * 0.28;
+        const warningWaveOuter = 50 + warningWaveBand;
+        const warningWaveRotation = crossRotation * 0.045 + warningWaveProgress * 8;
         const warningAperture = clamp(
           36
             - crossBuild * 10
@@ -6073,15 +6114,23 @@ const gateStyle = [
         gate.style.setProperty("--kisara-warning-exposure", warningExposure.toFixed(3));
         gate.style.setProperty("--kisara-warning-core-exposure", warningCoreExposure.toFixed(3));
         gate.style.setProperty("--kisara-warning-wave-opacity", warningWaveOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-warning-wave-energy", warningWavePulse.toFixed(3));
         gate.style.setProperty("--kisara-warning-wave-size", `${warningWaveSize.toFixed(3)}px`);
-        gate.style.setProperty(
-          "--kisara-warning-wave-width",
-          `${(1.15 + warningWavePulse * 2.35).toFixed(3)}px`
-        );
+        gate.style.setProperty("--kisara-warning-wave-inner", `${warningWaveInner.toFixed(3)}%`);
+        gate.style.setProperty("--kisara-warning-wave-hot-inner", `${warningWaveHotInner.toFixed(3)}%`);
+        gate.style.setProperty("--kisara-warning-wave-hot-outer", `${warningWaveHotOuter.toFixed(3)}%`);
+        gate.style.setProperty("--kisara-warning-wave-outer", `${warningWaveOuter.toFixed(3)}%`);
+        gate.style.setProperty("--kisara-warning-wave-rotation", `${warningWaveRotation.toFixed(3)}deg`);
         gate.style.setProperty("--kisara-warning-aperture", `${warningAperture.toFixed(2)}%`);
         gate.style.setProperty("--kisara-warning-saturation", (1 - warningMonochrome * 0.98).toFixed(3));
-        gate.style.setProperty("--kisara-warning-contrast", (1 + warningMonochrome * 0.58 + warningPulse * 0.14).toFixed(3));
-        gate.style.setProperty("--kisara-warning-brightness", (1 - warningMonochrome * 0.24 + warningPulse * 0.06).toFixed(3));
+        gate.style.setProperty(
+          "--kisara-warning-contrast",
+          (1 + warningMonochrome * 0.2 + warningPulse * 0.05).toFixed(3)
+        );
+        gate.style.setProperty(
+          "--kisara-warning-brightness",
+          (1 - warningMonochrome * 0.38 + warningPulse * 0.01).toFixed(3)
+        );
         gate.style.setProperty("--kisara-warning-center-x", `${(clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1) * 100).toFixed(2)}%`);
         gate.style.setProperty("--kisara-warning-center-y", `${(clamp(warpOriginY / Math.max(1, gateHeight), 0, 1) * 100).toFixed(2)}%`);
         gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
