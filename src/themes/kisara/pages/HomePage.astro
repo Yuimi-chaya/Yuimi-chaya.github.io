@@ -278,8 +278,15 @@ const gateStyle = [
       const releaseDetonationStartAt = 0.67;
       const releaseDetonationEndAt = 0.89;
       const blackHoleIngressStart = crossFlashEnd + (crossEnd - crossFlashEnd) * 0.28;
+      const blackHoleCoreEnd = crossEnd + 0.022;
+      const blackHoleDiskStart = crossEnd - 0.008;
+      const blackHoleDiskEnd = collapseStart - 0.004;
+      const blackHoleOrbitStart = crossEnd + 0.002;
+      const blackHoleOrbitEnd = collapseStart + 0.01;
+      const blackHoleFieldStart = crossEnd - 0.004;
+      const blackHoleFieldEnd = collapseStart + 0.006;
       const gravityIngressStart = crossEnd - 0.018;
-      const warningTailEnd = crossEnd + 0.025;
+      const warningTailEnd = blackHoleFieldEnd;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
       const startsComplete = reducedMotion && !restoredBelowGate;
       let progress = startsComplete ? 1 : 0;
@@ -4092,12 +4099,44 @@ const gateStyle = [
           * (1 - phaseProgress(burst, rainPeak, 1));
         const aftermath = phaseProgress(burst, detonationStart + 0.006, detonationEnd)
           * (1 - phaseProgress(burst, rainPeak, 1));
-        const blackHoleBuildLinear = clamp(
-          (burst - blackHoleIngressStart) / (collapseStart - 0.006 - blackHoleIngressStart),
+        const handoffLinear = clamp(
+          (burst - blackHoleIngressStart) / (blackHoleCoreEnd - blackHoleIngressStart),
           0,
           1
         );
-        const blackHoleBuild = 1 - Math.pow(1 - blackHoleBuildLinear, 3.2);
+        const handoffCompression = 1 - Math.pow(1 - handoffLinear, 2.4);
+        const handoffPulse = Math.pow(Math.sin(handoffLinear * Math.PI), 1.3);
+        const blackHoleCoreBuild = smoothstep(handoffLinear);
+        const blackHoleDiskLinear = clamp(
+          (burst - blackHoleDiskStart) / (blackHoleDiskEnd - blackHoleDiskStart),
+          0,
+          1
+        );
+        const blackHoleDiskBuild = smoothstep(blackHoleDiskLinear);
+        const blackHoleDiskThrow = 1 - Math.pow(1 - blackHoleDiskLinear, 3.1);
+        const blackHoleDiskOvershoot = Math.sin(blackHoleDiskLinear * Math.PI)
+          * (1 - blackHoleDiskLinear * 0.24)
+          * 0.12;
+        const blackHoleDiskFlashPulse = Math.pow(
+          Math.sin(blackHoleDiskLinear * Math.PI),
+          1.28
+        );
+        const blackHoleDiskSpread = clamp(
+          0.12 + blackHoleDiskThrow * 0.88 + blackHoleDiskOvershoot,
+          0.12,
+          1.1
+        );
+        const blackHoleDiskThickness = 0.28 + blackHoleDiskBuild * 0.72;
+        const blackHoleOrbitBuild = phaseProgress(
+          burst,
+          blackHoleOrbitStart,
+          blackHoleOrbitEnd
+        );
+        const blackHoleFieldBuild = phaseProgress(
+          burst,
+          blackHoleFieldStart,
+          blackHoleFieldEnd
+        );
         const gravityLock = phaseProgress(burst, collapseStart - 0.005, collapseEnd);
         const collapse = phaseProgress(burst, collapseStart, collapseEnd);
         const collapseDepth = Math.pow(collapse, 1.48);
@@ -4108,7 +4147,16 @@ const gateStyle = [
           0.18,
           0.92
         );
-        const blackHoleOpacity = blackHoleBuild * blackHoleFade;
+        const blackHoleDiskFlash = blackHoleDiskFlashPulse * blackHoleFade;
+        const blackHoleCoreOpacity = blackHoleCoreBuild * blackHoleFade;
+        const blackHoleDiskOpacity = blackHoleDiskBuild * blackHoleFade;
+        const blackHoleOrbitOpacity = blackHoleOrbitBuild * blackHoleFade;
+        const blackHoleFieldOpacity = blackHoleFieldBuild * blackHoleFade;
+        const blackHoleOpacity = Math.max(
+          blackHoleCoreOpacity,
+          blackHoleDiskOpacity,
+          blackHoleFieldOpacity
+        );
         const blackHoleAngle = -0.16 - collapseDepth * 0.16;
 
         context.save();
@@ -4335,22 +4383,24 @@ const gateStyle = [
         const viewportScale = Math.min(width, height);
         const baseCoreRadius = clamp(viewportScale * 0.09, 28, 82);
         const coreRadius = baseCoreRadius
-          * (0.86 + blackHoleBuild * 0.18)
+          * (0.32 + blackHoleCoreBuild * 0.72 + handoffPulse * 0.08)
           * (1 - collapseDepth * 0.58)
           * (1 - crushCompression * 0.48)
           * (1 + shockwave * 0.05);
         const diskRadius = coreRadius
-          * (3.12 + blackHoleBuild * 0.62)
+          * (3.12 + blackHoleDiskBuild * 0.62)
           * (1 - collapseDepth * 0.18)
           * (1 - crushCompression * 0.16)
           * (1 + shockwave * 0.11);
         const diskFlatten = Math.max(
           0.105,
-          (0.27 + blackHoleBuild * 0.055) * (1 - collapseDepth * 0.48 - crushCompression * 0.12)
+          (0.27 + blackHoleDiskBuild * 0.055) * (1 - collapseDepth * 0.48 - crushCompression * 0.12)
         );
+        const renderedDiskRadiusX = diskRadius * blackHoleDiskSpread;
+        const renderedDiskRadiusY = diskRadius * diskFlatten * blackHoleDiskThickness;
 
         const orbitLimit = Math.floor((width < 640 ? 82 : 160) * renderQuality);
-        const orbitDrive = blackHoleOpacity * (1 - detonationLinear) * (1 - crushCompression * 0.78);
+        const orbitDrive = blackHoleOrbitOpacity * (1 - detonationLinear) * (1 - crushCompression * 0.78);
         if (!reducedMotion && orbitDrive > 0.01) {
           orbitEmissionBudget += frameSeconds * (18 + gravityLock * 86) * densityScale;
           while (orbitEmissionBudget >= 1 && orbitParticles.length < orbitLimit) {
@@ -4455,7 +4505,7 @@ const gateStyle = [
           const fadeIn = smoothstep(clamp(particle.age / 0.14, 0, 1));
           const fadeOut = 1 - smoothstep(clamp((lifeRatio - 0.72) / 0.28, 0, 1));
           const coreProximity = clamp((particle.radius - coreRadius) / Math.max(1, diskRadius * 1.55), 0, 1);
-          context.globalAlpha = fadeIn * fadeOut * blackHoleOpacity * (0.28 + (1 - coreProximity) * 0.56);
+          context.globalAlpha = fadeIn * fadeOut * blackHoleOrbitOpacity * (0.28 + (1 - coreProximity) * 0.56);
           context.strokeStyle = particle.tint === 0
             ? "#ffffff"
             : particle.tint < 4
@@ -4477,6 +4527,88 @@ const gateStyle = [
         };
 
         if (blackHoleOpacity > 0.001) {
+          if (handoffPulse > 0.001) {
+            context.save();
+            context.globalCompositeOperation = "lighter";
+            const implosionRadius = baseCoreRadius * (1.72 - handoffCompression * 1.2);
+            const implosionGlowRadius = baseCoreRadius * (0.56 + handoffPulse * 0.32);
+            const implosionGlow = context.createRadialGradient(
+              originX,
+              originY,
+              0,
+              originX,
+              originY,
+              implosionGlowRadius
+            );
+            implosionGlow.addColorStop(0, "rgba(255,255,255,0.98)");
+            implosionGlow.addColorStop(0.18, "rgba(255,225,236,0.88)");
+            implosionGlow.addColorStop(0.5, "rgba(255,65,127,0.38)");
+            implosionGlow.addColorStop(1, "rgba(255,65,127,0)");
+            context.globalAlpha = handoffPulse * blackHoleFade * 0.86;
+            context.fillStyle = implosionGlow;
+            context.fillRect(
+              originX - implosionGlowRadius,
+              originY - implosionGlowRadius,
+              implosionGlowRadius * 2,
+              implosionGlowRadius * 2
+            );
+
+            context.strokeStyle = "rgba(255,226,237,0.92)";
+            context.lineWidth = 0.8 + handoffPulse * 2.4;
+            context.shadowColor = "rgba(255,65,127,0.96)";
+            context.shadowBlur = (7 + handoffPulse * 15) * shadowQuality;
+            context.globalAlpha = handoffPulse * blackHoleFade * 0.68;
+            context.beginPath();
+            context.ellipse(
+              originX,
+              originY,
+              implosionRadius,
+              implosionRadius * (0.62 + handoffCompression * 0.12),
+              blackHoleAngle,
+              0,
+              Math.PI * 2
+            );
+            context.stroke();
+
+            for (let shard = 0; shard < 8; shard += 1) {
+              const seed = randomSeed(shard + 24811);
+              const angle = seed * Math.PI * 2 + blackHoleAngle;
+              const outerRadius = baseCoreRadius
+                * (1.45 + seed * 0.82)
+                * (1 - handoffCompression * 0.68);
+              const innerRadius = baseCoreRadius * (0.1 + seed * 0.12);
+              const startX = originX + Math.cos(angle) * outerRadius;
+              const startY = originY + Math.sin(angle) * outerRadius * 0.7;
+              const endX = originX + Math.cos(angle) * innerRadius;
+              const endY = originY + Math.sin(angle) * innerRadius * 0.7;
+              const shardGradient = context.createLinearGradient(startX, startY, endX, endY);
+              shardGradient.addColorStop(
+                0,
+                shard % 3 === 0 ? "rgba(174,205,255,0)" : "rgba(255,92,146,0)"
+              );
+              shardGradient.addColorStop(
+                0.58,
+                shard % 3 === 0
+                  ? "rgba(190,216,255,0.44)"
+                  : "rgba(255,105,153,0.46)"
+              );
+              shardGradient.addColorStop(1, "rgba(255,248,251,0.94)");
+              context.globalAlpha = handoffPulse * blackHoleFade * (0.22 + seed * 0.34);
+              context.strokeStyle = shardGradient;
+              context.lineWidth = 0.55 + seed * 1.05;
+              context.beginPath();
+              context.moveTo(startX, startY);
+              context.quadraticCurveTo(
+                originX + Math.cos(angle + (seed - 0.5) * 0.22) * outerRadius * 0.38,
+                originY + Math.sin(angle + (seed - 0.5) * 0.22) * outerRadius * 0.25,
+                endX,
+                endY
+              );
+              context.stroke();
+            }
+            context.restore();
+          }
+
           context.save();
           context.globalCompositeOperation = "source-over";
           const gravityShade = context.createRadialGradient(
@@ -4491,7 +4623,7 @@ const gateStyle = [
           gravityShade.addColorStop(0.22, "rgba(7, 3, 17, 0.12)");
           gravityShade.addColorStop(0.58, "rgba(20, 5, 26, 0.045)");
           gravityShade.addColorStop(1, "rgba(3, 4, 13, 0)");
-          context.globalAlpha = blackHoleOpacity * (0.34 + collapse * 0.36);
+          context.globalAlpha = blackHoleFieldOpacity * (0.34 + collapse * 0.36);
           context.fillStyle = gravityShade;
           context.fillRect(0, 0, width, height);
           context.restore();
@@ -4622,7 +4754,7 @@ const gateStyle = [
             const lensPhase = (time * (0.1 + lens * 0.025) + lens * 0.31) % 1;
             const lensRadius = coreRadius * (1.8 + lens * 1.15)
               + lensPhase * maxRadius * (0.2 + gravityLock * 0.18);
-            const lensFade = (1 - lensPhase) * blackHoleOpacity * (0.075 + gravityLock * 0.08);
+            const lensFade = (1 - lensPhase) * blackHoleDiskOpacity * (0.075 + gravityLock * 0.08);
             context.globalAlpha = lensFade;
             context.strokeStyle = lens % 2 === 0 ? "rgba(255, 111, 151, 0.72)" : "rgba(156, 190, 255, 0.64)";
             context.lineWidth = 0.7 + gravityLock * 1.15;
@@ -4648,7 +4780,12 @@ const gateStyle = [
 
           context.translate(originX, originY);
           context.rotate(blackHoleAngle);
-          const diskGradient = context.createLinearGradient(-diskRadius, 0, diskRadius, 0);
+          const diskGradient = context.createLinearGradient(
+            -renderedDiskRadiusX,
+            0,
+            renderedDiskRadiusX,
+            0
+          );
           diskGradient.addColorStop(0, "rgba(111, 157, 255, 0)");
           diskGradient.addColorStop(0.18, "rgba(143, 184, 255, 0.42)");
           diskGradient.addColorStop(0.46, "rgba(255, 89, 137, 0.86)");
@@ -4656,8 +4793,55 @@ const gateStyle = [
           diskGradient.addColorStop(0.78, "rgba(255, 107, 149, 0.62)");
           diskGradient.addColorStop(1, "rgba(255, 107, 149, 0)");
 
+          if (blackHoleDiskFlash > 0.001) {
+            const ignitionGradient = context.createLinearGradient(
+              -renderedDiskRadiusX * 1.12,
+              0,
+              renderedDiskRadiusX * 1.12,
+              0
+            );
+            ignitionGradient.addColorStop(0, "rgba(135,180,255,0)");
+            ignitionGradient.addColorStop(0.24, "rgba(170,207,255,0.46)");
+            ignitionGradient.addColorStop(0.48, "rgba(255,244,248,0.98)");
+            ignitionGradient.addColorStop(0.62, "rgba(255,151,184,0.88)");
+            ignitionGradient.addColorStop(1, "rgba(255,73,134,0)");
+            context.globalAlpha = blackHoleDiskFlash * 0.92;
+            context.strokeStyle = ignitionGradient;
+            context.lineWidth = 1.4 + blackHoleDiskFlash * 4.8;
+            context.shadowColor = "rgba(255,82,139,0.98)";
+            context.shadowBlur = (13 + blackHoleDiskFlash * 24) * shadowQuality;
+            context.beginPath();
+            context.ellipse(
+              0,
+              0,
+              renderedDiskRadiusX * 1.07,
+              Math.max(coreRadius * 0.06, renderedDiskRadiusY * 0.3),
+              0,
+              0,
+              Math.PI * 2
+            );
+            context.stroke();
+
+            context.globalAlpha = blackHoleDiskFlash * 0.42;
+            context.lineWidth = 0.7 + blackHoleDiskFlash * 1.6;
+            context.shadowBlur = (5 + blackHoleDiskFlash * 12) * shadowQuality;
+            context.beginPath();
+            context.moveTo(-renderedDiskRadiusX * 1.16, 0);
+            context.bezierCurveTo(
+              -renderedDiskRadiusX * 0.42,
+              -renderedDiskRadiusY * 0.22,
+              renderedDiskRadiusX * 0.38,
+              renderedDiskRadiusY * 0.18,
+              renderedDiskRadiusX * 1.18,
+              0
+            );
+            context.stroke();
+          }
+
           for (let band = 0; band < 4; band += 1) {
-            context.globalAlpha = blackHoleOpacity * (0.14 + band * 0.038) * (0.78 + gravityLock * 0.54);
+            context.globalAlpha = blackHoleDiskOpacity
+              * (0.14 + band * 0.038)
+              * (0.78 + gravityLock * 0.54);
             context.strokeStyle = diskGradient;
             context.lineWidth = 1.7 + (4 - band) * (1.7 + gravityLock * 0.82);
             context.shadowColor = band < 2 ? "rgba(140, 181, 255, 0.72)" : "rgba(255, 77, 126, 0.9)";
@@ -4666,8 +4850,8 @@ const gateStyle = [
             context.ellipse(
               0,
               0,
-              diskRadius * (0.92 + band * 0.035),
-              diskRadius * diskFlatten * (0.84 + band * 0.055),
+              renderedDiskRadiusX * (0.92 + band * 0.035),
+              renderedDiskRadiusY * (0.84 + band * 0.055),
               0,
               Math.PI,
               Math.PI * 2
@@ -4675,38 +4859,58 @@ const gateStyle = [
             context.stroke();
           }
 
-          context.globalAlpha = blackHoleOpacity * (0.17 + gravityLock * 0.16);
+          context.globalAlpha = blackHoleDiskOpacity * (0.17 + gravityLock * 0.16);
           context.strokeStyle = diskGradient;
           context.lineWidth = coreRadius * (0.16 + gravityLock * 0.055);
           context.shadowColor = "rgba(255, 77, 128, 0.88)";
           context.shadowBlur = (22 + gravityLock * 22) * shadowQuality;
           context.beginPath();
-          context.ellipse(0, 0, diskRadius * 1.02, diskRadius * diskFlatten * 0.96, 0, 0, Math.PI * 2);
+          context.ellipse(
+            0,
+            0,
+            renderedDiskRadiusX * 1.02,
+            renderedDiskRadiusY * 0.96,
+            0,
+            0,
+            Math.PI * 2
+          );
           context.stroke();
 
-          const halo = context.createRadialGradient(0, 0, coreRadius * 0.7, 0, 0, diskRadius * 1.08);
+          const halo = context.createRadialGradient(
+            0,
+            0,
+            coreRadius * 0.7,
+            0,
+            0,
+            Math.max(coreRadius, renderedDiskRadiusX * 1.08)
+          );
           halo.addColorStop(0, "rgba(255, 92, 137, 0.14)");
           halo.addColorStop(0.42, "rgba(255, 82, 131, 0.07)");
           halo.addColorStop(0.76, "rgba(139, 176, 255, 0.035)");
           halo.addColorStop(1, "rgba(139, 176, 255, 0)");
-          context.globalAlpha = blackHoleOpacity * (0.72 + gravityLock * 0.34);
+          context.globalAlpha = blackHoleDiskOpacity * (0.72 + gravityLock * 0.34);
           context.fillStyle = halo;
-          context.fillRect(-diskRadius * 1.12, -diskRadius, diskRadius * 2.24, diskRadius * 2);
+          context.fillRect(
+            -renderedDiskRadiusX * 1.12,
+            -Math.max(coreRadius, renderedDiskRadiusY * 2.2),
+            renderedDiskRadiusX * 2.24,
+            Math.max(coreRadius * 2, renderedDiskRadiusY * 4.4)
+          );
 
           const lightningActivity = clamp(
-            blackHoleBuild * (0.42 + gravityLock * 0.7) + collapseDepth * 0.12,
+            blackHoleCoreBuild * (0.42 + gravityLock * 0.7) + collapseDepth * 0.12,
             0,
             1.28
           );
           const lightningRadius = Math.max(
             5,
-            coreRadius * (1.02 + blackHoleBuild * 0.08 + gravityLock * 0.08)
+            coreRadius * (1.02 + blackHoleCoreBuild * 0.08 + gravityLock * 0.08)
           );
           paintSingularityField(context, timestamp, {
             mobile: width < 640,
             quality: renderQuality,
             activity: lightningActivity,
-            opacity: blackHoleOpacity,
+            opacity: blackHoleCoreOpacity,
             radius: lightningRadius,
             gravity: gravityLock,
             shadowQuality,
@@ -4715,7 +4919,9 @@ const gateStyle = [
 
           context.globalCompositeOperation = "lighter";
           for (let band = 0; band < 3; band += 1) {
-            context.globalAlpha = blackHoleOpacity * (0.34 + band * 0.082) * (0.8 + gravityLock * 0.46);
+            context.globalAlpha = blackHoleDiskOpacity
+              * (0.34 + band * 0.082)
+              * (0.8 + gravityLock * 0.46);
             context.strokeStyle = diskGradient;
             context.lineWidth = 2 + (3 - band) * (2.15 + gravityLock * 0.96);
             context.shadowColor = "rgba(255, 74, 125, 0.9)";
@@ -4724,8 +4930,8 @@ const gateStyle = [
             context.ellipse(
               0,
               0,
-              diskRadius * (0.9 + band * 0.042),
-              diskRadius * diskFlatten * (0.82 + band * 0.06),
+              renderedDiskRadiusX * (0.9 + band * 0.042),
+              renderedDiskRadiusY * (0.82 + band * 0.06),
               0,
               0,
               Math.PI
@@ -4736,19 +4942,19 @@ const gateStyle = [
           const lensingHeight = coreRadius * (1.92 + gravityLock * 0.52);
           for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
             const side = sideIndex === 0 ? -1 : 1;
-            context.globalAlpha = blackHoleOpacity * (0.3 + gravityLock * 0.34);
+            context.globalAlpha = blackHoleDiskOpacity * (0.3 + gravityLock * 0.34);
             context.strokeStyle = side < 0 ? "rgba(184, 211, 255, 0.78)" : "rgba(255, 170, 195, 0.82)";
             context.lineWidth = 1.3 + gravityLock * 1.35;
             context.shadowColor = context.strokeStyle;
             context.shadowBlur = (8 + gravityLock * 11) * shadowQuality;
             context.beginPath();
-            context.moveTo(-diskRadius * 0.66, side * coreRadius * 0.12);
+            context.moveTo(-renderedDiskRadiusX * 0.66, side * coreRadius * 0.12);
             context.bezierCurveTo(
               -coreRadius * 1.18,
               side * lensingHeight,
               coreRadius * 1.18,
               side * lensingHeight,
-              diskRadius * 0.66,
+              renderedDiskRadiusX * 0.66,
               side * coreRadius * 0.08
             );
             context.stroke();
@@ -4758,12 +4964,22 @@ const gateStyle = [
             const seed = randomSeed(highlight + 7301);
             const phase = time * (0.42 + seed * 0.5) + seed * Math.PI * 2;
             const span = 0.18 + seed * 0.42;
-            context.globalAlpha = blackHoleOpacity * (0.12 + gravityLock * 0.18) * (0.46 + seed * 0.54);
+            context.globalAlpha = blackHoleDiskOpacity
+              * (0.12 + gravityLock * 0.18)
+              * (0.46 + seed * 0.54);
             context.strokeStyle = highlight % 3 === 0 ? "#ffffff" : highlight % 2 === 0 ? "#ff8fab" : "#bed7ff";
             context.lineWidth = 0.55 + seed * 1.15;
             context.shadowBlur = (3 + gravityLock * 7) * shadowQuality;
             context.beginPath();
-            context.ellipse(0, 0, diskRadius * (0.96 + seed * 0.16), diskRadius * diskFlatten, 0, phase, phase + span);
+            context.ellipse(
+              0,
+              0,
+              renderedDiskRadiusX * (0.96 + seed * 0.16),
+              renderedDiskRadiusY,
+              0,
+              phase,
+              phase + span
+            );
             context.stroke();
           }
 
