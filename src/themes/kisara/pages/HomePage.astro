@@ -294,7 +294,6 @@ const gateStyle = [
       let titleDataCanvasWidth = 0;
       let titleDataCanvasHeight = 0;
       let titleDataPixelRatio = 1;
-      let titleDataCells = [];
       let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
       let titleLayout = { width: 0, height: 0, left: 0, top: 0 };
       let renderQuality = 1;
@@ -305,10 +304,7 @@ const gateStyle = [
       let singularityFieldImageData = null;
       let singularityFieldLastPaintTimestamp = 0;
       const titleDataMaskCanvas = document.createElement("canvas");
-      const titleDataMaskContext = titleDataMaskCanvas.getContext("2d", {
-        alpha: true,
-        willReadFrequently: true
-      });
+      const titleDataMaskContext = titleDataMaskCanvas.getContext("2d", { alpha: true });
       let spaceLensRenderer = null;
       let spaceLensInitGeneration = 0;
       let lastSpaceLensPaintTimestamp = 0;
@@ -976,6 +972,7 @@ const gateStyle = [
         { x: 0.748, y: 0.36, kind: "blade", angle: 0.88, strength: 1.28 }
       ];
       const postReleaseSourceOrder = [0, 1, 0, 1, 2, 0, 1];
+      let fightArtwork = null;
       let fightImageWidth = 1920;
       let fightImageHeight = 1080;
       let postReleaseActive = false;
@@ -1004,6 +1001,7 @@ const gateStyle = [
       let postReleaseDataPosition = 50;
       let postReleaseDataOpacity = 0;
       let postReleaseDataPhase = 0;
+      let postReleaseDataPressure = 0;
       let postReleaseEmissionBudget = 0;
       let postReleaseAmbientBudget = 0;
       let postReleaseSourceIndex = 0;
@@ -1068,8 +1066,7 @@ const gateStyle = [
         titleDataCanvas.style.opacity = "0";
       };
 
-      const rebuildTitleDataCells = () => {
-        titleDataCells = [];
+      const rebuildTitleEffectMask = () => {
         if (
           !titleDataMaskContext
           || !title
@@ -1092,91 +1089,12 @@ const gateStyle = [
         const baseline = height * 0.5
           + ((metrics.actualBoundingBoxAscent || fontSize * 0.72)
             - (metrics.actualBoundingBoxDescent || fontSize * 0.16)) * 0.5;
-        const titleGradient = titleDataMaskContext.createLinearGradient(0, height * 0.18, 0, height * 0.84);
-        titleGradient.addColorStop(0, "#ffdce6");
-        titleGradient.addColorStop(0.24, "#ff8ca5");
-        titleGradient.addColorStop(0.58, "#ff315e");
-        titleGradient.addColorStop(1, "#c81343");
-        titleDataMaskContext.fillStyle = titleGradient;
+        titleDataMaskContext.fillStyle = "#ffffff";
         titleDataMaskContext.strokeStyle = "#ffffff";
         titleDataMaskContext.lineWidth = Math.max(1, 2.4 * titleDataPixelRatio);
         titleDataMaskContext.strokeText("Kisara", width * 0.5, baseline);
         titleDataMaskContext.fillText("Kisara", width * 0.5, baseline);
         titleDataMaskContext.restore();
-
-        const pixels = titleDataMaskContext.getImageData(0, 0, width, height).data;
-        const cellSize = (titleDataCanvasWidth < 520 ? 7.5 : 9) * titleDataPixelRatio;
-        const cellStep = Math.max(5, Math.round(cellSize));
-        const samplePixel = (x, y) => {
-          const sampleX = clamp(Math.round(x), 0, width - 1);
-          const sampleY = clamp(Math.round(y), 0, height - 1);
-          const offset = (sampleY * width + sampleX) * 4;
-          return {
-            red: pixels[offset],
-            green: pixels[offset + 1],
-            blue: pixels[offset + 2],
-            alpha: pixels[offset + 3] / 255
-          };
-        };
-        const ringRadii = [0, cellStep * 0.78, cellStep * 1.55, cellStep * 2.38];
-        const ringSamples = [1, 8, 12, 16];
-
-        for (let y = cellStep * 0.5; y < height; y += cellStep) {
-          for (let x = cellStep * 0.5; x < width; x += cellStep) {
-            let ring = -1;
-            let sourceColor = samplePixel(x, y);
-            let maskStrength = sourceColor.alpha;
-            if (maskStrength > 0.06) {
-              ring = 0;
-            } else {
-              for (let ringIndex = 1; ringIndex < ringRadii.length; ringIndex += 1) {
-                const radius = ringRadii[ringIndex];
-                const sampleCount = ringSamples[ringIndex];
-                let ringStrength = 0;
-                let ringColor = sourceColor;
-                for (let sample = 0; sample < sampleCount; sample += 1) {
-                  const angle = sample / sampleCount * fullTurn + ringIndex * 0.23;
-                  const sampledColor = samplePixel(
-                    x + Math.cos(angle) * radius,
-                    y + Math.sin(angle) * radius
-                  );
-                  if (sampledColor.alpha > ringStrength) {
-                    ringStrength = sampledColor.alpha;
-                    ringColor = sampledColor;
-                  }
-                }
-                if (ringStrength > 0.08) {
-                  ring = ringIndex;
-                  maskStrength = ringStrength;
-                  sourceColor = ringColor;
-                  break;
-                }
-              }
-            }
-            if (ring < 0) continue;
-
-            const cellX = Math.floor(x / cellStep);
-            const cellY = Math.floor(y / cellStep);
-            const seed = randomSeed(cellX * 37.17 + cellY * 91.73 + ring * 13.19);
-            if (ring === 3 && seed < 0.24) continue;
-            titleDataCells.push({
-              x: x / titleDataPixelRatio,
-              y: y / titleDataPixelRatio,
-              ring,
-              maskStrength,
-              edgeStrength: ring === 0
-                ? maskStrength
-                : clamp(maskStrength * (1 - (ring - 1) * 0.2), 0, 1),
-              sourceRed: sourceColor.red,
-              sourceGreen: sourceColor.green,
-              sourceBlue: sourceColor.blue,
-              noise: seed,
-              tone: randomSeed(cellX * 17.31 + cellY * 53.47 + 3.7),
-              flicker: randomSeed(cellX * 71.83 + cellY * 19.61 + 11.2),
-              size: cellStep / titleDataPixelRatio * (0.7 + seed * 0.22)
-            });
-          }
-        }
       };
 
       const resizeTitleDataCanvas = (force = false) => {
@@ -1203,7 +1121,7 @@ const gateStyle = [
         titleDataCanvasHeight = height;
         titleDataPixelRatio = pixelRatio;
         clearTitleDataCanvas();
-        rebuildTitleDataCells();
+        rebuildTitleEffectMask();
       };
 
       const refreshPostReleaseLayout = () => {
@@ -1750,9 +1668,11 @@ const gateStyle = [
       const updatePostReleaseDataStream = (timestamp, frameSeconds, intro) => {
         if (!postReleaseDataInitialized) {
           postReleaseDataOpacity = 0;
+          postReleaseDataPressure = 0;
           return;
         }
         let activeDirection = postReleaseDirection || 1;
+        let journeyEnergy = 0;
         if (postReleaseJourney) {
           activeDirection = postReleaseJourney.direction;
           const progress = clamp(
@@ -1763,20 +1683,35 @@ const gateStyle = [
           const eased = smoothstep(smoothstep(progress));
           postReleaseDataPosition = postReleaseJourney.startPosition
             + (postReleaseJourney.endPosition - postReleaseJourney.startPosition) * eased;
+          journeyEnergy = Math.pow(Math.sin(progress * Math.PI), 0.72);
           if (progress >= 0.999) {
             postReleaseDataPosition = postReleaseJourney.endPosition;
             postReleaseJourney = null;
           }
         }
         const moving = Boolean(postReleaseJourney);
-        const targetOpacity = moving ? 0.96 : 0.76;
+        const motionEnergy = clamp(
+          Math.abs(postReleaseVelocityX) / 150 + postReleaseFlowWhip * 0.52,
+          0,
+          1
+        );
+        const pressureTarget = Math.max(
+          journeyEnergy,
+          motionEnergy * 0.58,
+          postReleaseFlowWhip * 0.68
+        );
+        postReleaseDataPressure += (pressureTarget - postReleaseDataPressure)
+          * (1 - Math.exp(-frameSeconds * (pressureTarget > postReleaseDataPressure ? 10.5 : 3.8)));
+        const targetOpacity = 0.5 + motionEnergy * 0.16 + postReleaseDataPressure * 0.18;
         postReleaseDataOpacity += (targetOpacity - postReleaseDataOpacity)
-          * (1 - Math.exp(-frameSeconds * (moving ? 7.4 : 4.2)));
-        postReleaseDataPhase += frameSeconds * (moving ? 34 : 7.5) * (activeDirection > 0 ? -1 : 1);
+          * (1 - Math.exp(-frameSeconds * (moving ? 7.2 : 3.6)));
+        postReleaseDataPhase += frameSeconds
+          * (0.72 + motionEnergy * 1.85 + postReleaseDataPressure * 1.35)
+          * (activeDirection > 0 ? -1 : 1);
         if (Math.abs(postReleaseDataPhase) > 2048) postReleaseDataPhase %= 2048;
       };
 
-      const drawTitleDataReconstruction = (timestamp, intro) => {
+      const drawTitleLiquidRefraction = (timestamp, intro) => {
         if (!titleDataCanvas || !titleDataContext) return;
         if (!postReleaseDataInitialized || postReleaseDataOpacity * intro <= 0.003) {
           if (titleDataCanvas.style.opacity !== "0") clearTitleDataCanvas();
@@ -1785,135 +1720,279 @@ const gateStyle = [
         if (titleDataCanvasWidth <= 1 || titleDataCanvasHeight <= 1) {
           resizeTitleDataCanvas();
         }
-        if (titleDataCells.length === 0) return;
+        if (titleDataCanvasWidth <= 1 || titleDataCanvasHeight <= 1) return;
 
         titleDataContext.setTransform(1, 0, 0, 1, 0, 0);
         titleDataContext.clearRect(0, 0, titleDataCanvas.width, titleDataCanvas.height);
         titleDataContext.setTransform(titleDataPixelRatio, 0, 0, titleDataPixelRatio, 0, 0);
         titleDataContext.save();
         titleDataContext.globalCompositeOperation = "source-over";
-        titleDataContext.lineWidth = 0.72;
 
         const width = titleDataCanvasWidth;
         const height = titleDataCanvasHeight;
-        const moving = Boolean(postReleaseJourney);
         const direction = postReleaseJourney?.direction || postReleaseDirection || 1;
+        const flowDirection = direction > 0 ? -1 : 1;
         const position = postReleaseDataPosition;
-        const bandReach = moving ? 15.8 : 13.6;
         const phase = postReleaseDataPhase;
+        const pressure = clamp(postReleaseDataPressure, 0, 1);
         const time = timestamp / 1000;
+        const frontX = width * position / 100;
+        const bandWidth = width * (0.105 + pressure * 0.065);
+        const liquidOpacity = postReleaseDataOpacity * intro;
+        const titleRect = titleDataCanvas.getBoundingClientRect();
+        const gateRect = gate.getBoundingClientRect();
+        const canvasLeftInGate = titleRect.left - gateRect.left;
+        const canvasTopInGate = titleRect.top - gateRect.top;
 
-        const drawTitleDataCell = (cell, edgePass) => {
-          if (edgePass ? cell.ring === 0 : cell.ring > 0) return;
-          const normalizedX = cell.x / Math.max(1, width);
-          const normalizedY = cell.y / Math.max(1, height);
-          const cellCoordinate = (
-            normalizedX
-            + (normalizedY - 0.5) * 0.1 * direction
-          ) * 100;
-          const distance = Math.abs(cellCoordinate - position);
-          const radialProgress = clamp(
-            (bandReach - distance) / Math.max(1, bandReach * 0.68) + 0.5,
+        const roseBase = titleDataContext.createLinearGradient(0, height * 0.14, 0, height * 0.9);
+        roseBase.addColorStop(0, "rgba(255, 218, 231, 0.56)");
+        roseBase.addColorStop(0.26, "rgba(255, 98, 144, 0.48)");
+        roseBase.addColorStop(0.68, "rgba(213, 28, 83, 0.42)");
+        roseBase.addColorStop(1, "rgba(79, 18, 66, 0.5)");
+        titleDataContext.globalAlpha = 0.52 + pressure * 0.1;
+        titleDataContext.fillStyle = roseBase;
+        titleDataContext.fillRect(0, 0, width, height);
+
+        if (
+          fightArtwork
+          && fightArtwork.complete
+          && fightArtwork.naturalWidth > 1
+          && postReleaseLayout.imageScale > 0
+        ) {
+          const imageScale = postReleaseLayout.imageScale;
+          const stripHeight = width < 520 ? 2.7 : 3.6;
+          const stripOverlap = width < 520 ? 1.7 : 2.2;
+          const sourceWidth = Math.min(fightImageWidth, width / imageScale);
+          const alignedSourceHeight = Math.min(fightImageHeight, height / imageScale);
+          const sourceHeight = Math.max(1, (stripHeight + stripOverlap) / imageScale);
+          const maxSourceX = Math.max(0, fightImageWidth - sourceWidth);
+          const maxAlignedSourceY = Math.max(0, fightImageHeight - alignedSourceHeight);
+          const maxSourceY = Math.max(0, fightImageHeight - sourceHeight);
+          const oppositeShift = postReleaseX * 2.15;
+          const alignedSourceX = clamp(
+            (
+              canvasLeftInGate
+              - postReleaseLayout.imageLeft
+              - postReleaseX
+              + oppositeShift
+            ) / imageScale,
             0,
-            1
+            maxSourceX
           );
-          if (radialProgress <= 0.001) return;
-
-          const animatedNoise = 0.5 + 0.5 * Math.sin(
-            cell.x * 0.031
-            - cell.y * 0.047
-            + phase * 0.11
-            + cell.flicker * fullTurn
+          const alignedSourceY = clamp(
+            (canvasTopInGate - postReleaseLayout.imageTop - postReleaseY) / imageScale,
+            0,
+            maxAlignedSourceY
           );
-          const dataNoise = cell.noise * 0.58 + animatedNoise * 0.42;
-          const dataMask = smoothstep(clamp(
-            (radialProgress - (dataNoise - 0.16)) / 0.32,
+          titleDataContext.save();
+          titleDataContext.globalAlpha = 0.17 + pressure * 0.055;
+          titleDataContext.filter = `saturate(${(1.12 + pressure * 0.12).toFixed(3)}) contrast(1.05) brightness(1.06)`;
+          titleDataContext.drawImage(
+            fightArtwork,
+            alignedSourceX,
+            alignedSourceY,
+            sourceWidth,
+            alignedSourceHeight,
             0,
-            1
-          ));
-          const dataSettle = smoothstep(clamp(
-            (radialProgress - (dataNoise + 0.04)) / 0.58,
             0,
-            1
-          ));
-          const dataFront = Math.exp(-Math.pow(
-            (radialProgress - dataNoise) / 0.17,
-            2
-          ));
-          const ringWeight = [1, 0.74, 0.46, 0.27][cell.ring] ?? 0.2;
-          const edgeBleed = cell.ring === 0
-            ? 1
-            : [0, 0.38, 0.16, 0.055][cell.ring] ?? 0.04;
-          const erosionGate = cell.ring === 0
-            ? 1
-            : clamp(dataFront * 1.42 + dataMask * (0.2 - cell.ring * 0.025), 0, 1);
-          const pulse = 0.9 + Math.sin(time * 4.2 + cell.flicker * 17.4) * 0.1;
-          const alpha = clamp(
-            (dataMask * (0.54 + dataSettle * 0.24) + dataFront * 0.52)
-              * ringWeight
-              * erosionGate
-              * cell.edgeStrength
-              * edgeBleed
-              * pulse,
-            0,
-            1
+            width,
+            height
           );
-          if (alpha <= 0.018) return;
+          titleDataContext.restore();
 
-          const blueCell = cell.tone < 0.18 || (cell.ring > 0 && cell.tone < 0.38);
-          const frontHeat = clamp(dataFront * 1.16, 0, 1);
-          const sampledRed = cell.sourceRed || 226;
-          const sampledGreen = cell.sourceGreen || 54;
-          const sampledBlue = cell.sourceBlue || 137;
-          const red = blueCell
-            ? sampledRed * 0.52 + 92 + frontHeat * 58
-            : sampledRed + frontHeat * (255 - sampledRed) * 0.86;
-          const green = blueCell
-            ? sampledGreen * 0.42 + 132 + frontHeat * 72
-            : sampledGreen + dataSettle * 18 + frontHeat * (245 - sampledGreen) * 0.72;
-          const blue = blueCell
-            ? sampledBlue * 0.34 + 172 + frontHeat * 48
-            : sampledBlue + dataSettle * 12 + frontHeat * (246 - sampledBlue) * 0.68;
-          const renderRed = Math.round(clamp(red, 0, 255));
-          const renderGreen = Math.round(clamp(green, 0, 255));
-          const renderBlue = Math.round(clamp(blue, 0, 255));
-          const size = Math.max(2.8, cell.size * (0.88 + dataFront * 0.12));
-          const left = cell.x - size * 0.5;
-          const top = cell.y - size * 0.5;
-
-          if (dataFront > 0.52 && cell.flicker > 0.64) {
-            const glowSize = size * (
-              cell.ring === 0
-                ? 1.28 + dataFront * 0.2
-                : 1.04 + dataFront * 0.12
+          titleDataContext.save();
+          titleDataContext.globalCompositeOperation = "screen";
+          titleDataContext.globalAlpha = 0.12 + pressure * 0.11;
+          titleDataContext.filter = `blur(0.24px) saturate(${(1.22 + pressure * 0.2).toFixed(3)}) contrast(1.07) brightness(1.08)`;
+          for (let y = -stripHeight; y < height + stripHeight; y += stripHeight) {
+            const normalizedY = y / Math.max(1, height);
+            const rowWave = Math.sin(normalizedY * 9.4 + phase * 2.15) * (1.8 + pressure * 3.6)
+              + Math.sin(normalizedY * 17.2 - phase * 1.36) * (0.75 + pressure * 1.35);
+            const pressureBend = Math.sin((normalizedY - 0.5) * Math.PI)
+              * flowDirection
+              * pressure
+              * 4.8;
+            const sourceX = clamp(
+              (
+                canvasLeftInGate
+                - postReleaseLayout.imageLeft
+                - postReleaseX
+                + oppositeShift
+                + rowWave
+                + pressureBend
+              ) / imageScale,
+              0,
+              maxSourceX
             );
-            titleDataContext.fillStyle = `rgba(${renderRed}, ${renderGreen}, ${renderBlue}, ${alpha * 0.2})`;
-            titleDataContext.fillRect(
-              cell.x - glowSize * 0.5,
-              cell.y - glowSize * 0.5,
-              glowSize,
-              glowSize
+            const sourceY = clamp(
+              (canvasTopInGate + y - postReleaseLayout.imageTop - postReleaseY) / imageScale,
+              0,
+              maxSourceY
+            );
+            titleDataContext.drawImage(
+              fightArtwork,
+              sourceX,
+              sourceY,
+              sourceWidth,
+              sourceHeight,
+              0,
+              y,
+              width,
+              stripHeight + stripOverlap
             );
           }
+          titleDataContext.restore();
+        }
 
-          titleDataContext.fillStyle = `rgba(${renderRed}, ${renderGreen}, ${renderBlue}, ${alpha})`;
-          titleDataContext.fillRect(left, top, size, size);
-          if (dataFront > 0.3) {
-            titleDataContext.strokeStyle = `rgba(255, 244, 250, ${alpha * (0.22 + dataFront * 0.58)})`;
-            titleDataContext.strokeRect(left + 0.35, top + 0.35, Math.max(0, size - 0.7), Math.max(0, size - 0.7));
+        titleDataContext.save();
+        titleDataContext.globalCompositeOperation = "screen";
+        titleDataContext.translate(frontX, height * 0.5);
+        titleDataContext.rotate(flowDirection * 0.105);
+        const pressureGradient = titleDataContext.createLinearGradient(-bandWidth, 0, bandWidth, 0);
+        pressureGradient.addColorStop(0, "rgba(255, 76, 143, 0)");
+        pressureGradient.addColorStop(0.28, `rgba(255, 81, 145, ${0.12 + pressure * 0.18})`);
+        pressureGradient.addColorStop(0.48, `rgba(255, 235, 246, ${0.2 + pressure * 0.52})`);
+        pressureGradient.addColorStop(0.56, `rgba(179, 213, 255, ${0.08 + pressure * 0.28})`);
+        pressureGradient.addColorStop(1, "rgba(128, 174, 255, 0)");
+        titleDataContext.fillStyle = pressureGradient;
+        titleDataContext.shadowColor = "rgba(255, 89, 151, 0.8)";
+        titleDataContext.shadowBlur = 8 + pressure * 18;
+        titleDataContext.fillRect(-bandWidth, -height, bandWidth * 2, height * 2);
+        titleDataContext.restore();
+
+        const veinCount = width < 520 ? 4 : 6;
+        titleDataContext.save();
+        titleDataContext.globalCompositeOperation = "screen";
+        titleDataContext.lineCap = "round";
+        titleDataContext.lineJoin = "round";
+        for (let vein = 0; vein < veinCount; vein += 1) {
+          const points = [];
+          const pointCount = width < 520 ? 8 : 11;
+          const baseY = height * (0.28 + vein / Math.max(1, veinCount - 1) * 0.44);
+          const seed = randomSeed(vein * 19.37 + 4.1);
+          for (let pointIndex = 0; pointIndex <= pointCount; pointIndex += 1) {
+            const unit = pointIndex / pointCount;
+            const x = -width * 0.04 + unit * width * 1.08;
+            const frontInfluence = Math.exp(-Math.pow((x - frontX) / Math.max(18, bandWidth), 2));
+            const wave = Math.sin(
+              unit * fullTurn * (1.08 + seed * 0.32)
+              + phase * (1.2 + seed * 0.48)
+              + vein * 1.27
+            ) * (2.3 + seed * 2.4 + pressure * 2.2);
+            const secondaryWave = Math.sin(
+              unit * fullTurn * 2.4
+              - phase * 0.68
+              + seed * 7.2
+            ) * (0.6 + pressure * 0.8);
+            points.push({
+              x,
+              y: baseY
+                + wave
+                + secondaryWave
+                - frontInfluence * pressure * height * (0.012 + seed * 0.018)
+            });
           }
-        };
+          const veinPath = createSmoothCanvasPath(points);
+          const blueVein = vein % 3 === 1;
+          titleDataContext.globalAlpha = (0.09 + pressure * 0.14) * (0.72 + seed * 0.28);
+          titleDataContext.strokeStyle = blueVein
+            ? "rgba(151, 201, 255, 0.86)"
+            : "rgba(255, 87, 148, 0.88)";
+          titleDataContext.lineWidth = 2 + pressure * 1.4;
+          titleDataContext.shadowColor = titleDataContext.strokeStyle;
+          titleDataContext.shadowBlur = 7 + pressure * 11;
+          titleDataContext.stroke(veinPath);
+          titleDataContext.globalAlpha = 0.2 + pressure * 0.26;
+          titleDataContext.strokeStyle = blueVein
+            ? "rgba(226, 243, 255, 0.94)"
+            : "rgba(255, 238, 246, 0.96)";
+          titleDataContext.lineWidth = 0.58 + pressure * 0.32;
+          titleDataContext.shadowBlur = 2 + pressure * 4;
+          titleDataContext.stroke(veinPath);
+        }
+        titleDataContext.restore();
 
-        for (const cell of titleDataCells) drawTitleDataCell(cell, false);
         titleDataContext.setTransform(1, 0, 0, 1, 0, 0);
+        titleDataContext.globalAlpha = 1;
         titleDataContext.globalCompositeOperation = "destination-in";
         titleDataContext.drawImage(titleDataMaskCanvas, 0, 0);
         titleDataContext.globalCompositeOperation = "source-over";
         titleDataContext.setTransform(titleDataPixelRatio, 0, 0, titleDataPixelRatio, 0, 0);
-        for (const cell of titleDataCells) drawTitleDataCell(cell, true);
+
+        const edgeEnergy = clamp(pressure * 0.86 + postReleaseFlowWhip * 0.42, 0, 1);
+        if (edgeEnergy > 0.012) {
+          titleDataContext.save();
+          titleDataContext.globalCompositeOperation = "screen";
+          titleDataContext.lineCap = "round";
+          for (let thread = 0; thread < 4; thread += 1) {
+            const seed = randomSeed(thread * 31.41 + 9.7);
+            const threadY = height * (0.32 + thread * 0.12)
+              + Math.sin(time * (1.3 + seed * 0.7) + thread * 1.8) * (2 + pressure * 4);
+            const length = width * (0.065 + seed * 0.045) * (0.72 + edgeEnergy * 0.48);
+            const startX = frontX - flowDirection * bandWidth * (0.04 + thread * 0.025);
+            const endX = startX + flowDirection * length;
+            const lift = height * (0.035 + seed * 0.035) * (0.7 + edgeEnergy * 0.6);
+            const controlA = {
+              x: startX + flowDirection * length * 0.34,
+              y: threadY - lift * (0.4 + seed * 0.45)
+            };
+            const controlB = {
+              x: startX + flowDirection * length * 0.72,
+              y: threadY - lift
+            };
+            const endY = threadY - lift * (0.62 + seed * 0.42);
+            const threadPath = new Path2D();
+            threadPath.moveTo(startX, threadY);
+            threadPath.bezierCurveTo(
+              controlA.x,
+              controlA.y,
+              controlB.x,
+              controlB.y,
+              endX,
+              endY
+            );
+            const threadAlpha = edgeEnergy * (0.16 + seed * 0.18) * intro;
+            titleDataContext.globalAlpha = threadAlpha;
+            titleDataContext.strokeStyle = thread % 2 === 0
+              ? "rgba(255, 71, 143, 0.9)"
+              : "rgba(176, 213, 255, 0.86)";
+            titleDataContext.lineWidth = 1.9 + seed * 1.1;
+            titleDataContext.shadowColor = titleDataContext.strokeStyle;
+            titleDataContext.shadowBlur = 7 + edgeEnergy * 10;
+            titleDataContext.stroke(threadPath);
+            titleDataContext.globalAlpha = threadAlpha * 1.7;
+            titleDataContext.strokeStyle = "rgba(255, 244, 249, 0.92)";
+            titleDataContext.lineWidth = 0.46 + seed * 0.34;
+            titleDataContext.shadowBlur = 2 + edgeEnergy * 4;
+            titleDataContext.stroke(threadPath);
+
+            for (let spark = 0; spark < 3; spark += 1) {
+              const sparkProgress = ((time * (0.34 + seed * 0.12) + spark / 3 + seed) % 1 + 1) % 1;
+              const sparkPoint = pointOnCubicCurve(
+                { x: startX, y: threadY },
+                controlA,
+                controlB,
+                { x: endX, y: endY },
+                sparkProgress
+              );
+              titleDataContext.globalAlpha = threadAlpha * (1 - sparkProgress) * 1.8;
+              titleDataContext.fillStyle = spark % 2 === 0 ? "#fff4f8" : "#c8e0ff";
+              titleDataContext.beginPath();
+              titleDataContext.arc(
+                sparkPoint.x,
+                sparkPoint.y,
+                0.55 + edgeEnergy * 0.7,
+                0,
+                fullTurn
+              );
+              titleDataContext.fill();
+            }
+          }
+          titleDataContext.restore();
+        }
 
         titleDataContext.restore();
-        titleDataCanvas.style.opacity = (postReleaseDataOpacity * intro).toFixed(3);
+        titleDataCanvas.style.opacity = liquidOpacity.toFixed(3);
       };
 
       const drawPostRelease = (timestamp) => {
@@ -1954,7 +2033,7 @@ const gateStyle = [
         gate.style.setProperty("--kisara-post-parallax-y", `${postReleaseY.toFixed(3)}px`);
         gate.style.setProperty("--kisara-post-release-opacity", intro.toFixed(3));
         updatePostReleaseDataStream(timestamp, frameSeconds, intro);
-        drawTitleDataReconstruction(timestamp, intro);
+        drawTitleLiquidRefraction(timestamp, intro);
         clearPostReleaseCanvas();
         drawPostReleaseHighlights(postReleaseContext, timestamp, intro);
         updatePostReleaseParticles(
@@ -2004,6 +2083,7 @@ const gateStyle = [
         postReleaseDataPosition = 50;
         postReleaseDataOpacity = 0;
         postReleaseDataPhase = 0;
+        postReleaseDataPressure = 0;
         postReleaseEmissionBudget = 0;
         postReleaseAmbientBudget = 0;
         postReleaseSourceIndex = 0;
@@ -2025,6 +2105,11 @@ const gateStyle = [
           return;
         }
         resizePostReleaseCanvas(true);
+        resizeTitleDataCanvas(true);
+        postReleaseDataInitialized = true;
+        postReleaseDataPosition = 50;
+        postReleaseDataOpacity = 0;
+        postReleaseDataPressure = 0;
         postReleaseStartedAt = performance.now();
         startPostReleaseAnimation();
       };
@@ -2059,6 +2144,7 @@ const gateStyle = [
         const endPosition = direction > 0 ? 15 : 85;
         postReleaseDataInitialized = true;
         postReleaseDataPosition = startPosition;
+        postReleaseDataPressure = Math.max(postReleaseDataPressure, 0.24);
         postReleaseJourney = {
           direction,
           startX: postReleaseX,
@@ -2114,6 +2200,7 @@ const gateStyle = [
         const fightImage = new Image();
         fightImage.decoding = "async";
         fightImage.addEventListener("load", () => {
+          fightArtwork = fightImage;
           fightImageWidth = Math.max(1, fightImage.naturalWidth || fightImageWidth);
           fightImageHeight = Math.max(1, fightImage.naturalHeight || fightImageHeight);
           refreshPostReleaseLayout();
