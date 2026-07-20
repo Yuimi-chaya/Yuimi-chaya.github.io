@@ -889,6 +889,12 @@ const gateStyle = [
       let postReleasePointerAccumulator = 0;
       let postReleaseDirection = 1;
       let postReleaseDirectionChangedAt = 0;
+      const postReleaseFlowSegmentCount = 8;
+      const postReleaseInitialFlowAngle = Math.atan2(-0.42, -1);
+      const postReleaseFlowAngles = new Float32Array(postReleaseFlowSegmentCount);
+      const postReleaseFlowAngularVelocities = new Float32Array(postReleaseFlowSegmentCount);
+      postReleaseFlowAngles.fill(postReleaseInitialFlowAngle);
+      let postReleaseFlowWhip = 0;
       let postReleaseJourney = null;
       let postReleaseDataInitialized = false;
       let postReleaseDataPosition = 50;
@@ -909,6 +915,39 @@ const gateStyle = [
       };
       const precisePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
       const nextPostReleaseRandom = () => randomSeed((postReleaseParticleSerial += 1) * 2.41421356237 + 0.71);
+      const shortestAngleDelta = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+
+      const getPostReleaseFlowAngle = (unit) => {
+        const position = clamp(unit, 0, 1) * (postReleaseFlowSegmentCount - 1);
+        const index = Math.min(postReleaseFlowSegmentCount - 2, Math.floor(position));
+        const blend = position - index;
+        const angle = postReleaseFlowAngles[index];
+        return angle + shortestAngleDelta(angle, postReleaseFlowAngles[index + 1]) * blend;
+      };
+
+      const updatePostReleaseFlow = (frameSeconds) => {
+        const targetAngle = Math.atan2(-0.42, -(postReleaseDirection || 1));
+        let chainTension = 0;
+        for (let index = 0; index < postReleaseFlowSegmentCount; index += 1) {
+          const leaderAngle = index === 0 ? targetAngle : postReleaseFlowAngles[index - 1];
+          const angleDelta = shortestAngleDelta(postReleaseFlowAngles[index], leaderAngle);
+          const stiffness = index === 0 ? 34 : 48 - index * 2.15;
+          const damping = index === 0 ? 8.2 : 8.8 + index * 0.34;
+          postReleaseFlowAngularVelocities[index] += angleDelta * stiffness * frameSeconds;
+          postReleaseFlowAngularVelocities[index] *= Math.exp(-damping * frameSeconds);
+          postReleaseFlowAngularVelocities[index] = clamp(
+            postReleaseFlowAngularVelocities[index],
+            index === 0 ? -5.4 : -4.8,
+            index === 0 ? 5.4 : 4.8
+          );
+          postReleaseFlowAngles[index] += postReleaseFlowAngularVelocities[index] * frameSeconds;
+          chainTension = Math.max(chainTension, Math.abs(angleDelta));
+        }
+        postReleaseFlowWhip = Math.max(
+          postReleaseFlowWhip * Math.exp(-frameSeconds * 2.35),
+          clamp(chainTension / 1.12, 0, 1)
+        );
+      };
 
       const clearPostReleaseCanvas = () => {
         if (!postReleaseCanvas || !postReleaseContext) return;
@@ -1142,18 +1181,22 @@ const gateStyle = [
         context.restore();
       };
 
-      const drawPostReleaseTrail = (context, source, point, motionDirection, speed, alpha) => {
-        const direction = motionDirection || postReleaseDirection || 1;
+      const drawPostReleaseTrail = (context, source, point, speed, alpha) => {
         const trailLength = source.kind === "blade"
-          ? 18 + Math.min(54, speed * 0.32)
-          : 7 + Math.min(32, speed * 0.22);
-        const tailX = -direction * trailLength;
-        const tailY = source.kind === "blade"
-          ? -direction * trailLength * 0.18
-          : (source.angle * trailLength * 0.2);
+          ? 24 + Math.min(56, speed * 0.32) + postReleaseFlowWhip * 18
+          : 10 + Math.min(34, speed * 0.22) + postReleaseFlowWhip * 10;
+        const segmentCount = source.kind === "blade" ? 8 : 6;
+        const segmentLength = trailLength / segmentCount;
+        let tailX = point.x;
+        let tailY = point.y;
+        for (let segment = 0; segment < segmentCount; segment += 1) {
+          const angle = getPostReleaseFlowAngle((segment + 0.5) / segmentCount);
+          tailX += Math.cos(angle) * segmentLength;
+          tailY += Math.sin(angle) * segmentLength;
+        }
         const gradient = context.createLinearGradient(
-          point.x + tailX,
-          point.y + tailY,
+          tailX,
+          tailY,
           point.x,
           point.y
         );
@@ -1168,30 +1211,39 @@ const gateStyle = [
           ? Math.max(1.2, point.scale * 2.3)
           : Math.max(0.8, point.scale * 1.35);
         context.beginPath();
-        context.moveTo(point.x + tailX, point.y + tailY);
-        context.quadraticCurveTo(
-          point.x + tailX * 0.38,
-          point.y + tailY * 0.24 - source.angle * 4,
-          point.x,
-          point.y
-        );
+        context.moveTo(point.x, point.y);
+        let x = point.x;
+        let y = point.y;
+        for (let segment = 0; segment < segmentCount; segment += 1) {
+          const angle = getPostReleaseFlowAngle((segment + 0.5) / segmentCount);
+          x += Math.cos(angle) * segmentLength;
+          y += Math.sin(angle) * segmentLength;
+          context.lineTo(x, y);
+        }
         context.stroke();
         context.restore();
       };
 
-      const drawPostReleaseEyeFlame = (context, source, point, motionDirection, speed, time, alpha) => {
-        const direction = motionDirection || postReleaseDirection || 1;
+      const drawPostReleaseEyeFlame = (context, source, point, speed, time, alpha) => {
         const glowScale = clamp(point.scale, 0.58, 1.35);
-        const motionStretch = Math.min(22, speed * 0.16);
+        const motionStretch = Math.min(22, speed * 0.16) + postReleaseFlowWhip * 12;
         const baseLength = (25 + motionStretch) * glowScale;
         const phase = time * 2.15 + source.x * 31 + source.y * 17;
-        const rawForwardX = -direction;
-        const rawForwardY = -0.22 + source.angle * 0.08 + Math.sin(phase * 0.68) * 0.024;
-        const forwardMagnitude = Math.max(0.001, Math.hypot(rawForwardX, rawForwardY));
-        const forwardX = rawForwardX / forwardMagnitude;
-        const forwardY = rawForwardY / forwardMagnitude;
-        const normalX = -forwardY;
-        const normalY = forwardX;
+        const rootAngle = getPostReleaseFlowAngle(0.04) + source.angle * 0.025;
+        const middleAngle = getPostReleaseFlowAngle(0.46) + source.angle * 0.018;
+        const tipAngle = getPostReleaseFlowAngle(0.92) + source.angle * 0.012;
+        const rootX = Math.cos(rootAngle);
+        const rootY = Math.sin(rootAngle);
+        const middleX = Math.cos(middleAngle);
+        const middleY = Math.sin(middleAngle);
+        const tipX = Math.cos(tipAngle);
+        const tipY = Math.sin(tipAngle);
+        const rootNormalX = -rootY;
+        const rootNormalY = rootX;
+        const middleNormalX = -middleY;
+        const middleNormalY = middleX;
+        const tipNormalX = -tipY;
+        const tipNormalY = tipX;
         const lobes = [
           { length: 1, width: 1, offset: 0, phase: 0, alpha: 0.58 },
           { length: 0.72, width: 0.72, offset: -3.2, phase: 1.8, alpha: 0.42 },
@@ -1206,8 +1258,16 @@ const gateStyle = [
           const length = baseLength * lobe.length * (0.92 + Math.sin(phase + lobe.phase) * 0.08);
           const width = (3.7 + Math.min(2.8, speed * 0.024)) * glowScale * lobe.width;
           const sideOffset = (lobe.offset + flutter * 0.28) * glowScale;
-          const tailX = point.x + forwardX * length + normalX * (sideOffset + flutter);
-          const tailY = point.y + forwardY * length + normalY * (sideOffset + flutter);
+          const tailX = point.x
+            + rootX * length * 0.2
+            + middleX * length * 0.34
+            + tipX * length * 0.46
+            + tipNormalX * (sideOffset + flutter);
+          const tailY = point.y
+            + rootY * length * 0.2
+            + middleY * length * 0.34
+            + tipY * length * 0.46
+            + tipNormalY * (sideOffset + flutter);
           const gradient = context.createLinearGradient(tailX, tailY, point.x, point.y);
           gradient.addColorStop(0, "rgba(255, 33, 120, 0)");
           gradient.addColorStop(0.34, `rgba(255, 38, 125, ${alpha * lobe.alpha * 0.42})`);
@@ -1219,32 +1279,51 @@ const gateStyle = [
           context.shadowBlur = 10 * glowScale;
           context.beginPath();
           context.moveTo(
-            point.x + normalX * width,
-            point.y + normalY * width
+            point.x + rootNormalX * width,
+            point.y + rootNormalY * width
           );
           context.bezierCurveTo(
-            point.x + forwardX * length * 0.24 + normalX * (width * 1.5 + sideOffset * 0.2),
-            point.y + forwardY * length * 0.24 + normalY * (width * 1.5 + sideOffset * 0.2),
-            point.x + forwardX * length * 0.72 + normalX * (width * 0.44 + sideOffset),
-            point.y + forwardY * length * 0.72 + normalY * (width * 0.44 + sideOffset),
+            point.x + rootX * length * 0.24 + rootNormalX * (width * 1.5 + sideOffset * 0.2),
+            point.y + rootY * length * 0.24 + rootNormalY * (width * 1.5 + sideOffset * 0.2),
+            point.x
+              + rootX * length * 0.2
+              + middleX * length * 0.46
+              + middleNormalX * (width * 0.44 + sideOffset),
+            point.y
+              + rootY * length * 0.2
+              + middleY * length * 0.46
+              + middleNormalY * (width * 0.44 + sideOffset),
             tailX,
             tailY
           );
           context.bezierCurveTo(
-            point.x + forwardX * length * 0.64 + normalX * (-width * 0.42 + sideOffset),
-            point.y + forwardY * length * 0.64 + normalY * (-width * 0.42 + sideOffset),
-            point.x + forwardX * length * 0.18 - normalX * width,
-            point.y + forwardY * length * 0.18 - normalY * width,
-            point.x - normalX * width * 0.72,
-            point.y - normalY * width * 0.72
+            point.x
+              + rootX * length * 0.18
+              + middleX * length * 0.42
+              + middleNormalX * (-width * 0.42 + sideOffset),
+            point.y
+              + rootY * length * 0.18
+              + middleY * length * 0.42
+              + middleNormalY * (-width * 0.42 + sideOffset),
+            point.x + rootX * length * 0.18 - rootNormalX * width,
+            point.y + rootY * length * 0.18 - rootNormalY * width,
+            point.x - rootNormalX * width * 0.72,
+            point.y - rootNormalY * width * 0.72
           );
           context.closePath();
           context.fill();
         }
 
         const coreLength = baseLength * 0.82;
-        const coreTailX = point.x + forwardX * coreLength;
-        const coreTailY = point.y + forwardY * coreLength + normalY * Math.sin(phase * 1.6) * 2.6 * glowScale;
+        const coreTailX = point.x
+          + rootX * coreLength * 0.22
+          + middleX * coreLength * 0.34
+          + tipX * coreLength * 0.44;
+        const coreTailY = point.y
+          + rootY * coreLength * 0.22
+          + middleY * coreLength * 0.34
+          + tipY * coreLength * 0.44
+          + tipNormalY * Math.sin(phase * 1.6) * 2.6 * glowScale;
         const coreGradient = context.createLinearGradient(coreTailX, coreTailY, point.x, point.y);
         coreGradient.addColorStop(0, "rgba(255, 80, 151, 0)");
         coreGradient.addColorStop(0.58, `rgba(255, 119, 180, ${alpha * 0.48})`);
@@ -1254,9 +1333,17 @@ const gateStyle = [
         context.lineWidth = Math.max(0.8, 1.45 * glowScale);
         context.beginPath();
         context.moveTo(coreTailX, coreTailY);
-        context.quadraticCurveTo(
-          point.x + forwardX * coreLength * 0.44 + normalX * Math.sin(phase) * 2.4 * glowScale,
-          point.y + forwardY * coreLength * 0.44 + normalY * Math.sin(phase) * 2.4 * glowScale,
+        context.bezierCurveTo(
+          point.x
+            + rootX * coreLength * 0.18
+            + middleX * coreLength * 0.5
+            + middleNormalX * Math.sin(phase) * 2.4 * glowScale,
+          point.y
+            + rootY * coreLength * 0.18
+            + middleY * coreLength * 0.5
+            + middleNormalY * Math.sin(phase) * 2.4 * glowScale,
+          point.x + rootX * coreLength * 0.2,
+          point.y + rootY * coreLength * 0.2,
           point.x,
           point.y
         );
@@ -1267,9 +1354,6 @@ const gateStyle = [
       const drawPostReleaseHighlights = (context, timestamp, intro) => {
         const time = timestamp / 1000;
         const speed = Math.abs(postReleaseVelocityX);
-        const motionDirection = Math.abs(postReleaseVelocityX) > 1.2
-          ? Math.sign(postReleaseVelocityX)
-          : postReleaseDirection || 1;
         context.save();
         context.globalCompositeOperation = "lighter";
         for (let index = 0; index < postReleaseSources.length; index += 1) {
@@ -1282,7 +1366,7 @@ const gateStyle = [
             || point.y > postReleaseCanvasHeight + 90
           ) continue;
           const pulse = 0.88 + Math.sin(time * (3.4 + index * 0.28) + index * 1.7) * 0.12;
-          const movementLift = clamp(speed / 120, 0, 1) * 0.24;
+          const movementLift = clamp(speed / 120, 0, 1) * 0.24 + postReleaseFlowWhip * 0.12;
           const alpha = intro * source.strength * (pulse + movementLift);
           if (source.kind === "eye") {
             const glowScale = clamp(point.scale, 0.58, 1.35);
@@ -1294,7 +1378,6 @@ const gateStyle = [
               context,
               source,
               point,
-              motionDirection,
               speed,
               time,
               alpha * 0.94
@@ -1405,30 +1488,33 @@ const gateStyle = [
             context.lineTo(18 * glowScale, 6 * glowScale);
             context.stroke();
             context.restore();
-            drawPostReleaseTrail(context, source, point, motionDirection, speed, alpha * 0.92);
+            drawPostReleaseTrail(context, source, point, speed, alpha * 0.92);
           }
         }
         context.restore();
       };
 
-      const spawnPostReleaseParticle = (source, point, direction, speed, ambient = false) => {
+      const spawnPostReleaseParticle = (source, point, speed, ambient = false) => {
         if (postReleaseParticles.length >= (postReleaseCanvasWidth < 640 ? 136 : 224)) return;
         const randomA = nextPostReleaseRandom();
         const randomB = nextPostReleaseRandom();
         const randomC = nextPostReleaseRandom();
-        const ejectionDirection = direction || postReleaseDirection || 1;
         const power = ambient
           ? 48 + randomB * 46
           : 76 + Math.min(180, speed * 0.82) + randomB * 62;
-        const verticalBias = source.kind === "blade" ? -0.36 : -0.42;
-        const velocityX = -ejectionDirection * power * (0.8 + randomA * 0.48);
-        const velocityY = power * ((randomC - 0.5) * 0.4 + verticalBias);
+        const flowOffset = (randomC - 0.5) * (ambient ? 0.2 : 0.14);
+        const launchAngle = getPostReleaseFlowAngle(0.025 + randomA * 0.045) + flowOffset;
+        const launchPower = power * (0.9 + randomA * 0.3);
+        const velocityX = Math.cos(launchAngle) * launchPower;
+        const velocityY = Math.sin(launchAngle) * launchPower;
         const history = 0.016 + randomA * 0.022;
+        const x = point.x + (randomA - 0.5) * (source.kind === "blade" ? 9 : 4);
+        const y = point.y + (randomB - 0.5) * (source.kind === "blade" ? 6 : 4);
         postReleaseParticles.push({
-          x: point.x + (randomA - 0.5) * (source.kind === "blade" ? 9 : 4),
-          y: point.y + (randomB - 0.5) * (source.kind === "blade" ? 6 : 4),
-          previousX: point.x - velocityX * history,
-          previousY: point.y - velocityY * history,
+          x,
+          y,
+          previousX: x - velocityX * history,
+          previousY: y - velocityY * history,
           velocityX,
           velocityY,
           age: 0,
@@ -1438,16 +1524,20 @@ const gateStyle = [
           curl: 12 + randomA * 22,
           lift: 26 + randomB * 24,
           phase: randomC * fullTurn,
+          flowOffset,
+          flowLag: randomA * 0.075,
+          flowCoupling: 0.84 + randomB * 0.3,
           ambient
         });
       };
 
       const updatePostReleaseParticles = (context, frameSeconds, speed, intro) => {
-        const activeDirection = Math.abs(postReleaseVelocityX) > 0.7
-          ? Math.sign(postReleaseVelocityX)
-          : postReleaseDirection || 1;
-        if (precisePointer && speed > 0.7) {
-          postReleaseEmissionBudget += frameSeconds * (34 + Math.min(70, speed * 0.52));
+        if (precisePointer && (speed > 0.7 || postReleaseFlowWhip > 0.025)) {
+          postReleaseEmissionBudget += frameSeconds * (
+            34
+            + Math.min(70, speed * 0.52)
+            + postReleaseFlowWhip * 48
+          );
         }
         postReleaseAmbientBudget += frameSeconds * (postReleaseCanvasWidth < 640 ? 26 : 42) * intro;
         while (postReleaseEmissionBudget >= 1) {
@@ -1456,7 +1546,7 @@ const gateStyle = [
             postReleaseSourceOrder[postReleaseSourceIndex % postReleaseSourceOrder.length]
           ];
           postReleaseSourceIndex += 1;
-          spawnPostReleaseParticle(source, mapPostReleaseSource(source), activeDirection, speed, false);
+          spawnPostReleaseParticle(source, mapPostReleaseSource(source), speed, false);
         }
         while (postReleaseAmbientBudget >= 1) {
           postReleaseAmbientBudget -= 1;
@@ -1464,7 +1554,7 @@ const gateStyle = [
             postReleaseSourceOrder[postReleaseSourceIndex % postReleaseSourceOrder.length]
           ];
           postReleaseSourceIndex += 1;
-          spawnPostReleaseParticle(source, mapPostReleaseSource(source), activeDirection, speed, true);
+          spawnPostReleaseParticle(source, mapPostReleaseSource(source), speed, true);
         }
 
         context.save();
@@ -1479,8 +1569,6 @@ const gateStyle = [
           }
           particle.previousX = particle.x;
           particle.previousY = particle.y;
-          particle.x += particle.velocityX * frameSeconds;
-          particle.y += particle.velocityY * frameSeconds;
           const drag = Math.exp(-(particle.ambient ? 0.68 : 0.92) * frameSeconds);
           particle.velocityX *= drag;
           particle.velocityY *= drag;
@@ -1492,6 +1580,25 @@ const gateStyle = [
             * frameSeconds
             * (0.82 + Math.min(0.9, particle.age * 0.72));
           const lifeProgress = particle.age / particle.life;
+          const currentSpeed = Math.max(1, Math.hypot(particle.velocityX, particle.velocityY));
+          const currentAngle = Math.atan2(particle.velocityY, particle.velocityX);
+          const guideUnit = clamp(lifeProgress * 0.88 + particle.flowLag, 0, 1);
+          const targetAngle = getPostReleaseFlowAngle(guideUnit)
+            + particle.flowOffset * (1 - guideUnit * 0.48);
+          const turnRate = (particle.ambient ? 3.8 : 5.15)
+            * particle.flowCoupling
+            * (1 + postReleaseFlowWhip * 0.82)
+            * (1 - lifeProgress * 0.2);
+          const turn = clamp(
+            shortestAngleDelta(currentAngle, targetAngle),
+            -turnRate * frameSeconds,
+            turnRate * frameSeconds
+          );
+          const steeredAngle = currentAngle + turn;
+          particle.velocityX = Math.cos(steeredAngle) * currentSpeed;
+          particle.velocityY = Math.sin(steeredAngle) * currentSpeed;
+          particle.x += particle.velocityX * frameSeconds;
+          particle.y += particle.velocityY * frameSeconds;
           const fadeIn = smoothstep(clamp(particle.age / 0.09, 0, 1));
           const fadeOut = 1 - smoothstep(clamp((lifeProgress - 0.58) / 0.42, 0, 1));
           const flicker = 0.76 + Math.sin(particle.phase + particle.age * 9.4) * 0.24;
@@ -1681,7 +1788,8 @@ const gateStyle = [
         ) return;
         const motionPending = Math.abs(postReleaseTargetX - postReleaseX) > 0.03
           || Math.abs(postReleaseTargetY - postReleaseY) > 0.03
-          || Boolean(postReleaseJourney);
+          || Boolean(postReleaseJourney)
+          || postReleaseFlowWhip > 0.018;
         const minimumFrameInterval = motionPending ? 1000 / 60 : 1000 / 30;
         if (
           postReleaseLastTimestamp
@@ -1700,6 +1808,7 @@ const gateStyle = [
         postReleaseX += (postReleaseTargetX - postReleaseX) * response;
         postReleaseY += (postReleaseTargetY - postReleaseY) * (1 - Math.exp(-frameSeconds * 5.4));
         postReleaseVelocityX = (postReleaseX - previousX) / Math.max(0.001, frameSeconds);
+        updatePostReleaseFlow(frameSeconds);
         const intro = reducedMotion
           ? 1
           : smoothstep(clamp((timestamp - postReleaseStartedAt) / 880, 0, 1));
@@ -1749,6 +1858,9 @@ const gateStyle = [
         postReleasePointerAccumulator = 0;
         postReleaseDirection = 1;
         postReleaseDirectionChangedAt = 0;
+        postReleaseFlowAngles.fill(postReleaseInitialFlowAngle);
+        postReleaseFlowAngularVelocities.fill(0);
+        postReleaseFlowWhip = 0;
         postReleaseJourney = null;
         postReleaseDataInitialized = false;
         postReleaseDataPosition = 50;
@@ -1790,8 +1902,16 @@ const gateStyle = [
           direction !== postReleaseDirection
           && timestamp - postReleaseDirectionChangedAt < 110
         ) return;
+        const directionChanged = direction !== postReleaseDirection;
         postReleaseDirection = direction;
         postReleaseDirectionChangedAt = timestamp;
+        if (directionChanged) {
+          const targetFlowAngle = Math.atan2(-0.42, -direction);
+          const turnImpulse = shortestAngleDelta(postReleaseFlowAngles[0], targetFlowAngle);
+          postReleaseFlowAngularVelocities[0] += clamp(turnImpulse * 0.58, -1.55, 1.55);
+          postReleaseFlowWhip = 1;
+          postReleaseEmissionBudget = Math.min(postReleaseEmissionBudget, 0.75);
+        }
         postReleaseTargetX = destination;
         const startPosition = postReleaseDataInitialized
           ? postReleaseDataPosition
