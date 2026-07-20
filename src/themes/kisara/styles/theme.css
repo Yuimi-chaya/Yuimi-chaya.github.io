@@ -311,8 +311,8 @@ a {
   --kisara-impact-scale: 1;
   --kisara-warning-monochrome: 0;
   --kisara-warning-focus: 0;
-  --kisara-warning-shutter: 0;
   --kisara-warning-pulse: 0;
+  --kisara-warning-aperture: 36%;
   --kisara-warning-saturation: 1;
   --kisara-warning-contrast: 1;
   --kisara-warning-brightness: 1;
@@ -367,82 +367,48 @@ a {
 }
 
 .kisara-warning-monochrome,
-.kisara-warning-focus,
-.kisara-warning-shutter {
+.kisara-warning-focus {
   position: absolute;
-  inset: -8%;
+  inset: 0;
   display: block;
   pointer-events: none;
   opacity: 0;
-  will-change: opacity, transform, filter, backdrop-filter;
+  will-change: opacity, transform;
 }
 
 .kisara-warning-monochrome {
   z-index: 0;
   opacity: var(--kisara-warning-monochrome);
-  background: rgba(3, 5, 16, 0.16);
-  -webkit-backdrop-filter:
-    grayscale(var(--kisara-warning-monochrome))
-    saturate(var(--kisara-warning-saturation))
-    contrast(var(--kisara-warning-contrast))
-    brightness(var(--kisara-warning-brightness));
-  backdrop-filter:
-    grayscale(var(--kisara-warning-monochrome))
-    saturate(var(--kisara-warning-saturation))
-    contrast(var(--kisara-warning-contrast))
-    brightness(var(--kisara-warning-brightness));
+  background:
+    radial-gradient(
+      ellipse 34% 25% at var(--kisara-warning-center-x) var(--kisara-warning-center-y),
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.035) 36%,
+      transparent 72%
+    ),
+    rgba(2, 3, 12, 0.2);
 }
 
 .kisara-warning-focus {
   z-index: 1;
   opacity: var(--kisara-warning-focus);
-  transform: scale(calc(1 + var(--kisara-warning-pulse) * 0.018));
+  transform: scale(calc(1 + var(--kisara-warning-pulse) * 0.012));
   background:
     radial-gradient(
-      ellipse at var(--kisara-warning-center-x) var(--kisara-warning-center-y),
-      rgba(255, 255, 255, 0.36) 0%,
-      rgba(255, 250, 252, 0.18) 5%,
-      rgba(255, 106, 138, 0.08) 14%,
-      transparent 29%
+      ellipse 68% 54% at var(--kisara-warning-center-x) var(--kisara-warning-center-y),
+      transparent 0 calc(var(--kisara-warning-aperture) - 8%),
+      rgba(255, 255, 255, 0.075) calc(var(--kisara-warning-aperture) - 3%),
+      rgba(11, 12, 24, 0.12) var(--kisara-warning-aperture),
+      rgba(3, 4, 14, 0.62) calc(var(--kisara-warning-aperture) + 23%),
+      rgba(1, 2, 8, 0.9) 100%
     ),
     radial-gradient(
-      ellipse at var(--kisara-warning-center-x) var(--kisara-warning-center-y),
-      transparent 0 19%,
-      rgba(2, 4, 14, 0.18) 40%,
-      rgba(2, 4, 14, 0.82) 100%
+      ellipse 25% 18% at var(--kisara-warning-center-x) var(--kisara-warning-center-y),
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 110, 145, 0.045) 34%,
+      transparent 74%
     );
   mix-blend-mode: normal;
-}
-
-.kisara-warning-shutter {
-  z-index: 3;
-  opacity: var(--kisara-warning-shutter);
-  transform: scale(calc(1 + var(--kisara-warning-pulse) * 0.035));
-  background:
-    linear-gradient(
-      90deg,
-      transparent 0 47.8%,
-      rgba(255, 255, 255, 0.08) 48.5%,
-      rgba(255, 255, 255, 0.78) 49.6%,
-      rgba(255, 255, 255, 0.16) 50.4%,
-      transparent 52.2%
-    ),
-    linear-gradient(
-      0deg,
-      transparent 0 47.8%,
-      rgba(255, 255, 255, 0.08) 48.5%,
-      rgba(255, 255, 255, 0.72) 49.6%,
-      rgba(255, 255, 255, 0.16) 50.4%,
-      transparent 52.2%
-    ),
-    radial-gradient(
-      circle at var(--kisara-warning-center-x) var(--kisara-warning-center-y),
-      rgba(255, 255, 255, 0.7) 0 1.5%,
-      rgba(255, 96, 132, 0.18) 8%,
-      transparent 26%
-    );
-  mix-blend-mode: screen;
-  filter: blur(calc(0.2px + var(--kisara-warning-pulse) * 0.9px));
 }
 
 .kisara-screen-impact::before {
@@ -481,6 +447,12 @@ a {
   background: #111636;
   isolation: isolate;
   transform: translateZ(0);
+  filter:
+    grayscale(var(--kisara-warning-monochrome))
+    saturate(var(--kisara-warning-saturation))
+    contrast(var(--kisara-warning-contrast))
+    brightness(var(--kisara-warning-brightness));
+  will-change: filter;
 }
 
 .kisara-gate-background {
@@ -606,7 +578,12 @@ a {
     )
     scale(var(--kisara-impact-scale));
   transform-origin: 50% 50%;
-  will-change: transform;
+  filter:
+    grayscale(var(--kisara-warning-monochrome))
+    saturate(var(--kisara-warning-saturation))
+    contrast(var(--kisara-warning-contrast))
+    brightness(var(--kisara-warning-brightness));
+  will-change: transform, filter;
 }
 
 .kisara-title > span {
@@ -810,8 +787,8 @@ a {
 .kisara-title-cross {
   position: absolute;
   z-index: 5;
-  top: 50%;
-  left: 50%;
+  top: var(--kisara-warning-center-y);
+  left: var(--kisara-warning-center-x);
   width: clamp(190px, 44vw, 500px);
   aspect-ratio: 1;
   display: block;
