@@ -355,7 +355,6 @@ const gateStyle = [
         gravityY: 1.2,
         crossPulse: 0,
         crossPulseMod: 0,
-        crossRotation: 0,
         crossShakeX: 0,
         crossShakeY: 0
       });
@@ -5371,7 +5370,6 @@ const gateStyle = [
             advanceMotionPhase("gravityY", frameSeconds * 1.34);
             advanceMotionPhase("crossPulse", frameSeconds * (10 + crossFlash * 19));
             advanceMotionPhase("crossPulseMod", frameSeconds * 2.1);
-            advanceMotionPhase("crossRotation", frameSeconds * (8 + crossFlash * 18));
             advanceMotionPhase("crossShakeX", frameSeconds * (16 + crossFlash * 28));
             advanceMotionPhase("crossShakeY", frameSeconds * (19 + crossFlash * 31));
           }
@@ -5611,13 +5609,19 @@ const gateStyle = [
           1
         );
         const crossScale = 0.68 + crossBuild * 0.22 + crossFlash * 0.08 - crossCollapse * 0.14 + releaseFlash * 0.12;
+        // Keep the spin on one clock so the eased release keyframes cannot pause it at phase boundaries.
+        const crossAutoplayTimeline = burstAutoplay && burstAutoplayStartedAt > 0
+          ? clamp((timestamp - burstAutoplayStartedAt) / releaseAutoplayDuration, 0, 1)
+          : null;
+        const crossSpinLinear = crossAutoplayTimeline === null
+          ? clamp((burst - crossStart) / (crossEnd - crossStart), 0, 1)
+          : clamp((crossAutoplayTimeline - 0.035) / (0.22 - 0.035), 0, 1);
+        const crossSpinProgress = crossSpinLinear * (0.9 + crossSpinLinear * 0.1);
         const crossRotation = -18
-          + crossBuild * 44
-          + crossFlashLinear * 104
-          + crossReleaseLinear * 68
-          + Math.sin(motionPhases.crossRotation) * (0.7 + crossStrobe * 3.8);
-        const crossShakeX = Math.sin(motionPhases.crossShakeX) * (0.35 + crossStrobe * 2.6 + releaseFlash * 2.2);
-        const crossShakeY = Math.cos(motionPhases.crossShakeY) * (0.3 + crossStrobe * 2.1 + releaseFlash * 1.8);
+          + crossSpinProgress * 216;
+        const crossShakeStrength = crossFlash * (0.32 + crossPulse * 0.58) + releaseFlash * 0.9;
+        const crossShakeX = Math.sin(motionPhases.crossShakeX) * crossShakeStrength;
+        const crossShakeY = Math.cos(motionPhases.crossShakeY) * crossShakeStrength * 0.68;
         const warningPrelude = phaseProgress(burst, glossFadeEnd, crossStart);
         const warningTail = 1 - phaseProgress(burst, crossEnd, crossEnd + 0.05);
         const warningMonochrome = clamp(
