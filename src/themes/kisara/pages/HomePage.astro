@@ -1231,10 +1231,16 @@ const gateStyle = [
         const glowScale = clamp(point.scale, 0.58, 1.35);
         const motionStretch = Math.min(22, speed * 0.16) + postReleaseFlowWhip * 12;
         const baseLength = (25 + motionStretch) * glowScale;
+        const outerLength = baseLength * 1.28;
         const phase = time * 2.15 + source.x * 31 + source.y * 17;
         const rootAngle = getPostReleaseFlowAngle(0.04) + source.angle * 0.025;
-        const middleAngle = getPostReleaseFlowAngle(0.46) + source.angle * 0.018;
-        const tipAngle = getPostReleaseFlowAngle(0.92) + source.angle * 0.012;
+        const rawMiddleAngle = getPostReleaseFlowAngle(0.46) + source.angle * 0.018;
+        const rawTipAngle = getPostReleaseFlowAngle(0.92) + source.angle * 0.012;
+        const upwardAngle = -Math.PI / 2;
+        const middleAngle = rawMiddleAngle
+          + shortestAngleDelta(rawMiddleAngle, upwardAngle) * 0.13;
+        const tipAngle = rawTipAngle
+          + shortestAngleDelta(rawTipAngle, upwardAngle) * 0.28;
         const rootX = Math.cos(rootAngle);
         const rootY = Math.sin(rootAngle);
         const middleX = Math.cos(middleAngle);
@@ -1258,7 +1264,7 @@ const gateStyle = [
         context.lineJoin = "round";
         for (const lobe of lobes) {
           const flutter = Math.sin(phase * 1.7 + lobe.phase) * (2.4 + lobe.length * 2.1) * glowScale;
-          const length = baseLength * lobe.length * (0.92 + Math.sin(phase + lobe.phase) * 0.08);
+          const length = outerLength * lobe.length * (0.92 + Math.sin(phase + lobe.phase) * 0.08);
           const width = (3.7 + Math.min(2.8, speed * 0.024)) * glowScale * lobe.width;
           const sideOffset = (lobe.offset + flutter * 0.28) * glowScale;
           const tailX = point.x
@@ -1273,8 +1279,8 @@ const gateStyle = [
             + tipNormalY * (sideOffset + flutter);
           const gradient = context.createLinearGradient(tailX, tailY, point.x, point.y);
           gradient.addColorStop(0, "rgba(255, 33, 120, 0)");
-          gradient.addColorStop(0.34, `rgba(255, 38, 125, ${alpha * lobe.alpha * 0.42})`);
-          gradient.addColorStop(0.72, `rgba(255, 91, 158, ${alpha * lobe.alpha * 0.9})`);
+          gradient.addColorStop(0.28, `rgba(255, 38, 125, ${alpha * lobe.alpha * 0.42})`);
+          gradient.addColorStop(0.68, `rgba(255, 91, 158, ${alpha * lobe.alpha * 0.9})`);
           gradient.addColorStop(1, `rgba(255, 241, 250, ${alpha * lobe.alpha})`);
 
           context.fillStyle = gradient;
@@ -1530,6 +1536,7 @@ const gateStyle = [
           flowOffset,
           flowLag: randomA * 0.075,
           flowCoupling: 0.84 + randomB * 0.3,
+          sourceKind: source.kind,
           ambient
         });
       };
@@ -1570,6 +1577,7 @@ const gateStyle = [
             postReleaseParticles.pop();
             continue;
           }
+          const eyeParticle = particle.sourceKind === "eye";
           particle.previousX = particle.x;
           particle.previousY = particle.y;
           const drag = Math.exp(-(particle.ambient ? 0.68 : 0.92) * frameSeconds);
@@ -1581,13 +1589,19 @@ const gateStyle = [
             * particle.curl * frameSeconds * 0.62;
           particle.velocityY -= particle.lift
             * frameSeconds
-            * (0.82 + Math.min(0.9, particle.age * 0.72));
+            * (0.82 + Math.min(0.9, particle.age * 0.72))
+            * (eyeParticle ? 1.14 : 1);
           const lifeProgress = particle.age / particle.life;
           const currentSpeed = Math.max(1, Math.hypot(particle.velocityX, particle.velocityY));
           const currentAngle = Math.atan2(particle.velocityY, particle.velocityX);
           const guideUnit = clamp(lifeProgress * 0.88 + particle.flowLag, 0, 1);
-          const targetAngle = getPostReleaseFlowAngle(guideUnit)
+          const baseTargetAngle = getPostReleaseFlowAngle(guideUnit)
             + particle.flowOffset * (1 - guideUnit * 0.48);
+          const upwardArc = eyeParticle
+            ? smoothstep(clamp((lifeProgress - 0.06) / 0.82, 0, 1)) * 0.4
+            : 0;
+          const targetAngle = baseTargetAngle
+            + shortestAngleDelta(baseTargetAngle, -Math.PI / 2) * upwardArc;
           const turnRate = (particle.ambient ? 3.8 : 5.15)
             * particle.flowCoupling
             * (1 + postReleaseFlowWhip * 0.82)
