@@ -45,6 +45,7 @@ const gateStyle = [
     <div class="kisara-gate-visual" aria-hidden="true">
       <div class="kisara-gate-background kisara-gate-background-base"></div>
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
+      <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
       <canvas
         class="kisara-space-lens-canvas"
         data-kisara-space-lens
@@ -1249,6 +1250,61 @@ const gateStyle = [
         context.restore();
       };
 
+      const postReleaseEyeFlameLobes = [
+        { length: 1, width: 1, offset: 0, phase: 0, alpha: 0.58 },
+        { length: 0.72, width: 0.72, offset: -3.2, phase: 1.8, alpha: 0.42 },
+        { length: 0.56, width: 0.58, offset: 3.5, phase: 3.6, alpha: 0.34 }
+      ];
+
+      const getPostReleaseEyeFlameTip = (source, point, speed, time, lobeIndex = 0) => {
+        const glowScale = clamp(point.scale, 0.58, 1.35);
+        const motionStretch = Math.min(22, speed * 0.16) + postReleaseFlowWhip * 12;
+        const outerLength = (25 + motionStretch) * glowScale * 1.28;
+        const phase = time * 2.15 + source.x * 31 + source.y * 17;
+        const rootAngle = getPostReleaseFlowAngle(0.04) + source.angle * 0.025;
+        const rawMiddleAngle = getPostReleaseFlowAngle(0.46) + source.angle * 0.018;
+        const rawTipAngle = getPostReleaseFlowAngle(0.92) + source.angle * 0.012;
+        const upwardAngle = -Math.PI / 2;
+        const middleAngle = rawMiddleAngle
+          + shortestAngleDelta(rawMiddleAngle, upwardAngle) * 0.13;
+        const tipAngle = rawTipAngle
+          + shortestAngleDelta(rawTipAngle, upwardAngle) * 0.28;
+        const rootX = Math.cos(rootAngle);
+        const rootY = Math.sin(rootAngle);
+        const middleX = Math.cos(middleAngle);
+        const middleY = Math.sin(middleAngle);
+        const tipX = Math.cos(tipAngle);
+        const tipY = Math.sin(tipAngle);
+        const tipNormalX = -tipY;
+        const tipNormalY = tipX;
+        const lobe = postReleaseEyeFlameLobes[
+          clamp(Math.round(lobeIndex), 0, postReleaseEyeFlameLobes.length - 1)
+        ];
+        const flutter = Math.sin(phase * 1.7 + lobe.phase)
+          * (2.4 + lobe.length * 2.1)
+          * glowScale;
+        const length = outerLength
+          * lobe.length
+          * (0.92 + Math.sin(phase + lobe.phase) * 0.08);
+        const sideOffset = (lobe.offset + flutter * 0.28) * glowScale;
+        const x = point.x
+          + rootX * length * 0.2
+          + middleX * length * 0.34
+          + tipX * length * 0.46
+          + tipNormalX * (sideOffset + flutter);
+        const y = point.y
+          + rootY * length * 0.2
+          + middleY * length * 0.34
+          + tipY * length * 0.46
+          + tipNormalY * (sideOffset + flutter);
+        return {
+          x,
+          y,
+          angle: Math.atan2(y - point.y, x - point.x),
+          scale: glowScale
+        };
+      };
+
       const drawPostReleaseEyeFlame = (context, source, point, speed, time, alpha) => {
         const glowScale = clamp(point.scale, 0.58, 1.35);
         const motionStretch = Math.min(22, speed * 0.16) + postReleaseFlowWhip * 12;
@@ -1275,16 +1331,10 @@ const gateStyle = [
         const middleNormalY = middleX;
         const tipNormalX = -tipY;
         const tipNormalY = tipX;
-        const lobes = [
-          { length: 1, width: 1, offset: 0, phase: 0, alpha: 0.58 },
-          { length: 0.72, width: 0.72, offset: -3.2, phase: 1.8, alpha: 0.42 },
-          { length: 0.56, width: 0.58, offset: 3.5, phase: 3.6, alpha: 0.34 }
-        ];
-
         context.save();
         context.lineCap = "round";
         context.lineJoin = "round";
-        for (const lobe of lobes) {
+        for (const lobe of postReleaseEyeFlameLobes) {
           const flutter = Math.sin(phase * 1.7 + lobe.phase) * (2.4 + lobe.length * 2.1) * glowScale;
           const length = outerLength * lobe.length * (0.92 + Math.sin(phase + lobe.phase) * 0.08);
           const width = (3.7 + Math.min(2.8, speed * 0.024)) * glowScale * lobe.width;
@@ -1525,7 +1575,7 @@ const gateStyle = [
         context.restore();
       };
 
-      const spawnPostReleaseParticle = (source, point, speed, ambient = false) => {
+      const spawnPostReleaseParticle = (source, point, speed, ambient = false, time = 0) => {
         if (postReleaseParticles.length >= (postReleaseCanvasWidth < 640 ? 136 : 224)) return;
         const randomA = nextPostReleaseRandom();
         const randomB = nextPostReleaseRandom();
@@ -1534,13 +1584,26 @@ const gateStyle = [
           ? 48 + randomB * 46
           : 76 + Math.min(180, speed * 0.82) + randomB * 62;
         const flowOffset = (randomC - 0.5) * (ambient ? 0.2 : 0.14);
-        const launchAngle = getPostReleaseFlowAngle(0.025 + randomA * 0.045) + flowOffset;
+        let launchAngle = getPostReleaseFlowAngle(0.025 + randomA * 0.045) + flowOffset;
         const launchPower = power * (0.9 + randomA * 0.3);
+        let x = point.x + (randomA - 0.5) * (source.kind === "blade" ? 9 : 4);
+        let y = point.y + (randomB - 0.5) * (source.kind === "blade" ? 6 : 4);
+        if (source.kind === "eye") {
+          const lobeIndex = randomA < 0.58 ? 0 : randomA < 0.84 ? 1 : 2;
+          const flameTip = getPostReleaseEyeFlameTip(source, point, speed, time, lobeIndex);
+          const tipFlowAngle = getPostReleaseFlowAngle(0.82 + randomB * 0.16);
+          launchAngle = flameTip.angle
+            + shortestAngleDelta(flameTip.angle, tipFlowAngle) * 0.68
+            + flowOffset;
+          const normalX = -Math.sin(launchAngle);
+          const normalY = Math.cos(launchAngle);
+          const tipSpread = (randomC - 0.5) * 2.8 * flameTip.scale;
+          x = flameTip.x + normalX * tipSpread;
+          y = flameTip.y + normalY * tipSpread;
+        }
         const velocityX = Math.cos(launchAngle) * launchPower;
         const velocityY = Math.sin(launchAngle) * launchPower;
         const history = 0.016 + randomA * 0.022;
-        const x = point.x + (randomA - 0.5) * (source.kind === "blade" ? 9 : 4);
-        const y = point.y + (randomB - 0.5) * (source.kind === "blade" ? 6 : 4);
         postReleaseParticles.push({
           x,
           y,
@@ -1556,14 +1619,15 @@ const gateStyle = [
           lift: 26 + randomB * 24,
           phase: randomC * fullTurn,
           flowOffset,
-          flowLag: randomA * 0.075,
+          flowLag: source.kind === "eye" ? 0.72 + randomA * 0.16 : randomA * 0.075,
           flowCoupling: 0.84 + randomB * 0.3,
           sourceKind: source.kind,
           ambient
         });
       };
 
-      const updatePostReleaseParticles = (context, frameSeconds, speed, intro) => {
+      const updatePostReleaseParticles = (context, frameSeconds, speed, intro, timestamp) => {
+        const time = timestamp / 1000;
         if (precisePointer && (speed > 0.7 || postReleaseFlowWhip > 0.025)) {
           postReleaseEmissionBudget += frameSeconds * (
             34
@@ -1578,7 +1642,7 @@ const gateStyle = [
             postReleaseSourceOrder[postReleaseSourceIndex % postReleaseSourceOrder.length]
           ];
           postReleaseSourceIndex += 1;
-          spawnPostReleaseParticle(source, mapPostReleaseSource(source), speed, false);
+          spawnPostReleaseParticle(source, mapPostReleaseSource(source), speed, false, time);
         }
         while (postReleaseAmbientBudget >= 1) {
           postReleaseAmbientBudget -= 1;
@@ -1586,7 +1650,7 @@ const gateStyle = [
             postReleaseSourceOrder[postReleaseSourceIndex % postReleaseSourceOrder.length]
           ];
           postReleaseSourceIndex += 1;
-          spawnPostReleaseParticle(source, mapPostReleaseSource(source), speed, true);
+          spawnPostReleaseParticle(source, mapPostReleaseSource(source), speed, true, time);
         }
 
         context.save();
@@ -1638,7 +1702,7 @@ const gateStyle = [
           particle.velocityY = Math.sin(steeredAngle) * currentSpeed;
           particle.x += particle.velocityX * frameSeconds;
           particle.y += particle.velocityY * frameSeconds;
-          const fadeIn = smoothstep(clamp(particle.age / 0.09, 0, 1));
+          const fadeIn = smoothstep(clamp(particle.age / (eyeParticle ? 0.045 : 0.09), 0, 1));
           const fadeOut = 1 - smoothstep(clamp((lifeProgress - 0.58) / 0.42, 0, 1));
           const flicker = 0.76 + Math.sin(particle.phase + particle.age * 9.4) * 0.24;
           const alpha = fadeIn * fadeOut * flicker * intro;
@@ -2077,7 +2141,8 @@ const gateStyle = [
           postReleaseContext,
           frameSeconds,
           Math.abs(postReleaseVelocityX),
-          intro
+          intro,
+          timestamp
         );
         if (!reducedMotion) postReleaseFrame = window.requestAnimationFrame(drawPostRelease);
       };
@@ -2343,6 +2408,11 @@ const gateStyle = [
             return mix(sceneColor, vec3(0.027, 0.039, 0.122), atmosphere);
           }
 
+          vec3 sampleRestoredFight(vec2 uv) {
+            vec2 fightUv = coverUv(uv, uFightSize, 1.0);
+            return texture(uFightTexture, fightUv).rgb;
+          }
+
           void main() {
             float aspect = uResolution.x / max(1.0, uResolution.y);
             vec2 point = vUv - uCenter;
@@ -2533,8 +2603,8 @@ const gateStyle = [
               min(localCell.y, 1.0 - localCell.y)
             );
             float cellEdge = 1.0 - smoothstep(0.035, 0.14, cellEdgeDistance);
-            vec3 blockColor = sampleScene(dataCellCenter);
-            vec3 cleanColor = sampleScene(vUv);
+            vec3 blockColor = sampleRestoredFight(dataCellCenter);
+            vec3 cleanColor = sampleRestoredFight(vUv);
             vec3 reconstructedColor = mix(blockColor, cleanColor, dataSettle);
             reconstructedColor += vec3(0.26, 0.035, 0.12)
               * dataFront
@@ -5434,6 +5504,23 @@ const gateStyle = [
         const reconstructionOpacity = phaseProgress(reconstructionLinear, 0.015, 0.16)
           * (1 - phaseProgress(reconstructionLinear, 0.88, 1))
           * 0.92;
+        const reconstructionEase = 1 - Math.pow(1 - reconstructionLinear, 2.35);
+        const reconstructionWashOpacity = phaseProgress(reconstructionLinear, 0.015, 0.13);
+        const reconstructionFeather = clamp(gateShortSide * 0.135, 74, 148);
+        const reconstructionFarthest = Math.max(
+          Math.hypot(warpOriginX, warpOriginY),
+          Math.hypot(gate.clientWidth - warpOriginX, warpOriginY),
+          Math.hypot(warpOriginX, gateHeight - warpOriginY),
+          Math.hypot(gate.clientWidth - warpOriginX, gateHeight - warpOriginY)
+        );
+        const reconstructionSeal = phaseProgress(reconstructionLinear, 0.82, 1)
+          * reconstructionFeather * 1.08;
+        const reconstructionOuterRadius = reconstructionEase * reconstructionFarthest
+          + reconstructionSeal;
+        const reconstructionInnerRadius = Math.max(
+          0,
+          reconstructionOuterRadius - reconstructionFeather
+        );
         let titleLensCenterX = titleLensCanvas?.clientWidth * 0.5 || 0;
         let titleLensCenterY = titleLensCanvas?.clientHeight * 0.5 || 0;
         if (titleLensCanvas && title) {
@@ -5525,6 +5612,20 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-shift-y", `${(gravityDriftY * 1.45).toFixed(3)}px`);
         gate.style.setProperty("--kisara-gravity-scale", gravityScale.toFixed(4));
         gate.style.setProperty("--kisara-title-blur", `${titleBlur.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-reconstruction-center-x", `${(warpOriginX + 24).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-reconstruction-center-y", `${(warpOriginY + 24).toFixed(3)}px`);
+        gate.style.setProperty(
+          "--kisara-reconstruction-inner-radius",
+          `${reconstructionInnerRadius.toFixed(3)}px`
+        );
+        gate.style.setProperty(
+          "--kisara-reconstruction-outer-radius",
+          `${reconstructionOuterRadius.toFixed(3)}px`
+        );
+        gate.style.setProperty(
+          "--kisara-reconstruction-wash-opacity",
+          reconstructionWashOpacity.toFixed(3)
+        );
         drawSpaceLens(timestamp, {
           centerX: clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1),
           centerY: clamp(1 - warpOriginY / gateHeight, 0, 1),
@@ -6166,6 +6267,9 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-scale", (1.06 - reveal * 0.06).toFixed(4));
         gate.style.setProperty("--kisara-fight-saturation", (0.84 + reveal * 0.36).toFixed(3));
         gate.style.setProperty("--kisara-fight-brightness", (0.86 + reveal * 0.22).toFixed(3));
+        gate.style.setProperty("--kisara-reconstruction-inner-radius", "0px");
+        gate.style.setProperty("--kisara-reconstruction-outer-radius", "0px");
+        gate.style.setProperty("--kisara-reconstruction-wash-opacity", "0");
         energyProgress = fill;
         updateBurstPresentation(performance.now(), false);
         startEnergyAnimation();

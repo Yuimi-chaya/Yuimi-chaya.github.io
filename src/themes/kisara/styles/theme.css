@@ -290,6 +290,11 @@ a {
   --kisara-fight-scale: 1.06;
   --kisara-fight-saturation: 0.92;
   --kisara-fight-brightness: 0.9;
+  --kisara-reconstruction-center-x: 50%;
+  --kisara-reconstruction-center-y: 50%;
+  --kisara-reconstruction-inner-radius: 0px;
+  --kisara-reconstruction-outer-radius: 0px;
+  --kisara-reconstruction-wash-opacity: 0;
   --kisara-screen-shake-x: 0px;
   --kisara-screen-shake-y: 0px;
   --kisara-base-shift-x: 0px;
@@ -418,6 +423,31 @@ a {
     )
     scale(var(--kisara-fight-scale))
     scale(var(--kisara-gravity-scale));
+}
+
+.kisara-gate-background-fight-wash {
+  z-index: 3;
+  background-image: var(--kisara-fight-background-image);
+  opacity: var(--kisara-reconstruction-wash-opacity);
+  filter: none;
+  transform: translate3d(
+      calc(var(--kisara-fight-shift-x) + var(--kisara-post-parallax-x)),
+      calc(var(--kisara-fight-shift-y) + var(--kisara-post-parallax-y)),
+      0
+    )
+    scale(var(--kisara-fight-scale))
+    scale(var(--kisara-gravity-scale));
+  -webkit-mask-image: radial-gradient(
+    circle at var(--kisara-reconstruction-center-x) var(--kisara-reconstruction-center-y),
+    #000 var(--kisara-reconstruction-inner-radius),
+    transparent var(--kisara-reconstruction-outer-radius)
+  );
+  mask-image: radial-gradient(
+    circle at var(--kisara-reconstruction-center-x) var(--kisara-reconstruction-center-y),
+    #000 var(--kisara-reconstruction-inner-radius),
+    transparent var(--kisara-reconstruction-outer-radius)
+  );
+  will-change: opacity, transform, -webkit-mask-image, mask-image;
 }
 
 .kisara-space-lens-canvas {
