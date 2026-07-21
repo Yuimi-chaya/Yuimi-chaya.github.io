@@ -336,6 +336,8 @@ const gateStyle = [
       let renderedRailProgress = -1;
       let renderedRailStage = "";
       let renderedRailActive = null;
+      let renderedRailGuided = null;
+      let renderedRailTransitioning = null;
       let energyFrame = 0;
       let energyTimer = 0;
       let energyLoopActive = false;
@@ -8719,8 +8721,47 @@ const gateStyle = [
         }
       };
 
+      const publishGateRailState = ({
+        active,
+        progress: nextProgress,
+        stage,
+        guided = false,
+        transitioning = false,
+        metadata = {}
+      }) => {
+        const railProgress = clamp(nextProgress, 0, 1);
+        if (
+          Math.abs(railProgress - renderedRailProgress) < 0.0005
+          && stage === renderedRailStage
+          && active === renderedRailActive
+          && guided === renderedRailGuided
+          && transitioning === renderedRailTransitioning
+        ) return;
+        renderedRailProgress = railProgress;
+        renderedRailStage = stage;
+        renderedRailActive = active;
+        renderedRailGuided = guided;
+        renderedRailTransitioning = transitioning;
+        gate.dataset.kisaraScrollProgress = railProgress.toFixed(5);
+        gate.dataset.kisaraScrollStage = stage;
+        gate.dataset.kisaraScrollActive = String(active);
+        gate.dataset.kisaraScrollGuided = String(guided);
+        gate.dataset.kisaraScrollTransitioning = String(transitioning);
+        window.dispatchEvent(new CustomEvent("kisara:gate-progress", {
+          detail: {
+            active,
+            progress: railProgress,
+            stage,
+            guided,
+            transitioning,
+            ...metadata
+          }
+        }));
+      };
+
       const syncGateProgressRail = (fill, burstComplete, chainStage) => {
         const active = pageMode === "gate";
+        const automatic = chargeIntroActive || burstAutoplay;
         const manualReleaseProgress = clamp(burstProgress / glossFadeEnd, 0, 1);
         const overallProgress = !chargeIntroComplete
           ? chargeIntroActive
@@ -8749,29 +8790,20 @@ const gateStyle = [
                       : burstProgress < detonationEnd
                         ? "detonation"
                         : "reconstruction";
-        if (
-          Math.abs(railProgress - renderedRailProgress) < 0.0005
-          && railStage === renderedRailStage
-          && active === renderedRailActive
-        ) return;
-        renderedRailProgress = railProgress;
-        renderedRailStage = railStage;
-        renderedRailActive = active;
-        gate.dataset.kisaraScrollProgress = railProgress.toFixed(5);
-        gate.dataset.kisaraScrollStage = railStage;
-        gate.dataset.kisaraScrollActive = String(active);
-        window.dispatchEvent(new CustomEvent("kisara:gate-progress", {
-          detail: {
-            active,
-            progress: railProgress,
-            stage: railStage,
+        publishGateRailState({
+          active,
+          progress: railProgress,
+          stage: railStage,
+          guided: active && !automatic,
+          metadata: {
             fill,
             intro: chargeIntroProgress,
             burst: burstProgress,
             autoplay: burstAutoplayTimeline,
+            automatic,
             complete: burstComplete
           }
-        }));
+        });
       };
 
       const render = () => {
@@ -8850,14 +8882,17 @@ const gateStyle = [
         gate.classList.toggle("is-receding", velocity < -0.0003);
         setPostReleaseActive(burstComplete && pageMode === "gate");
         if (cue) {
+          const cueGuided = pageMode === "gate" && !chargeIntroActive && !burstAutoplay;
+          cue.classList.toggle("is-guiding", cueGuided);
+          cue.classList.toggle("is-enter-ready", burstComplete && pageMode === "gate");
           cue.textContent = chargeIntroActive
             ? "LOCKED HEART / BREAKING"
             : burstAutoplay
             ? "AUTOMATIC RELEASE / STAND BY"
             : burstComplete
-            ? "SIGNAL RELEASED / CONTINUE"
+            ? "SCROLL DOWN / ENTER CHANNEL"
             : fillComplete
-              ? "OVERCHARGE / BREAK THE SEAL"
+              ? "SCROLL / DRAW THE BLADE"
               : "SCROLL / TIGHTEN THE SEAL";
         }
       };
@@ -8962,6 +8997,12 @@ const gateStyle = [
       const getNextPageTop = () => {
         const openingRect = opening?.getBoundingClientRect();
         return Math.max(1, Math.round((openingRect?.top ?? gate.getBoundingClientRect().height) + window.scrollY));
+      };
+
+      const getDocumentScrollProgress = () => {
+        const root = document.scrollingElement ?? document.documentElement;
+        const scrollRange = Math.max(1, root.scrollHeight - window.innerHeight);
+        return clamp(window.scrollY / scrollRange, 0, 1);
       };
 
       const setScrollPosition = (value) => {
@@ -9130,6 +9171,13 @@ const gateStyle = [
         }
         gate.classList.remove("is-color-resetting");
         pageMode = "snap";
+        publishGateRailState({
+          active: true,
+          progress: getDocumentScrollProgress(),
+          stage: "returning",
+          guided: false,
+          transitioning: true
+        });
         smoothScrollTo(0, () => {
           pageMode = "gate";
           poseTimestamp = 0;
@@ -9147,6 +9195,14 @@ const gateStyle = [
           beamHeadVelocityY = 0;
           beamMotionEnergy = 0;
           render();
+        }, () => {
+          publishGateRailState({
+            active: true,
+            progress: getDocumentScrollProgress(),
+            stage: "returning",
+            guided: false,
+            transitioning: true
+          });
         });
       };
 

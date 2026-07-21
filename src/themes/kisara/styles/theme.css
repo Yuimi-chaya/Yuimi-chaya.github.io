@@ -279,9 +279,9 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   right: 8px;
   bottom: 24px;
   width: 22px;
-  cursor: pointer;
+  pointer-events: none;
+  cursor: default;
   outline: none;
-  touch-action: none;
   transition: opacity 180ms ease;
 }
 
@@ -343,6 +343,36 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   transform: translateX(-50%);
 }
 
+.kisara-scrollbar-guide {
+  position: absolute;
+  top: var(--kisara-scroll-thumb-y);
+  right: 27px;
+  display: grid;
+  width: 34px;
+  height: var(--kisara-scroll-thumb-size);
+  place-items: center;
+  color: var(--kisara-scroll-accent);
+  opacity: 0;
+  filter: drop-shadow(0 0 7px var(--kisara-scroll-soft));
+  transition: top 80ms linear, height 180ms ease, opacity 180ms ease, color 180ms ease;
+}
+
+.kisara-scrollbar-guide i {
+  position: absolute;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  opacity: 0;
+  transform: translate(-50%, -8px) rotate(45deg);
+  animation: kisara-scroll-guide-chevron 1180ms cubic-bezier(0.2, 0.68, 0.28, 1) infinite;
+}
+
+.kisara-scrollbar-guide i:nth-child(2) {
+  animation-delay: 180ms;
+}
+
 .kisara-scrollbar-thumb {
   position: absolute;
   top: 0;
@@ -351,9 +381,10 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   width: 18px;
   height: var(--kisara-scroll-thumb-size);
   transform: translate3d(-50%, var(--kisara-scroll-thumb-y), 0);
-  cursor: grab;
+  cursor: default;
   filter: drop-shadow(0 0 5px var(--kisara-scroll-soft));
   will-change: transform;
+  transition: height 180ms ease, filter 180ms ease;
 }
 
 .kisara-scrollbar-thumb::before,
@@ -408,18 +439,12 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   opacity: 0;
 }
 
-.kisara-scrollbar:hover .kisara-scrollbar-thumb,
-.kisara-scrollbar:focus-visible .kisara-scrollbar-thumb,
-.kisara-scrollbar.is-dragging .kisara-scrollbar-thumb {
+.kisara-scrollbar.is-scroll-guided .kisara-scrollbar-thumb {
   filter: drop-shadow(0 0 8px var(--kisara-scroll-accent));
 }
 
-.kisara-scrollbar:focus-visible::before {
-  background: linear-gradient(180deg, rgba(145, 177, 255, 0.18), rgba(255, 73, 105, 0.72), rgba(145, 177, 255, 0.18));
-}
-
-.kisara-scrollbar.is-dragging .kisara-scrollbar-thumb {
-  cursor: grabbing;
+.kisara-scrollbar.is-scroll-guided .kisara-scrollbar-guide {
+  opacity: 0.96;
 }
 
 .kisara-scrollbar.is-gate-progress {
@@ -435,10 +460,15 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 }
 
 .kisara-scrollbar.is-gate-progress[data-stage="awakening"],
-.kisara-scrollbar.is-gate-progress[data-stage="outer-bind"] {
+.kisara-scrollbar.is-gate-progress[data-stage="outer-bind"],
+.kisara-scrollbar.is-gate-progress[data-stage="returning"] {
   --kisara-scroll-accent: #7fa8ff;
   --kisara-scroll-hot: #f0f5ff;
   --kisara-scroll-soft: rgba(111, 157, 255, 0.58);
+}
+
+.kisara-scrollbar.is-returning .kisara-scrollbar-thumb::after {
+  animation: kisara-scroll-return 720ms ease-in-out infinite;
 }
 
 .kisara-scrollbar.is-gate-progress[data-stage="inner-bind"],
@@ -559,6 +589,28 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.88); }
   42% { transform: translate(-50%, -50%) rotate(51deg) scale(1.26); }
   58% { transform: translate(-50%, -50%) rotate(40deg) scale(0.96); }
+}
+
+@keyframes kisara-scroll-return {
+  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.9); }
+  50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.08); }
+}
+
+@keyframes kisara-scroll-guide-chevron {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -10px) rotate(45deg) scale(0.78);
+  }
+  32% {
+    opacity: 1;
+  }
+  74% {
+    opacity: 0.68;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 10px) rotate(45deg) scale(1.04);
+  }
 }
 
 @keyframes kisara-scroll-heartbeat {
@@ -2049,6 +2101,15 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   height: 1px;
   margin: 0 10px 3px 0;
   background: currentColor;
+}
+
+.kisara-scroll-cue.is-guiding {
+  color: #c5d5fb;
+}
+
+.kisara-scroll-cue.is-enter-ready {
+  color: #fff2f7;
+  text-shadow: 0 0 12px rgba(255, 73, 105, 0.58);
 }
 
 .kisara-opening-inner,
@@ -3741,6 +3802,11 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   .kisara-scrollbar-thumb::after {
     width: 9px;
     height: 9px;
+  }
+
+  .kisara-scrollbar-guide {
+    right: 19px;
+    width: 30px;
   }
 
   .kisara-header {
