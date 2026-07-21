@@ -85,6 +85,22 @@ const themeOptions = themes.map((theme) => ({
       <span>© 2026 喝益胃 / YUIMI LAB</span>
     </footer>
 
+    <div
+      class="kisara-scrollbar is-idle"
+      data-kisara-scrollbar
+      role="scrollbar"
+      aria-label="页面滚动进度"
+      aria-controls="kisara-main"
+      aria-orientation="vertical"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="0"
+      tabindex="0"
+    >
+      <span class="kisara-scrollbar-progress" aria-hidden="true"></span>
+      <span class="kisara-scrollbar-thumb" data-kisara-scrollbar-thumb aria-hidden="true"><i></i></span>
+    </div>
+
     <nav class="kisara-context-menu" data-kisara-context-menu hidden aria-label="Kisara 主题快捷菜单">
       <span>THEME CHANNEL</span>
       {themeOptions.map((theme) => (
@@ -104,7 +120,118 @@ const themeOptions = themes.map((theme) => ({
         const panelButton = document.querySelector("[data-kisara-theme-button]");
         const panelClose = document.querySelector("[data-kisara-panel-close]");
         const menu = document.querySelector("[data-kisara-context-menu]");
+        const scrollbar = document.querySelector("[data-kisara-scrollbar]");
+        const scrollbarThumb = scrollbar?.querySelector("[data-kisara-scrollbar-thumb]");
         let returnFocus = null;
+        let scrollbarFrame = 0;
+        let scrollbarDragPointer = null;
+        let scrollbarDragOffset = 0;
+
+        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+        const getScrollbarMetrics = () => {
+          if (!(scrollbar instanceof HTMLElement)) return null;
+          const root = document.scrollingElement ?? document.documentElement;
+          const trackRect = scrollbar.getBoundingClientRect();
+          const viewportHeight = window.innerHeight;
+          const scrollHeight = Math.max(root.scrollHeight, document.body.scrollHeight);
+          const scrollRange = Math.max(0, scrollHeight - viewportHeight);
+          const minimumThumbSize = window.innerWidth <= 600 ? 34 : 46;
+          const thumbSize = clamp(trackRect.height * (viewportHeight / Math.max(scrollHeight, 1)), minimumThumbSize, 82);
+          const thumbTravel = Math.max(0, trackRect.height - thumbSize);
+          return { root, trackRect, scrollRange, thumbSize, thumbTravel };
+        };
+
+        const updateScrollbar = () => {
+          scrollbarFrame = 0;
+          if (!(scrollbar instanceof HTMLElement)) return;
+          const metrics = getScrollbarMetrics();
+          if (!metrics) return;
+          const progress = metrics.scrollRange > 0 ? clamp(window.scrollY / metrics.scrollRange, 0, 1) : 0;
+          scrollbar.classList.toggle("is-idle", metrics.scrollRange <= 1 || metrics.trackRect.height <= 0);
+          scrollbar.style.setProperty("--kisara-scroll-progress", String(progress));
+          scrollbar.style.setProperty("--kisara-scroll-thumb-size", `${metrics.thumbSize}px`);
+          scrollbar.style.setProperty("--kisara-scroll-thumb-y", `${metrics.thumbTravel * progress}px`);
+          scrollbar.setAttribute("aria-valuenow", String(Math.round(progress * 100)));
+        };
+
+        const scheduleScrollbarUpdate = () => {
+          if (scrollbarFrame) return;
+          scrollbarFrame = requestAnimationFrame(updateScrollbar);
+        };
+
+        const scrollFromPointer = (clientY) => {
+          const metrics = getScrollbarMetrics();
+          if (!metrics || metrics.scrollRange <= 0) return;
+          const thumbTop = clamp(clientY - metrics.trackRect.top - scrollbarDragOffset, 0, metrics.thumbTravel);
+          const progress = metrics.thumbTravel > 0 ? thumbTop / metrics.thumbTravel : 0;
+          window.scrollTo({ top: progress * metrics.scrollRange, behavior: "auto" });
+        };
+
+        document.querySelectorAll("img, video").forEach((asset) => asset.setAttribute("draggable", "false"));
+
+        document.addEventListener("dragstart", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (target?.closest("img, picture, canvas, video, svg, .kisara-title, .kisara-gate-visual")) event.preventDefault();
+        }, true);
+
+        document.addEventListener("selectstart", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (target?.closest(".kisara-gate, img, picture, canvas, video, svg")) event.preventDefault();
+        }, true);
+
+        scrollbar?.addEventListener("pointerdown", (event) => {
+          if (!(event instanceof PointerEvent) || event.button !== 0 || !(scrollbar instanceof HTMLElement)) return;
+          const metrics = getScrollbarMetrics();
+          if (!metrics || metrics.scrollRange <= 0) return;
+          const pressedThumb = event.target instanceof Element && event.target.closest("[data-kisara-scrollbar-thumb]");
+          const thumbRect = scrollbarThumb?.getBoundingClientRect();
+          scrollbarDragOffset = pressedThumb && thumbRect ? event.clientY - thumbRect.top : metrics.thumbSize / 2;
+          scrollbarDragPointer = event.pointerId;
+          scrollbar.classList.add("is-dragging");
+          scrollbar.setPointerCapture(event.pointerId);
+          scrollFromPointer(event.clientY);
+          event.preventDefault();
+        });
+
+        scrollbar?.addEventListener("pointermove", (event) => {
+          if (!(event instanceof PointerEvent) || event.pointerId !== scrollbarDragPointer) return;
+          scrollFromPointer(event.clientY);
+          event.preventDefault();
+        });
+
+        const endScrollbarDrag = (event) => {
+          if (!(event instanceof PointerEvent) || event.pointerId !== scrollbarDragPointer || !(scrollbar instanceof HTMLElement)) return;
+          if (scrollbar.hasPointerCapture(event.pointerId)) scrollbar.releasePointerCapture(event.pointerId);
+          scrollbarDragPointer = null;
+          scrollbar.classList.remove("is-dragging");
+        };
+
+        scrollbar?.addEventListener("pointerup", endScrollbarDrag);
+        scrollbar?.addEventListener("pointercancel", endScrollbarDrag);
+
+        scrollbar?.addEventListener("keydown", (event) => {
+          if (!(event instanceof KeyboardEvent)) return;
+          const metrics = getScrollbarMetrics();
+          if (!metrics || metrics.scrollRange <= 0) return;
+          const keyTargets = {
+            ArrowUp: window.scrollY - 52,
+            ArrowDown: window.scrollY + 52,
+            PageUp: window.scrollY - window.innerHeight * 0.82,
+            PageDown: window.scrollY + window.innerHeight * 0.82,
+            Home: 0,
+            End: metrics.scrollRange
+          };
+          if (!(event.key in keyTargets)) return;
+          window.scrollTo({ top: clamp(keyTargets[event.key], 0, metrics.scrollRange), behavior: "smooth" });
+          event.preventDefault();
+        });
+
+        window.addEventListener("scroll", scheduleScrollbarUpdate, { passive: true });
+        window.addEventListener("resize", scheduleScrollbarUpdate, { passive: true });
+        window.addEventListener("pageshow", scheduleScrollbarUpdate);
+        new ResizeObserver(scheduleScrollbarUpdate).observe(document.body);
+        scheduleScrollbarUpdate();
 
         const closePanel = () => {
           if (panel) panel.hidden = true;
