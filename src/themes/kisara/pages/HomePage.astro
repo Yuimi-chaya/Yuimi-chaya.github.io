@@ -6719,12 +6719,12 @@ const gateStyle = [
           buildEnd: 0.54,
           direction: 1,
           phase: -1.92,
-          radiusX: 0.425,
+          radiusX: 0.445,
           radiusY: 0.13,
           rotation: -0.02,
           breakT: 0.18,
-          desktopLinks: 68,
-          mobileLinks: 42,
+          desktopLinks: 52,
+          mobileLinks: 32,
           linkScale: 0.98,
           entryOverscan: 0.16,
           entryBend: -0.06
@@ -6960,8 +6960,14 @@ const gateStyle = [
           const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
           x += -tangentY / tangentLength * wobble;
           y += tangentX / tangentLength * wobble;
-          plane = y >= centerY ? "front" : "back";
           depth = clamp((y - centerY) / Math.max(1, radiusY * 1.04), -1, 1);
+          plane = depth >= 0 ? "front" : "back";
+          const frameJoinDepth = clamp(
+            getChainLinkDimensions(definition).height / Math.max(1, radiusY * 5.4),
+            0.1,
+            0.2
+          );
+          crossing = Math.abs(depth) <= frameJoinDepth;
         } else {
           const reelStrength = takeUp * 0.1
             + lock * 0.042
@@ -7120,7 +7126,10 @@ const gateStyle = [
         }
 
         const dimensions = getChainLinkDimensions(definition);
-        const desiredCount = Math.round(totalLength / (dimensions.width * (isMobile ? 0.64 : 0.6)));
+        const spacingFactor = definition.type === "frame"
+          ? (isMobile ? 0.64 : 0.64)
+          : (isMobile ? 0.64 : 0.6);
+        const desiredCount = Math.round(totalLength / (dimensions.width * spacingFactor));
         const minimum = definition.type === "frame"
           ? (isMobile ? definition.mobileLinks : definition.desktopLinks)
           : (isMobile
@@ -7129,7 +7138,10 @@ const gateStyle = [
         const maximum = definition.type === "frame"
           ? (isMobile ? 82 : 110)
           : (isMobile ? 62 : 86);
-        const linkCount = Math.round(clamp(desiredCount, minimum, maximum));
+        let linkCount = Math.round(clamp(desiredCount, minimum, maximum));
+        if (definition.type === "frame" && linkCount % 2 !== 0) {
+          linkCount += linkCount < maximum ? 1 : -1;
+        }
         const unitAtLength = (targetLength) => {
           let low = 1;
           let high = samples.length - 1;
@@ -7368,7 +7380,8 @@ const gateStyle = [
         isFront,
         arcPart,
         rotationOffset = 0,
-        scale = 1
+        scale = 1,
+        lengthScale = 1
       ) => {
         if (alpha <= 0.002) return;
         const parity = linkIndex % 2;
@@ -7401,6 +7414,14 @@ const gateStyle = [
         const aspectVariation = frameLink
           ? 0.98 + variantSeed * 0.04
           : 0.94 + variantSeed * 0.12;
+        const connectorReach = edgeOn
+          ? (frameLink ? lengthScale : 1.08)
+          : 1;
+        const horizontalScale = scale * sizeVariation * aspectVariation * connectorReach;
+        const verticalProfile = edgeOn
+          ? 0.37 + (variantSeed - 0.5) * 0.03
+          : 1.02;
+        const verticalScale = scale * sizeVariation * verticalProfile / aspectVariation;
         const coldSprite = resolvedHeat < 0.985
           ? getChainLinkSprite(definition, isFront, arcPart, false, parity, variant)
           : null;
@@ -7415,11 +7436,86 @@ const gateStyle = [
             + (variantSeed - 0.5) * (frameLink ? 0.03 : 0.085)
             + rotationOffset
         );
-        context.scale(
-          scale * sizeVariation * aspectVariation,
-          scale * sizeVariation * (edgeOn ? 0.48 : 0.92) / aspectVariation
-        );
+        context.scale(horizontalScale, verticalScale);
         context.imageSmoothingEnabled = true;
+        if (edgeOn) {
+          const dimensions = getChainLinkDimensions(definition);
+          const nearUsesLowerArc = parity === 0;
+          const lowerArc = [-Math.PI * 0.08, Math.PI * 1.08];
+          const upperArc = [Math.PI * 0.92, Math.PI * 2.08];
+          const [arcStart, arcEnd] = arcPart === "near"
+            ? (nearUsesLowerArc ? lowerArc : upperArc)
+            : (nearUsesLowerArc ? upperArc : lowerArc);
+          const sideDepth = (1.9 + variantSeed * 0.9) / Math.max(0.01, verticalScale);
+          const sideMetal = context.createLinearGradient(
+            0,
+            -dimensions.height * 0.48,
+            0,
+            dimensions.height * 0.58
+          );
+          if (resolvedHeat > 0.45) {
+            sideMetal.addColorStop(0, "rgba(21,4,15,0.98)");
+            sideMetal.addColorStop(0.58, "rgba(67,12,35,0.98)");
+            sideMetal.addColorStop(1, "rgba(19,3,14,0.99)");
+          } else {
+            sideMetal.addColorStop(0, "rgba(3,6,15,0.99)");
+            sideMetal.addColorStop(0.58, "rgba(20,29,48,0.98)");
+            sideMetal.addColorStop(1, "rgba(2,5,14,0.99)");
+          }
+          context.save();
+          context.translate(0, sideDepth);
+          context.globalAlpha = layerAlpha * (arcPart === "near" ? 0.9 : 0.62);
+          context.strokeStyle = sideMetal;
+          context.lineWidth = (isFront ? 5.8 : 5.15) * (0.96 + variantSeed * 0.07);
+          context.shadowColor = "rgba(0,0,8,0.82)";
+          context.shadowBlur = isFront ? 1.2 : 0;
+          context.beginPath();
+          context.ellipse(
+            0,
+            0,
+            dimensions.width * 0.5,
+            dimensions.height * 0.5,
+            0,
+            arcStart,
+            arcEnd
+          );
+          context.stroke();
+          if (arcPart === "near") {
+            context.globalCompositeOperation = "source-over";
+            context.globalAlpha = layerAlpha * 0.76;
+            context.strokeStyle = resolvedHeat > 0.45
+              ? "rgba(44,7,25,0.96)"
+              : "rgba(5,11,26,0.96)";
+            context.lineWidth = 1.7 + variantSeed * 0.45;
+            context.beginPath();
+            for (const capAngle of [arcStart, arcEnd]) {
+              const capX = Math.cos(capAngle) * dimensions.width * 0.5;
+              const capY = Math.sin(capAngle) * dimensions.height * 0.5;
+              context.moveTo(capX, capY - sideDepth);
+              context.lineTo(capX, capY);
+            }
+            context.stroke();
+          }
+          context.globalCompositeOperation = "screen";
+          context.globalAlpha = layerAlpha * (arcPart === "near" ? 0.3 : 0.12);
+          context.strokeStyle = resolvedHeat > 0.45
+            ? "rgba(255,145,174,0.82)"
+            : "rgba(173,201,241,0.72)";
+          context.lineWidth = 0.62;
+          context.shadowBlur = 0;
+          context.beginPath();
+          context.ellipse(
+            0,
+            -dimensions.height * 0.02,
+            dimensions.width * 0.455,
+            dimensions.height * 0.42,
+            0,
+            arcStart + (arcEnd - arcStart) * 0.14,
+            arcStart + (arcEnd - arcStart) * 0.72
+          );
+          context.stroke();
+          context.restore();
+        }
         if (coldSprite) {
           context.globalAlpha = layerAlpha * (1 - resolvedHeat);
           context.drawImage(
@@ -7444,9 +7540,17 @@ const gateStyle = [
       };
 
       const drawChainLayer = (context, records, isFront) => {
-        for (const arcPart of ["far", "near"]) {
+        const passes = [
+          { arcPart: "far", edgeOn: false },
+          { arcPart: "far", edgeOn: true },
+          { arcPart: "near", edgeOn: false },
+          { arcPart: "near", edgeOn: true }
+        ];
+        for (const pass of passes) {
           for (const record of records) {
-            if (record.arcMode !== "full" && record.arcMode !== arcPart) continue;
+            const edgeOn = record.linkIndex % 2 === 1;
+            if (edgeOn !== pass.edgeOn) continue;
+            if (record.arcMode !== "full" && record.arcMode !== pass.arcPart) continue;
             drawChainLinkArc(
               context,
               record.sample,
@@ -7455,9 +7559,10 @@ const gateStyle = [
               record.alpha,
               record.heat,
               isFront,
-              arcPart,
+              pass.arcPart,
               record.rotationOffset,
-              record.scale
+              record.scale,
+              record.lengthScale
             );
           }
         }
@@ -7626,7 +7731,8 @@ const gateStyle = [
           true,
           side < 0 ? "far" : "near",
           side * fragmentProgress * 0.34,
-          0.94 + snapPulse * 0.08
+          0.94 + snapPulse * 0.08,
+          1
         );
         context.translate(center.x, center.y);
         context.rotate(center.angle + side * fragmentProgress * 0.34);
@@ -8337,6 +8443,18 @@ const gateStyle = [
           if (build <= 0.001) continue;
           const path = resolveTitleChainPath(definition, fill, intro);
           const spacing = buildTitleChainLinkUnits(definition, isMobile);
+          const frameConnectorLengthScale = definition.type === "frame"
+            ? clamp(
+                (
+                  spacing.totalLength
+                    / Math.max(1, spacing.records.length)
+                    * 2
+                    / Math.max(1, getChainLinkDimensions(definition).width)
+                ) - 0.58,
+                0.62,
+                0.82
+              )
+            : 1;
           const breakDelay = definition.id * 0.016;
           const breakStart = 0.105 + breakDelay * 0.58;
           const definitionBreakLinear = clamp((intro - breakStart) / 0.05, 0, 1);
@@ -8527,9 +8645,12 @@ const gateStyle = [
               scale: definition.type === "frame"
                 ? 0.96 + sample.depth * 0.06
                 : 1,
+              lengthScale: definition.type === "frame" && linkIndex % 2 === 1
+                ? frameConnectorLengthScale
+                : 1,
               arcMode: "full"
             };
-            if (sample.crossing && definition.type === "weave") {
+            if (sample.crossing) {
               layerRecords.back.push({ ...record, arcMode: "far" });
               layerRecords.front.push({ ...record, arcMode: "near" });
             } else {
