@@ -6432,8 +6432,8 @@ const gateStyle = [
           buildEnd: 0.54,
           direction: 1,
           phase: -1.92,
-          radiusX: 0.455,
-          radiusY: 0.29,
+          radiusX: 0.425,
+          radiusY: 0.13,
           rotation: -0.02,
           breakT: 0.18,
           desktopLinks: 68,
@@ -6602,7 +6602,8 @@ const gateStyle = [
             const sampleSine = Math.sin(sampleAngle);
             const frameX = Math.sign(sampleCosine) * Math.abs(sampleCosine) ** frameExponent;
             const frameY = Math.sign(sampleSine) * Math.abs(sampleSine) ** frameExponent;
-            const localX = frameX * radiusX;
+            const perspectiveWidth = 0.965 + sampleSine * 0.035;
+            const localX = frameX * radiusX * perspectiveWidth;
             const localY = frameY * radiusY;
             return {
               x: frameCenterX + localX * rotationCosine - localY * rotationSine,
@@ -7422,7 +7423,9 @@ const gateStyle = [
               alpha,
               heat,
               rotationOffset,
-              scale: 1,
+              scale: definition.type === "frame"
+                ? (sample.plane === "back" ? 0.9 : 1.02)
+                : 1,
               arcMode: "full"
             };
             if (sample.crossing && definition.type === "weave") {
