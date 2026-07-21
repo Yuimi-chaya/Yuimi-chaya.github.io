@@ -7122,23 +7122,29 @@ const gateStyle = [
         side,
         dimensions,
         breakOpen,
-        recoil
+        recoil,
+        snapPulse = 0
       ) => {
         const polarity = definition.id === 1 ? -1 : 1;
-        const gapTravel = dimensions.width * 0.72 * breakOpen;
+        const gapTravel = dimensions.width
+          * (definition.type === "frame" ? 0.92 : 1.04)
+          * breakOpen;
         const recoilTravel = chainTitleBox.width
-          * (definition.type === "frame" ? 0.034 : 0.028)
-          * recoil;
+          * (definition.type === "frame" ? 0.052 : 0.046)
+          * recoil
+          + chainTitleBox.height * 0.055 * snapPulse;
+        const normalTravel = chainTitleBox.height
+          * (0.034 * recoil + 0.062 * snapPulse);
         return {
           side,
           swingAngle: side
             * polarity
-            * (definition.type === "frame" ? 0.14 : 0.18)
-            * recoil,
+            * (definition.type === "frame" ? 0.22 : 0.28)
+            * (recoil + snapPulse * 0.34),
           translateX: breakSample.tangentX * side * (gapTravel + recoilTravel)
-            + breakSample.normalX * side * polarity * chainTitleBox.height * 0.024 * recoil,
+            + breakSample.normalX * side * polarity * normalTravel,
           translateY: breakSample.tangentY * side * (gapTravel + recoilTravel)
-            + breakSample.normalY * side * polarity * chainTitleBox.height * 0.024 * recoil
+            + breakSample.normalY * side * polarity * normalTravel
         };
       };
 
@@ -7165,7 +7171,15 @@ const gateStyle = [
         visibility,
         rupturePulse
       ) => {
-        const { definition, breakSample, heat, breakOpen, recoil, releaseFade } = event;
+        const {
+          definition,
+          breakSample,
+          heat,
+          breakOpen,
+          recoil,
+          snapPulse,
+          releaseFade
+        } = event;
         if (breakOpen <= 0.001) return;
         const dimensions = getChainLinkDimensions(definition);
         const motion = resolveBrokenSegmentMotion(
@@ -7174,80 +7188,274 @@ const gateStyle = [
           side,
           dimensions,
           breakOpen,
-          recoil
+          recoil,
+          snapPulse
         );
+        const fragmentProgress = clamp(breakOpen * 0.62 + recoil * 0.38, 0, 1.08);
+        const polarity = definition.id === 1 ? -1 : 1;
         const center = {
-          x: breakSample.x + breakSample.tangentX * side * dimensions.width * 0.2,
-          y: breakSample.y + breakSample.tangentY * side * dimensions.width * 0.2,
+          x: breakSample.x + breakSample.tangentX * side * dimensions.width * 0.16,
+          y: breakSample.y + breakSample.tangentY * side * dimensions.width * 0.16,
           angle: breakSample.angle
         };
         applyBrokenSegmentMotion(center, breakSample, motion);
-        const arcStart = side < 0 ? Math.PI * 0.42 : -Math.PI * 0.58;
-        const arcEnd = arcStart + Math.PI * 0.96;
-        const pieceAlpha = visibility * breakOpen * (1 - releaseFade * 0.96);
+        center.x += breakSample.tangentX
+          * side
+          * dimensions.width
+          * fragmentProgress
+          * (0.42 + snapPulse * 0.24);
+        center.y += breakSample.tangentY
+          * side
+          * dimensions.width
+          * fragmentProgress
+          * (0.42 + snapPulse * 0.24);
+        center.x += breakSample.normalX
+          * side
+          * polarity
+          * dimensions.height
+          * (0.22 + fragmentProgress * 0.48);
+        center.y += breakSample.normalY
+          * side
+          * polarity
+          * dimensions.height
+          * (0.22 + fragmentProgress * 0.48);
+        center.angle += side
+          * polarity
+          * (0.24 + fragmentProgress * 0.78 + snapPulse * 0.18);
+        const pieceAlpha = visibility
+          * smootherstep(clamp(breakOpen / 0.28, 0, 1))
+          * (1 - releaseFade * 0.96);
         if (pieceAlpha <= 0.002) return;
 
         context.save();
+        context.globalCompositeOperation = "source-over";
+        drawChainLinkArc(
+          context,
+          center,
+          side < 0 ? 0 : 1,
+          definition,
+          pieceAlpha,
+          heat,
+          true,
+          side < 0 ? "far" : "near",
+          side * fragmentProgress * 0.34,
+          0.94 + snapPulse * 0.08
+        );
         context.translate(center.x, center.y);
-        context.rotate(center.angle);
-        context.scale(1, 0.9);
-        context.lineCap = "round";
-        context.lineJoin = "round";
-        context.globalAlpha = pieceAlpha * 0.94;
-        context.strokeStyle = "rgba(4,5,19,0.98)";
-        context.lineWidth = 6.8;
-        context.shadowColor = "rgba(2,3,18,0.84)";
-        context.shadowBlur = 3;
-        context.beginPath();
-        context.ellipse(0, 0, dimensions.width * 0.5, dimensions.height * 0.5, 0, arcStart, arcEnd);
-        context.stroke();
-        if (heat < 0.995) {
-          context.globalAlpha = pieceAlpha * (1 - heat);
-          context.strokeStyle = "rgba(112,143,204,0.98)";
-          context.lineWidth = 3.8;
-          context.shadowColor = "rgba(116,158,230,0.34)";
-          context.shadowBlur = 2;
-          context.stroke();
-        }
-        if (heat > 0.005) {
-          context.globalAlpha = pieceAlpha * heat;
-          context.strokeStyle = "rgba(220,58,108,0.99)";
-          context.lineWidth = 3.8;
-          context.shadowColor = "rgba(255,62,128,0.48)";
-          context.shadowBlur = 3.5;
-          context.stroke();
-        }
+        context.rotate(center.angle + side * fragmentProgress * 0.34);
         context.globalCompositeOperation = "screen";
-        context.globalAlpha = pieceAlpha * rupturePulse * 0.8;
+        context.globalAlpha = pieceAlpha * Math.max(rupturePulse, snapPulse) * 0.92;
         context.strokeStyle = "rgba(255,244,249,0.98)";
-        context.lineWidth = 1;
+        context.lineWidth = 0.9 + snapPulse * 0.65;
         context.shadowColor = "rgba(255,70,138,0.94)";
-        context.shadowBlur = 5;
-        const cutAngle = side < 0 ? arcEnd : arcStart;
-        const cutX = Math.cos(cutAngle) * dimensions.width * 0.5;
-        const cutY = Math.sin(cutAngle) * dimensions.height * 0.5;
+        context.shadowBlur = 4 + snapPulse * 5;
+        const cutX = -side * dimensions.width * 0.27;
+        const cutY = side * dimensions.height * 0.18;
         context.beginPath();
-        context.moveTo(cutX - side * 2.2, cutY - 2.4);
-        context.lineTo(cutX + side * 2.6, cutY + 2.2);
+        context.moveTo(cutX - side * 2.8, cutY - 2.5);
+        context.lineTo(cutX + side * 3.2, cutY + 2.6);
         context.stroke();
         context.restore();
+      };
+
+      const createHeartPath = (centerX, centerY, size, scale = 1) => {
+        const path = new Path2D();
+        const steps = 52;
+        for (let index = 0; index <= steps; index += 1) {
+          const angle = index / steps * fullTurn;
+          const x = Math.sin(angle) ** 3 * 16;
+          const y = -(
+            13 * Math.cos(angle)
+              - 5 * Math.cos(angle * 2)
+              - 2 * Math.cos(angle * 3)
+              - Math.cos(angle * 4)
+          );
+          const pointX = centerX + x / 17 * size * scale;
+          const pointY = centerY + y / 17 * size * scale;
+          if (index === 0) path.moveTo(pointX, pointY);
+          else path.lineTo(pointX, pointY);
+        }
+        path.closePath();
+        return path;
+      };
+
+      const drawChainHeartSeal = (timestamp, intro, events, visibility, isMobile) => {
+        if (!chainBackContext || !chainFrontContext || events.length === 0) return;
+        const build = smootherstep(clamp((intro - 0.49) / 0.16, 0, 1));
+        const fracture = smootherstep(clamp((intro - 0.69) / 0.18, 0, 1));
+        const fade = 1 - smootherstep(clamp((intro - 0.88) / 0.095, 0, 1));
+        const opacity = build * fade * visibility;
+        if (opacity <= 0.001) return;
+
+        const centerX = (chainGlyphLayout.centerX || chainTitleBox.left + chainTitleBox.width * 0.5)
+          + chainTitleBox.width * 0.012;
+        const centerY = (chainGlyphLayout.centerY || chainTitleBox.top + chainTitleBox.height * 0.52)
+          + chainTitleBox.height * 0.045;
+        const lockPulse = Math.exp(-Math.pow((intro - 0.665) / 0.052, 2));
+        const heartbeat = 0.5 + Math.sin(timestamp * 0.018) * 0.5;
+        const size = clamp(
+          chainTitleBox.height * (isMobile ? 0.205 : 0.19),
+          isMobile ? 15 : 17,
+          isMobile ? 25 : 32
+        ) * (0.82 + build * 0.18 + lockPulse * 0.08);
+        const splitDistance = size * fracture * 0.29;
+        const splitDrop = size * fracture ** 2 * 0.08;
+        const heart = createHeartPath(centerX, centerY, size);
+        const tetherOpacity = opacity * (1 - fracture) * 0.68;
+
+        if (tetherOpacity > 0.002) {
+          const tetherTargets = [
+            { x: centerX - size * 0.56, y: centerY - size * 0.14 },
+            { x: centerX + size * 0.56, y: centerY - size * 0.14 },
+            { x: centerX, y: centerY + size * 0.72 }
+          ];
+          for (let index = 0; index < events.length; index += 1) {
+            const event = events[index];
+            const target = tetherTargets[index % tetherTargets.length];
+            const controlX = event.breakSample.x
+              + (target.x - event.breakSample.x) * 0.55
+              + event.breakSample.normalX * size * (index - 1) * 0.18;
+            const controlY = event.breakSample.y
+              + (target.y - event.breakSample.y) * 0.42
+              + event.breakSample.normalY * size * (index - 1) * 0.18;
+            chainBackContext.save();
+            chainBackContext.globalCompositeOperation = "source-over";
+            chainBackContext.globalAlpha = tetherOpacity * 0.72;
+            chainBackContext.strokeStyle = "rgba(29,7,30,0.9)";
+            chainBackContext.lineWidth = 3.4;
+            chainBackContext.beginPath();
+            chainBackContext.moveTo(event.breakSample.x, event.breakSample.y);
+            chainBackContext.quadraticCurveTo(controlX, controlY, target.x, target.y);
+            chainBackContext.stroke();
+            chainBackContext.restore();
+
+            chainFrontContext.save();
+            chainFrontContext.globalCompositeOperation = "screen";
+            chainFrontContext.globalAlpha = tetherOpacity * (0.62 + event.snapPulse * 0.32);
+            chainFrontContext.strokeStyle = index === 1
+              ? "rgba(255,239,247,0.96)"
+              : "rgba(255,83,142,0.94)";
+            chainFrontContext.lineWidth = 0.72 + event.snapPulse * 0.52;
+            chainFrontContext.shadowColor = "rgba(255,54,126,0.84)";
+            chainFrontContext.shadowBlur = 3 + event.snapPulse * 5;
+            chainFrontContext.beginPath();
+            chainFrontContext.moveTo(event.breakSample.x, event.breakSample.y);
+            chainFrontContext.quadraticCurveTo(controlX, controlY, target.x, target.y);
+            chainFrontContext.stroke();
+            chainFrontContext.restore();
+          }
+        }
+
+        const drawHeartHalf = (context, side, drawMaterial) => {
+          context.save();
+          if (fracture > 0.001) {
+            context.beginPath();
+            context.rect(
+              side < 0 ? centerX - size * 1.7 : centerX,
+              centerY - size * 1.7,
+              size * 1.7,
+              size * 3.4
+            );
+            context.clip();
+            context.translate(centerX, centerY);
+            context.rotate(side * fracture * 0.085);
+            context.translate(-centerX + side * splitDistance, -centerY + splitDrop);
+          }
+          drawMaterial();
+          context.restore();
+        };
+
+        for (const side of fracture > 0.001 ? [-1, 1] : [0]) {
+          drawHeartHalf(chainBackContext, side, () => {
+            chainBackContext.globalCompositeOperation = "source-over";
+            chainBackContext.globalAlpha = opacity * 0.32;
+            chainBackContext.fillStyle = "rgba(72,8,48,0.72)";
+            chainBackContext.shadowColor = "rgba(255,44,116,0.28)";
+            chainBackContext.shadowBlur = 4 + lockPulse * 4;
+            chainBackContext.fill(heart);
+            chainBackContext.globalAlpha = opacity * 0.72;
+            chainBackContext.strokeStyle = "rgba(27,6,29,0.94)";
+            chainBackContext.lineWidth = 4.4;
+            chainBackContext.stroke(heart);
+          });
+          drawHeartHalf(chainFrontContext, side, () => {
+            chainFrontContext.globalCompositeOperation = "screen";
+            chainFrontContext.globalAlpha = opacity * 0.12;
+            chainFrontContext.fillStyle = "rgba(255,57,124,0.88)";
+            chainFrontContext.shadowColor = "rgba(255,48,118,0.52)";
+            chainFrontContext.shadowBlur = 4 + lockPulse * 4;
+            chainFrontContext.fill(heart);
+            chainFrontContext.globalAlpha = opacity * (0.76 + heartbeat * 0.12);
+            chainFrontContext.strokeStyle = "rgba(255,72,137,0.98)";
+            chainFrontContext.lineWidth = 2.05 + lockPulse * 0.5;
+            chainFrontContext.shadowColor = "rgba(255,50,122,0.88)";
+            chainFrontContext.shadowBlur = 5 + lockPulse * 5;
+            chainFrontContext.stroke(heart);
+            chainFrontContext.globalAlpha = opacity * (0.58 + lockPulse * 0.28);
+            chainFrontContext.strokeStyle = "rgba(255,245,250,0.98)";
+            chainFrontContext.lineWidth = 0.68 + lockPulse * 0.32;
+            chainFrontContext.shadowBlur = 1.6;
+            chainFrontContext.stroke(heart);
+          });
+        }
+
+        if (fracture > 0.015) {
+          chainFrontContext.save();
+          chainFrontContext.globalCompositeOperation = "screen";
+          chainFrontContext.globalAlpha = opacity * Math.sin(fracture * Math.PI) * 0.9;
+          chainFrontContext.strokeStyle = "rgba(255,248,251,0.98)";
+          chainFrontContext.lineWidth = 0.9 + lockPulse * 0.5;
+          chainFrontContext.shadowColor = "rgba(255,57,128,0.92)";
+          chainFrontContext.shadowBlur = 5;
+          chainFrontContext.beginPath();
+          chainFrontContext.moveTo(centerX - size * 0.02, centerY - size * 0.76);
+          chainFrontContext.lineTo(centerX + size * 0.12, centerY - size * 0.24);
+          chainFrontContext.lineTo(centerX - size * 0.08, centerY + size * 0.12);
+          chainFrontContext.lineTo(centerX + size * 0.04, centerY + size * 0.72);
+          chainFrontContext.stroke();
+
+          const shardPulse = Math.sin(smootherstep(fracture) * Math.PI);
+          for (let shardIndex = 0; shardIndex < (isMobile ? 5 : 7); shardIndex += 1) {
+            const seed = randomSeed(41021 + shardIndex * 91.7);
+            const angle = -Math.PI * 0.92 + seed * Math.PI * 1.84;
+            const travel = size * fracture * (0.52 + seed * 1.08);
+            const startX = centerX + Math.cos(angle) * size * 0.38;
+            const startY = centerY + Math.sin(angle) * size * 0.3;
+            const endX = startX + Math.cos(angle) * travel;
+            const endY = startY + Math.sin(angle) * travel * 0.72;
+            chainFrontContext.globalAlpha = opacity * shardPulse * (0.38 + seed * 0.48);
+            chainFrontContext.strokeStyle = shardIndex % 3 === 0
+              ? "rgba(229,239,255,0.96)"
+              : "rgba(255,87,145,0.96)";
+            chainFrontContext.lineWidth = 0.6 + seed * 0.9;
+            chainFrontContext.beginPath();
+            chainFrontContext.moveTo(startX, startY);
+            chainFrontContext.lineTo(endX, endY);
+            chainFrontContext.stroke();
+          }
+          chainFrontContext.restore();
+        }
       };
 
       const drawChainRupture = (timestamp, intro, events, visibility, isMobile) => {
         if (!chainFrontContext || events.length === 0) return;
         const stressPulse = Math.sin(phaseProgress(intro, 0.43, 0.63) * Math.PI);
-        const rupturePulse = Math.sin(phaseProgress(intro, 0.59, 0.72) * Math.PI);
+        const rupturePulse = Math.sin(phaseProgress(intro, 0.565, 0.79) * Math.PI);
         const brokenPiecesVisible = events.some(
           (event) => event.breakOpen > 0.001 && event.releaseFade < 0.999
         );
         if (Math.max(stressPulse, rupturePulse) <= 0.001 && !brokenPiecesVisible) return;
         const context = chainFrontContext;
         context.save();
-        context.globalCompositeOperation = "screen";
         context.lineCap = "round";
         for (const event of events) {
-          const { breakSample, breakSeed, heat, breakOpen } = event;
+          const { breakSample, breakSeed, heat, breakOpen, snapPulse } = event;
           const dimensions = getChainLinkDimensions(event.definition);
+          drawBrokenChainPiece(context, event, -1, visibility, rupturePulse);
+          drawBrokenChainPiece(context, event, 1, visibility, rupturePulse);
+
+          context.save();
+          context.globalCompositeOperation = "screen";
           if (stressPulse > 0.001 && breakOpen < 0.98) {
             const stressLength = dimensions.width * (0.4 + stressPulse * 0.42);
             context.globalAlpha = visibility * stressPulse * (1 - breakOpen) * 0.72;
@@ -7271,38 +7479,102 @@ const gateStyle = [
             context.stroke();
           }
 
-          if (event.definition.type === "frame") {
-            drawBrokenChainPiece(context, event, -1, visibility, rupturePulse);
-            drawBrokenChainPiece(context, event, 1, visibility, rupturePulse);
+          if (snapPulse > 0.002) {
+            const coreRadius = dimensions.width * (0.24 + snapPulse * 0.46);
+            const core = context.createRadialGradient(
+              breakSample.x,
+              breakSample.y,
+              0,
+              breakSample.x,
+              breakSample.y,
+              coreRadius
+            );
+            core.addColorStop(0, "rgba(255,255,255,0.98)");
+            core.addColorStop(0.16, "rgba(255,221,235,0.88)");
+            core.addColorStop(0.46, "rgba(255,62,130,0.38)");
+            core.addColorStop(1, "rgba(255,45,119,0)");
+            context.globalAlpha = visibility * snapPulse * 0.96;
+            context.fillStyle = core;
+            context.fillRect(
+              breakSample.x - coreRadius,
+              breakSample.y - coreRadius,
+              coreRadius * 2,
+              coreRadius * 2
+            );
+
+            context.translate(breakSample.x, breakSample.y);
+            context.rotate(breakSample.angle);
+            context.globalAlpha = visibility * snapPulse * 0.84;
+            context.strokeStyle = heat > 0.5
+              ? "rgba(255,230,240,0.98)"
+              : "rgba(226,240,255,0.98)";
+            context.lineWidth = 0.72 + snapPulse * 0.86;
+            context.shadowColor = "rgba(255,58,132,0.9)";
+            context.shadowBlur = 4 + snapPulse * 7;
+            for (const side of [-1, 1]) {
+              context.beginPath();
+              context.ellipse(
+                side * dimensions.width * 0.07,
+                0,
+                dimensions.width * (0.36 + snapPulse * 0.72),
+                dimensions.height * (0.34 + snapPulse * 0.48),
+                0,
+                side < 0 ? Math.PI * 0.64 : -Math.PI * 0.36,
+                side < 0 ? Math.PI * 1.18 : Math.PI * 0.18
+              );
+              context.stroke();
+            }
+            context.rotate(-breakSample.angle);
+            context.translate(-breakSample.x, -breakSample.y);
           }
 
-          if (rupturePulse <= 0.001) continue;
-          const sparkCount = isMobile ? 3 : 5;
+          if (rupturePulse <= 0.001) {
+            context.restore();
+            continue;
+          }
+          const sparkCount = isMobile ? 5 : 8;
           for (let sparkIndex = 0; sparkIndex < sparkCount; sparkIndex += 1) {
             const seed = randomSeed(breakSeed * 1000 + sparkIndex * 37.1);
             const direction = sparkIndex % 2 === 0 ? -1 : 1;
-            const tangentWeight = (0.34 + seed * 0.66) * direction;
-            const normalWeight = (seed - 0.5) * 1.35;
-            const length = chainTitleBox.height * (0.035 + seed * 0.075) * rupturePulse;
+            const tangentWeight = (0.52 + seed * 0.82) * direction;
+            const normalWeight = (seed - 0.5) * 1.08;
+            const length = chainTitleBox.height
+              * (0.055 + seed * 0.13)
+              * (0.52 + rupturePulse * 0.48);
+            const bend = (seed - 0.5) * chainTitleBox.height * 0.045;
+            const midX = breakSample.x
+              + (breakSample.tangentX * tangentWeight + breakSample.normalX * normalWeight)
+                * length
+                * 0.52
+              + breakSample.normalX * bend;
+            const midY = breakSample.y
+              + (breakSample.tangentY * tangentWeight + breakSample.normalY * normalWeight)
+                * length
+                * 0.52
+              + breakSample.normalY * bend;
             const endX = breakSample.x
               + (breakSample.tangentX * tangentWeight + breakSample.normalX * normalWeight) * length;
             const endY = breakSample.y
               + (breakSample.tangentY * tangentWeight + breakSample.normalY * normalWeight) * length;
-            context.globalAlpha = visibility * rupturePulse * (0.42 + seed * 0.5);
+            context.globalAlpha = visibility
+              * rupturePulse
+              * (0.46 + seed * 0.48)
+              * (0.74 + snapPulse * 0.26);
             context.strokeStyle = sparkIndex % 3 === 0
               ? "rgba(255,251,253,0.98)"
               : "rgba(255,94,151,0.94)";
-            context.lineWidth = 0.65 + seed * 0.9;
+            context.lineWidth = 0.72 + seed * 1.08;
             context.shadowColor = "rgba(255,51,124,0.9)";
-            context.shadowBlur = 3 + rupturePulse * 5;
+            context.shadowBlur = 3 + rupturePulse * 6;
             context.beginPath();
             context.moveTo(
               breakSample.x + breakSample.tangentX * tangentWeight * 2,
               breakSample.y + breakSample.tangentY * tangentWeight * 2
             );
-            context.lineTo(endX, endY);
+            context.quadraticCurveTo(midX, midY, endX, endY);
             context.stroke();
           }
+          context.restore();
         }
         context.restore();
       };
@@ -7360,12 +7632,14 @@ const gateStyle = [
           const path = resolveTitleChainPath(definition, fill, intro);
           const spacing = buildTitleChainLinkUnits(definition, isMobile);
           const dimensions = getChainLinkDimensions(definition);
-          const breakDelay = definition.id * 0.012;
-          const definitionBreakOpen = easeInQuint(
-            clamp((intro - (0.588 + breakDelay)) / 0.072, 0, 1)
-          );
+          const breakDelay = definition.id * 0.016;
+          const breakStart = 0.565 + breakDelay;
+          const definitionBreakLinear = clamp((intro - breakStart) / 0.075, 0, 1);
+          const definitionBreakOpen = easeOutCubic(definitionBreakLinear);
+          const definitionSnapLinear = clamp((intro - breakStart) / 0.135, 0, 1);
+          const definitionSnapPulse = Math.sin(definitionSnapLinear * Math.PI) ** 0.72;
           const definitionRecoilUnit = clamp(
-            (intro - (0.65 + breakDelay)) / 0.2,
+            (intro - (breakStart + 0.026)) / 0.235,
             0,
             1
           );
@@ -7376,6 +7650,9 @@ const gateStyle = [
                 * 0.16,
             0,
             1.08
+          );
+          const definitionDisintegration = smootherstep(
+            clamp((intro - (0.715 + breakDelay * 0.45)) / 0.205, 0, 1)
           );
           const breakDistanceUnit = spacing.distanceAtUnit(definition.breakT);
           let breakLinkIndex = 0;
@@ -7414,6 +7691,7 @@ const gateStyle = [
             heat: breakHeat,
             breakOpen: definitionBreakOpen,
             recoil: definitionRecoil,
+            snapPulse: definitionSnapPulse,
             releaseFade
           });
           const leaderUnit = definition.direction > 0
@@ -7470,10 +7748,52 @@ const gateStyle = [
                 side,
                 dimensions,
                 definitionBreakOpen,
-                definitionRecoil
+                definitionRecoil,
+                definitionSnapPulse
               );
               applyBrokenSegmentMotion(sample, breakSample, motion);
-              if (linkIndex === breakLinkIndex) alpha *= 1 - definitionBreakOpen;
+              if (linkIndex === breakLinkIndex) alpha *= Math.max(0, 1 - definitionBreakOpen);
+              if (definitionDisintegration > 0.001 && linkIndex !== breakLinkIndex) {
+                const sideSpan = Math.max(
+                  0.08,
+                  side < 0 ? breakDistanceUnit : 1 - breakDistanceUnit
+                );
+                const groupIndex = Math.floor(Math.abs(linkIndex - breakLinkIndex) / 3);
+                const groupDistance = groupIndex * 3 / Math.max(1, spacing.records.length - 1);
+                const groupOrder = clamp(groupDistance / sideSpan, 0, 1);
+                const groupSeed = randomSeed(
+                  23003
+                    + definition.id * 307.1
+                    + groupIndex * 43.7
+                    + (side > 0 ? 19.3 : 0)
+                );
+                const localDetach = smootherstep(
+                  clamp(
+                    (definitionDisintegration - groupOrder * 0.72 - groupSeed * 0.045) / 0.23,
+                    0,
+                    1
+                  )
+                );
+                if (localDetach > 0.001) {
+                  const polarity = definition.id === 1 ? -1 : 1;
+                  const detachTravel = chainTitleBox.width
+                    * (0.018 + groupSeed * 0.028)
+                    * localDetach ** 1.55;
+                  const detachLift = chainTitleBox.height
+                    * (groupSeed - 0.42)
+                    * 0.11
+                    * localDetach;
+                  sample.x += breakSample.tangentX * side * detachTravel
+                    + breakSample.normalX * polarity * detachLift;
+                  sample.y += breakSample.tangentY * side * detachTravel
+                    + breakSample.normalY * polarity * detachLift;
+                  rotationOffset += side
+                    * polarity
+                    * (0.09 + groupSeed * 0.24)
+                    * localDetach;
+                  alpha *= 1 - smootherstep(clamp((localDetach - 0.58) / 0.42, 0, 1)) * 0.94;
+                }
+              }
             }
             alpha *= (1 - releaseFade * 0.96) * resolveCanvasEdgeFade(sample);
             const record = {
@@ -7519,6 +7839,7 @@ const gateStyle = [
         for (const leader of leaders.filter((leader) => leader.definition.type === "frame")) {
           drawChainLeader(chainFrontContext, leader);
         }
+        drawChainHeartSeal(timestamp, intro, ruptureEvents, visibility, isMobile);
         drawChainRupture(timestamp, intro, ruptureEvents, visibility, isMobile);
 
         chainBackCanvas.style.opacity = Math.min(1, visibility * 0.88).toFixed(3);
