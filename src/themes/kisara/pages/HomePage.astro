@@ -95,6 +95,13 @@ const gateStyle = [
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
+      <canvas
+        class="kisara-title-infusion-canvas"
+        data-kisara-title-infusion
+        width="1200"
+        height="240"
+        aria-hidden="true"
+      ></canvas>
       <span class="kisara-title-enchant" aria-hidden="true">Kisara</span>
       <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
       <canvas
@@ -115,8 +122,8 @@ const gateStyle = [
     <div class="kisara-contract-meter" aria-hidden="true">
       <canvas class="kisara-energy-canvas" data-kisara-energy width="640" height="64"></canvas>
     </div>
-    <p class="kisara-contract-state" data-kisara-state>CONTRACT 000%</p>
-    <p class="kisara-scroll-cue" data-kisara-cue>SCROLL / SIGN THE CONTRACT</p>
+    <p class="kisara-contract-state" data-kisara-state>SCARLET MATERIAL / AWAKENING</p>
+    <p class="kisara-scroll-cue" data-kisara-cue>SCROLL / INFUSE THE NAME</p>
     <a class="kisara-gate-skip" href="#kisara-opening" data-kisara-skip>SKIP</a>
   </section>
 
@@ -231,6 +238,8 @@ const gateStyle = [
       const burstContext = burstCanvas?.getContext("2d");
       const spaceLensCanvas = gate.querySelector("[data-kisara-space-lens]");
       const titleLensCanvas = gate.querySelector("[data-kisara-title-lens]");
+      const titleInfusionCanvas = gate.querySelector("[data-kisara-title-infusion]");
+      const titleInfusionContext = titleInfusionCanvas?.getContext("2d", { alpha: true });
       const titleDataCanvas = gate.querySelector("[data-kisara-title-data]");
       const titleDataContext = titleDataCanvas?.getContext("2d", { alpha: true });
       const postReleaseCanvas = gate.querySelector("[data-kisara-post-release-canvas]");
@@ -244,6 +253,7 @@ const gateStyle = [
       const cue = gate.querySelector("[data-kisara-cue]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const renderLegacyChargeBeam = false;
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
       const burstDistance = 2250;
@@ -252,7 +262,7 @@ const gateStyle = [
       const damping = 0.76;
       const burstDamping = 0.86;
       const settleDistance = 0.00035;
-      const chargeIntroDuration = 2700;
+      const chargeIntroDuration = 2200;
       const chargeHandoffStart = 0.015;
       const chargeHandoffEnd = 0.18;
       const glossFadeEnd = 0.42;
@@ -327,6 +337,9 @@ const gateStyle = [
       let titleDataCanvasWidth = 0;
       let titleDataCanvasHeight = 0;
       let titleDataPixelRatio = 1;
+      let titleInfusionCanvasWidth = 0;
+      let titleInfusionCanvasHeight = 0;
+      let titleInfusionPixelRatio = 1;
       let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
       let titleLayout = { width: 0, height: 0, left: 0, top: 0 };
       let renderQuality = 1;
@@ -338,6 +351,8 @@ const gateStyle = [
       let singularityFieldLastPaintTimestamp = 0;
       const titleDataMaskCanvas = document.createElement("canvas");
       const titleDataMaskContext = titleDataMaskCanvas.getContext("2d", { alpha: true });
+      const titleInfusionMaskCanvas = document.createElement("canvas");
+      const titleInfusionMaskContext = titleInfusionMaskCanvas.getContext("2d", { alpha: true });
       let spaceLensRenderer = null;
       let spaceLensInitGeneration = 0;
       let lastSpaceLensPaintTimestamp = 0;
@@ -1092,6 +1107,79 @@ const gateStyle = [
         postReleaseContext.setTransform(1, 0, 0, 1, 0, 0);
         postReleaseContext.clearRect(0, 0, postReleaseCanvas.width, postReleaseCanvas.height);
         postReleaseContext.setTransform(postReleasePixelRatio, 0, 0, postReleasePixelRatio, 0, 0);
+      };
+
+      const clearTitleInfusionCanvas = () => {
+        if (!titleInfusionCanvas || !titleInfusionContext) return;
+        titleInfusionContext.setTransform(1, 0, 0, 1, 0, 0);
+        titleInfusionContext.clearRect(0, 0, titleInfusionCanvas.width, titleInfusionCanvas.height);
+        titleInfusionContext.setTransform(
+          titleInfusionPixelRatio,
+          0,
+          0,
+          titleInfusionPixelRatio,
+          0,
+          0
+        );
+        titleInfusionCanvas.style.opacity = "0";
+      };
+
+      const rebuildTitleInfusionMask = () => {
+        if (
+          !titleInfusionMaskContext
+          || !title
+          || titleInfusionMaskCanvas.width <= 1
+          || titleInfusionMaskCanvas.height <= 1
+        ) return;
+
+        const width = titleInfusionMaskCanvas.width;
+        const height = titleInfusionMaskCanvas.height;
+        const style = window.getComputedStyle(title);
+        const fontSize = Math.max(1, Number.parseFloat(style.fontSize) * titleInfusionPixelRatio);
+        titleInfusionMaskContext.setTransform(1, 0, 0, 1, 0, 0);
+        titleInfusionMaskContext.clearRect(0, 0, width, height);
+        titleInfusionMaskContext.save();
+        titleInfusionMaskContext.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
+        titleInfusionMaskContext.textAlign = "center";
+        titleInfusionMaskContext.textBaseline = "alphabetic";
+        titleInfusionMaskContext.lineJoin = "round";
+        const metrics = titleInfusionMaskContext.measureText("Kisara");
+        const baseline = height * 0.5
+          + ((metrics.actualBoundingBoxAscent || fontSize * 0.72)
+            - (metrics.actualBoundingBoxDescent || fontSize * 0.16)) * 0.5;
+        titleInfusionMaskContext.fillStyle = "#ffffff";
+        titleInfusionMaskContext.strokeStyle = "#ffffff";
+        titleInfusionMaskContext.lineWidth = Math.max(1, 2.4 * titleInfusionPixelRatio);
+        titleInfusionMaskContext.strokeText("Kisara", width * 0.5, baseline);
+        titleInfusionMaskContext.fillText("Kisara", width * 0.5, baseline);
+        titleInfusionMaskContext.restore();
+      };
+
+      const resizeTitleInfusionCanvas = (force = false) => {
+        if (!titleInfusionCanvas || !titleInfusionContext || !titleInfusionMaskContext) return;
+        const rect = titleInfusionCanvas.getBoundingClientRect();
+        const width = Math.max(1, rect.width);
+        const height = Math.max(1, rect.height);
+        const deviceScale = Math.min(window.devicePixelRatio || 1, width < 640 ? 1.18 : 1.34);
+        const pixelRatio = Math.min(deviceScale, 1536 / width, 420 / height);
+        const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
+        const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
+        const changed = force
+          || Math.abs(titleInfusionCanvasWidth - width) > 0.5
+          || Math.abs(titleInfusionCanvasHeight - height) > 0.5
+          || Math.abs(titleInfusionPixelRatio - pixelRatio) > 0.01
+          || titleInfusionCanvas.width !== pixelWidth
+          || titleInfusionCanvas.height !== pixelHeight;
+        if (!changed) return;
+        titleInfusionCanvas.width = pixelWidth;
+        titleInfusionCanvas.height = pixelHeight;
+        titleInfusionMaskCanvas.width = pixelWidth;
+        titleInfusionMaskCanvas.height = pixelHeight;
+        titleInfusionCanvasWidth = width;
+        titleInfusionCanvasHeight = height;
+        titleInfusionPixelRatio = pixelRatio;
+        clearTitleInfusionCanvas();
+        rebuildTitleInfusionMask();
       };
 
       const clearTitleDataCanvas = () => {
@@ -3500,6 +3588,7 @@ const gateStyle = [
       startTitleLens();
       document.fonts?.ready.then(() => {
         titleLensRenderer?.refresh();
+        resizeTitleInfusionCanvas(true);
         resizeTitleDataCanvas(true);
       });
 
@@ -4250,22 +4339,29 @@ const gateStyle = [
           }
         }
 
-        const chargeFlightOpacity = phaseProgress(
-          chargeIntroProgress,
-          chargeHandoffStart,
-          chargeHandoffEnd
-        )
-          * (1 - phaseProgress(chargeIntroProgress, 0.86, 1));
-        drawChargeFlightBeam(
-          context,
-          timestamp,
-          chargeFlight,
-          chargeFlightOpacity,
-          intensity,
-          width
-        );
+        if (renderLegacyChargeBeam) {
+          const chargeFlightOpacity = phaseProgress(
+            chargeIntroProgress,
+            chargeHandoffStart,
+            chargeHandoffEnd
+          )
+            * (1 - phaseProgress(chargeIntroProgress, 0.86, 1));
+          drawChargeFlightBeam(
+            context,
+            timestamp,
+            chargeFlight,
+            chargeFlightOpacity,
+            intensity,
+            width
+          );
+        }
 
         if (fill <= 0.018) wakePrimed = false;
+        if (!renderLegacyChargeBeam) {
+          wakePrimed = false;
+          wakeEmissionBudget = 0;
+          if (wakeParticles.length) wakeParticles.length = 0;
+        }
         const wakeLimit = Math.floor((width < 640 ? 175 : 280) * (0.8 + renderQuality * 0.2));
         const forwardX = Math.cos(angleRadians);
         const forwardY = Math.sin(angleRadians);
@@ -4324,7 +4420,13 @@ const gateStyle = [
           });
         };
 
-        if (!reducedMotion && wakeOpacity > 0.02 && fill > 0.025 && burst < 0.02) {
+        if (
+          renderLegacyChargeBeam
+          && !reducedMotion
+          && wakeOpacity > 0.02
+          && fill > 0.025
+          && burst < 0.02
+        ) {
           if (!wakePrimed) {
             wakePrimed = true;
             const primeCount = width < 640 ? 18 : width < 960 ? 24 : 30;
@@ -4341,7 +4443,9 @@ const gateStyle = [
           wakeEmissionBudget = Math.min(wakeEmissionBudget, 0.95);
         }
 
-        if (wakeOpacity <= 0.001 && wakeParticles.length) wakeParticles.length = 0;
+        if ((!renderLegacyChargeBeam || wakeOpacity <= 0.001) && wakeParticles.length) {
+          wakeParticles.length = 0;
+        }
 
         for (let index = wakeParticles.length - 1; index >= 0; index -= 1) {
           const particle = wakeParticles[index];
@@ -6285,6 +6389,305 @@ const gateStyle = [
         energyLoopActive = false;
       };
 
+      const titleInfusionBlooms = Array.from({ length: 11 }, (_, index) => {
+        const seedA = randomSeed(12031 + index * 31.7);
+        const seedB = randomSeed(12109 + index * 47.3);
+        const seedC = randomSeed(12203 + index * 61.9);
+        return {
+          x: 0.05 + seedA * 0.9,
+          y: 0.12 + seedB * 0.76,
+          radius: 0.1 + seedC * 0.13,
+          phase: seedA * fullTurn,
+          drift: 0.6 + seedB * 0.8,
+          cool: index % 4 === 0
+        };
+      });
+
+      const titleInfusionRibbons = Array.from({ length: 4 }, (_, index) => {
+        const seedA = randomSeed(12401 + index * 53.1);
+        const seedB = randomSeed(12491 + index * 71.9);
+        return {
+          baseline: 0.24 + index * 0.17 + (seedA - 0.5) * 0.06,
+          amplitude: 0.065 + seedB * 0.055,
+          frequency: 0.82 + seedA * 0.58,
+          slope: -0.24 + (seedB - 0.5) * 0.18,
+          phase: seedB * fullTurn,
+          width: 0.026 + seedA * 0.03,
+          cool: index === 1 || index === 3
+        };
+      });
+
+      const titleInfusionMotes = Array.from({ length: 82 }, (_, index) => {
+        const seedA = randomSeed(12703 + index * 19.7);
+        const seedB = randomSeed(12799 + index * 29.9);
+        const seedC = randomSeed(12907 + index * 41.3);
+        return {
+          x: 0.035 + seedA * 0.93,
+          y: 0.08 + seedB * 0.84,
+          size: 0.7 + seedC * 1.65,
+          phase: seedA * fullTurn,
+          speed: 0.42 + seedB * 0.72,
+          cool: seedC > 0.82
+        };
+      });
+
+      const drawTitleInfusion = (timestamp, fill) => {
+        if (!titleInfusionCanvas || !titleInfusionContext || !titleInfusionMaskContext) return;
+        if (titleInfusionCanvasWidth <= 1 || titleInfusionCanvasHeight <= 1) {
+          resizeTitleInfusionCanvas();
+        }
+        if (titleInfusionCanvasWidth <= 1 || titleInfusionCanvasHeight <= 1) return;
+
+        const intro = clamp(chargeIntroProgress, 0, 1);
+        const activation = phaseProgress(fill, 0.012, 0.13);
+        const handoffFade = 1 - phaseProgress(intro, 0.82, 1);
+        const burstFade = 1 - phaseProgress(burstProgress, 0.004, 0.045);
+        const visibility = activation * handoffFade * burstFade;
+        if (visibility <= 0.001) {
+          if (titleInfusionCanvas.style.opacity !== "0") clearTitleInfusionCanvas();
+          return;
+        }
+
+        const width = titleInfusionCanvasWidth;
+        const height = titleInfusionCanvasHeight;
+        const pixelWidth = titleInfusionCanvas.width;
+        const pixelHeight = titleInfusionCanvas.height;
+        const context = titleInfusionContext;
+        const time = reducedMotion ? 0 : timestamp / 1000;
+        const convergence = phaseProgress(intro, 0.06, 0.72);
+        const pressure = phaseProgress(intro, 0.28, 0.82);
+        const coreFlashProgress = phaseProgress(intro, 0.48, 0.9);
+        const coreFlash = Math.sin(coreFlashProgress * Math.PI);
+        const materialEnergy = 0.38 + fill * 0.62;
+        const core = { x: width * 0.53, y: height * 0.57 };
+
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.clearRect(0, 0, pixelWidth, pixelHeight);
+        context.setTransform(titleInfusionPixelRatio, 0, 0, titleInfusionPixelRatio, 0, 0);
+        context.save();
+        context.globalCompositeOperation = "source-over";
+        context.lineCap = "round";
+        context.lineJoin = "round";
+
+        const materialGradient = context.createLinearGradient(0, height, width, 0);
+        materialGradient.addColorStop(0, "rgba(82, 3, 39, 0.82)");
+        materialGradient.addColorStop(0.24, "rgba(181, 13, 68, 0.78)");
+        materialGradient.addColorStop(0.52, "rgba(238, 36, 99, 0.74)");
+        materialGradient.addColorStop(0.78, "rgba(255, 107, 151, 0.68)");
+        materialGradient.addColorStop(1, "rgba(132, 166, 244, 0.46)");
+        context.globalAlpha = visibility * (0.68 + fill * 0.18);
+        context.fillStyle = materialGradient;
+        context.fillRect(0, 0, width, height);
+
+        context.globalCompositeOperation = "screen";
+        for (let index = 0; index < titleInfusionBlooms.length; index += 1) {
+          const bloom = titleInfusionBlooms[index];
+          const orbit = time * (0.22 + bloom.drift * 0.12) + bloom.phase;
+          const rawX = (bloom.x + Math.sin(orbit) * 0.027) * width;
+          const rawY = (bloom.y + Math.cos(orbit * 0.83) * 0.045) * height;
+          const pull = convergence * (0.68 + bloom.drift * 0.14);
+          const x = rawX + (core.x - rawX) * pull;
+          const y = rawY + (core.y - rawY) * pull;
+          const radius = Math.min(width * bloom.radius, height * (0.5 + bloom.radius * 1.6))
+            * (1 - convergence * 0.34 + pressure * 0.16);
+          const glow = context.createRadialGradient(x, y, 0, x, y, radius);
+          glow.addColorStop(0, bloom.cool
+            ? "rgba(214, 232, 255, 0.72)"
+            : "rgba(255, 241, 246, 0.78)");
+          glow.addColorStop(0.22, bloom.cool
+            ? "rgba(124, 174, 255, 0.42)"
+            : "rgba(255, 117, 163, 0.48)");
+          glow.addColorStop(0.62, bloom.cool
+            ? "rgba(98, 133, 227, 0.12)"
+            : "rgba(189, 18, 78, 0.13)");
+          glow.addColorStop(1, "rgba(255, 49, 112, 0)");
+          context.globalAlpha = visibility * materialEnergy * (0.42 + pressure * 0.2);
+          context.fillStyle = glow;
+          context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+        }
+
+        for (let ribbonIndex = 0; ribbonIndex < titleInfusionRibbons.length; ribbonIndex += 1) {
+          const ribbon = titleInfusionRibbons[ribbonIndex];
+          const points = [];
+          const segments = width < 560 ? 18 : 24;
+          for (let segment = 0; segment <= segments; segment += 1) {
+            const unit = segment / segments;
+            const baseX = (unit * 1.14 - 0.07) * width;
+            const wave = Math.sin(
+              unit * fullTurn * ribbon.frequency
+              - time * (0.5 + fill * 0.4)
+              + ribbon.phase
+            );
+            const secondary = Math.sin(
+              unit * fullTurn * (ribbon.frequency * 0.47 + 0.38)
+              + time * 0.28
+              - ribbon.phase * 0.6
+            );
+            const rawY = height * (
+              ribbon.baseline
+              + (unit - 0.5) * ribbon.slope
+              + wave * ribbon.amplitude
+              + secondary * ribbon.amplitude * 0.42
+            );
+            const edgeEase = Math.sin(unit * Math.PI);
+            const pull = convergence * edgeEase * (0.56 + ribbonIndex * 0.055);
+            points.push({
+              x: baseX + (core.x - baseX) * pull,
+              y: rawY + (core.y - rawY) * pull
+            });
+          }
+          const path = createSmoothCanvasPath(points);
+          const shadowGradient = context.createLinearGradient(0, 0, width, 0);
+          shadowGradient.addColorStop(0, "rgba(47, 0, 25, 0)");
+          shadowGradient.addColorStop(0.18, "rgba(77, 0, 38, 0.56)");
+          shadowGradient.addColorStop(0.5, "rgba(122, 4, 55, 0.7)");
+          shadowGradient.addColorStop(0.82, "rgba(72, 0, 39, 0.46)");
+          shadowGradient.addColorStop(1, "rgba(47, 0, 25, 0)");
+          context.globalCompositeOperation = "source-over";
+          context.globalAlpha = visibility * (0.16 + fill * 0.09) * (1 - pressure * 0.22);
+          context.strokeStyle = shadowGradient;
+          context.lineWidth = Math.max(6, height * ribbon.width * 1.68);
+          context.shadowColor = "rgba(62, 0, 33, 0.5)";
+          context.shadowBlur = 7 + fill * 6;
+          context.stroke(path);
+
+          context.globalCompositeOperation = "screen";
+          const ribbonGradient = context.createLinearGradient(0, 0, width, 0);
+          ribbonGradient.addColorStop(0, "rgba(255, 76, 128, 0)");
+          ribbonGradient.addColorStop(0.2, ribbon.cool
+            ? "rgba(151, 196, 255, 0.3)"
+            : "rgba(255, 91, 143, 0.32)");
+          ribbonGradient.addColorStop(0.5, ribbon.cool
+            ? "rgba(229, 239, 255, 0.6)"
+            : "rgba(255, 236, 243, 0.7)");
+          ribbonGradient.addColorStop(0.8, ribbon.cool
+            ? "rgba(110, 157, 247, 0.22)"
+            : "rgba(255, 69, 127, 0.26)");
+          ribbonGradient.addColorStop(1, "rgba(255, 76, 128, 0)");
+          context.globalAlpha = visibility * (0.2 + fill * 0.13 + pressure * 0.12);
+          context.strokeStyle = ribbonGradient;
+          context.lineWidth = Math.max(4, height * ribbon.width * (0.86 + pressure * 0.28));
+          context.shadowColor = ribbon.cool
+            ? "rgba(117, 168, 255, 0.44)"
+            : "rgba(255, 60, 124, 0.5)";
+          context.shadowBlur = 7 + fill * 8 + pressure * 7;
+          context.stroke(path);
+        }
+
+        const frontierOpacity = (1 - phaseProgress(fill, 0.955, 1)) * (1 - convergence * 0.45);
+        if (frontierOpacity > 0.001) {
+          const frontierPoints = [];
+          const segments = width < 560 ? 20 : 28;
+          for (let segment = 0; segment <= segments; segment += 1) {
+            const unit = segment / segments;
+            const y = (unit * 1.28 - 0.14) * height;
+            const baseX = width * (2 * fill - 1 + y / height);
+            const primaryWave = Math.sin(
+              unit * fullTurn * 2.25
+              - time * (1.15 + fill * 0.8)
+            ) * (3.6 + fill * 4.8);
+            const secondaryWave = Math.sin(
+              unit * fullTurn * 5.1
+              + time * 0.72
+            ) * (1.1 + fill * 1.9);
+            frontierPoints.push({ x: baseX + primaryWave + secondaryWave, y });
+          }
+          const frontier = createSmoothCanvasPath(frontierPoints);
+          context.globalCompositeOperation = "source-over";
+          context.globalAlpha = visibility * frontierOpacity * 0.34;
+          context.strokeStyle = "rgba(203, 19, 83, 0.72)";
+          context.lineWidth = Math.max(10, height * 0.11);
+          context.shadowColor = "rgba(255, 35, 107, 0.72)";
+          context.shadowBlur = 18 + fill * 11;
+          context.stroke(frontier);
+
+          context.globalCompositeOperation = "screen";
+          context.globalAlpha = visibility * frontierOpacity * 0.78;
+          context.strokeStyle = "rgba(255, 129, 170, 0.9)";
+          context.lineWidth = Math.max(3.2, height * 0.032);
+          context.shadowColor = "rgba(255, 224, 235, 0.92)";
+          context.shadowBlur = 7 + fill * 8;
+          context.stroke(frontier);
+
+          context.globalAlpha = visibility * frontierOpacity * 0.9;
+          context.strokeStyle = "rgba(255, 250, 252, 0.94)";
+          context.lineWidth = Math.max(0.9, height * 0.008);
+          context.shadowBlur = 2.5;
+          context.stroke(frontier);
+        }
+
+        context.shadowBlur = 0;
+        context.globalCompositeOperation = "screen";
+        for (let index = 0; index < titleInfusionMotes.length; index += 1) {
+          const mote = titleInfusionMotes[index];
+          const projection = (mote.x + 1 - mote.y) * 0.5;
+          const frontierDistance = fill - projection;
+          if (frontierDistance < -0.045 || frontierDistance > 0.14) continue;
+          const band = Math.sin(clamp((frontierDistance + 0.045) / 0.185, 0, 1) * Math.PI);
+          const phase = time * mote.speed + mote.phase;
+          const drift = (1 - Math.abs(frontierDistance) * 3.4) * band;
+          const x = mote.x * width + Math.cos(phase) * (2 + fill * 4) * drift;
+          const y = mote.y * height - Math.sin(phase * 0.74) * (1.5 + fill * 3.5) * drift;
+          const size = mote.size * (0.7 + fill * 0.6);
+          context.save();
+          context.translate(x, y);
+          context.rotate(-0.68 + Math.sin(phase) * 0.2);
+          context.globalAlpha = visibility * band * (0.24 + fill * 0.42);
+          context.fillStyle = mote.cool
+            ? "rgba(188, 220, 255, 0.9)"
+            : "rgba(255, 226, 238, 0.94)";
+          context.shadowColor = mote.cool
+            ? "rgba(116, 171, 255, 0.72)"
+            : "rgba(255, 72, 132, 0.82)";
+          context.shadowBlur = 3 + fill * 4;
+          context.beginPath();
+          context.ellipse(0, 0, size * 1.9, size * 0.48, 0, 0, fullTurn);
+          context.fill();
+          context.restore();
+        }
+
+        if (convergence > 0.001 || coreFlash > 0.001) {
+          const radius = Math.max(width, height) * (0.08 + pressure * 0.22 + coreFlash * 0.06);
+          const coreGlow = context.createRadialGradient(core.x, core.y, 0, core.x, core.y, radius);
+          coreGlow.addColorStop(0, "rgba(255, 255, 255, 0.98)");
+          coreGlow.addColorStop(0.12, "rgba(255, 225, 238, 0.92)");
+          coreGlow.addColorStop(0.34, "rgba(255, 75, 139, 0.58)");
+          coreGlow.addColorStop(0.66, "rgba(119, 166, 255, 0.2)");
+          coreGlow.addColorStop(1, "rgba(255, 52, 120, 0)");
+          context.globalAlpha = visibility * clamp(pressure * 0.62 + coreFlash * 0.78, 0, 1);
+          context.fillStyle = coreGlow;
+          context.shadowBlur = 0;
+          context.fillRect(core.x - radius, core.y - radius, radius * 2, radius * 2);
+        }
+        context.restore();
+
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.globalCompositeOperation = "destination-in";
+        context.globalAlpha = 1;
+        context.drawImage(titleInfusionMaskCanvas, 0, 0);
+        if (fill < 0.999) {
+          const fillMask = context.createLinearGradient(0, pixelHeight, pixelWidth, 0);
+          const solidEnd = clamp(fill - 0.045, 0, 1);
+          const denseEnd = Math.max(solidEnd, clamp(fill - 0.012, 0, 1));
+          const softEnd = Math.max(denseEnd, clamp(fill + 0.024, 0, 1));
+          const fadeEnd = Math.max(softEnd, clamp(fill + 0.065, 0, 1));
+          fillMask.addColorStop(0, "rgba(0,0,0,1)");
+          fillMask.addColorStop(solidEnd, "rgba(0,0,0,1)");
+          fillMask.addColorStop(denseEnd, "rgba(0,0,0,0.92)");
+          fillMask.addColorStop(softEnd, "rgba(0,0,0,0.52)");
+          fillMask.addColorStop(fadeEnd, "rgba(0,0,0,0)");
+          fillMask.addColorStop(1, "rgba(0,0,0,0)");
+          context.fillStyle = fillMask;
+          context.fillRect(0, 0, pixelWidth, pixelHeight);
+        }
+        context.globalCompositeOperation = "source-over";
+        context.setTransform(titleInfusionPixelRatio, 0, 0, titleInfusionPixelRatio, 0, 0);
+        titleInfusionCanvas.style.opacity = Math.min(
+          1,
+          visibility * (0.74 + fill * 0.22 + pressure * 0.08)
+        ).toFixed(3);
+      };
+
       const drawEnergy = (timestamp) => {
         energyFrame = 0;
         if (!energyLoopActive || !energyCanvas || !energyContext) return;
@@ -6321,6 +6724,12 @@ const gateStyle = [
         const height = energyCanvasHeight;
         energyContext.clearRect(0, 0, width, height);
         drawScreenEnergy(timestamp);
+        drawTitleInfusion(timestamp, energyProgress);
+        if (!renderLegacyChargeBeam) {
+          updateRenderQuality(timestamp, performance.now() - renderStartedAt);
+          queueEnergyFrame();
+          return;
+        }
         if (width <= 1 || height <= 1) {
           updateRenderQuality(timestamp, performance.now() - renderStartedAt);
           queueEnergyFrame();
@@ -6832,12 +7241,26 @@ const gateStyle = [
         energyProgress = fill;
         updateBurstPresentation(performance.now(), false);
         startEnergyAnimation();
-        const stage = fillComplete ? "glitch" : "contract";
+        const stage = fillComplete
+          ? "glitch"
+          : fill < 0.2
+            ? "awakening"
+            : fill < 0.5
+              ? "infusing"
+              : fill < 0.78
+                ? "flowing"
+                : "converging";
         const glitchTick = fillComplete ? Math.floor(performance.now() / 72) : -1;
         if (state && (percent !== renderedPercent || stage !== renderedStage || glitchTick !== renderedGlitchTick)) {
           state.textContent = fillComplete
             ? makeGlitchState(performance.now(), burstProgress, burstComplete)
-            : `CONTRACT ${String(percent).padStart(3, "0")}%`;
+            : stage === "awakening"
+              ? "SCARLET MATERIAL / AWAKENING"
+              : stage === "infusing"
+                ? "CRIMSON TIDE / INFUSING"
+                : stage === "flowing"
+                  ? "DEMONIC LACQUER / FLOWING"
+                  : "CONTRACT CORE / CONVERGING";
           renderedPercent = percent;
           renderedStage = stage;
           renderedGlitchTick = glitchTick;
@@ -6852,14 +7275,14 @@ const gateStyle = [
         setPostReleaseActive(burstComplete && pageMode === "gate");
         if (cue) {
           cue.textContent = chargeIntroActive
-            ? "ENERGY VECTOR / ENCHANTING"
+            ? "TITLE CORE / ENCHANTING"
             : burstAutoplay
             ? "AUTOMATIC RELEASE / STAND BY"
             : burstComplete
             ? "SIGNAL RELEASED / CONTINUE"
             : fillComplete
               ? "OVERCHARGE / BREAK THE SEAL"
-              : "SCROLL / SIGN THE CONTRACT";
+              : "SCROLL / INFUSE THE NAME";
         }
       };
 
@@ -7078,6 +7501,7 @@ const gateStyle = [
         renderedStage = "";
         renderedGlitchTick = -1;
         energyContext?.clearRect(0, 0, energyCanvasWidth, energyCanvasHeight);
+        clearTitleInfusionCanvas();
         burstContext?.clearRect(0, 0, burstCanvasWidth, burstCanvasHeight);
         singularityFieldContext?.clearRect(
           0,
@@ -7312,6 +7736,7 @@ const gateStyle = [
         resizeEnergyCanvas(true);
         resizeBurstCanvas(true);
         resizePostReleaseCanvas(true);
+        resizeTitleInfusionCanvas(true);
         resizeTitleDataCanvas(true);
         spaceLensRenderer?.resize();
         titleLensRenderer?.resize();
@@ -7330,7 +7755,15 @@ const gateStyle = [
         ? new ResizeObserver(scheduleLayoutSizeRefresh)
         : null;
       if (layoutResizeObserver) {
-        for (const target of [gate, meterShell, title, energyCanvas, burstCanvas, postReleaseCanvas]) {
+        for (const target of [
+          gate,
+          meterShell,
+          title,
+          titleInfusionCanvas,
+          energyCanvas,
+          burstCanvas,
+          postReleaseCanvas
+        ]) {
           if (target) layoutResizeObserver.observe(target);
         }
       }
