@@ -123,6 +123,12 @@ export default defineConfig({
           "user-scan",
           "arrow-back-up",
           "activity-heartbeat"
+          ,"refresh"
+          ,"player-skip-forward"
+          ,"arrow-down"
+          ,"chevron-left"
+          ,"chevron-right"
+          ,"external-link"
         ],
         "simple-icons": [
           "unity",

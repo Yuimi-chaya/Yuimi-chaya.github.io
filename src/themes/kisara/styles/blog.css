@@ -1,0 +1,577 @@
+.kisara-blog-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: end;
+  min-height: clamp(680px, 92svh, 940px);
+  overflow: hidden;
+  color: #fff;
+  background: #070a1f;
+}
+
+.kisara-blog-scene,
+.kisara-blog-scene > img,
+.kisara-blog-scene-veil,
+.kisara-blog-scanline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.kisara-blog-scene {
+  z-index: -1;
+  overflow: hidden;
+}
+
+.kisara-blog-scene > img {
+  object-fit: cover;
+  object-position: center 48%;
+  pointer-events: none;
+}
+
+.kisara-blog-scene-bg {
+  z-index: 0;
+  filter: saturate(0.88) contrast(1.08);
+  transform: scale(1.035);
+}
+
+.kisara-blog-character {
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.kisara-blog-character.is-sharon { z-index: 1; --blog-enter-x: 0px; --blog-enter-y: -32px; --blog-enter-delay: 860ms; }
+.kisara-blog-character.is-ayano { z-index: 2; --blog-enter-x: 38px; --blog-enter-y: 10px; --blog-enter-delay: 620ms; }
+.kisara-blog-character.is-shu { z-index: 3; --blog-enter-x: -30px; --blog-enter-y: 20px; --blog-enter-delay: 380ms; }
+.kisara-blog-character.is-kisara { z-index: 4; --blog-enter-x: 34px; --blog-enter-y: 42px; --blog-enter-delay: 120ms; }
+
+.kisara-blog-hero[data-intro-state="playing"] .kisara-blog-character {
+  animation: kisara-blog-character-enter 780ms cubic-bezier(0.16, 0.84, 0.22, 1) var(--blog-enter-delay) both;
+}
+
+.kisara-blog-hero[data-intro-state="complete"] .kisara-blog-character {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+@keyframes kisara-blog-character-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(var(--blog-enter-x), var(--blog-enter-y), 0) scale(1.035);
+  }
+  58% { opacity: 1; }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.kisara-blog-scene-veil {
+  z-index: 5;
+  background:
+    linear-gradient(90deg, rgba(5, 8, 28, 0.96) 0%, rgba(5, 8, 28, 0.72) 34%, rgba(5, 8, 28, 0.14) 68%, rgba(5, 8, 28, 0.4) 100%),
+    linear-gradient(180deg, rgba(5, 8, 28, 0.28), transparent 42%, rgba(5, 8, 28, 0.78) 100%);
+}
+
+.kisara-blog-scanline {
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0.2;
+  background: repeating-linear-gradient(180deg, transparent 0 4px, rgba(145, 177, 255, 0.1) 5px, transparent 6px);
+  mask-image: linear-gradient(90deg, #000, transparent 72%);
+}
+
+.kisara-blog-hero::after {
+  content: "";
+  position: absolute;
+  z-index: 7;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ff4969 24%, #91b1ff 68%, transparent);
+  box-shadow: 0 0 24px rgba(255, 73, 105, 0.58);
+}
+
+.kisara-blog-hero-copy {
+  position: relative;
+  z-index: 8;
+  width: min(1180px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 170px 0 92px;
+}
+
+.kisara-blog-kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: #b8c8f6;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.kisara-blog-kicker span {
+  color: #ff7891;
+}
+
+.kisara-blog-kicker::before {
+  content: "";
+  width: 34px;
+  height: 1px;
+  background: #ff4969;
+  box-shadow: 0 0 10px rgba(255, 73, 105, 0.84);
+}
+
+.kisara-blog-hero h1 {
+  display: grid;
+  margin: 30px 0 0;
+  max-width: 760px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(4.2rem, 8vw, 8.6rem);
+  line-height: 0.83;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.kisara-blog-hero h1 span {
+  color: #f7f3ff;
+  font-weight: 400;
+}
+
+.kisara-blog-hero h1 strong {
+  color: #ff5678;
+  font-weight: 400;
+  font-style: italic;
+  text-shadow: 0 0 34px rgba(255, 73, 105, 0.24);
+}
+
+.kisara-blog-hero-copy > p:not(.kisara-blog-kicker) {
+  max-width: 620px;
+  margin: 32px 0 0;
+  color: #c7cce3;
+  font-size: 1rem;
+  line-height: 1.85;
+}
+
+.kisara-blog-hero dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px 42px;
+  margin: 40px 0 0;
+}
+
+.kisara-blog-hero dl div {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.kisara-blog-hero dt {
+  color: #8694bf;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.kisara-blog-hero dd {
+  margin: 0;
+  color: #fff;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.86rem;
+}
+
+.kisara-blog-intro-controls {
+  position: absolute;
+  z-index: 12;
+  top: 98px;
+  right: 30px;
+  display: flex;
+  gap: 8px;
+}
+
+.kisara-blog-intro-controls button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(203, 214, 249, 0.34);
+  border-radius: 50%;
+  color: #dce5ff;
+  background: rgba(7, 10, 31, 0.48);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.kisara-blog-intro-controls button:hover,
+.kisara-blog-intro-controls button:focus-visible {
+  color: #fff;
+  border-color: #ff7891;
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.kisara-blog-intro-controls svg {
+  width: 17px;
+  height: 17px;
+}
+
+.kisara-blog-enter {
+  position: absolute;
+  z-index: 9;
+  right: 32px;
+  bottom: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #cbd6f8;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.kisara-blog-enter svg {
+  width: 17px;
+  height: 17px;
+  color: #ff7891;
+  animation: kisara-blog-enter-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes kisara-blog-enter-pulse {
+  50% { transform: translateY(6px); }
+}
+
+.kisara-blog-archive {
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 120px 0 150px;
+}
+
+.kisara-blog-archive-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 430px);
+  gap: 70px;
+  align-items: end;
+  padding-bottom: 44px;
+  border-bottom: 1px solid rgba(145, 177, 255, 0.28);
+}
+
+.kisara-blog-archive-heading p {
+  margin: 0;
+  color: #9aa7cc;
+  line-height: 1.75;
+}
+
+.kisara-blog-archive-heading > div > p {
+  color: #ff7891;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.67rem;
+  font-weight: 800;
+}
+
+.kisara-blog-archive-heading h2 {
+  margin: 18px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3rem, 6vw, 5.7rem);
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.kisara-blog-toolbar {
+  position: sticky;
+  z-index: 10;
+  top: 76px;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: 20px;
+  align-items: center;
+  margin: 0 0 28px;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(145, 177, 255, 0.2);
+  background: rgba(17, 22, 54, 0.94);
+  backdrop-filter: blur(16px);
+}
+
+.kisara-blog-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-left: 2px solid #91b1ff;
+  background: rgba(145, 177, 255, 0.05);
+}
+
+.kisara-blog-toolbar label:focus-within {
+  border-left-color: #ff4969;
+  background: rgba(255, 73, 105, 0.07);
+}
+
+.kisara-blog-toolbar label svg {
+  width: 17px;
+  height: 17px;
+  color: #91b1ff;
+}
+
+.kisara-blog-toolbar input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #fff;
+  background: transparent;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.7rem;
+}
+
+.kisara-blog-toolbar input::placeholder { color: #7783aa; }
+
+.kisara-blog-filters {
+  display: flex;
+  gap: 6px;
+}
+
+.kisara-blog-filters button {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: #929dc3;
+  background: transparent;
+  font-size: 0.66rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.kisara-blog-filters button:hover,
+.kisara-blog-filters button:focus-visible,
+.kisara-blog-filters button[aria-pressed="true"] {
+  color: #fff;
+  border-bottom-color: #ff4969;
+  outline: none;
+}
+
+.kisara-blog-toolbar output {
+  color: #91b1ff;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.kisara-blog-stream {
+  display: grid;
+}
+
+.kisara-blog-record {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(210px, 32%) minmax(0, 1fr) 30px;
+  gap: 34px;
+  align-items: center;
+  min-height: 250px;
+  padding: 32px 0;
+  border-bottom: 1px solid rgba(145, 177, 255, 0.2);
+  overflow: hidden;
+  transition: border-color 220ms ease;
+}
+
+.kisara-blog-record[hidden] { display: none; }
+
+.kisara-blog-record::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, #ff4969, transparent);
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 260ms ease;
+}
+
+.kisara-blog-record:hover,
+.kisara-blog-record:focus-visible {
+  border-bottom-color: rgba(255, 120, 145, 0.5);
+  outline: none;
+}
+
+.kisara-blog-record:hover::before,
+.kisara-blog-record:focus-visible::before { transform: scaleY(1); }
+
+.kisara-blog-record figure {
+  position: relative;
+  aspect-ratio: 13 / 8;
+  margin: 0;
+  overflow: hidden;
+  background: #080b20;
+}
+
+.kisara-blog-record figure::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(145, 177, 255, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(5, 8, 28, 0.45);
+}
+
+.kisara-blog-record figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.78) brightness(0.82);
+  transform: scale(1.015);
+  transition: filter 320ms ease, transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.kisara-blog-record:hover figure img,
+.kisara-blog-record:focus-visible figure img {
+  filter: saturate(1) brightness(0.98);
+  transform: scale(1.055);
+}
+
+.kisara-blog-record figure > span {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
+  color: #ff7891;
+  font: 700 3rem/1 "Courier New", Courier, monospace;
+}
+
+.kisara-blog-record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  color: #8f9abf;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.65rem;
+}
+
+.kisara-blog-record-meta > span { color: #ff7891; }
+.kisara-blog-record-meta small { color: #aabef2; font: inherit; }
+
+.kisara-blog-record h3 {
+  max-width: 720px;
+  margin: 17px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.65rem, 3vw, 2.6rem);
+  line-height: 1.16;
+  letter-spacing: 0;
+  transition: color 180ms ease;
+}
+
+.kisara-blog-record:hover h3,
+.kisara-blog-record:focus-visible h3 { color: #ff8ca1; }
+
+.kisara-blog-record-body > p {
+  max-width: 720px;
+  margin: 14px 0 0;
+  color: #aab3cf;
+  line-height: 1.72;
+}
+
+.kisara-blog-record-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 18px;
+}
+
+.kisara-blog-record-tags em {
+  color: #d8879a;
+  font-size: 0.65rem;
+  font-style: normal;
+}
+
+.kisara-blog-record-arrow {
+  justify-self: end;
+  color: #91b1ff;
+  font-size: 1.15rem;
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.kisara-blog-record:hover .kisara-blog-record-arrow,
+.kisara-blog-record:focus-visible .kisara-blog-record-arrow {
+  color: #ff7891;
+  transform: translate(4px, -4px);
+}
+
+.kisara-blog-empty {
+  margin: 0;
+  padding: 80px 0;
+  color: #91b1ff;
+  border-bottom: 1px solid rgba(145, 177, 255, 0.22);
+  text-align: center;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.72rem;
+}
+
+@media (max-width: 900px) {
+  .kisara-blog-hero-copy { width: min(100% - 40px, 1180px); }
+  .kisara-blog-scene-veil {
+    background:
+      linear-gradient(90deg, rgba(5, 8, 28, 0.9), rgba(5, 8, 28, 0.28)),
+      linear-gradient(180deg, rgba(5, 8, 28, 0.26), transparent 34%, rgba(5, 8, 28, 0.88));
+  }
+  .kisara-blog-archive-heading { grid-template-columns: 1fr; gap: 28px; }
+  .kisara-blog-toolbar { grid-template-columns: 1fr auto; }
+  .kisara-blog-toolbar label { grid-column: 1 / -1; }
+  .kisara-blog-record { grid-template-columns: minmax(190px, 38%) minmax(0, 1fr) 24px; gap: 24px; }
+}
+
+@media (max-width: 600px) {
+  .kisara-blog-hero { min-height: 690px; align-items: end; }
+  .kisara-blog-scene > img {
+    top: 66px;
+    height: 48%;
+    object-fit: contain;
+    object-position: center top;
+  }
+  .kisara-blog-scene-bg {
+    height: 62% !important;
+    object-fit: cover !important;
+    opacity: 0.74;
+  }
+  .kisara-blog-scene-veil {
+    background: linear-gradient(180deg, rgba(5, 8, 28, 0.12) 0%, rgba(5, 8, 28, 0.25) 38%, #070a1f 67%, #070a1f 100%);
+  }
+  .kisara-blog-scanline { opacity: 0.1; }
+  .kisara-blog-hero-copy {
+    width: min(100% - 32px, 1180px);
+    padding: 330px 0 76px;
+  }
+  .kisara-blog-hero h1 { margin-top: 24px; font-size: clamp(3.2rem, 17vw, 4.8rem); line-height: 0.9; }
+  .kisara-blog-hero-copy > p:not(.kisara-blog-kicker) { margin-top: 24px; font-size: 0.9rem; line-height: 1.7; }
+  .kisara-blog-hero dl { gap: 14px 24px; margin-top: 28px; }
+  .kisara-blog-intro-controls { top: 78px; right: 14px; }
+  .kisara-blog-enter { right: 18px; bottom: 22px; }
+  .kisara-blog-archive { width: min(100% - 32px, 1180px); padding: 90px 0 110px; }
+  .kisara-blog-archive-heading h2 { font-size: 3rem; }
+  .kisara-blog-toolbar { top: 66px; grid-template-columns: 1fr; gap: 13px; padding: 14px 0; }
+  .kisara-blog-toolbar label { grid-column: auto; }
+  .kisara-blog-filters { overflow-x: auto; scrollbar-width: none; }
+  .kisara-blog-filters::-webkit-scrollbar { display: none; }
+  .kisara-blog-filters button { flex: 0 0 auto; }
+  .kisara-blog-toolbar output { justify-self: start; }
+  .kisara-blog-record { grid-template-columns: 1fr; gap: 18px; min-height: 0; padding: 26px 0 34px; }
+  .kisara-blog-record figure { aspect-ratio: 16 / 9; }
+  .kisara-blog-record-arrow { position: absolute; right: 4px; bottom: 34px; }
+  .kisara-blog-record-body { padding-right: 24px; }
+  .kisara-blog-record h3 { font-size: 1.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kisara-blog-character,
+  .kisara-blog-hero[data-intro-state="playing"] .kisara-blog-character {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
+  .kisara-blog-enter svg { animation: none; }
+  .kisara-blog-record figure img { transition: none; }
+}
