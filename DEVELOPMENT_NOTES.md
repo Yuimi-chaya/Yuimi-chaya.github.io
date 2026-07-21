@@ -68,6 +68,7 @@
 - Kisara opening-transition rollback commit: `cb1fa6e Refine Kisara opening transition`.
 - Kisara compressed singularity/reversible-intro checkpoint: `91356a2 Tighten Kisara singularity sequence`.
 - Kisara stable outer-chain motion rollback commit: `2d7853b Stabilize Kisara outer chain motion`.
+- Kisara adaptive chain-interlock rollback commit and current tracked HEAD: `d1ffa62 Refine Kisara chain interlock`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
 - Local state: the Kisara image transition, softened charge beam, post-50% exterior energy coils, automatic U-turn title-enchantment prelude, jet/coast/drift wake particles, post-gloss procedural warning, segmented foreground pink-black-hole release, side-only WebGL2 background lensing, independent title refraction/dissolve/reconstruction, full-screen block reconstruction, multi-wave aftermath, lingering particle rain, persistent glitch status, post-reconstruction highlights/parallax, and site-wide deep-indigo UI are implemented and browser-validated. The title keeps its clear red core and soft tide, while the blade gloss remains the Beijing-time July 19 morning slanted text layer clipped inside the glyphs. The black-hole center uses non-rotating Cartesian plasma turbulence, fixed-anchor short inward streams, stationary low-frequency contours, and offset irregular dark layers instead of angular spiral arms, a rotating oval, or a standalone sphere. After reconstruction completes, the existing WebGL title lens now takes full ownership of the `Kisara` glyphs: the CSS source text fades out monotonically while the shader performs continuous liquid UV displacement, broad direction-change pressure deformation, moving pink/blue energy traces, chromatic edge separation, and broken sampled edge drag. The rejected `ba82ee4` 2D overlay remains a rollback reference only; `1725af6` remains the segmented-flight rollback point. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
 - Default theme ID: `fuyukawa-kagari`.
@@ -155,6 +156,14 @@
 - Site-wide presentation: the homepage continues into full-width channel, current-pulse, project, and article bands instead of repeating the hero effect. Inner pages use a fixed theme header, mobile bottom navigation, cold-blue information lines, rose active states, restrained `fight.jpg` atmosphere, and page-specific list/article controls. Blog search/filtering, Projects technology filtering, Games metadata/actions, About identity signals, article reading progress/share controls, and a themed 404 are functional rather than decorative-only.
 - Boundary: no root `kisara/` source image is imported, copied, staged, or published.
 - Local helper: root `preview-blog.bat` runs `npm run build` first and starts `npm run dev -- --host 127.0.0.1` only after a successful build.
+
+### Kisara Inner-Page Redesign
+
+- Goal: rebuild Blog, Projects/Works, Games, and About/Me as four distinct interaction models inside the existing Kisara visual system, without changing the accepted homepage gate sequence or article layout.
+- Status: active. `d1ffa62` is the rollback point before this work.
+- Blog asset source: user-owned `kisara/engage kiss.png`; the source remains untracked and untouched. A reproducible offline extraction script may read it and publish only generated, compressed theme assets under `public/themes/kisara/assets/blog/`.
+- Blog direction: layered city transmission intro with four separately masked visible-character layers. Entry order follows the requested front-to-back depth order, replays on every Blog entry, and degrades to a static composition for reduced motion.
+- Page boundaries: Blog owns search/archive behavior; Works owns technical-track filtering; Games owns a single-focus arcade selector; Me owns profile and interest navigation. New selectors must be page-prefixed so shared homepage and article styles remain unchanged.
 
 ## Known Risks
 
