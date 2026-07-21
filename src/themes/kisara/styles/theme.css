@@ -850,6 +850,8 @@ a {
 }
 
 .kisara-title > span {
+  position: relative;
+  z-index: 1;
   grid-area: 1 / 1;
   display: block;
   opacity: var(--kisara-title-source-opacity);
@@ -938,7 +940,7 @@ a {
 }
 
 .kisara-title > .kisara-title-enchant {
-  z-index: 2;
+  z-index: 3;
   opacity: min(var(--kisara-enchant-opacity, 0), var(--kisara-title-source-opacity));
   color: transparent;
   -webkit-text-fill-color: transparent;
@@ -976,7 +978,7 @@ a {
 }
 
 .kisara-title > .kisara-title-gloss {
-  z-index: 3;
+  z-index: 4;
   opacity: var(--kisara-gloss-opacity, 0);
   color: transparent;
   -webkit-text-fill-color: transparent;
@@ -1005,9 +1007,36 @@ a {
   will-change: opacity, clip-path;
 }
 
+.kisara-title-chain-canvas {
+  position: absolute;
+  inset: -34% -14%;
+  width: 128%;
+  height: 168%;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateZ(0);
+  will-change: opacity;
+}
+
+.kisara-title-chain-canvas-back {
+  z-index: 0;
+  filter:
+    saturate(0.82)
+    brightness(0.7)
+    drop-shadow(0 4px 8px rgba(5, 7, 29, 0.64));
+}
+
+.kisara-title-chain-canvas-front {
+  z-index: 2;
+  filter:
+    saturate(0.96)
+    contrast(1.08)
+    drop-shadow(0 5px 10px rgba(7, 8, 34, 0.76));
+}
+
 .kisara-title-data-canvas {
   position: absolute;
-  z-index: 2;
+  z-index: 5;
   inset: -16% -8%;
   width: 116%;
   height: 132%;
@@ -1025,7 +1054,7 @@ a {
 
 .kisara-title-lens-canvas {
   position: absolute;
-  z-index: 4;
+  z-index: 6;
   inset: -22% -14%;
   width: 128%;
   height: 144%;
@@ -1548,24 +1577,16 @@ a {
 }
 
 .kisara-contract-meter {
-  position: relative;
-  width: min(620px, 78vw);
-  height: 68px;
-  margin-top: 34px;
-  isolation: isolate;
-  transform: translate3d(
-      calc(var(--kisara-beam-anchor-x) + var(--kisara-beam-shake-x)),
-      calc(var(--kisara-beam-anchor-y) + var(--kisara-beam-shake-y) + var(--kisara-beam-lift)),
-      0
-    )
-    rotate(var(--kisara-beam-angle))
-    scaleX(var(--kisara-beam-scale-x))
-    scaleY(var(--kisara-beam-scale-y));
-  transform-origin: center center;
-  opacity: var(--kisara-beam-opacity);
-  filter: brightness(var(--kisara-beam-brightness))
-    drop-shadow(0 0 var(--kisara-beam-glow) rgba(255, 92, 128, 0.72));
-  will-change: transform, opacity, filter;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  opacity: 0 !important;
+  pointer-events: none;
+  transform: none !important;
+  filter: none !important;
 }
 
 .kisara-gate > :not(.kisara-contract-meter):not(.kisara-gate-visual):not(.kisara-title):not(.kisara-burst-canvas):not(.kisara-screen-impact) {
@@ -1575,14 +1596,15 @@ a {
 .kisara-energy-canvas {
   position: absolute;
   z-index: 2;
-  inset: -16px -4px;
-  width: calc(100% + 8px);
-  height: calc(100% + 32px);
+  inset: 0;
+  width: 1px;
+  height: 1px;
   pointer-events: none;
+  opacity: 0;
 }
 
 .kisara-contract-state {
-  margin-top: 12px;
+  margin-top: 30px;
   color: #ff7891;
   min-width: 20ch;
   width: min(42ch, calc(100vw - 48px));

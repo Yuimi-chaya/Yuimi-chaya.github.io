@@ -92,9 +92,23 @@ const gateStyle = [
       </i>
     </div>
     <h1 class="kisara-title" aria-label="Kisara">
+      <canvas
+        class="kisara-title-chain-canvas kisara-title-chain-canvas-back"
+        data-kisara-chain-back
+        width="1400"
+        height="420"
+        aria-hidden="true"
+      ></canvas>
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
+      <canvas
+        class="kisara-title-chain-canvas kisara-title-chain-canvas-front"
+        data-kisara-chain-front
+        width="1400"
+        height="420"
+        aria-hidden="true"
+      ></canvas>
       <span class="kisara-title-enchant" aria-hidden="true">Kisara</span>
       <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
       <canvas
@@ -115,8 +129,8 @@ const gateStyle = [
     <div class="kisara-contract-meter" aria-hidden="true">
       <canvas class="kisara-energy-canvas" data-kisara-energy width="640" height="64"></canvas>
     </div>
-    <p class="kisara-contract-state" data-kisara-state>CONTRACT 000%</p>
-    <p class="kisara-scroll-cue" data-kisara-cue>SCROLL / SIGN THE CONTRACT</p>
+    <p class="kisara-contract-state" data-kisara-state>SEAL CHAINS / DORMANT</p>
+    <p class="kisara-scroll-cue" data-kisara-cue>SCROLL / TIGHTEN THE SEAL</p>
     <a class="kisara-gate-skip" href="#kisara-opening" data-kisara-skip>SKIP</a>
   </section>
 
@@ -231,6 +245,10 @@ const gateStyle = [
       const burstContext = burstCanvas?.getContext("2d");
       const spaceLensCanvas = gate.querySelector("[data-kisara-space-lens]");
       const titleLensCanvas = gate.querySelector("[data-kisara-title-lens]");
+      const chainBackCanvas = gate.querySelector("[data-kisara-chain-back]");
+      const chainBackContext = chainBackCanvas?.getContext("2d", { alpha: true });
+      const chainFrontCanvas = gate.querySelector("[data-kisara-chain-front]");
+      const chainFrontContext = chainFrontCanvas?.getContext("2d", { alpha: true });
       const titleDataCanvas = gate.querySelector("[data-kisara-title-data]");
       const titleDataContext = titleDataCanvas?.getContext("2d", { alpha: true });
       const postReleaseCanvas = gate.querySelector("[data-kisara-post-release-canvas]");
@@ -244,6 +262,7 @@ const gateStyle = [
       const cue = gate.querySelector("[data-kisara-cue]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const renderLegacyChargeBeam = false;
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
       const burstDistance = 2250;
@@ -252,7 +271,7 @@ const gateStyle = [
       const damping = 0.76;
       const burstDamping = 0.86;
       const settleDistance = 0.00035;
-      const chargeIntroDuration = 2700;
+      const chargeIntroDuration = 2400;
       const chargeHandoffStart = 0.015;
       const chargeHandoffEnd = 0.18;
       const glossFadeEnd = 0.42;
@@ -327,6 +346,10 @@ const gateStyle = [
       let titleDataCanvasWidth = 0;
       let titleDataCanvasHeight = 0;
       let titleDataPixelRatio = 1;
+      let chainCanvasWidth = 0;
+      let chainCanvasHeight = 0;
+      let chainPixelRatio = 1;
+      let chainTitleBox = { left: 0, top: 0, width: 0, height: 0 };
       let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
       let titleLayout = { width: 0, height: 0, left: 0, top: 0 };
       let renderQuality = 1;
@@ -1092,6 +1115,61 @@ const gateStyle = [
         postReleaseContext.setTransform(1, 0, 0, 1, 0, 0);
         postReleaseContext.clearRect(0, 0, postReleaseCanvas.width, postReleaseCanvas.height);
         postReleaseContext.setTransform(postReleasePixelRatio, 0, 0, postReleasePixelRatio, 0, 0);
+      };
+
+      const clearTitleChains = () => {
+        const layers = [
+          [chainBackCanvas, chainBackContext],
+          [chainFrontCanvas, chainFrontContext]
+        ];
+        for (const [canvas, context] of layers) {
+          if (!canvas || !context) continue;
+          context.setTransform(1, 0, 0, 1, 0, 0);
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          context.setTransform(chainPixelRatio, 0, 0, chainPixelRatio, 0, 0);
+          canvas.style.opacity = "0";
+        }
+      };
+
+      const resizeTitleChains = (force = false) => {
+        if (
+          !chainBackCanvas
+          || !chainBackContext
+          || !chainFrontCanvas
+          || !chainFrontContext
+          || !title
+        ) return;
+        const canvasRect = chainBackCanvas.getBoundingClientRect();
+        const titleRect = title.getBoundingClientRect();
+        const width = Math.max(1, canvasRect.width);
+        const height = Math.max(1, canvasRect.height);
+        const deviceScale = Math.min(window.devicePixelRatio || 1, width < 640 ? 1.12 : 1.28);
+        const pixelRatio = Math.min(deviceScale, 1660 / width, 560 / height);
+        const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
+        const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
+        const changed = force
+          || Math.abs(chainCanvasWidth - width) > 0.5
+          || Math.abs(chainCanvasHeight - height) > 0.5
+          || Math.abs(chainPixelRatio - pixelRatio) > 0.01
+          || chainBackCanvas.width !== pixelWidth
+          || chainBackCanvas.height !== pixelHeight
+          || chainFrontCanvas.width !== pixelWidth
+          || chainFrontCanvas.height !== pixelHeight;
+        chainTitleBox = {
+          left: titleRect.left - canvasRect.left,
+          top: titleRect.top - canvasRect.top,
+          width: titleRect.width,
+          height: titleRect.height
+        };
+        if (!changed) return;
+        chainBackCanvas.width = pixelWidth;
+        chainBackCanvas.height = pixelHeight;
+        chainFrontCanvas.width = pixelWidth;
+        chainFrontCanvas.height = pixelHeight;
+        chainCanvasWidth = width;
+        chainCanvasHeight = height;
+        chainPixelRatio = pixelRatio;
+        clearTitleChains();
       };
 
       const clearTitleDataCanvas = () => {
@@ -3500,6 +3578,7 @@ const gateStyle = [
       startTitleLens();
       document.fonts?.ready.then(() => {
         titleLensRenderer?.refresh();
+        resizeTitleChains(true);
         resizeTitleDataCanvas(true);
       });
 
@@ -4250,22 +4329,29 @@ const gateStyle = [
           }
         }
 
-        const chargeFlightOpacity = phaseProgress(
-          chargeIntroProgress,
-          chargeHandoffStart,
-          chargeHandoffEnd
-        )
-          * (1 - phaseProgress(chargeIntroProgress, 0.86, 1));
-        drawChargeFlightBeam(
-          context,
-          timestamp,
-          chargeFlight,
-          chargeFlightOpacity,
-          intensity,
-          width
-        );
+        if (renderLegacyChargeBeam) {
+          const chargeFlightOpacity = phaseProgress(
+            chargeIntroProgress,
+            chargeHandoffStart,
+            chargeHandoffEnd
+          )
+            * (1 - phaseProgress(chargeIntroProgress, 0.86, 1));
+          drawChargeFlightBeam(
+            context,
+            timestamp,
+            chargeFlight,
+            chargeFlightOpacity,
+            intensity,
+            width
+          );
+        }
 
         if (fill <= 0.018) wakePrimed = false;
+        if (!renderLegacyChargeBeam) {
+          wakePrimed = false;
+          wakeEmissionBudget = 0;
+          if (wakeParticles.length) wakeParticles.length = 0;
+        }
         const wakeLimit = Math.floor((width < 640 ? 175 : 280) * (0.8 + renderQuality * 0.2));
         const forwardX = Math.cos(angleRadians);
         const forwardY = Math.sin(angleRadians);
@@ -4324,7 +4410,13 @@ const gateStyle = [
           });
         };
 
-        if (!reducedMotion && wakeOpacity > 0.02 && fill > 0.025 && burst < 0.02) {
+        if (
+          renderLegacyChargeBeam
+          && !reducedMotion
+          && wakeOpacity > 0.02
+          && fill > 0.025
+          && burst < 0.02
+        ) {
           if (!wakePrimed) {
             wakePrimed = true;
             const primeCount = width < 640 ? 18 : width < 960 ? 24 : 30;
@@ -4341,7 +4433,9 @@ const gateStyle = [
           wakeEmissionBudget = Math.min(wakeEmissionBudget, 0.95);
         }
 
-        if (wakeOpacity <= 0.001 && wakeParticles.length) wakeParticles.length = 0;
+        if ((!renderLegacyChargeBeam || wakeOpacity <= 0.001) && wakeParticles.length) {
+          wakeParticles.length = 0;
+        }
 
         for (let index = wakeParticles.length - 1; index >= 0; index -= 1) {
           const particle = wakeParticles[index];
@@ -6285,6 +6379,501 @@ const gateStyle = [
         energyLoopActive = false;
       };
 
+      const chainDefinitions = [
+        {
+          id: 0,
+          type: "frame",
+          buildStart: 0.025,
+          buildEnd: 0.6,
+          direction: 1,
+          phase: -1.92,
+          radiusX: 0.575,
+          radiusY: 0.64,
+          rotation: -0.045,
+          depthCycles: 1.88,
+          depthPhase: 0.3,
+          breakT: 0.18,
+          desktopLinks: 72,
+          mobileLinks: 44,
+          linkScale: 1
+        },
+        {
+          id: 1,
+          type: "curve",
+          buildStart: 0.24,
+          buildEnd: 0.82,
+          direction: 1,
+          points: [
+            [-0.08, 0.2],
+            [0.24, 0.92],
+            [0.66, 0.08],
+            [1.08, 0.78]
+          ],
+          depthCycles: 1.36,
+          depthPhase: 1.28,
+          breakT: 0.51,
+          desktopLinks: 40,
+          mobileLinks: 25,
+          linkScale: 0.92
+        },
+        {
+          id: 2,
+          type: "curve",
+          buildStart: 0.48,
+          buildEnd: 0.96,
+          direction: -1,
+          points: [
+            [-0.06, 0.82],
+            [0.28, 0.04],
+            [0.72, 0.94],
+            [1.06, 0.22]
+          ],
+          depthCycles: 1.28,
+          depthPhase: 2.82,
+          breakT: 0.43,
+          desktopLinks: 38,
+          mobileLinks: 24,
+          linkScale: 0.88
+        }
+      ];
+
+      const cubicCoordinate = (start, controlA, controlB, end, unit) => {
+        const inverse = 1 - unit;
+        return inverse ** 3 * start
+          + 3 * inverse ** 2 * unit * controlA
+          + 3 * inverse * unit ** 2 * controlB
+          + unit ** 3 * end;
+      };
+
+      const cubicTangent = (start, controlA, controlB, end, unit) => {
+        const inverse = 1 - unit;
+        return 3 * inverse ** 2 * (controlA - start)
+          + 6 * inverse * unit * (controlB - controlA)
+          + 3 * unit ** 2 * (end - controlB);
+      };
+
+      const sampleTitleChain = (definition, unit, fill, intro, timestamp) => {
+        const box = chainTitleBox;
+        const centerX = box.left + box.width * 0.53;
+        const centerY = box.top + box.height * 0.57;
+        const scrollTension = phaseProgress(fill, 0.48, 1);
+        const cinch = phaseProgress(intro, 0.035, 0.68);
+        const strain = phaseProgress(intro, 0.16, 0.64)
+          * (1 - phaseProgress(intro, 0.68, 0.86));
+        let x = centerX;
+        let y = centerY;
+        let tangentX = 1;
+        let tangentY = 0;
+
+        if (definition.type === "frame") {
+          const tighten = scrollTension * 0.16 + cinch * 0.38;
+          const radiusX = box.width * definition.radiusX * (1 - tighten * 0.72);
+          const radiusY = box.height * definition.radiusY * (1 - tighten * 0.78);
+          const angle = definition.phase + definition.direction * unit * fullTurn * 1.035;
+          const cosine = Math.cos(angle);
+          const sine = Math.sin(angle);
+          const rotationCosine = Math.cos(definition.rotation);
+          const rotationSine = Math.sin(definition.rotation);
+          const frameExponent = 0.58;
+          const frameX = Math.sign(cosine) * Math.abs(cosine) ** frameExponent;
+          const frameY = Math.sign(sine) * Math.abs(sine) ** frameExponent;
+          const localX = frameX * radiusX;
+          const localY = frameY * radiusY;
+          x = centerX + localX * rotationCosine - localY * rotationSine;
+          y = centerY + localX * rotationSine + localY * rotationCosine;
+          const tangentAngle = angle + definition.direction * 0.0025;
+          const tangentCosine = Math.cos(tangentAngle);
+          const tangentSine = Math.sin(tangentAngle);
+          const tangentFrameX = Math.sign(tangentCosine)
+            * Math.abs(tangentCosine) ** frameExponent;
+          const tangentFrameY = Math.sign(tangentSine)
+            * Math.abs(tangentSine) ** frameExponent;
+          const tangentLocalX = tangentFrameX * radiusX;
+          const tangentLocalY = tangentFrameY * radiusY;
+          const tangentPointX = centerX
+            + tangentLocalX * rotationCosine
+            - tangentLocalY * rotationSine;
+          const tangentPointY = centerY
+            + tangentLocalX * rotationSine
+            + tangentLocalY * rotationCosine;
+          const derivativeX = tangentPointX - x;
+          const derivativeY = tangentPointY - y;
+          tangentX = derivativeX * rotationCosine - derivativeY * rotationSine;
+          tangentY = derivativeX * rotationSine + derivativeY * rotationCosine;
+          const looseness = 1 - scrollTension * 0.72 - cinch * 0.18;
+          const wobble = Math.sin(
+            angle * 2.6
+              + timestamp * 0.00046
+              + definition.id * 1.37
+          ) * box.height * 0.022 * looseness;
+          const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
+          x += -tangentY / tangentLength * wobble;
+          y += tangentX / tangentLength * wobble;
+        } else {
+          const pull = scrollTension * 0.055 + cinch * 0.2;
+          const points = definition.points.map(([normalizedX, normalizedY]) => {
+            const pointX = box.left + normalizedX * box.width;
+            const pointY = box.top + normalizedY * box.height;
+            return {
+              x: pointX + (centerX - pointX) * pull,
+              y: pointY + (centerY - pointY) * pull
+            };
+          });
+          x = cubicCoordinate(points[0].x, points[1].x, points[2].x, points[3].x, unit);
+          y = cubicCoordinate(points[0].y, points[1].y, points[2].y, points[3].y, unit);
+          tangentX = cubicTangent(points[0].x, points[1].x, points[2].x, points[3].x, unit);
+          tangentY = cubicTangent(points[0].y, points[1].y, points[2].y, points[3].y, unit);
+        }
+
+        const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
+        tangentX /= tangentLength;
+        tangentY /= tangentLength;
+        const normalX = -tangentY;
+        const normalY = tangentX;
+        const tensionWave = Math.sin(
+          timestamp * (0.001 + strain * 0.0048)
+            + unit * fullTurn * (2.1 + definition.id * 0.16)
+            + definition.depthPhase
+        );
+        const tensionOffset = tensionWave
+          * box.height
+          * (0.0035 + scrollTension * 0.006 + strain * 0.012);
+        x += normalX * tensionOffset;
+        y += normalY * tensionOffset;
+        return {
+          x,
+          y,
+          tangentX,
+          tangentY,
+          normalX,
+          normalY,
+          angle: Math.atan2(tangentY, tangentX)
+        };
+      };
+
+      const drawChainLink = (
+        context,
+        sample,
+        linkIndex,
+        definition,
+        alpha,
+        fill,
+        intro,
+        isFront,
+        rotationOffset = 0
+      ) => {
+        if (alpha <= 0.002) return;
+        const linkUnit = clamp(chainTitleBox.height * 0.104, 8.1, 16.4) * definition.linkScale;
+        const linkWidth = linkUnit * 1.84;
+        const linkHeight = linkUnit * 0.9;
+        const edgeOn = linkIndex % 2 === 0;
+        const heat = clamp(fill * 0.72 + phaseProgress(intro, 0.08, 0.72) * 0.5, 0, 1);
+        const red = Math.round(104 + heat * 139);
+        const green = Math.round(127 - heat * 58);
+        const blue = Math.round(188 - heat * 52);
+        const layerAlpha = alpha * (isFront ? 1 : 0.68);
+        context.save();
+        context.translate(sample.x, sample.y);
+        context.rotate(sample.angle + (edgeOn ? 0.09 : -0.09) + rotationOffset);
+        context.scale(1, edgeOn ? 0.34 : 1);
+        context.lineCap = "round";
+
+        context.globalAlpha = layerAlpha * 0.72;
+        context.strokeStyle = "rgba(8, 8, 34, 0.9)";
+        context.lineWidth = isFront ? 7.1 : 6.2;
+        context.shadowColor = "rgba(4, 5, 28, 0.82)";
+        context.shadowBlur = isFront ? 4.2 : 2.8;
+        context.beginPath();
+        context.ellipse(0, 0, linkWidth * 0.5, linkHeight * 0.5, 0, 0, fullTurn);
+        context.stroke();
+
+        context.globalAlpha = layerAlpha;
+        context.strokeStyle = `rgba(${red}, ${green}, ${blue}, 0.98)`;
+        context.lineWidth = isFront ? 4.15 : 3.55;
+        context.shadowColor = heat > 0.55
+          ? "rgba(255, 57, 126, 0.54)"
+          : "rgba(111, 155, 236, 0.38)";
+        context.shadowBlur = isFront ? 1.4 + heat * 3.8 : 0.8 + heat * 1.7;
+        context.beginPath();
+        context.ellipse(0, 0, linkWidth * 0.5, linkHeight * 0.5, 0, 0, fullTurn);
+        context.stroke();
+
+        context.globalAlpha = layerAlpha * (0.48 + heat * 0.28);
+        context.strokeStyle = heat > 0.58
+          ? "rgba(255, 236, 244, 0.98)"
+          : "rgba(220, 232, 255, 0.94)";
+        context.lineWidth = 1.12;
+        context.shadowBlur = 1.4;
+        context.beginPath();
+        context.ellipse(
+          -linkWidth * 0.02,
+          -linkHeight * 0.02,
+          linkWidth * 0.43,
+          linkHeight * 0.39,
+          0,
+          Math.PI * 1.08,
+          Math.PI * 1.82
+        );
+        context.stroke();
+
+        context.globalAlpha = layerAlpha * 0.34;
+        context.strokeStyle = "rgba(30, 6, 38, 0.92)";
+        context.lineWidth = 0.9;
+        context.beginPath();
+        context.ellipse(
+          linkWidth * 0.02,
+          linkHeight * 0.03,
+          linkWidth * 0.42,
+          linkHeight * 0.37,
+          0,
+          Math.PI * 0.08,
+          Math.PI * 0.76
+        );
+        context.stroke();
+        context.restore();
+      };
+
+      const createHeartPath = (centerX, centerY, size, scale = 1) => {
+        const path = new Path2D();
+        const steps = 42;
+        for (let index = 0; index <= steps; index += 1) {
+          const angle = index / steps * fullTurn;
+          const x = Math.sin(angle) ** 3 * 16;
+          const y = -(
+            13 * Math.cos(angle)
+              - 5 * Math.cos(angle * 2)
+              - 2 * Math.cos(angle * 3)
+              - Math.cos(angle * 4)
+          );
+          const pointX = centerX + x / 17 * size * scale;
+          const pointY = centerY + y / 17 * size * scale;
+          if (index === 0) path.moveTo(pointX, pointY);
+          else path.lineTo(pointX, pointY);
+        }
+        path.closePath();
+        return path;
+      };
+
+      const drawChainHeartSeal = (timestamp, intro) => {
+        if (!chainFrontContext || intro <= 0.001) return;
+        const build = phaseProgress(intro, 0.54, 0.75);
+        const release = phaseProgress(intro, 0.7, 0.93);
+        const fade = 1 - phaseProgress(intro, 0.9, 1);
+        const opacity = build * fade;
+        if (opacity <= 0.001) return;
+        const centerX = chainTitleBox.left + chainTitleBox.width * 0.53;
+        const centerY = chainTitleBox.top + chainTitleBox.height * 0.57;
+        const heartbeat = 0.5 + Math.sin(timestamp / 92) * 0.5;
+        const size = clamp(chainTitleBox.height * 0.17, 12, 27)
+          * (0.76 + build * 0.24 + release * 0.16);
+        const context = chainFrontContext;
+        const heart = createHeartPath(centerX, centerY, size);
+        context.save();
+        context.globalCompositeOperation = "screen";
+        context.lineJoin = "round";
+        context.globalAlpha = opacity * 0.62;
+        context.strokeStyle = "rgba(49, 5, 48, 0.94)";
+        context.lineWidth = 5.2;
+        context.shadowColor = "rgba(255, 37, 111, 0.82)";
+        context.shadowBlur = 13 + release * 13;
+        context.stroke(heart);
+        context.globalAlpha = opacity * (0.78 + heartbeat * 0.2);
+        context.strokeStyle = "rgba(255, 96, 153, 0.98)";
+        context.lineWidth = 2.3;
+        context.shadowColor = "rgba(255, 104, 157, 0.96)";
+        context.shadowBlur = 7 + release * 10;
+        context.stroke(heart);
+        context.globalAlpha = opacity * (0.58 + release * 0.38);
+        context.strokeStyle = "rgba(255, 248, 251, 0.98)";
+        context.lineWidth = 0.82;
+        context.shadowBlur = 2.5;
+        context.stroke(heart);
+
+        const diamondSize = size * (0.16 + build * 0.07);
+        context.globalAlpha = opacity * 0.86;
+        context.fillStyle = "rgba(255, 229, 240, 0.94)";
+        context.beginPath();
+        context.moveTo(centerX, centerY - diamondSize);
+        context.lineTo(centerX + diamondSize * 0.72, centerY);
+        context.lineTo(centerX, centerY + diamondSize);
+        context.lineTo(centerX - diamondSize * 0.72, centerY);
+        context.closePath();
+        context.fill();
+
+        if (release > 0.001) {
+          const pulse = Math.sin(release * Math.PI);
+          const pulseHeart = createHeartPath(centerX, centerY, size, 1 + release * 2.45);
+          context.globalAlpha = pulse * opacity * 0.44;
+          context.strokeStyle = "rgba(255, 231, 241, 0.96)";
+          context.lineWidth = 1.1 + pulse * 1.2;
+          context.shadowColor = "rgba(255, 54, 124, 0.9)";
+          context.shadowBlur = 11 + release * 22;
+          context.stroke(pulseHeart);
+        }
+        context.restore();
+      };
+
+      const drawTitleChains = (timestamp, fill) => {
+        if (!chainBackCanvas || !chainBackContext || !chainFrontCanvas || !chainFrontContext) return;
+        if (chainCanvasWidth <= 1 || chainCanvasHeight <= 1 || chainTitleBox.width <= 1) {
+          resizeTitleChains();
+        }
+        if (chainCanvasWidth <= 1 || chainCanvasHeight <= 1 || chainTitleBox.width <= 1) return;
+
+        const intro = clamp(chargeIntroProgress, 0, 1);
+        const activation = phaseProgress(fill, 0.012, 0.11);
+        const introFade = 1 - phaseProgress(intro, 0.91, 1);
+        const burstFade = 1 - phaseProgress(burstProgress, 0.004, 0.045);
+        const visibility = activation * introFade * burstFade;
+        if (visibility <= 0.001) {
+          if (chainFrontCanvas.style.opacity !== "0" || chainBackCanvas.style.opacity !== "0") {
+            clearTitleChains();
+          }
+          return;
+        }
+
+        const contexts = [chainBackContext, chainFrontContext];
+        const canvases = [chainBackCanvas, chainFrontCanvas];
+        for (let layerIndex = 0; layerIndex < contexts.length; layerIndex += 1) {
+          const context = contexts[layerIndex];
+          const canvas = canvases[layerIndex];
+          context.setTransform(1, 0, 0, 1, 0, 0);
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          context.setTransform(chainPixelRatio, 0, 0, chainPixelRatio, 0, 0);
+        }
+
+        const isMobile = chainTitleBox.width < 360;
+        const release = phaseProgress(intro, 0.69, 0.94);
+        const rupturePulse = Math.sin(phaseProgress(intro, 0.66, 0.83) * Math.PI);
+        const centerX = chainTitleBox.left + chainTitleBox.width * 0.53;
+        const centerY = chainTitleBox.top + chainTitleBox.height * 0.57;
+
+        for (const definition of chainDefinitions) {
+          const build = phaseProgress(fill, definition.buildStart, definition.buildEnd);
+          if (build <= 0.001) continue;
+          const baseCount = isMobile ? definition.mobileLinks : definition.desktopLinks;
+          const linkCount = Math.max(12, Math.floor(baseCount * (0.78 + renderQuality * 0.22)));
+          const breakSample = sampleTitleChain(
+            definition,
+            definition.breakT,
+            fill,
+            intro,
+            timestamp
+          );
+          const breakSeed = randomSeed(18001 + definition.id * 47.9);
+          for (let linkIndex = 0; linkIndex < linkCount; linkIndex += 1) {
+            const unit = (linkIndex + 0.5) / linkCount;
+            const order = definition.direction > 0 ? unit : 1 - unit;
+            const appearStart = Math.min(0.94, order * 0.96);
+            const appear = phaseProgress(build, appearStart, Math.min(1, appearStart + 0.08));
+            if (appear <= 0.001) continue;
+            const sample = sampleTitleChain(definition, unit, fill, intro, timestamp);
+            const depthWave = Math.sin(
+              unit * fullTurn * definition.depthCycles
+                + definition.depthPhase
+            );
+            const isFront = depthWave > 0.08;
+            const context = isFront ? chainFrontContext : chainBackContext;
+            let alpha = visibility * appear;
+            let rotationOffset = 0;
+            if (release > 0.001) {
+              const side = unit < definition.breakT ? -1 : 1;
+              const seed = randomSeed(18203 + definition.id * 101 + linkIndex * 17.3);
+              const distanceFromBreak = Math.abs(unit - definition.breakT);
+              const gap = (1 - phaseProgress(distanceFromBreak, 0.018, 0.09)) * release;
+              const releaseDistance = release ** 2
+                * (chainTitleBox.width * (0.026 + seed * 0.018) + chainTitleBox.height * 0.045);
+              sample.x += breakSample.tangentX * side * releaseDistance;
+              sample.y += breakSample.tangentY * side * releaseDistance;
+              sample.x += breakSample.normalX * (seed - 0.5) * chainTitleBox.height * 0.16 * release;
+              sample.y += breakSample.normalY * (seed - 0.5) * chainTitleBox.height * 0.16 * release;
+              rotationOffset = side * release * (0.18 + seed * 0.34);
+              alpha *= (1 - gap * 0.98) * (1 - release * (0.48 + seed * 0.18));
+            }
+            drawChainLink(
+              context,
+              sample,
+              linkIndex,
+              definition,
+              alpha,
+              fill,
+              intro,
+              isFront,
+              rotationOffset
+            );
+          }
+
+          if (rupturePulse > 0.001 && definition.id < 3) {
+            const context = chainFrontContext;
+            const flareRadius = clamp(chainTitleBox.height * 0.16, 10, 28)
+              * (0.72 + rupturePulse * 0.7);
+            const flare = context.createRadialGradient(
+              breakSample.x,
+              breakSample.y,
+              0,
+              breakSample.x,
+              breakSample.y,
+              flareRadius
+            );
+            flare.addColorStop(0, "rgba(255,255,255,0.98)");
+            flare.addColorStop(0.18, "rgba(255,210,229,0.9)");
+            flare.addColorStop(0.48, "rgba(255,55,126,0.56)");
+            flare.addColorStop(1, "rgba(255,39,114,0)");
+            context.save();
+            context.globalCompositeOperation = "screen";
+            context.globalAlpha = rupturePulse * visibility * 0.9;
+            context.fillStyle = flare;
+            context.fillRect(
+              breakSample.x - flareRadius,
+              breakSample.y - flareRadius,
+              flareRadius * 2,
+              flareRadius * 2
+            );
+            context.translate(breakSample.x, breakSample.y);
+            context.rotate(breakSample.angle);
+            for (let shardIndex = 0; shardIndex < 2; shardIndex += 1) {
+              const direction = shardIndex === 0 ? -1 : 1;
+              const shardTravel = release * chainTitleBox.height * (0.12 + breakSeed * 0.08);
+              context.save();
+              context.translate(direction * shardTravel, direction * shardTravel * 0.24);
+              context.rotate(direction * (0.45 + release * 0.8));
+              context.globalAlpha = rupturePulse * visibility * 0.76;
+              context.strokeStyle = "rgba(255, 216, 232, 0.94)";
+              context.lineWidth = 2.1;
+              context.shadowColor = "rgba(255, 54, 124, 0.84)";
+              context.shadowBlur = 6;
+              context.beginPath();
+              context.arc(0, 0, 5.8 + breakSeed * 3.2, -1.2, 0.72);
+              context.stroke();
+              context.restore();
+            }
+            context.restore();
+          }
+        }
+
+        drawChainHeartSeal(timestamp, intro);
+        const heartAfterglow = phaseProgress(intro, 0.72, 0.94);
+        if (heartAfterglow > 0.001) {
+          const context = chainFrontContext;
+          const radius = Math.max(chainTitleBox.width, chainTitleBox.height)
+            * (0.04 + heartAfterglow * 0.17);
+          const glow = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+          glow.addColorStop(0, "rgba(255,255,255,0.82)");
+          glow.addColorStop(0.16, "rgba(255,124,168,0.42)");
+          glow.addColorStop(0.48, "rgba(116,162,255,0.12)");
+          glow.addColorStop(1, "rgba(255,54,122,0)");
+          context.save();
+          context.globalCompositeOperation = "screen";
+          context.globalAlpha = Math.sin(heartAfterglow * Math.PI) * visibility * 0.52;
+          context.fillStyle = glow;
+          context.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+          context.restore();
+        }
+
+        chainBackCanvas.style.opacity = Math.min(1, visibility * 0.78).toFixed(3);
+        chainFrontCanvas.style.opacity = Math.min(1, visibility).toFixed(3);
+      };
+
       const drawEnergy = (timestamp) => {
         energyFrame = 0;
         if (!energyLoopActive || !energyCanvas || !energyContext) return;
@@ -6321,6 +6910,12 @@ const gateStyle = [
         const height = energyCanvasHeight;
         energyContext.clearRect(0, 0, width, height);
         drawScreenEnergy(timestamp);
+        drawTitleChains(timestamp, energyProgress);
+        if (!renderLegacyChargeBeam) {
+          updateRenderQuality(timestamp, performance.now() - renderStartedAt);
+          queueEnergyFrame();
+          return;
+        }
         if (width <= 1 || height <= 1) {
           updateRenderQuality(timestamp, performance.now() - renderStartedAt);
           queueEnergyFrame();
@@ -6832,12 +7427,26 @@ const gateStyle = [
         energyProgress = fill;
         updateBurstPresentation(performance.now(), false);
         startEnergyAnimation();
-        const stage = fillComplete ? "glitch" : "contract";
+        const stage = fillComplete
+          ? "glitch"
+          : fill < 0.2
+            ? "awakening"
+            : fill < 0.5
+              ? "outer-bind"
+              : fill < 0.78
+                ? "inner-bind"
+                : "maximum-tension";
         const glitchTick = fillComplete ? Math.floor(performance.now() / 72) : -1;
         if (state && (percent !== renderedPercent || stage !== renderedStage || glitchTick !== renderedGlitchTick)) {
           state.textContent = fillComplete
             ? makeGlitchState(performance.now(), burstProgress, burstComplete)
-            : `CONTRACT ${String(percent).padStart(3, "0")}%`;
+            : stage === "awakening"
+              ? "SEAL CHAINS / AWAKENING"
+              : stage === "outer-bind"
+                ? "OUTER BIND / WRAPPING"
+                : stage === "inner-bind"
+                  ? "INNER BIND / INTERLOCKING"
+                  : "SEAL CORE / MAXIMUM TENSION";
           renderedPercent = percent;
           renderedStage = stage;
           renderedGlitchTick = glitchTick;
@@ -6852,14 +7461,14 @@ const gateStyle = [
         setPostReleaseActive(burstComplete && pageMode === "gate");
         if (cue) {
           cue.textContent = chargeIntroActive
-            ? "ENERGY VECTOR / ENCHANTING"
+            ? "LOCKED HEART / BREAKING"
             : burstAutoplay
             ? "AUTOMATIC RELEASE / STAND BY"
             : burstComplete
             ? "SIGNAL RELEASED / CONTINUE"
             : fillComplete
               ? "OVERCHARGE / BREAK THE SEAL"
-              : "SCROLL / SIGN THE CONTRACT";
+              : "SCROLL / TIGHTEN THE SEAL";
         }
       };
 
@@ -7078,6 +7687,7 @@ const gateStyle = [
         renderedStage = "";
         renderedGlitchTick = -1;
         energyContext?.clearRect(0, 0, energyCanvasWidth, energyCanvasHeight);
+        clearTitleChains();
         burstContext?.clearRect(0, 0, burstCanvasWidth, burstCanvasHeight);
         singularityFieldContext?.clearRect(
           0,
@@ -7312,6 +7922,7 @@ const gateStyle = [
         resizeEnergyCanvas(true);
         resizeBurstCanvas(true);
         resizePostReleaseCanvas(true);
+        resizeTitleChains(true);
         resizeTitleDataCanvas(true);
         spaceLensRenderer?.resize();
         titleLensRenderer?.resize();
@@ -7330,7 +7941,16 @@ const gateStyle = [
         ? new ResizeObserver(scheduleLayoutSizeRefresh)
         : null;
       if (layoutResizeObserver) {
-        for (const target of [gate, meterShell, title, energyCanvas, burstCanvas, postReleaseCanvas]) {
+        for (const target of [
+          gate,
+          meterShell,
+          title,
+          chainBackCanvas,
+          chainFrontCanvas,
+          energyCanvas,
+          burstCanvas,
+          postReleaseCanvas
+        ]) {
           if (target) layoutResizeObserver.observe(target);
         }
       }
