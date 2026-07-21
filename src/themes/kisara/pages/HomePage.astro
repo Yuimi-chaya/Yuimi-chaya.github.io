@@ -2861,7 +2861,7 @@ const gateStyle = [
 
           float sampleProtection(vec2 uv) {
             vec2 pixel = 1.0 / max(uResolution, vec2(1.0));
-            vec2 featherOffset = pixel * 10.0;
+            vec2 featherOffset = pixel * 3.0;
             float center = sampleProtectionRaw(uv);
             float feather = max(
               max(
@@ -2873,9 +2873,9 @@ const gateStyle = [
                 sampleProtectionRaw(uv - vec2(0.0, featherOffset.y))
               )
             );
-            float expanded = max(center, feather * 0.58);
-            float protectedCore = smoothstep(0.42, 0.92, center);
-            float protectedFeather = smoothstep(0.035, 0.8, expanded);
+            float expanded = max(center, feather * 0.34);
+            float protectedCore = smoothstep(0.58, 0.94, center);
+            float protectedFeather = smoothstep(0.07, 0.74, expanded) * 0.76;
             return max(protectedCore, protectedFeather);
           }
 
@@ -3032,6 +3032,12 @@ const gateStyle = [
               clamp(uOpacity, 0.0, 1.0) * smoothstep(0.025, 0.92, distortionBlend),
               horizon * distortionBlend * smoothstep(0.05, 0.15, gravityStrength)
             );
+            float protectionCutout = smoothstep(
+              0.68,
+              0.96,
+              sampleProtectionRaw(vUv)
+            );
+            lensAlpha *= 1.0 - protectionCutout;
 
             vec2 pixel = vUv * uResolution;
             vec2 dataCell = floor(pixel / 9.0);
@@ -6232,9 +6238,9 @@ const gateStyle = [
         const lensReveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
         const protectionClarity = phaseProgress(
           burst,
-          gravityIngressStart,
-          collapseStart + 0.012
-        ) * (1 - blurRecovery) * lensReveal * 0.98;
+          glossFadeEnd,
+          crossStart
+        ) * (1 - blurRecovery) * lensReveal;
         const lensRadius = gateShortSide
           * (0.36 + gravityPressure * 0.24 + collapseDepth * 0.14)
           / gateHeight;
