@@ -122,10 +122,31 @@ const themeOptions = themes.map((theme) => ({
         const menu = document.querySelector("[data-kisara-context-menu]");
         const scrollbar = document.querySelector("[data-kisara-scrollbar]");
         const scrollbarThumb = scrollbar?.querySelector("[data-kisara-scrollbar-thumb]");
+        const gateProgressSource = document.querySelector("[data-kisara-gate]");
         let returnFocus = null;
         let scrollbarFrame = 0;
         let scrollbarDragPointer = null;
         let scrollbarDragOffset = 0;
+        let gateRailActive = false;
+        let gateRailProgress = 0;
+        let gateRailStage = "document";
+
+        const gateStageLabels = {
+          awakening: "锁链唤醒",
+          "outer-bind": "外环缠绕",
+          "inner-bind": "内层交织",
+          "maximum-tension": "封印拉满",
+          glitch: "封印过载",
+          rupture: "锁链崩断",
+          enchant: "契约附魔",
+          blade: "刀光蓄势",
+          warning: "爆发预警",
+          singularity: "黑洞成形",
+          collapse: "引力塌缩",
+          detonation: "能量爆发",
+          reconstruction: "数据重构",
+          complete: "契约释放"
+        };
 
         const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -147,12 +168,29 @@ const themeOptions = themes.map((theme) => ({
           if (!(scrollbar instanceof HTMLElement)) return;
           const metrics = getScrollbarMetrics();
           if (!metrics) return;
-          const progress = metrics.scrollRange > 0 ? clamp(window.scrollY / metrics.scrollRange, 0, 1) : 0;
+          const gateMode = gateRailActive && window.scrollY <= 2;
+          const pageProgress = metrics.scrollRange > 0 ? clamp(window.scrollY / metrics.scrollRange, 0, 1) : 0;
+          const progress = gateMode ? gateRailProgress : pageProgress;
+          const thumbSize = gateMode ? (window.innerWidth <= 600 ? 34 : 46) : metrics.thumbSize;
+          const thumbTravel = Math.max(0, metrics.trackRect.height - thumbSize);
           scrollbar.classList.toggle("is-idle", metrics.scrollRange <= 1 || metrics.trackRect.height <= 0);
+          scrollbar.classList.toggle("is-gate-progress", gateMode);
+          scrollbar.dataset.stage = gateMode ? gateRailStage : "document";
           scrollbar.style.setProperty("--kisara-scroll-progress", String(progress));
-          scrollbar.style.setProperty("--kisara-scroll-thumb-size", `${metrics.thumbSize}px`);
-          scrollbar.style.setProperty("--kisara-scroll-thumb-y", `${metrics.thumbTravel * progress}px`);
+          scrollbar.style.setProperty("--kisara-scroll-thumb-size", `${thumbSize}px`);
+          scrollbar.style.setProperty("--kisara-scroll-thumb-y", `${thumbTravel * progress}px`);
+          scrollbar.style.setProperty("--kisara-scroll-energy", String(gateMode ? progress : 0));
+          scrollbar.setAttribute("role", gateMode ? "progressbar" : "scrollbar");
+          scrollbar.setAttribute("aria-label", gateMode ? "Kisara 契约演出进度" : "页面滚动进度");
           scrollbar.setAttribute("aria-valuenow", String(Math.round(progress * 100)));
+          scrollbar.setAttribute(
+            "aria-valuetext",
+            gateMode
+              ? `${gateStageLabels[gateRailStage] ?? "契约演出"} ${Math.round(progress * 100)}%`
+              : `页面 ${Math.round(progress * 100)}%`
+          );
+          scrollbar.toggleAttribute("aria-disabled", gateMode);
+          scrollbar.tabIndex = gateMode ? -1 : 0;
         };
 
         const scheduleScrollbarUpdate = () => {
@@ -160,7 +198,25 @@ const themeOptions = themes.map((theme) => ({
           scrollbarFrame = requestAnimationFrame(updateScrollbar);
         };
 
+        const applyGateRailState = (detail) => {
+          if (!detail || typeof detail !== "object") return;
+          gateRailActive = Boolean(detail.active);
+          gateRailProgress = clamp(Number(detail.progress) || 0, 0, 1);
+          gateRailStage = typeof detail.stage === "string" ? detail.stage : "awakening";
+          scheduleScrollbarUpdate();
+        };
+
+        const syncGateRailFromDom = () => {
+          if (!(gateProgressSource instanceof HTMLElement)) return;
+          applyGateRailState({
+            active: gateProgressSource.dataset.kisaraScrollActive === "true",
+            progress: gateProgressSource.dataset.kisaraScrollProgress,
+            stage: gateProgressSource.dataset.kisaraScrollStage
+          });
+        };
+
         const scrollFromPointer = (clientY) => {
+          if (gateRailActive && window.scrollY <= 2) return;
           const metrics = getScrollbarMetrics();
           if (!metrics || metrics.scrollRange <= 0) return;
           const thumbTop = clamp(clientY - metrics.trackRect.top - scrollbarDragOffset, 0, metrics.thumbTravel);
@@ -182,6 +238,7 @@ const themeOptions = themes.map((theme) => ({
 
         scrollbar?.addEventListener("pointerdown", (event) => {
           if (!(event instanceof PointerEvent) || event.button !== 0 || !(scrollbar instanceof HTMLElement)) return;
+          if (gateRailActive && window.scrollY <= 2) return;
           const metrics = getScrollbarMetrics();
           if (!metrics || metrics.scrollRange <= 0) return;
           const pressedThumb = event.target instanceof Element && event.target.closest("[data-kisara-scrollbar-thumb]");
@@ -212,6 +269,7 @@ const themeOptions = themes.map((theme) => ({
 
         scrollbar?.addEventListener("keydown", (event) => {
           if (!(event instanceof KeyboardEvent)) return;
+          if (gateRailActive && window.scrollY <= 2) return;
           const metrics = getScrollbarMetrics();
           if (!metrics || metrics.scrollRange <= 0) return;
           const keyTargets = {
@@ -229,8 +287,18 @@ const themeOptions = themes.map((theme) => ({
 
         window.addEventListener("scroll", scheduleScrollbarUpdate, { passive: true });
         window.addEventListener("resize", scheduleScrollbarUpdate, { passive: true });
-        window.addEventListener("pageshow", scheduleScrollbarUpdate);
-        new ResizeObserver(scheduleScrollbarUpdate).observe(document.body);
+        window.addEventListener("kisara:gate-progress", (event) => {
+          if (event instanceof CustomEvent) applyGateRailState(event.detail);
+        });
+        window.addEventListener("pageshow", () => {
+          syncGateRailFromDom();
+          scheduleScrollbarUpdate();
+        });
+        const scrollbarResizeObserver = typeof ResizeObserver === "function"
+          ? new ResizeObserver(scheduleScrollbarUpdate)
+          : null;
+        scrollbarResizeObserver?.observe(document.body);
+        syncGateRailFromDom();
         scheduleScrollbarUpdate();
 
         const closePanel = () => {

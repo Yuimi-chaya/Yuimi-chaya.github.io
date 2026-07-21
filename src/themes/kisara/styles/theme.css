@@ -267,8 +267,12 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 
 .kisara-scrollbar {
   --kisara-scroll-progress: 0;
+  --kisara-scroll-energy: 0;
   --kisara-scroll-thumb-size: 46px;
   --kisara-scroll-thumb-y: 0px;
+  --kisara-scroll-accent: #ff4969;
+  --kisara-scroll-hot: #fff4fa;
+  --kisara-scroll-soft: rgba(255, 73, 105, 0.5);
   position: fixed;
   z-index: 46;
   top: 92px;
@@ -315,8 +319,28 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 .kisara-scrollbar-progress {
   width: 2px;
   height: calc(var(--kisara-scroll-progress) * 100%);
-  background: linear-gradient(180deg, rgba(145, 177, 255, 0.36), #ff4969 72%, #fff4fa);
-  box-shadow: 0 0 8px rgba(255, 73, 105, 0.5), 0 0 18px rgba(255, 73, 105, 0.2);
+  background: linear-gradient(180deg, rgba(145, 177, 255, 0.36), var(--kisara-scroll-accent) 72%, var(--kisara-scroll-hot));
+  box-shadow: 0 0 8px var(--kisara-scroll-soft), 0 0 18px color-mix(in srgb, var(--kisara-scroll-accent) 28%, transparent);
+  transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+.kisara-scrollbar-progress::before,
+.kisara-scrollbar-progress::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.kisara-scrollbar-progress::after {
+  bottom: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--kisara-scroll-hot);
+  box-shadow: 0 0 8px var(--kisara-scroll-accent), 0 0 16px var(--kisara-scroll-soft);
+  transform: translateX(-50%);
 }
 
 .kisara-scrollbar-thumb {
@@ -328,7 +352,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   height: var(--kisara-scroll-thumb-size);
   transform: translate3d(-50%, var(--kisara-scroll-thumb-y), 0);
   cursor: grab;
-  filter: drop-shadow(0 0 5px rgba(255, 73, 105, 0.38));
+  filter: drop-shadow(0 0 5px var(--kisara-scroll-soft));
   will-change: transform;
 }
 
@@ -346,9 +370,10 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   bottom: 5px;
   width: 3px;
   border-radius: 50%;
-  background: linear-gradient(180deg, transparent, rgba(255, 244, 250, 0.94) 34%, #ff4969 58%, transparent);
-  box-shadow: 0 0 6px rgba(255, 73, 105, 0.72);
+  background: linear-gradient(180deg, transparent, var(--kisara-scroll-hot) 34%, var(--kisara-scroll-accent) 58%, transparent);
+  box-shadow: 0 0 6px var(--kisara-scroll-soft);
   transform: translateX(-50%);
+  transition: background 180ms ease, box-shadow 180ms ease;
 }
 
 .kisara-scrollbar-thumb::after {
@@ -356,9 +381,10 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   width: 11px;
   height: 11px;
   border: 1px solid rgba(255, 220, 232, 0.88);
-  background: linear-gradient(135deg, #fff8fc 0 18%, #ff4969 42% 72%, #8eaef8 100%);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.66), 0 0 18px rgba(255, 73, 105, 0.72);
+  background: linear-gradient(135deg, var(--kisara-scroll-hot) 0 18%, var(--kisara-scroll-accent) 42% 72%, #8eaef8 100%);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.66), 0 0 18px var(--kisara-scroll-soft);
   transform: translate(-50%, -50%) rotate(45deg);
+  transition: border-radius 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
 .kisara-scrollbar-thumb i {
@@ -372,10 +398,20 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   transform: translate(-50%, -50%);
 }
 
+.kisara-scrollbar-thumb i::before,
+.kisara-scrollbar-thumb i::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+
 .kisara-scrollbar:hover .kisara-scrollbar-thumb,
 .kisara-scrollbar:focus-visible .kisara-scrollbar-thumb,
 .kisara-scrollbar.is-dragging .kisara-scrollbar-thumb {
-  filter: drop-shadow(0 0 8px rgba(255, 73, 105, 0.78));
+  filter: drop-shadow(0 0 8px var(--kisara-scroll-accent));
 }
 
 .kisara-scrollbar:focus-visible::before {
@@ -384,6 +420,186 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 
 .kisara-scrollbar.is-dragging .kisara-scrollbar-thumb {
   cursor: grabbing;
+}
+
+.kisara-scrollbar.is-gate-progress {
+  cursor: default;
+}
+
+.kisara-scrollbar.is-gate-progress .kisara-scrollbar-progress::after {
+  opacity: calc(0.48 + var(--kisara-scroll-energy) * 0.48);
+}
+
+.kisara-scrollbar.is-gate-progress .kisara-scrollbar-thumb {
+  cursor: default;
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="awakening"],
+.kisara-scrollbar.is-gate-progress[data-stage="outer-bind"] {
+  --kisara-scroll-accent: #7fa8ff;
+  --kisara-scroll-hot: #f0f5ff;
+  --kisara-scroll-soft: rgba(111, 157, 255, 0.58);
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="inner-bind"],
+.kisara-scrollbar.is-gate-progress[data-stage="maximum-tension"],
+.kisara-scrollbar.is-gate-progress[data-stage="glitch"] {
+  --kisara-scroll-accent: #d773b8;
+  --kisara-scroll-hot: #fff1fb;
+  --kisara-scroll-soft: rgba(215, 115, 184, 0.62);
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="rupture"],
+.kisara-scrollbar.is-gate-progress[data-stage="enchant"],
+.kisara-scrollbar.is-gate-progress[data-stage="blade"] {
+  --kisara-scroll-accent: #ff4969;
+  --kisara-scroll-hot: #fff7fb;
+  --kisara-scroll-soft: rgba(255, 73, 105, 0.72);
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="rupture"] .kisara-scrollbar-thumb::after {
+  animation: kisara-scroll-rupture 360ms cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="enchant"] .kisara-scrollbar-thumb::after,
+.kisara-scrollbar.is-gate-progress[data-stage="blade"] .kisara-scrollbar-thumb::after {
+  animation: kisara-scroll-heartbeat 760ms ease-in-out infinite;
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="warning"] {
+  --kisara-scroll-accent: #f4f6ff;
+  --kisara-scroll-hot: #ffffff;
+  --kisara-scroll-soft: rgba(255, 255, 255, 0.76);
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="warning"] .kisara-scrollbar-thumb i::before,
+.kisara-scrollbar.is-gate-progress[data-stage="warning"] .kisara-scrollbar-thumb i::after {
+  opacity: 0.9;
+  background: linear-gradient(90deg, transparent, #fff 28% 72%, transparent);
+  box-shadow: 0 0 7px #fff;
+  animation: kisara-scroll-warning-strike 420ms cubic-bezier(0.2, 0.82, 0.25, 1) infinite;
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="warning"] .kisara-scrollbar-thumb i::before {
+  width: 22px;
+  height: 1px;
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="warning"] .kisara-scrollbar-thumb i::after {
+  width: 18px;
+  height: 1px;
+  animation-delay: -120ms;
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="singularity"],
+.kisara-scrollbar.is-gate-progress[data-stage="collapse"] {
+  --kisara-scroll-accent: #ff4f87;
+  --kisara-scroll-hot: #f7eaff;
+  --kisara-scroll-soft: rgba(185, 90, 255, 0.7);
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="singularity"] .kisara-scrollbar-thumb::after,
+.kisara-scrollbar.is-gate-progress[data-stage="collapse"] .kisara-scrollbar-thumb::after {
+  border-radius: 50%;
+  background: radial-gradient(circle, #02030b 0 27%, #ff4f87 43%, #8d68ff 62%, #f7eaff 78%, transparent 82%);
+  animation: kisara-scroll-singularity 860ms ease-in-out infinite;
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="singularity"] .kisara-scrollbar-thumb i::before,
+.kisara-scrollbar.is-gate-progress[data-stage="collapse"] .kisara-scrollbar-thumb i::before {
+  width: 19px;
+  height: 8px;
+  border: 1px solid rgba(255, 117, 166, 0.74);
+  border-radius: 50%;
+  opacity: 0.82;
+  animation: kisara-scroll-orbit 820ms linear infinite;
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="detonation"] {
+  --kisara-scroll-accent: #ff7fa5;
+  --kisara-scroll-hot: #ffffff;
+  --kisara-scroll-soft: rgba(255, 255, 255, 0.9);
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="detonation"] .kisara-scrollbar-thumb::after,
+.kisara-scrollbar.is-gate-progress[data-stage="detonation"] .kisara-scrollbar-progress::after {
+  animation: kisara-scroll-detonation 300ms ease-out infinite;
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="reconstruction"] {
+  --kisara-scroll-accent: #82b7ff;
+  --kisara-scroll-hot: #fff5fb;
+  --kisara-scroll-soft: rgba(255, 85, 139, 0.68);
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="reconstruction"] .kisara-scrollbar-progress::before {
+  bottom: -8px;
+  width: 11px;
+  height: 15px;
+  opacity: 0.88;
+  background:
+    linear-gradient(#fff 0 0) 1px 1px / 3px 3px no-repeat,
+    linear-gradient(#ff5f8d 0 0) 7px 4px / 3px 3px no-repeat,
+    linear-gradient(#82b7ff 0 0) 3px 10px / 3px 3px no-repeat;
+  transform: translateX(-50%);
+  animation: kisara-scroll-reconstruction 520ms steps(3, end) infinite;
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="complete"] {
+  --kisara-scroll-accent: #ff7896;
+  --kisara-scroll-hot: #ffffff;
+  --kisara-scroll-soft: rgba(255, 120, 150, 0.68);
+}
+
+.kisara-scrollbar.is-gate-progress[data-stage="complete"] .kisara-scrollbar-thumb::after {
+  animation: kisara-scroll-complete 1500ms ease-in-out infinite;
+}
+
+@keyframes kisara-scroll-rupture {
+  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.88); }
+  42% { transform: translate(-50%, -50%) rotate(51deg) scale(1.26); }
+  58% { transform: translate(-50%, -50%) rotate(40deg) scale(0.96); }
+}
+
+@keyframes kisara-scroll-heartbeat {
+  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.92); }
+  35% { transform: translate(-50%, -50%) rotate(45deg) scale(1.18); }
+  52% { transform: translate(-50%, -50%) rotate(45deg) scale(1.02); }
+  67% { transform: translate(-50%, -50%) rotate(45deg) scale(1.12); }
+}
+
+@keyframes kisara-scroll-warning-strike {
+  0% { transform: translate(-50%, -50%) rotate(-42deg) scaleX(0.25); opacity: 0; }
+  28% { opacity: 1; }
+  62% { transform: translate(-50%, -50%) rotate(138deg) scaleX(1); opacity: 0.95; }
+  100% { transform: translate(-50%, -50%) rotate(138deg) scaleX(0.12); opacity: 0; }
+}
+
+@keyframes kisara-scroll-singularity {
+  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.9); }
+  50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.2); }
+}
+
+@keyframes kisara-scroll-orbit {
+  from { transform: translate(-50%, -50%) rotate(0deg) scaleX(1.15); }
+  to { transform: translate(-50%, -50%) rotate(360deg) scaleX(1.15); }
+}
+
+@keyframes kisara-scroll-detonation {
+  0% { transform: translate(-50%, -50%) rotate(45deg) scale(0.84); opacity: 0.72; }
+  68% { transform: translate(-50%, -50%) rotate(45deg) scale(1.42); opacity: 1; }
+  100% { transform: translate(-50%, -50%) rotate(45deg) scale(1.68); opacity: 0; }
+}
+
+@keyframes kisara-scroll-reconstruction {
+  0% { transform: translate(-50%, 4px); opacity: 0; }
+  45% { opacity: 1; }
+  100% { transform: translate(-50%, -8px); opacity: 0; }
+}
+
+@keyframes kisara-scroll-complete {
+  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.96); box-shadow: 0 0 8px #fff, 0 0 18px var(--kisara-scroll-soft); }
+  50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.14); box-shadow: 0 0 12px #fff, 0 0 28px var(--kisara-scroll-soft); }
 }
 
 .kisara-gate {

@@ -321,6 +321,7 @@ const gateStyle = [
       let burstAutoplay = false;
       let burstAutoplayComplete = startsComplete;
       let burstAutoplayStartedAt = 0;
+      let burstAutoplayTimeline = startsComplete ? 1 : 0;
       let chargeIntroProgress = startsComplete ? 1 : 0;
       let chargeIntroActive = false;
       let chargeIntroComplete = startsComplete;
@@ -332,6 +333,9 @@ const gateStyle = [
       let renderedPercent = -1;
       let renderedStage = "";
       let renderedGlitchTick = -1;
+      let renderedRailProgress = -1;
+      let renderedRailStage = "";
+      let renderedRailActive = null;
       let energyFrame = 0;
       let energyTimer = 0;
       let energyLoopActive = false;
@@ -8715,6 +8719,61 @@ const gateStyle = [
         }
       };
 
+      const syncGateProgressRail = (fill, burstComplete, chainStage) => {
+        const active = pageMode === "gate";
+        const manualReleaseProgress = clamp(burstProgress / glossFadeEnd, 0, 1);
+        const overallProgress = !chargeIntroComplete
+          ? chargeIntroActive
+            ? 0.45 + chargeIntroProgress * 0.1
+            : fill * 0.45
+          : burstAutoplayComplete
+            ? 1
+            : burstAutoplay
+              ? 0.65 + burstAutoplayTimeline * 0.35
+              : 0.55 + manualReleaseProgress * 0.1;
+        const railProgress = clamp(overallProgress, 0, 1);
+        const railStage = burstComplete
+          ? "complete"
+          : chargeIntroActive
+            ? chargeIntroProgress < 0.62 ? "rupture" : "enchant"
+            : !chargeIntroComplete
+              ? chainStage
+              : burstProgress < glossFadeEnd
+                ? "blade"
+                : burstProgress < blackHoleIngressStart
+                  ? "warning"
+                  : burstProgress < collapseStart
+                    ? "singularity"
+                    : burstProgress < shockwaveStart
+                      ? "collapse"
+                      : burstProgress < detonationEnd
+                        ? "detonation"
+                        : "reconstruction";
+        if (
+          Math.abs(railProgress - renderedRailProgress) < 0.0005
+          && railStage === renderedRailStage
+          && active === renderedRailActive
+        ) return;
+        renderedRailProgress = railProgress;
+        renderedRailStage = railStage;
+        renderedRailActive = active;
+        gate.dataset.kisaraScrollProgress = railProgress.toFixed(5);
+        gate.dataset.kisaraScrollStage = railStage;
+        gate.dataset.kisaraScrollActive = String(active);
+        window.dispatchEvent(new CustomEvent("kisara:gate-progress", {
+          detail: {
+            active,
+            progress: railProgress,
+            stage: railStage,
+            fill,
+            intro: chargeIntroProgress,
+            burst: burstProgress,
+            autoplay: burstAutoplayTimeline,
+            complete: burstComplete
+          }
+        }));
+      };
+
       const render = () => {
         const fill = clamp(progress, 0, 1);
         const percent = Math.round(progress * 100);
@@ -8766,6 +8825,7 @@ const gateStyle = [
               : fill < 0.78
                 ? "inner-bind"
                 : "maximum-tension";
+        syncGateProgressRail(fill, burstComplete, stage);
         const glitchTick = fillComplete ? Math.floor(performance.now() / 72) : -1;
         if (state && (percent !== renderedPercent || stage !== renderedStage || glitchTick !== renderedGlitchTick)) {
           state.textContent = fillComplete
@@ -8817,6 +8877,7 @@ const gateStyle = [
         if (burstAutoplay || burstAutoplayComplete) return;
         burstAutoplay = true;
         burstAutoplayStartedAt = timestamp;
+        burstAutoplayTimeline = 0;
         targetBurstProgress = 1;
         burstProgress = clamp(burstProgress, glossFadeEnd, crossStart);
         burstVelocity = 0;
@@ -8846,12 +8907,14 @@ const gateStyle = [
         }
         if (burstAutoplay) {
           const autoplayProgress = clamp((timestamp - burstAutoplayStartedAt) / releaseAutoplayDuration, 0, 1);
+          burstAutoplayTimeline = autoplayProgress;
           burstProgress = mapReleaseAutoplayProgress(autoplayProgress);
           targetBurstProgress = 1;
           burstVelocity = 0;
           if (autoplayProgress >= 1) {
             burstAutoplay = false;
             burstAutoplayComplete = true;
+            burstAutoplayTimeline = 1;
             burstProgress = 1;
           }
         } else {
@@ -8970,6 +9033,7 @@ const gateStyle = [
         burstAutoplay = false;
         burstAutoplayComplete = false;
         burstAutoplayStartedAt = 0;
+        burstAutoplayTimeline = 0;
         chargeIntroProgress = 0;
         chargeIntroActive = false;
         chargeIntroComplete = false;
@@ -9240,6 +9304,7 @@ const gateStyle = [
         burstAutoplay = false;
         burstAutoplayComplete = true;
         burstAutoplayStartedAt = 0;
+        burstAutoplayTimeline = 1;
         chargeIntroProgress = 1;
         chargeIntroActive = false;
         chargeIntroComplete = true;
