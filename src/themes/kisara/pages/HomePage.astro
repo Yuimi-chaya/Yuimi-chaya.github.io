@@ -95,13 +95,6 @@ const gateStyle = [
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
       <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
-      <canvas
-        class="kisara-title-contract-canvas"
-        data-kisara-title-contract
-        width="1200"
-        height="240"
-        aria-hidden="true"
-      ></canvas>
       <span class="kisara-title-enchant" aria-hidden="true">Kisara</span>
       <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
       <canvas
@@ -122,8 +115,8 @@ const gateStyle = [
     <div class="kisara-contract-meter" aria-hidden="true">
       <canvas class="kisara-energy-canvas" data-kisara-energy width="640" height="64"></canvas>
     </div>
-    <p class="kisara-contract-state" data-kisara-state>CONTRACT MARK / AWAKENING</p>
-    <p class="kisara-scroll-cue" data-kisara-cue>SCROLL / DEEPEN THE CONTRACT</p>
+    <p class="kisara-contract-state" data-kisara-state>CONTRACT 000%</p>
+    <p class="kisara-scroll-cue" data-kisara-cue>SCROLL / SIGN THE CONTRACT</p>
     <a class="kisara-gate-skip" href="#kisara-opening" data-kisara-skip>SKIP</a>
   </section>
 
@@ -238,8 +231,6 @@ const gateStyle = [
       const burstContext = burstCanvas?.getContext("2d");
       const spaceLensCanvas = gate.querySelector("[data-kisara-space-lens]");
       const titleLensCanvas = gate.querySelector("[data-kisara-title-lens]");
-      const titleContractCanvas = gate.querySelector("[data-kisara-title-contract]");
-      const titleContractContext = titleContractCanvas?.getContext("2d", { alpha: true });
       const titleDataCanvas = gate.querySelector("[data-kisara-title-data]");
       const titleDataContext = titleDataCanvas?.getContext("2d", { alpha: true });
       const postReleaseCanvas = gate.querySelector("[data-kisara-post-release-canvas]");
@@ -253,7 +244,6 @@ const gateStyle = [
       const cue = gate.querySelector("[data-kisara-cue]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const renderLegacyChargeBeam = false;
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
       const burstDistance = 2250;
@@ -337,10 +327,6 @@ const gateStyle = [
       let titleDataCanvasWidth = 0;
       let titleDataCanvasHeight = 0;
       let titleDataPixelRatio = 1;
-      let titleContractCanvasWidth = 0;
-      let titleContractCanvasHeight = 0;
-      let titleContractPixelRatio = 1;
-      let titleContractEdgePoints = [];
       let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
       let titleLayout = { width: 0, height: 0, left: 0, top: 0 };
       let renderQuality = 1;
@@ -352,8 +338,6 @@ const gateStyle = [
       let singularityFieldLastPaintTimestamp = 0;
       const titleDataMaskCanvas = document.createElement("canvas");
       const titleDataMaskContext = titleDataMaskCanvas.getContext("2d", { alpha: true });
-      const titleContractMaskCanvas = document.createElement("canvas");
-      const titleContractMaskContext = titleContractMaskCanvas.getContext("2d", { alpha: true });
       let spaceLensRenderer = null;
       let spaceLensInitGeneration = 0;
       let lastSpaceLensPaintTimestamp = 0;
@@ -1116,109 +1100,6 @@ const gateStyle = [
         titleDataContext.clearRect(0, 0, titleDataCanvas.width, titleDataCanvas.height);
         titleDataContext.setTransform(titleDataPixelRatio, 0, 0, titleDataPixelRatio, 0, 0);
         titleDataCanvas.style.opacity = "0";
-      };
-
-      const clearTitleContractCanvas = () => {
-        if (!titleContractCanvas || !titleContractContext) return;
-        titleContractContext.setTransform(1, 0, 0, 1, 0, 0);
-        titleContractContext.clearRect(0, 0, titleContractCanvas.width, titleContractCanvas.height);
-        titleContractContext.setTransform(titleContractPixelRatio, 0, 0, titleContractPixelRatio, 0, 0);
-        titleContractCanvas.style.opacity = "0";
-      };
-
-      const rebuildTitleContractMask = () => {
-        if (
-          !titleContractMaskContext
-          || !title
-          || titleContractMaskCanvas.width <= 1
-          || titleContractMaskCanvas.height <= 1
-        ) return;
-
-        const width = titleContractMaskCanvas.width;
-        const height = titleContractMaskCanvas.height;
-        const style = window.getComputedStyle(title);
-        const fontSize = Math.max(1, Number.parseFloat(style.fontSize) * titleContractPixelRatio);
-        titleContractMaskContext.setTransform(1, 0, 0, 1, 0, 0);
-        titleContractMaskContext.clearRect(0, 0, width, height);
-        titleContractMaskContext.save();
-        titleContractMaskContext.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
-        titleContractMaskContext.textAlign = "center";
-        titleContractMaskContext.textBaseline = "alphabetic";
-        titleContractMaskContext.lineJoin = "round";
-        const metrics = titleContractMaskContext.measureText("Kisara");
-        const baseline = height * 0.5
-          + ((metrics.actualBoundingBoxAscent || fontSize * 0.72)
-            - (metrics.actualBoundingBoxDescent || fontSize * 0.16)) * 0.5;
-        titleContractMaskContext.fillStyle = "#ffffff";
-        titleContractMaskContext.strokeStyle = "#ffffff";
-        titleContractMaskContext.lineWidth = Math.max(1, 2.4 * titleContractPixelRatio);
-        titleContractMaskContext.strokeText("Kisara", width * 0.5, baseline);
-        titleContractMaskContext.fillText("Kisara", width * 0.5, baseline);
-        titleContractMaskContext.restore();
-
-        const imageData = titleContractMaskContext.getImageData(0, 0, width, height);
-        const alpha = imageData.data;
-        const sampleStep = Math.max(3, Math.round(4.8 * titleContractPixelRatio));
-        const candidates = [];
-        const alphaAt = (x, y) => {
-          if (x < 0 || y < 0 || x >= width || y >= height) return 0;
-          return alpha[(Math.round(y) * width + Math.round(x)) * 4 + 3];
-        };
-        for (let y = sampleStep; y < height - sampleStep; y += sampleStep) {
-          for (let x = sampleStep; x < width - sampleStep; x += sampleStep) {
-            if (alphaAt(x, y) < 120) continue;
-            const left = alphaAt(x - sampleStep, y);
-            const right = alphaAt(x + sampleStep, y);
-            const top = alphaAt(x, y - sampleStep);
-            const bottom = alphaAt(x, y + sampleStep);
-            if (Math.min(left, right, top, bottom) > 36) continue;
-            let normalX = -(right - left);
-            let normalY = -(bottom - top);
-            const normalLength = Math.hypot(normalX, normalY);
-            if (normalLength <= 0.001) {
-              normalX = x - width * 0.5;
-              normalY = y - height * 0.5;
-            }
-            const length = Math.max(0.001, Math.hypot(normalX, normalY));
-            const seed = randomSeed(x * 0.037 + y * 0.071 + candidates.length * 0.13);
-            candidates.push({
-              x: x / titleContractPixelRatio,
-              y: y / titleContractPixelRatio,
-              normalX: normalX / length,
-              normalY: normalY / length,
-              seed
-            });
-          }
-        }
-        candidates.sort((pointA, pointB) => pointA.seed - pointB.seed);
-        titleContractEdgePoints = candidates.slice(0, titleContractCanvasWidth < 560 ? 90 : 150);
-      };
-
-      const resizeTitleContractCanvas = (force = false) => {
-        if (!titleContractCanvas || !titleContractContext || !titleContractMaskContext) return;
-        const rect = titleContractCanvas.getBoundingClientRect();
-        const width = Math.max(1, rect.width);
-        const height = Math.max(1, rect.height);
-        const deviceScale = Math.min(window.devicePixelRatio || 1, width < 640 ? 1.18 : 1.38);
-        const pixelRatio = Math.min(deviceScale, 1536 / width, 420 / height);
-        const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
-        const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
-        const changed = force
-          || Math.abs(titleContractCanvasWidth - width) > 0.5
-          || Math.abs(titleContractCanvasHeight - height) > 0.5
-          || Math.abs(titleContractPixelRatio - pixelRatio) > 0.01
-          || titleContractCanvas.width !== pixelWidth
-          || titleContractCanvas.height !== pixelHeight;
-        if (!changed) return;
-        titleContractCanvas.width = pixelWidth;
-        titleContractCanvas.height = pixelHeight;
-        titleContractMaskCanvas.width = pixelWidth;
-        titleContractMaskCanvas.height = pixelHeight;
-        titleContractCanvasWidth = width;
-        titleContractCanvasHeight = height;
-        titleContractPixelRatio = pixelRatio;
-        clearTitleContractCanvas();
-        rebuildTitleContractMask();
       };
 
       const rebuildTitleEffectMask = () => {
@@ -3620,7 +3501,6 @@ const gateStyle = [
       document.fonts?.ready.then(() => {
         titleLensRenderer?.refresh();
         resizeTitleDataCanvas(true);
-        resizeTitleContractCanvas(true);
       });
 
       const drawSpaceLens = (timestamp, parameters) => {
@@ -4370,22 +4250,20 @@ const gateStyle = [
           }
         }
 
-        if (renderLegacyChargeBeam) {
-          const chargeFlightOpacity = phaseProgress(
-            chargeIntroProgress,
-            chargeHandoffStart,
-            chargeHandoffEnd
-          )
-            * (1 - phaseProgress(chargeIntroProgress, 0.86, 1));
-          drawChargeFlightBeam(
-            context,
-            timestamp,
-            chargeFlight,
-            chargeFlightOpacity,
-            intensity,
-            width
-          );
-        }
+        const chargeFlightOpacity = phaseProgress(
+          chargeIntroProgress,
+          chargeHandoffStart,
+          chargeHandoffEnd
+        )
+          * (1 - phaseProgress(chargeIntroProgress, 0.86, 1));
+        drawChargeFlightBeam(
+          context,
+          timestamp,
+          chargeFlight,
+          chargeFlightOpacity,
+          intensity,
+          width
+        );
 
         if (fill <= 0.018) wakePrimed = false;
         const wakeLimit = Math.floor((width < 640 ? 175 : 280) * (0.8 + renderQuality * 0.2));
@@ -4446,12 +4324,7 @@ const gateStyle = [
           });
         };
 
-        if (!renderLegacyChargeBeam && wakeParticles.length > 0) wakeParticles.length = 0;
-        if (!renderLegacyChargeBeam) {
-          wakePrimed = false;
-          wakeEmissionBudget = 0;
-        }
-        if (renderLegacyChargeBeam && !reducedMotion && wakeOpacity > 0.02 && fill > 0.025 && burst < 0.02) {
+        if (!reducedMotion && wakeOpacity > 0.02 && fill > 0.025 && burst < 0.02) {
           if (!wakePrimed) {
             wakePrimed = true;
             const primeCount = width < 640 ? 18 : width < 960 ? 24 : 30;
@@ -6412,284 +6285,6 @@ const gateStyle = [
         energyLoopActive = false;
       };
 
-      const titleContractGlyphs = [
-        { centerX: 0.115, halfWidth: 0.105, centerY: 0.53, top: 0.17, bottom: 0.86 },
-        { centerX: 0.265, halfWidth: 0.05, centerY: 0.51, top: 0.17, bottom: 0.84 },
-        { centerX: 0.37, halfWidth: 0.072, centerY: 0.54, top: 0.25, bottom: 0.84 },
-        { centerX: 0.495, halfWidth: 0.074, centerY: 0.54, top: 0.25, bottom: 0.84 },
-        { centerX: 0.622, halfWidth: 0.068, centerY: 0.54, top: 0.25, bottom: 0.84 },
-        { centerX: 0.76, halfWidth: 0.076, centerY: 0.54, top: 0.25, bottom: 0.84 },
-        { centerX: 0.885, halfWidth: 0.072, centerY: 0.54, top: 0.25, bottom: 0.84 }
-      ];
-      const titleContractVeins = titleContractGlyphs.flatMap((glyph, glyphIndex) => {
-        const laneCount = glyphIndex === 1 ? 1 : 2;
-        return Array.from({ length: laneCount }, (_, laneIndex) => {
-          const veinIndex = glyphIndex * 2 + laneIndex;
-          const seedA = randomSeed(veinIndex * 17.9 + 9101);
-          const seedB = randomSeed(veinIndex * 23.7 + 9157);
-          const pointCount = glyphIndex === 1 ? 6 : 7;
-          const laneOffset = laneCount === 1 ? 0 : (laneIndex - 0.5) * glyph.halfWidth * 0.56;
-          const points = [];
-          for (let pointIndex = 0; pointIndex <= pointCount; pointIndex += 1) {
-            const unit = pointIndex / pointCount;
-            const jitter = (randomSeed(veinIndex * 37.1 + pointIndex * 11.3 + 9221) - 0.5)
-              * glyph.halfWidth
-              * (0.32 + seedA * 0.18)
-              * Math.sin(unit * Math.PI);
-            const curve = Math.sin(unit * Math.PI * (2.1 + seedB * 0.65) + seedA * fullTurn)
-              * glyph.halfWidth
-              * (0.15 + seedB * 0.12)
-              * Math.sin(unit * Math.PI);
-            points.push({
-              x: glyph.centerX + laneOffset + jitter + curve,
-              y: glyph.bottom + (glyph.top - glyph.bottom) * unit
-            });
-          }
-          return {
-            points,
-            core: { x: glyph.centerX, y: glyph.centerY },
-            delay: 0.035 + glyphIndex * 0.07 + laneIndex * 0.025,
-            blue: glyphIndex === 4 && laneIndex === 1,
-            phase: seedB,
-            branchDirection: laneIndex === 0 ? -1 : 1,
-            glyphWidth: glyph.halfWidth * 2
-          };
-        });
-      });
-
-      const drawTitleContract = (timestamp, fill) => {
-        if (!titleContractCanvas || !titleContractContext || !titleContractMaskContext) return;
-        if (titleContractCanvasWidth <= 1 || titleContractCanvasHeight <= 1) {
-          resizeTitleContractCanvas();
-        }
-        if (titleContractCanvasWidth <= 1 || titleContractCanvasHeight <= 1) return;
-
-        const intro = clamp(chargeIntroProgress, 0, 1);
-        const activation = phaseProgress(fill, 0.035, 0.22);
-        const collapse = phaseProgress(intro, 0.035, 0.72);
-        const fade = 1 - phaseProgress(intro, 0.72, 0.98);
-        const burstFade = 1 - phaseProgress(burstProgress, 0.006, 0.08);
-        const visibility = activation * fade * burstFade;
-        if (visibility <= 0.001) {
-          if (titleContractCanvas.style.opacity !== "0") clearTitleContractCanvas();
-          return;
-        }
-
-        const width = titleContractCanvasWidth;
-        const height = titleContractCanvasHeight;
-        const pixelWidth = titleContractCanvas.width;
-        const pixelHeight = titleContractCanvas.height;
-        const context = titleContractContext;
-        const time = reducedMotion ? 0 : timestamp / 1000;
-        const tension = phaseProgress(fill, 0.58, 0.98);
-        const core = { x: width * 0.525, y: height * 0.55 };
-
-        context.setTransform(1, 0, 0, 1, 0, 0);
-        context.clearRect(0, 0, pixelWidth, pixelHeight);
-        context.setTransform(titleContractPixelRatio, 0, 0, titleContractPixelRatio, 0, 0);
-        context.save();
-        context.globalCompositeOperation = "lighter";
-        context.lineCap = "round";
-        context.lineJoin = "round";
-
-        const frontier = context.createLinearGradient(0, height, width, 0);
-        const frontierStart = clamp(fill - 0.075, 0, 1);
-        const frontierHot = clamp(fill + 0.006, frontierStart, 1);
-        const frontierEnd = clamp(fill + 0.085, frontierHot, 1);
-        frontier.addColorStop(0, "rgba(255, 73, 133, 0)");
-        frontier.addColorStop(frontierStart, "rgba(255, 73, 133, 0)");
-        frontier.addColorStop(frontierHot, `rgba(255, 102, 158, ${0.12 + tension * 0.2})`);
-        frontier.addColorStop(frontierEnd, "rgba(137, 183, 255, 0)");
-        frontier.addColorStop(1, "rgba(137, 183, 255, 0)");
-        context.globalAlpha = visibility;
-        context.fillStyle = frontier;
-        context.fillRect(0, 0, width, height);
-
-        for (let veinIndex = 0; veinIndex < titleContractVeins.length; veinIndex += 1) {
-          const vein = titleContractVeins[veinIndex];
-          const build = phaseProgress(fill, vein.delay, Math.min(1, vein.delay + 0.36));
-          if (build <= 0.001) continue;
-          const visiblePointCount = Math.max(2, Math.ceil(2 + (vein.points.length - 2) * build));
-          const points = [];
-          const veinCore = { x: vein.core.x * width, y: vein.core.y * height };
-          for (let pointIndex = 0; pointIndex < visiblePointCount; pointIndex += 1) {
-            const sourcePoint = vein.points[pointIndex];
-            const unit = pointIndex / Math.max(1, visiblePointCount - 1);
-            const pulseWave = Math.sin(
-              unit * fullTurn * (1.3 + vein.phase * 0.7)
-              - time * (0.5 + fill * 0.75)
-              + vein.phase * fullTurn
-            ) * height * (0.003 + tension * 0.006) * Math.sin(unit * Math.PI) * (1 - collapse);
-            const collapsePull = Math.pow(collapse, 1.18) * (0.5 + unit * 0.5);
-            const pointX = sourcePoint.x * width;
-            const pointY = sourcePoint.y * height + pulseWave;
-            points.push({
-              x: pointX + (veinCore.x - pointX) * collapsePull,
-              y: pointY + (veinCore.y - pointY) * collapsePull
-            });
-          }
-          const path = createSmoothCanvasPath(points);
-
-          const veinOpacity = visibility * (0.34 + build * 0.48) * (0.8 + tension * 0.2);
-          context.globalAlpha = veinOpacity * 0.64;
-          context.strokeStyle = vein.blue ? "rgba(61, 102, 181, 0.8)" : "rgba(94, 8, 54, 0.9)";
-          context.lineWidth = 2.15 + tension * 1.2;
-          context.shadowColor = vein.blue ? "rgba(106, 158, 255, 0.54)" : "rgba(255, 37, 111, 0.58)";
-          context.shadowBlur = 3 + tension * 7;
-          context.stroke(path);
-
-          context.globalAlpha = Math.min(1, veinOpacity * 1.08);
-          context.strokeStyle = vein.blue ? "rgba(197, 225, 255, 0.92)" : "rgba(255, 169, 201, 0.94)";
-          context.lineWidth = 0.62 + tension * 0.46;
-          context.shadowBlur = 1.5 + tension * 4;
-          context.stroke(path);
-
-          if (points.length > 5 && build > 0.48 && collapse < 0.82) {
-            for (let branch = 0; branch < 2; branch += 1) {
-              const branchIndex = Math.min(
-                points.length - 2,
-                Math.max(1, Math.round((branch + 1) * (points.length - 1) / 3))
-              );
-              const branchOrigin = points[branchIndex];
-              const branchNext = points[branchIndex + 1];
-              const tangentX = branchNext.x - branchOrigin.x;
-              const tangentY = branchNext.y - branchOrigin.y;
-              const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
-              const direction = vein.branchDirection * (branch === 0 ? 1 : -1);
-              const normalX = -tangentY / tangentLength * direction;
-              const normalY = tangentX / tangentLength * direction;
-              const branchLength = Math.min(
-                width * vein.glyphWidth * (branch === 0 ? 0.48 : 0.38),
-                height * (0.055 + vein.phase * 0.045)
-              ) * (0.68 + build * 0.32);
-              const branchEnd = {
-                x: branchOrigin.x + normalX * branchLength + tangentX / tangentLength * branchLength * 0.14,
-                y: branchOrigin.y + normalY * branchLength + tangentY / tangentLength * branchLength * 0.14
-              };
-              context.globalAlpha = veinOpacity * (0.42 - branch * 0.08) * (1 - collapse);
-              context.lineWidth = 0.42 + tension * 0.28;
-              context.beginPath();
-              context.moveTo(branchOrigin.x, branchOrigin.y);
-              context.quadraticCurveTo(
-                branchOrigin.x + normalX * branchLength * 0.56,
-                branchOrigin.y + normalY * branchLength * 0.56,
-                branchEnd.x,
-                branchEnd.y
-              );
-              context.stroke();
-            }
-          }
-
-          const travel = (time * (0.11 + fill * 0.2) + vein.phase + veinIndex * 0.071) % 1;
-          const travelIndex = Math.min(points.length - 1, Math.round(travel * (points.length - 1)));
-          const pulsePoint = points[travelIndex];
-          const pulseRadius = 2.2 + tension * 3.2 + collapse * 4.5;
-          const pulseGlow = context.createRadialGradient(
-            pulsePoint.x,
-            pulsePoint.y,
-            0,
-            pulsePoint.x,
-            pulsePoint.y,
-            pulseRadius
-          );
-          pulseGlow.addColorStop(0, "rgba(255,255,255,0.96)");
-          pulseGlow.addColorStop(0.28, vein.blue ? "rgba(180,218,255,0.72)" : "rgba(255,137,181,0.76)");
-          pulseGlow.addColorStop(1, "rgba(255,73,137,0)");
-          context.globalAlpha = veinOpacity * (0.34 + tension * 0.34);
-          context.fillStyle = pulseGlow;
-          context.shadowBlur = 0;
-          context.fillRect(
-            pulsePoint.x - pulseRadius,
-            pulsePoint.y - pulseRadius,
-            pulseRadius * 2,
-            pulseRadius * 2
-          );
-        }
-
-        const impact = Math.sin(clamp((intro - 0.58) / 0.34, 0, 1) * Math.PI);
-        if (impact > 0.001) {
-          const radius = Math.max(width, height) * (0.08 + impact * 0.18);
-          const glow = context.createRadialGradient(core.x, core.y, 0, core.x, core.y, radius);
-          glow.addColorStop(0, "rgba(255,255,255,0.98)");
-          glow.addColorStop(0.18, "rgba(255,123,170,0.76)");
-          glow.addColorStop(0.52, "rgba(120,169,255,0.28)");
-          glow.addColorStop(1, "rgba(255,61,128,0)");
-          context.globalAlpha = visibility * impact * 0.82;
-          context.fillStyle = glow;
-          context.fillRect(core.x - radius, core.y - radius, radius * 2, radius * 2);
-        }
-        context.restore();
-
-        context.setTransform(1, 0, 0, 1, 0, 0);
-        context.globalCompositeOperation = "destination-in";
-        context.globalAlpha = 1;
-        context.drawImage(titleContractMaskCanvas, 0, 0);
-        const fillMask = context.createLinearGradient(0, pixelHeight, pixelWidth, 0);
-        const solidEnd = clamp(fill - 0.04, 0, 1);
-        const denseEnd = Math.max(solidEnd, clamp(fill - 0.014, 0, 1));
-        const softEnd = Math.max(denseEnd, clamp(fill + 0.016, 0, 1));
-        const fadeEnd = Math.max(softEnd, clamp(fill + 0.055, 0, 1));
-        fillMask.addColorStop(0, "rgba(0,0,0,1)");
-        fillMask.addColorStop(solidEnd, "rgba(0,0,0,1)");
-        fillMask.addColorStop(denseEnd, "rgba(0,0,0,0.9)");
-        fillMask.addColorStop(softEnd, "rgba(0,0,0,0.48)");
-        fillMask.addColorStop(fadeEnd, "rgba(0,0,0,0)");
-        fillMask.addColorStop(1, "rgba(0,0,0,0)");
-        context.fillStyle = fillMask;
-        context.fillRect(0, 0, pixelWidth, pixelHeight);
-        context.globalCompositeOperation = "source-over";
-        context.setTransform(titleContractPixelRatio, 0, 0, titleContractPixelRatio, 0, 0);
-
-        const edgeEnergy = phaseProgress(fill, 0.68, 0.96)
-          * (1 - phaseProgress(intro, 0.5, 0.82));
-        if (edgeEnergy > 0.001 && titleContractEdgePoints.length > 0) {
-          const sparkCount = Math.floor((width < 560 ? 10 : 18) * edgeEnergy);
-          context.save();
-          context.globalCompositeOperation = "screen";
-          context.lineCap = "round";
-          for (let sparkIndex = 0; sparkIndex < sparkCount; sparkIndex += 1) {
-            const pointIndex = (
-              Math.floor(time * (7 + tension * 8))
-              + sparkIndex * 17
-            ) % titleContractEdgePoints.length;
-            const point = titleContractEdgePoints[pointIndex];
-            const projection = (point.x / width + 1 - point.y / height) * 0.5;
-            if (projection > fill + 0.025) continue;
-            const phase = (time * (0.42 + point.seed * 0.36) + point.seed * 5.7) % 1;
-            let directionX = point.normalX;
-            let directionY = point.normalY - 0.38;
-            const directionLength = Math.max(0.001, Math.hypot(directionX, directionY));
-            directionX /= directionLength;
-            directionY /= directionLength;
-            const distance = (2 + phase * (10 + tension * 13)) * (0.72 + point.seed * 0.48);
-            const x = point.x + directionX * distance;
-            const y = point.y + directionY * distance;
-            const alpha = Math.sin(phase * Math.PI) * edgeEnergy * (0.18 + point.seed * 0.34);
-            context.globalAlpha = alpha;
-            context.strokeStyle = point.seed > 0.78 ? "rgba(183,219,255,0.9)" : "rgba(255,127,171,0.92)";
-            context.lineWidth = 0.45 + tension * 0.5;
-            context.shadowColor = context.strokeStyle;
-            context.shadowBlur = 3 + tension * 5;
-            context.beginPath();
-            context.moveTo(point.x, point.y);
-            context.quadraticCurveTo(
-              point.x + directionX * distance * 0.42 - directionY * 2.4,
-              point.y + directionY * distance * 0.42 + directionX * 2.4,
-              x,
-              y
-            );
-            context.stroke();
-            context.fillStyle = "rgba(255,245,249,0.96)";
-            context.beginPath();
-            context.arc(x, y, 0.42 + tension * 0.48, 0, fullTurn);
-            context.fill();
-          }
-          context.restore();
-        }
-
-        titleContractCanvas.style.opacity = Math.min(1, visibility * (0.74 + tension * 0.26)).toFixed(3);
-      };
-
       const drawEnergy = (timestamp) => {
         energyFrame = 0;
         if (!energyLoopActive || !energyCanvas || !energyContext) return;
@@ -6714,7 +6309,6 @@ const gateStyle = [
         }
         lastEnergyPaintTimestamp = timestamp;
         if (staticRelease) {
-          clearTitleContractCanvas();
           updateGlitchState(timestamp);
           queueEnergyFrame(minimumFrameInterval);
           return;
@@ -6740,12 +6334,6 @@ const gateStyle = [
         energyFlowTimestamp = timestamp;
         const flowSpeed = 2.15 + fill * 1.25 + beamMotionEnergy * 0.62;
         energyFlowPhase += flowFrameSeconds * flowSpeed;
-        drawTitleContract(timestamp, fill);
-        if (!renderLegacyChargeBeam) {
-          updateRenderQuality(timestamp, performance.now() - renderStartedAt);
-          queueEnergyFrame();
-          return;
-        }
         const flowUnit = ((energyFlowPhase / fullTurn) % 1 + 1) % 1;
         const centerY = height / 2;
         const fadeOut = phaseProgress(burstProgress, 0.015, 0.13);
@@ -7233,10 +6821,6 @@ const gateStyle = [
         gate.style.setProperty("--kisara-bg-opacity", (0.98 - reveal * 0.66).toFixed(3));
         gate.style.setProperty("--kisara-bg-saturation", (1 - reveal * 0.26).toFixed(3));
         gate.style.setProperty("--kisara-bg-brightness", (1 - reveal * 0.14).toFixed(3));
-        gate.style.setProperty(
-          "--kisara-contract-title-blur",
-          `${((1 - reveal) * 1.2 + (1 - fill) * 0.2).toFixed(3)}px`
-        );
         gate.style.setProperty("--kisara-fight-opacity", (reveal * 0.98).toFixed(3));
         gate.style.setProperty("--kisara-fight-blur", `${((1 - reveal) * 15).toFixed(3)}px`);
         gate.style.setProperty("--kisara-fight-scale", (1.06 - reveal * 0.06).toFixed(4));
@@ -7248,26 +6832,12 @@ const gateStyle = [
         energyProgress = fill;
         updateBurstPresentation(performance.now(), false);
         startEnergyAnimation();
-        const stage = fillComplete
-          ? "glitch"
-          : fill < 0.18
-            ? "awakening"
-            : fill < 0.48
-              ? "engraving"
-              : fill < 0.76
-                ? "resonating"
-                : "converging";
+        const stage = fillComplete ? "glitch" : "contract";
         const glitchTick = fillComplete ? Math.floor(performance.now() / 72) : -1;
         if (state && (percent !== renderedPercent || stage !== renderedStage || glitchTick !== renderedGlitchTick)) {
           state.textContent = fillComplete
             ? makeGlitchState(performance.now(), burstProgress, burstComplete)
-            : stage === "awakening"
-              ? "CONTRACT MARK / AWAKENING"
-              : stage === "engraving"
-                ? "DEMONIC TRACE / ENGRAVING"
-                : stage === "resonating"
-                  ? "PACT CIRCUIT / RESONATING"
-                  : "CONTRACT MARK / CONVERGING";
+            : `CONTRACT ${String(percent).padStart(3, "0")}%`;
           renderedPercent = percent;
           renderedStage = stage;
           renderedGlitchTick = glitchTick;
@@ -7282,14 +6852,14 @@ const gateStyle = [
         setPostReleaseActive(burstComplete && pageMode === "gate");
         if (cue) {
           cue.textContent = chargeIntroActive
-            ? "CONTRACT MARK / INFUSING"
+            ? "ENERGY VECTOR / ENCHANTING"
             : burstAutoplay
             ? "AUTOMATIC RELEASE / STAND BY"
             : burstComplete
             ? "SIGNAL RELEASED / CONTINUE"
             : fillComplete
               ? "OVERCHARGE / BREAK THE SEAL"
-              : "SCROLL / DEEPEN THE CONTRACT";
+              : "SCROLL / SIGN THE CONTRACT";
         }
       };
 
@@ -7508,7 +7078,6 @@ const gateStyle = [
         renderedStage = "";
         renderedGlitchTick = -1;
         energyContext?.clearRect(0, 0, energyCanvasWidth, energyCanvasHeight);
-        clearTitleContractCanvas();
         burstContext?.clearRect(0, 0, burstCanvasWidth, burstCanvasHeight);
         singularityFieldContext?.clearRect(
           0,
@@ -7744,7 +7313,6 @@ const gateStyle = [
         resizeBurstCanvas(true);
         resizePostReleaseCanvas(true);
         resizeTitleDataCanvas(true);
-        resizeTitleContractCanvas(true);
         spaceLensRenderer?.resize();
         titleLensRenderer?.resize();
         startEnergyAnimation();
