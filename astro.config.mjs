@@ -122,13 +122,13 @@ export default defineConfig({
           "flask-2",
           "user-scan",
           "arrow-back-up",
-          "activity-heartbeat"
-          ,"refresh"
-          ,"player-skip-forward"
-          ,"arrow-down"
-          ,"chevron-left"
-          ,"chevron-right"
-          ,"external-link"
+          "activity-heartbeat",
+          "refresh",
+          "player-skip-forward",
+          "arrow-down",
+          "chevron-left",
+          "chevron-right",
+          "external-link"
         ],
         "simple-icons": [
           "unity",
