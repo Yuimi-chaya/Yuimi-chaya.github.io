@@ -263,15 +263,16 @@ a {
   --kisara-beam-brightness: 1;
   --kisara-performance-blur: 0px;
   --kisara-cross-opacity: 0;
-  --kisara-cross-blade-progress: 0;
-  --kisara-cross-blade-thickness: 1;
-  --kisara-cross-fold-angle: 0deg;
-  --kisara-cross-fold-offset: 0px;
+  --kisara-cross-ray-progress: 0;
+  --kisara-cross-ray-breath: 1;
   --kisara-cross-core-scale: 0.2;
   --kisara-cross-core-opacity: 0;
-  --kisara-cross-fragment-progress: 0;
-  --kisara-cross-fragment-opacity: 0;
-  --kisara-cross-fragment-distance: 0px;
+  --kisara-cross-ring-progress: 0;
+  --kisara-cross-ring-opacity: 0;
+  --kisara-cross-shard-progress: 0;
+  --kisara-cross-shard-opacity: 0;
+  --kisara-cross-spark-opacity: 0;
+  --kisara-cross-spark-distance: 0px;
   --kisara-cross-strobe: 0;
   --kisara-cross-scale: 0.7;
   --kisara-cross-rotation: 0deg;
@@ -312,6 +313,7 @@ a {
   --kisara-warning-invert: 0;
   --kisara-warning-focus: 0;
   --kisara-warning-pulse: 0;
+  --kisara-warning-exposure: 0;
   --kisara-warning-core-exposure: 0;
   --kisara-warning-aperture: 36%;
   --kisara-warning-saturation: 1;
@@ -392,12 +394,7 @@ a {
 
 .kisara-warning-monochrome::before,
 .kisara-warning-monochrome::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-  opacity: var(--kisara-warning-invert);
-  mix-blend-mode: difference;
-  will-change: opacity, transform;
+  content: none;
 }
 
 .kisara-warning-monochrome::before {
@@ -460,41 +457,37 @@ a {
 }
 
 .kisara-warning-exposure {
+  position: absolute;
+  display: block;
+  pointer-events: none;
   z-index: 3;
   top: var(--kisara-warning-center-y);
   left: var(--kisara-warning-center-x);
-  width: clamp(320px, 58vw, 760px);
-  aspect-ratio: 1;
+  width: clamp(330px, 56vw, 760px);
+  height: clamp(180px, 30vw, 390px);
   border-radius: 50%;
-  opacity: var(--kisara-warning-exposure);
+  opacity: clamp(0, var(--kisara-warning-exposure), 1);
   transform: translate3d(-50%, -50%, 0)
-    rotate(var(--kisara-cross-rotation))
-    scale(calc(0.72 + var(--kisara-warning-core-exposure) * 0.15));
-  background:
-    conic-gradient(
-      from 45deg,
-      transparent 0 38deg,
-      rgba(255, 255, 255, 0.04) 40deg,
-      rgba(255, 255, 255, 0.22) 44deg,
-      rgba(255, 255, 255, 0.04) 48deg,
-      transparent 52deg 128deg,
-      rgba(255, 255, 255, 0.04) 130deg,
-      rgba(255, 255, 255, 0.22) 134deg,
-      rgba(255, 255, 255, 0.04) 138deg,
-      transparent 142deg 218deg,
-      rgba(255, 255, 255, 0.04) 220deg,
-      rgba(255, 255, 255, 0.22) 224deg,
-      rgba(255, 255, 255, 0.04) 228deg,
-      transparent 232deg 308deg,
-      rgba(255, 255, 255, 0.04) 310deg,
-      rgba(255, 255, 255, 0.22) 314deg,
-      rgba(255, 255, 255, 0.04) 318deg,
-      transparent 322deg 360deg
-    );
+    scale(calc(0.76 + var(--kisara-warning-core-exposure) * 0.11));
+  background: radial-gradient(
+    ellipse,
+    rgba(255, 255, 255, 0.92) 0 2%,
+    rgba(255, 249, 252, 0.52) 9%,
+    rgba(255, 222, 235, 0.2) 28%,
+    rgba(255, 91, 139, 0.055) 49%,
+    transparent 74%
+  );
+  -webkit-mask-image: radial-gradient(ellipse, #000 0 35%, rgba(0, 0, 0, 0.82) 49%, transparent 76%);
+  mask-image: radial-gradient(ellipse, #000 0 35%, rgba(0, 0, 0, 0.82) 49%, transparent 76%);
+  backdrop-filter:
+    grayscale(calc(var(--kisara-warning-exposure) * 0.88))
+    brightness(calc(1 + var(--kisara-warning-exposure) * 1.42))
+    contrast(calc(1 + var(--kisara-warning-exposure) * 0.34));
   filter:
-    brightness(calc(1.08 + var(--kisara-warning-core-exposure) * 0.28))
-    drop-shadow(0 0 calc(14px + var(--kisara-warning-core-exposure) * 11px) rgba(255, 255, 255, 0.52));
+    brightness(calc(1.08 + var(--kisara-warning-core-exposure) * 0.24))
+    drop-shadow(0 0 calc(18px + var(--kisara-warning-core-exposure) * 13px) rgba(255, 255, 255, 0.42));
   mix-blend-mode: screen;
+  will-change: opacity, transform, backdrop-filter;
 }
 
 .kisara-warning-exposure::before,
@@ -503,28 +496,50 @@ a {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 154%;
-  height: clamp(44px, 6.8vw, 86px);
-  border-radius: 50%;
-  transform: translate3d(-50%, -50%, 0);
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.04) 12%,
-    rgba(255, 255, 255, 0.2) 31%,
-    rgba(255, 255, 255, 0.82) 47%,
-    rgba(255, 255, 255, 1) 50%,
-    rgba(255, 255, 255, 0.82) 53%,
-    rgba(255, 255, 255, 0.2) 69%,
-    rgba(255, 255, 255, 0.04) 88%,
-    transparent 100%
-  );
-  filter: blur(calc(6px + var(--kisara-warning-core-exposure) * 1.8px));
+  pointer-events: none;
   mix-blend-mode: screen;
 }
 
+.kisara-warning-exposure::before {
+  width: clamp(54px, 8vw, 104px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: calc(0.28 + var(--kisara-warning-exposure) * 0.7);
+  transform: translate3d(-50%, -50%, 0)
+    scale(calc(0.54 + var(--kisara-warning-core-exposure) * 0.42));
+  background: radial-gradient(
+    circle,
+    #ffffff 0 7%,
+    rgba(255, 255, 255, 0.98) 13%,
+    rgba(255, 238, 246, 0.72) 28%,
+    rgba(255, 92, 145, 0.2) 49%,
+    transparent 72%
+  );
+  filter:
+    blur(0.35px)
+    brightness(calc(1.15 + var(--kisara-warning-core-exposure) * 0.56))
+    drop-shadow(0 0 16px rgba(255, 255, 255, 0.96))
+    drop-shadow(0 0 42px rgba(255, 65, 125, 0.62));
+}
+
 .kisara-warning-exposure::after {
-  transform: translate3d(-50%, -50%, 0) rotate(90deg);
+  width: 92%;
+  height: clamp(16px, 2.9vw, 36px);
+  border-radius: 50%;
+  opacity: calc(var(--kisara-warning-exposure) * 0.76);
+  transform: translate3d(-50%, -50%, 0) rotate(-7deg)
+    scaleX(calc(0.58 + var(--kisara-warning-exposure) * 0.42));
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 18%,
+    rgba(255, 238, 246, 0.48) 38%,
+    #ffffff 49% 51%,
+    rgba(255, 238, 246, 0.48) 62%,
+    rgba(255, 255, 255, 0.08) 82%,
+    transparent 100%
+  );
+  filter: blur(calc(2px + var(--kisara-warning-core-exposure) * 1.5px));
 }
 
 .kisara-warning-shockwave {
@@ -1111,6 +1126,7 @@ a {
     scaleX(calc(0.72 + var(--kisara-cross-ray-progress) * 0.28));
 }
 
+.kisara-cross-ring,
 .kisara-cross-core,
 .kisara-cross-ray,
 .kisara-cross-shard,
@@ -1120,6 +1136,23 @@ a {
   left: 50%;
   display: block;
   pointer-events: none;
+}
+
+.kisara-cross-ring {
+  width: 14%;
+  aspect-ratio: 1;
+  border: 2px solid transparent;
+  border-top-color: rgba(255, 255, 255, 0.9);
+  border-right-color: rgba(2, 4, 14, 0.92);
+  border-bottom-color: rgba(255, 126, 151, 0.58);
+  border-radius: 50%;
+  opacity: var(--kisara-cross-ring-opacity);
+  transform: translate3d(-50%, -50%, 0)
+    scale(calc(0.12 + var(--kisara-cross-ring-progress) * 3.35))
+    rotate(-24deg);
+  filter:
+    drop-shadow(0 0 5px rgba(255, 255, 255, 0.72))
+    drop-shadow(0 0 13px rgba(255, 72, 110, 0.44));
 }
 
 .kisara-cross-ray {
@@ -1239,59 +1272,51 @@ a {
 }
 
 .kisara-cross-core {
-  width: clamp(30px, 4.4vw, 54px);
+  width: clamp(18px, 3vw, 34px);
   aspect-ratio: 1;
   border-radius: 50%;
   opacity: var(--kisara-cross-core-opacity);
   transform: translate3d(-50%, -50%, 0) scale(var(--kisara-cross-core-scale));
   background: radial-gradient(
     circle,
-    #ffffff 0 12%,
-    rgba(255, 255, 255, 0.98) 14% 21%,
-    rgba(255, 242, 247, 0.82) 27%,
-    rgba(255, 119, 154, 0.36) 42%,
-    rgba(255, 70, 119, 0.1) 58%,
-    transparent 72%
+    #ffffff 0 10%,
+    rgba(255, 255, 255, 0.98) 11% 23%,
+    rgba(2, 4, 14, 0.98) 25% 43%,
+    rgba(255, 255, 255, 0.92) 45% 54%,
+    rgba(255, 81, 118, 0.36) 56% 68%,
+    transparent 70%
   );
   filter:
-    brightness(calc(1.08 + var(--kisara-cross-strobe) * 0.88 + var(--kisara-warning-core-exposure) * 0.76))
-    drop-shadow(0 0 calc(9px + var(--kisara-warning-core-exposure) * 10px) rgba(255, 255, 255, 0.98))
-    drop-shadow(0 0 calc(24px + var(--kisara-warning-core-exposure) * 26px) rgba(255, 65, 104, 0.62));
+    brightness(calc(1 + var(--kisara-cross-strobe) * 0.7 + var(--kisara-warning-core-exposure) * 0.24))
+    drop-shadow(0 0 7px rgba(255, 255, 255, 0.88))
+    drop-shadow(0 0 22px rgba(255, 65, 104, 0.72));
   will-change: transform, opacity, filter;
 }
 
 .kisara-cross-core::before {
   content: "";
   position: absolute;
-  inset: -150%;
+  inset: -190%;
   z-index: -1;
   border-radius: 50%;
   opacity: var(--kisara-cross-ring-opacity);
   transform: scale(calc(0.22 + var(--kisara-cross-ring-progress) * 0.9));
-  background: conic-gradient(
-    from 45deg,
-    transparent 0 40deg,
-    rgba(255, 255, 255, 0.86) 44deg,
-    transparent 49deg 130deg,
-    rgba(255, 255, 255, 0.86) 134deg,
-    transparent 139deg 220deg,
-    rgba(255, 255, 255, 0.86) 224deg,
-    transparent 229deg 310deg,
-    rgba(255, 255, 255, 0.86) 314deg,
-    transparent 319deg 360deg
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 248, 251, 0.58) 13%,
+    rgba(255, 78, 116, 0.28) 31%,
+    rgba(255, 78, 116, 0.08) 51%,
+    transparent 72%
   );
-  -webkit-mask-image: radial-gradient(circle, transparent 0 18%, #000 28% 46%, transparent 66%);
-  mask-image: radial-gradient(circle, transparent 0 18%, #000 28% 46%, transparent 66%);
-  filter: blur(0.8px) drop-shadow(0 0 10px rgba(255, 255, 255, 0.86));
+  filter: blur(1px);
 }
 
-/* The release warning is a rotating blade strike, not a regular UI reticle. */
+/* July 20 warning geometry, kept separate from the later black-hole renderer. */
 .kisara-title-cross {
-  width: clamp(230px, 50vw, 620px);
+  width: clamp(190px, 44vw, 500px);
   isolation: isolate;
-  filter:
-    blur(var(--kisara-cross-blur))
-    drop-shadow(0 0 14px rgba(0, 0, 0, 0.72));
+  filter: blur(var(--kisara-cross-blur));
 }
 
 .kisara-title-cross::before,
