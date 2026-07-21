@@ -73,26 +73,16 @@ const gateStyle = [
     <div class="kisara-screen-impact" aria-hidden="true">
       <span class="kisara-warning-monochrome"></span>
       <span class="kisara-warning-focus"></span>
-      <span class="kisara-warning-exposure"></span>
-      <span class="kisara-warning-shockwave">
-        <i class="kisara-warning-wave-arc kisara-warning-wave-arc-a"></i>
-        <i class="kisara-warning-wave-arc kisara-warning-wave-arc-b"></i>
-        <i class="kisara-warning-wave-arc kisara-warning-wave-arc-c"></i>
-      </span>
       <i class="kisara-title-cross">
-        <span class="kisara-cross-ray kisara-cross-ray-north"></span>
-        <span class="kisara-cross-ray kisara-cross-ray-east"></span>
-        <span class="kisara-cross-ray kisara-cross-ray-south"></span>
-        <span class="kisara-cross-ray kisara-cross-ray-west"></span>
-        <span class="kisara-cross-shard kisara-cross-shard-a"></span>
-        <span class="kisara-cross-shard kisara-cross-shard-b"></span>
-        <span class="kisara-cross-shard kisara-cross-shard-c"></span>
-        <span class="kisara-cross-shard kisara-cross-shard-d"></span>
-        <span class="kisara-cross-spark kisara-cross-spark-a"></span>
-        <span class="kisara-cross-spark kisara-cross-spark-b"></span>
-        <span class="kisara-cross-spark kisara-cross-spark-c"></span>
-        <span class="kisara-cross-spark kisara-cross-spark-d"></span>
-        <span class="kisara-cross-core"></span>
+        <span class="kisara-cross-blade kisara-cross-blade-a"></span>
+        <span class="kisara-cross-blade kisara-cross-blade-b"></span>
+        <span class="kisara-cross-blade kisara-cross-blade-c"></span>
+        <span class="kisara-cross-blade kisara-cross-blade-d"></span>
+        <span class="kisara-cross-fragment kisara-cross-fragment-a"></span>
+        <span class="kisara-cross-fragment kisara-cross-fragment-b"></span>
+        <span class="kisara-cross-fragment kisara-cross-fragment-c"></span>
+        <span class="kisara-cross-fragment kisara-cross-fragment-d"></span>
+        <span class="kisara-cross-black-core"></span>
       </i>
     </div>
     <h1 class="kisara-title" aria-label="Kisara">
@@ -5928,7 +5918,7 @@ const gateStyle = [
           0,
           1
         );
-        const crossSpinProgress = 1 - Math.pow(1 - crossSpinLinear, 1.35);
+        const crossSpinProgress = 1 - Math.pow(1 - crossSpinLinear, 2.05);
         const crossHoldLinear = clamp(
           (crossActionTimeline - releaseCrossSpinEndAt)
             / (releaseCrossHoldEndAt - releaseCrossSpinEndAt),
@@ -5960,53 +5950,61 @@ const gateStyle = [
           0,
           1
         ));
-        const crossRayProgress = clamp(crossBeatEnvelope * crossWaveExit, 0, 1);
-        const crossRayBreath = 0.78 + crossHoldPulse * 0.08 + crossRetractImpact * 0.22;
-        const crossRingProgress = crossRetract;
-        const crossRingOpacity = clamp(crossRetractImpact * (0.7 + crossPulse * 0.3), 0, 1);
-        const crossShardProgress = clamp(
-          crossBeatEnvelope * (0.34 + crossSpinProgress * 0.66),
+        const crossBladeProgress = clamp(
+          crossBeatEnvelope * (0.78 + crossSpinProgress * 0.22),
           0,
           1
         );
-        const crossShardOpacity = clamp(
-          crossBeatEnvelope * (0.16 + crossFlash * 0.24 + crossPulse * 0.28)
-            + crossRetractImpact * 0.42,
+        const crossBladeThickness = clamp(
+          0.82
+            + crossStrike * 0.2
+            + crossHoldPulse * 0.1
+            - crossRetract * 0.44,
+          0.46,
+          1.12
+        );
+        const crossFoldAngle = -crossRetract * 24;
+        const crossFoldOffset = -crossRetract * Math.min(26, gate.clientWidth * 0.028);
+        const crossFragmentProgress = clamp(
+          crossBeatEnvelope * (0.22 + crossSpinProgress * 0.78),
           0,
           1
         );
-        const crossSparkProgress = clamp(crossSpinProgress * 0.36 + crossRetractImpact * 0.64, 0, 1);
-        const crossSparkOpacity = clamp(
-          crossBeatEnvelope * crossFlash * 0.34 + crossRetractImpact * 0.88,
+        const crossFragmentOpacity = clamp(
+          crossBeatEnvelope * (0.12 + crossFlash * 0.28 + crossPulse * 0.22)
+            + crossRetractImpact * 0.72,
           0,
           1
         );
-        const crossSparkDistance = crossSparkProgress * Math.min(168, gate.clientWidth * 0.14);
+        const crossFragmentDistance = (1 - crossRetract)
+          * Math.min(68, gate.clientWidth * 0.062)
+          - crossRetract * Math.min(18, gate.clientWidth * 0.018);
         const crossCoreOpacity = clamp(
-          (crossBeatEnvelope * (0.74 + crossHoldPulse * 0.2) + crossRetractImpact * 0.46)
+          (crossBeatEnvelope * (0.48 + crossHoldPulse * 0.24) + crossRetractImpact * 0.9)
             * (0.18 + crossWaveExit * 0.82),
           0,
           1
         );
-        const crossCoreScale = 0.18
-          + crossStrike * 0.54
-          + crossHoldPulse * 0.06
-          + crossRetractImpact * 0.36
-          - crossRetract * 0.3;
+        const crossCoreScale = 0.12
+          + crossStrike * 0.5
+          + crossHoldPulse * 0.08
+          + crossRetractImpact * 0.54
+          - crossRetract * 0.48;
         const crossOpacity = clamp(
           crossBeatEnvelope
-            * (0.8 + crossPulse * 0.08 + crossHoldPulse * 0.1 + crossRetractImpact * 0.14),
+            * (0.84 + crossPulse * 0.06 + crossHoldPulse * 0.08)
+            + crossRetractImpact * 0.18,
           0,
           1
         ) * crossWaveExit;
-        const crossScale = 0.72
-          + crossStrike * 0.26
-          + crossHoldPulse * 0.025
-          + crossRetractImpact * 0.055
-          - crossRetract * 0.32;
-        const crossRotation = -18
+        const crossScale = 0.68
+          + crossStrike * 0.32
+          + crossHoldPulse * 0.03
+          + crossRetractImpact * 0.07
+          - crossRetract * 0.38;
+        const crossRotation = -26
           + crossSpinProgress * 360
-          - crossRetract * 12;
+          - crossRetract * 24;
         const crossShakeStrength = crossRetractImpact * (0.48 + crossPulse * 0.42);
         const crossShakeX = Math.sin(motionPhases.crossShakeX) * crossShakeStrength;
         const crossShakeY = Math.cos(motionPhases.crossShakeY) * crossShakeStrength * 0.68;
@@ -6035,55 +6033,20 @@ const gateStyle = [
           0,
           1.24
         ) * warningTail;
-        const warningExposureRise = phaseProgress(
-          burst,
-          crossBuildEnd - 0.04,
-          crossFlashEnd - 0.055
-        );
-        const warningExposureFall = 1 - phaseProgress(
-          burst,
-          crossFlashEnd + 0.012,
-          crossEnd - 0.004
-        );
-        const warningExposure = clamp(
-          warningExposureRise
-            * warningExposureFall
-            * (0.46 + crossStrobe * 0.28),
+        const warningInvert = clamp(
+          Math.pow(crossHoldPulse, 3.2) * 0.16
+            + Math.pow(crossRetractImpact, 1.25) * 0.94,
           0,
-          0.52
+          0.96
         ) * warningTail;
         const warningCoreExposure = clamp(
-          crossBuild * 0.34
-            + crossFlash * 1.02
-            + releaseFlash * 1.56
-            + crossCollapse * 0.5,
+          crossStrike * 0.24
+            + crossHoldPulse * 0.42
+            + crossRetractImpact * 1.48
+            + releaseFlash * 0.58,
           0,
-          1.9
+          1.72
         ) * warningTail;
-        const warningWaveProgress = phaseProgress(
-          burst,
-          crossBuildEnd + 0.008,
-          crossEnd - 0.006
-        );
-        const warningWavePulse = Math.pow(
-          Math.sin(warningWaveProgress * Math.PI),
-          0.62
-        );
-        const warningWaveOpacity = clamp(
-          warningWavePulse * (0.62 + crossStrobe * 0.34),
-          0,
-          0.88
-        ) * warningTail;
-        const warningWaveSize = Math.max(
-          96,
-          reconstructionFarthest * 1.42 * (0.1 + warningWaveProgress * 0.9)
-        );
-        const warningWaveBand = 3.2 - warningWaveProgress * 1.4;
-        const warningWaveInner = 50 - warningWaveBand;
-        const warningWaveHotInner = 50 - warningWaveBand * 0.28;
-        const warningWaveHotOuter = 50 + warningWaveBand * 0.28;
-        const warningWaveOuter = 50 + warningWaveBand;
-        const warningWaveRotation = crossRotation * 0.045 + warningWaveProgress * 8;
         const warningAperture = clamp(
           36
             - crossBuild * 10
@@ -6211,18 +6174,10 @@ const gateStyle = [
         gate.style.setProperty("--kisara-impact-vignette", impactVignette.toFixed(3));
         gate.style.setProperty("--kisara-impact-scale", impactScale.toFixed(4));
         gate.style.setProperty("--kisara-warning-monochrome", warningMonochrome.toFixed(3));
+        gate.style.setProperty("--kisara-warning-invert", warningInvert.toFixed(3));
         gate.style.setProperty("--kisara-warning-focus", warningFocus.toFixed(3));
         gate.style.setProperty("--kisara-warning-pulse", warningPulse.toFixed(3));
-        gate.style.setProperty("--kisara-warning-exposure", warningExposure.toFixed(3));
         gate.style.setProperty("--kisara-warning-core-exposure", warningCoreExposure.toFixed(3));
-        gate.style.setProperty("--kisara-warning-wave-opacity", warningWaveOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-warning-wave-energy", warningWavePulse.toFixed(3));
-        gate.style.setProperty("--kisara-warning-wave-size", `${warningWaveSize.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-warning-wave-inner", `${warningWaveInner.toFixed(3)}%`);
-        gate.style.setProperty("--kisara-warning-wave-hot-inner", `${warningWaveHotInner.toFixed(3)}%`);
-        gate.style.setProperty("--kisara-warning-wave-hot-outer", `${warningWaveHotOuter.toFixed(3)}%`);
-        gate.style.setProperty("--kisara-warning-wave-outer", `${warningWaveOuter.toFixed(3)}%`);
-        gate.style.setProperty("--kisara-warning-wave-rotation", `${warningWaveRotation.toFixed(3)}deg`);
         gate.style.setProperty("--kisara-warning-aperture", `${warningAperture.toFixed(2)}%`);
         gate.style.setProperty("--kisara-warning-saturation", (1 - warningMonochrome * 0.98).toFixed(3));
         gate.style.setProperty(
@@ -6236,16 +6191,15 @@ const gateStyle = [
         gate.style.setProperty("--kisara-warning-center-x", `${(clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1) * 100).toFixed(2)}%`);
         gate.style.setProperty("--kisara-warning-center-y", `${(clamp(warpOriginY / Math.max(1, gateHeight), 0, 1) * 100).toFixed(2)}%`);
         gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-ray-progress", crossRayProgress.toFixed(4));
-        gate.style.setProperty("--kisara-cross-ray-breath", crossRayBreath.toFixed(3));
+        gate.style.setProperty("--kisara-cross-blade-progress", crossBladeProgress.toFixed(4));
+        gate.style.setProperty("--kisara-cross-blade-thickness", crossBladeThickness.toFixed(3));
+        gate.style.setProperty("--kisara-cross-fold-angle", `${crossFoldAngle.toFixed(3)}deg`);
+        gate.style.setProperty("--kisara-cross-fold-offset", `${crossFoldOffset.toFixed(3)}px`);
         gate.style.setProperty("--kisara-cross-core-scale", crossCoreScale.toFixed(3));
         gate.style.setProperty("--kisara-cross-core-opacity", crossCoreOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-ring-progress", crossRingProgress.toFixed(3));
-        gate.style.setProperty("--kisara-cross-ring-opacity", crossRingOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-shard-progress", crossShardProgress.toFixed(4));
-        gate.style.setProperty("--kisara-cross-shard-opacity", crossShardOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-spark-opacity", crossSparkOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-spark-distance", `${crossSparkDistance.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-cross-fragment-progress", crossFragmentProgress.toFixed(4));
+        gate.style.setProperty("--kisara-cross-fragment-opacity", crossFragmentOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-fragment-distance", `${crossFragmentDistance.toFixed(3)}px`);
         gate.style.setProperty("--kisara-cross-strobe", crossStrobe.toFixed(3));
         gate.style.setProperty("--kisara-cross-scale", crossScale.toFixed(3));
         gate.style.setProperty("--kisara-cross-rotation", `${crossRotation.toFixed(3)}deg`);
