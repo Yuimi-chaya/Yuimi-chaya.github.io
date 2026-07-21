@@ -6797,10 +6797,10 @@ const gateStyle = [
         const lock = easeOutCubic(lockUnit);
         const lockKick = Math.sin(lockUnit * Math.PI) * Math.exp(-lockUnit * 1.2);
         const strain = Math.sin(phaseProgress(intro, 0.012, 0.15) * Math.PI);
-        const weavePull = scrollTension * 0.012
-          + takeUp * 0.074
-          + lock * 0.03
-          + lockKick * 0.012;
+        const weavePull = scrollTension * 0.009
+          + takeUp * 0.038
+          + lock * 0.018
+          + lockKick * 0.006;
         return { scrollTension, settle, takeUp, lock, lockKick, strain, weavePull };
       };
 
@@ -6833,7 +6833,9 @@ const gateStyle = [
           ? layout.anchorBounds
           : anchorXs.map(() => ({ top: fallbackTop, bottom: fallbackBottom }));
         const sealMotion = resolveSealMotion(fill, intro);
+        const { takeUp, lock, lockKick } = sealMotion;
         const pull = sealMotion.weavePull;
+        const pointSpan = Math.max(1, anchorXs.length - 1);
         const points = anchorXs.map((x, index) => {
           const upper = (index + definition.verticalPhase) % 2 === 0;
           const bounds = anchorBounds[index];
@@ -6846,9 +6848,25 @@ const gateStyle = [
           const y = upper
             ? top + localHeight * endpointEase
             : bottom - localHeight * endpointEase;
+          const pointUnit = index / pointSpan;
+          const windingWave = 0.5 + 0.5 * Math.cos(
+            pointUnit * fullTurn * 1.55
+              + definition.verticalPhase * Math.PI
+              - takeUp * fullTurn * 0.42
+          );
+          const localPull = pull * (0.58 + windingWave * 0.62);
+          const localTwist = definition.direction
+            * (takeUp * 0.105 + lock * 0.044 + lockKick * 0.012)
+            * (0.42 + windingWave * 0.58);
+          const offsetX = x - centerX;
+          const offsetY = y - centerY;
+          const tightenedX = offsetX * (1 - localPull);
+          const tightenedY = offsetY * (1 - localPull);
+          const twistCosine = Math.cos(localTwist);
+          const twistSine = Math.sin(localTwist);
           return {
-            x: x + (centerX - x) * pull,
-            y: y + (centerY - y) * pull
+            x: centerX + tightenedX * twistCosine - tightenedY * twistSine,
+            y: centerY + tightenedX * twistSine + tightenedY * twistCosine
           };
         });
         return {
@@ -6863,7 +6881,16 @@ const gateStyle = [
         const centerX = chainGlyphLayout.centerX || box.left + box.width * 0.5;
         const centerY = chainGlyphLayout.centerY || box.top + box.height * 0.52;
         const sealMotion = resolveSealMotion(fill, intro);
-        const { scrollTension, settle, takeUp, lock, strain } = sealMotion;
+        const { scrollTension, settle, takeUp, lock, lockKick, strain } = sealMotion;
+        const frameMotionResponse = definition.type === "frame"
+          ? clamp(
+              Math.abs(velocity) * 320
+                + Math.abs(burstVelocity) * 220
+                + phaseProgress(intro, 0, 0.018),
+              0,
+              1
+            )
+          : 1;
         const chainOrder = definition.direction > 0 ? unit : 1 - unit;
         const localTakeUp = smootherstep(clamp((takeUp - 0.018) / 0.982, 0, 1));
         let x = centerX;
@@ -6872,6 +6899,7 @@ const gateStyle = [
         let tangentY = 0;
         let plane = "back";
         let crossing = false;
+        let depth = 0;
 
         if (definition.type === "frame") {
           const layout = chainGlyphLayout;
@@ -6884,9 +6912,9 @@ const gateStyle = [
           const frameCenterX = layout.centerX || centerX;
           const frameCenterY = layout.centerY || centerY;
           const radiusX = glyphWidth * definition.radiusX
-            * (1 - scrollTension * 0.005 - takeUp * 0.028 - lock * 0.022);
+            * (1 - scrollTension * 0.004);
           const radiusY = glyphHeight * definition.radiusY
-            * (1 - scrollTension * 0.008 - takeUp * 0.046 - lock * 0.024);
+            * (1 - scrollTension * 0.006);
           const angle = definition.phase + definition.direction * unit * fullTurn;
           const rotationCosine = Math.cos(definition.rotation);
           const rotationSine = Math.sin(definition.rotation);
@@ -6894,11 +6922,19 @@ const gateStyle = [
           const framePoint = (sampleAngle) => {
             const sampleCosine = Math.cos(sampleAngle);
             const sampleSine = Math.sin(sampleAngle);
+            const cinchWave = 0.5 + 0.5 * Math.cos(
+              (sampleAngle - definition.phase) * 2.05
+                - takeUp * fullTurn * 1.08
+                + lock * 1.4
+            );
+            const localCinch = takeUp * (0.022 + cinchWave * 0.058)
+              + lock * (0.018 + (1 - cinchWave) * 0.038)
+              + lockKick * cinchWave * 0.016;
             const frameX = Math.sign(sampleCosine) * Math.abs(sampleCosine) ** frameExponent;
             const frameY = Math.sign(sampleSine) * Math.abs(sampleSine) ** frameExponent;
             const perspectiveWidth = 0.965 + sampleSine * 0.035;
-            const localX = frameX * radiusX * perspectiveWidth;
-            const localY = frameY * radiusY;
+            const localX = frameX * radiusX * perspectiveWidth * (1 - localCinch);
+            const localY = frameY * radiusY * (1 - localCinch * 1.12);
             return {
               x: frameCenterX + localX * rotationCosine - localY * rotationSine,
               y: frameCenterY + localX * rotationSine + localY * rotationCosine
@@ -6920,13 +6956,27 @@ const gateStyle = [
             angle * 2.35
               + timestamp * 0.00038
               + definition.id * 1.37
-          ) * box.height * slackAmplitude;
+          ) * box.height * slackAmplitude * frameMotionResponse;
           const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
           x += -tangentY / tangentLength * wobble;
           y += tangentX / tangentLength * wobble;
           plane = y >= centerY ? "front" : "back";
+          depth = clamp((y - centerY) / Math.max(1, radiusY * 1.04), -1, 1);
         } else {
-          const segmentPosition = clamp(unit, 0, 1) * path.segmentCount;
+          const reelStrength = takeUp * 0.1
+            + lock * 0.042
+            + lockKick * 0.014;
+          const reelWave = 0.64 + 0.36 * Math.cos(
+            (unit - definition.breakT) * fullTurn * 1.38
+              - takeUp * Math.PI * 1.55
+              + definition.id * 0.73
+          );
+          const reeledUnit = clamp(
+            unit + (definition.breakT - unit) * reelStrength * reelWave,
+            0,
+            1
+          );
+          const segmentPosition = reeledUnit * path.segmentCount;
           const segmentIndex = Math.min(
             path.segmentCount - 1,
             Math.floor(Math.min(segmentPosition, path.segmentCount - 0.000001))
@@ -6964,7 +7014,8 @@ const gateStyle = [
         );
         const tensionOffset = tensionWave
           * box.height
-          * (0.0014 + residualSlack * 0.0036 + strain * 0.0042);
+          * (0.0014 + residualSlack * 0.0036 + strain * 0.0042)
+          * frameMotionResponse;
         x += normalX * tensionOffset;
         y += normalY * tensionOffset;
         return {
@@ -6976,7 +7027,8 @@ const gateStyle = [
           normalY,
           angle: Math.atan2(tangentY, tangentX),
           plane,
-          crossing
+          crossing,
+          depth
         };
       };
 
@@ -7143,7 +7195,7 @@ const gateStyle = [
         return spacing;
       };
 
-      const getChainLinkSprite = (definition, isFront, arcPart, hot, parity) => {
+      const getChainLinkSprite = (definition, isFront, arcPart, hot, parity, variant) => {
         const dimensions = getChainLinkDimensions(definition);
         const cacheKey = [
           definition.id,
@@ -7152,12 +7204,13 @@ const gateStyle = [
           isFront ? 1 : 0,
           arcPart,
           hot ? 1 : 0,
-          parity
+          parity,
+          variant
         ].join(":");
         const cached = chainLinkSpriteCache.get(cacheKey);
         if (cached) return cached;
         const spriteScale = 2.4;
-        const padding = isFront ? 14 : 11;
+        const padding = isFront ? 12 : 10;
         const width = dimensions.width + padding * 2;
         const height = dimensions.height + padding * 2;
         const canvas = document.createElement("canvas");
@@ -7169,6 +7222,8 @@ const gateStyle = [
         context.lineCap = "round";
         context.lineJoin = "round";
         const detailedMetal = isFront && arcPart === "near";
+        const variantUnit = variant / 2;
+        const toneShift = variantUnit - 0.5;
         const nearUsesLowerArc = parity === 0;
         const lowerArc = [-Math.PI * 0.08, Math.PI * 1.08];
         const upperArc = [Math.PI * 0.92, Math.PI * 2.08];
@@ -7182,39 +7237,39 @@ const gateStyle = [
           dimensions.height * 0.62
         );
         if (hot) {
-          metal.addColorStop(0, "rgba(22,8,17,0.99)");
-          metal.addColorStop(0.12, "rgba(91,34,54,0.99)");
-          metal.addColorStop(0.25, "rgba(239,174,193,0.99)");
-          metal.addColorStop(0.36, "rgba(145,41,70,0.99)");
-          metal.addColorStop(0.58, "rgba(45,9,25,0.99)");
-          metal.addColorStop(0.75, "rgba(187,55,91,0.99)");
-          metal.addColorStop(0.9, "rgba(65,14,34,0.99)");
-          metal.addColorStop(1, "rgba(235,116,150,0.98)");
+          metal.addColorStop(0, `hsla(${337 + toneShift * 5}, 28%, ${6 + variantUnit * 1.5}%, 0.99)`);
+          metal.addColorStop(0.13, `hsla(${342 + toneShift * 6}, 28%, ${16 + variantUnit * 3}%, 0.99)`);
+          metal.addColorStop(0.27, `hsla(${350 + toneShift * 4}, 22%, ${63 + variantUnit * 5}%, 0.99)`);
+          metal.addColorStop(0.39, `hsla(${344 + toneShift * 5}, 46%, ${29 + variantUnit * 4}%, 0.99)`);
+          metal.addColorStop(0.58, `hsla(${336 + toneShift * 4}, 32%, ${9 + variantUnit * 2}%, 0.99)`);
+          metal.addColorStop(0.76, `hsla(${349 + toneShift * 5}, 48%, ${34 + variantUnit * 5}%, 0.99)`);
+          metal.addColorStop(0.9, `hsla(${339 + toneShift * 4}, 30%, ${14 + variantUnit * 3}%, 0.99)`);
+          metal.addColorStop(1, `hsla(${354 + toneShift * 4}, 38%, ${54 + variantUnit * 6}%, 0.98)`);
         } else {
-          metal.addColorStop(0, "rgba(8,13,25,0.99)");
-          metal.addColorStop(0.12, "rgba(47,64,94,0.99)");
-          metal.addColorStop(0.25, "rgba(207,218,239,0.99)");
-          metal.addColorStop(0.37, "rgba(91,111,148,0.99)");
-          metal.addColorStop(0.58, "rgba(19,28,48,0.99)");
-          metal.addColorStop(0.76, "rgba(113,137,177,0.99)");
-          metal.addColorStop(0.9, "rgba(30,41,65,0.99)");
-          metal.addColorStop(1, "rgba(180,198,226,0.98)");
+          metal.addColorStop(0, `hsla(${220 + toneShift * 5}, 28%, ${5 + variantUnit * 1.5}%, 0.99)`);
+          metal.addColorStop(0.12, `hsla(${218 + toneShift * 6}, 24%, ${17 + variantUnit * 3}%, 0.99)`);
+          metal.addColorStop(0.25, `hsla(${215 + toneShift * 4}, 14%, ${73 + variantUnit * 5}%, 0.99)`);
+          metal.addColorStop(0.37, `hsla(${217 + toneShift * 5}, 22%, ${35 + variantUnit * 5}%, 0.99)`);
+          metal.addColorStop(0.58, `hsla(${221 + toneShift * 5}, 28%, ${9 + variantUnit * 2}%, 0.99)`);
+          metal.addColorStop(0.76, `hsla(${214 + toneShift * 5}, 20%, ${42 + variantUnit * 6}%, 0.99)`);
+          metal.addColorStop(0.9, `hsla(${222 + toneShift * 4}, 24%, ${14 + variantUnit * 3}%, 0.99)`);
+          metal.addColorStop(1, `hsla(${212 + toneShift * 4}, 14%, ${64 + variantUnit * 7}%, 0.98)`);
         }
 
         context.globalAlpha = arcPart === "near" ? 0.96 : 0.72;
         context.strokeStyle = "rgba(3,4,13,0.98)";
-        context.lineWidth = isFront ? 7.6 : 6.7;
+        context.lineWidth = (isFront ? 5.7 : 5.05) * (0.95 + variantUnit * 0.08);
         context.shadowColor = "rgba(1,2,11,0.9)";
-        context.shadowBlur = detailedMetal ? 3.8 : 0;
+        context.shadowBlur = detailedMetal ? 2.8 + variantUnit * 0.8 : 0;
         context.beginPath();
         context.ellipse(0, 0, dimensions.width * 0.5, dimensions.height * 0.5, 0, arcStart, arcEnd);
         context.stroke();
 
         context.globalAlpha = arcPart === "near" ? 1 : 0.8;
         context.strokeStyle = metal;
-        context.lineWidth = isFront ? 4.2 : 3.55;
-        context.shadowColor = hot ? "rgba(255,68,124,0.32)" : "rgba(116,158,230,0.18)";
-        context.shadowBlur = detailedMetal ? (hot ? 3 : 2) : 0;
+        context.lineWidth = (isFront ? 3.45 : 3) * (0.96 + variantUnit * 0.07);
+        context.shadowColor = hot ? "rgba(255,76,122,0.24)" : "rgba(124,157,211,0.15)";
+        context.shadowBlur = detailedMetal ? (hot ? 2.4 : 1.65) + variantUnit * 0.45 : 0;
         context.beginPath();
         context.ellipse(0, 0, dimensions.width * 0.5, dimensions.height * 0.5, 0, arcStart, arcEnd);
         context.stroke();
@@ -7222,7 +7277,7 @@ const gateStyle = [
         context.globalCompositeOperation = "multiply";
         context.globalAlpha = arcPart === "near" ? 0.74 : 0.52;
         context.strokeStyle = hot ? "rgba(41,3,18,0.92)" : "rgba(5,10,24,0.9)";
-        context.lineWidth = 1.35;
+        context.lineWidth = 0.94 + variantUnit * 0.18;
         context.shadowBlur = 0;
         context.beginPath();
         context.ellipse(
@@ -7238,11 +7293,11 @@ const gateStyle = [
 
         if (detailedMetal) {
           context.globalCompositeOperation = "screen";
-          context.globalAlpha = hot ? 0.74 : 0.58;
-          context.strokeStyle = hot ? "rgba(255,226,236,0.96)" : "rgba(225,235,251,0.94)";
-          context.lineWidth = 0.82;
-          context.shadowColor = hot ? "rgba(255,125,158,0.48)" : "rgba(152,184,236,0.34)";
-          context.shadowBlur = 1.1;
+          context.globalAlpha = hot ? 0.58 + variantUnit * 0.08 : 0.46 + variantUnit * 0.08;
+          context.strokeStyle = hot ? "rgba(255,224,232,0.9)" : "rgba(226,235,248,0.9)";
+          context.lineWidth = 0.66 + variantUnit * 0.12;
+          context.shadowColor = hot ? "rgba(255,133,159,0.38)" : "rgba(157,183,224,0.26)";
+          context.shadowBlur = 0.8 + variantUnit * 0.35;
           context.beginPath();
           context.ellipse(
             0,
@@ -7250,13 +7305,13 @@ const gateStyle = [
             dimensions.width * 0.438,
             dimensions.height * 0.39,
             0,
-            arcStart + (arcEnd - arcStart) * 0.14,
-            arcStart + (arcEnd - arcStart) * 0.58
+            arcStart + (arcEnd - arcStart) * (0.11 + variantUnit * 0.035),
+            arcStart + (arcEnd - arcStart) * (0.5 + variantUnit * 0.1)
           );
           context.stroke();
 
-          context.globalAlpha = hot ? 0.38 : 0.3;
-          context.lineWidth = 0.62;
+          context.globalAlpha = hot ? 0.28 + variantUnit * 0.08 : 0.22 + variantUnit * 0.07;
+          context.lineWidth = 0.48 + variantUnit * 0.12;
           context.beginPath();
           context.ellipse(
             0,
@@ -7271,17 +7326,21 @@ const gateStyle = [
 
           context.globalCompositeOperation = "source-over";
           context.shadowBlur = 0;
-          for (let wearIndex = 0; wearIndex < 3; wearIndex += 1) {
-            const wearUnit = 0.24 + wearIndex * 0.23 + parity * 0.025;
+          const wearCount = 2 + variant;
+          for (let wearIndex = 0; wearIndex < wearCount; wearIndex += 1) {
+            const wearUnit = 0.2
+              + wearIndex * (0.58 / Math.max(1, wearCount - 1))
+              + parity * 0.022
+              + toneShift * 0.018;
             const wearAngle = arcStart + (arcEnd - arcStart) * wearUnit;
             const wearX = Math.cos(wearAngle) * dimensions.width * 0.47;
             const wearY = Math.sin(wearAngle) * dimensions.height * 0.45;
             const tangentX = -Math.sin(wearAngle);
             const tangentY = Math.cos(wearAngle);
-            const wearLength = 0.8 + wearIndex * 0.35;
-            context.globalAlpha = hot ? 0.34 : 0.28;
+            const wearLength = 0.7 + wearIndex * 0.27 + variantUnit * 0.24;
+            context.globalAlpha = hot ? 0.28 + variantUnit * 0.06 : 0.23 + variantUnit * 0.05;
             context.strokeStyle = "rgba(4,5,14,0.96)";
-            context.lineWidth = 0.64;
+            context.lineWidth = 0.5 + variantUnit * 0.13;
             context.beginPath();
             context.moveTo(
               wearX - tangentX * wearLength,
@@ -7314,20 +7373,55 @@ const gateStyle = [
         if (alpha <= 0.002) return;
         const parity = linkIndex % 2;
         const edgeOn = parity === 1;
-        const layerAlpha = alpha * (isFront ? 1 : 0.66);
-        const coldSprite = heat < 0.985
-          ? getChainLinkSprite(definition, isFront, arcPart, false, parity)
+        const frameDepth = Number.isFinite(sample.depth) ? sample.depth : 0;
+        const layerAlpha = alpha * (definition.type === "frame"
+          ? (isFront
+              ? 0.82 + Math.max(0, frameDepth) * 0.18
+              : 0.78 + Math.max(0, -frameDepth) * 0.16)
+          : (isFront ? 1 : 0.66));
+        const variantSeed = randomSeed(
+          41011 + definition.id * 701.3 + linkIndex * 43.17 + parity * 17.9
+        );
+        const shapeSeed = randomSeed(
+          52021 + definition.id * 389.7 + linkIndex * 71.11
+        );
+        const variant = Math.min(2, Math.floor(variantSeed * 3));
+        const heatBias = (variantSeed - 0.5) * 0.1;
+        const heatBlend = smootherstep(clamp((heat - heatBias) / 0.96, 0, 1));
+        const heatCap = clamp(
+          (isFront ? 0.84 : 0.78) + variant * 0.03,
+          0,
+          0.92
+        );
+        const resolvedHeat = heatBlend * heatCap;
+        const frameLink = definition.type === "frame";
+        const sizeVariation = frameLink
+          ? 0.97 + shapeSeed * 0.06
+          : 0.92 + shapeSeed * 0.15;
+        const aspectVariation = frameLink
+          ? 0.98 + variantSeed * 0.04
+          : 0.94 + variantSeed * 0.12;
+        const coldSprite = resolvedHeat < 0.985
+          ? getChainLinkSprite(definition, isFront, arcPart, false, parity, variant)
           : null;
-        const hotSprite = heat > 0.015
-          ? getChainLinkSprite(definition, isFront, arcPart, true, parity)
+        const hotSprite = resolvedHeat > 0.015
+          ? getChainLinkSprite(definition, isFront, arcPart, true, parity, variant)
           : null;
         context.save();
         context.translate(sample.x, sample.y);
-        context.rotate(sample.angle + (edgeOn ? 0.045 : -0.035) + rotationOffset);
-        context.scale(scale, scale * (edgeOn ? 0.48 : 0.92));
+        context.rotate(
+          sample.angle
+            + (edgeOn ? 0.045 : -0.035)
+            + (variantSeed - 0.5) * (frameLink ? 0.03 : 0.085)
+            + rotationOffset
+        );
+        context.scale(
+          scale * sizeVariation * aspectVariation,
+          scale * sizeVariation * (edgeOn ? 0.48 : 0.92) / aspectVariation
+        );
         context.imageSmoothingEnabled = true;
         if (coldSprite) {
-          context.globalAlpha = layerAlpha * (1 - heat);
+          context.globalAlpha = layerAlpha * (1 - resolvedHeat);
           context.drawImage(
             coldSprite.canvas,
             -coldSprite.width * 0.5,
@@ -7337,7 +7431,7 @@ const gateStyle = [
           );
         }
         if (hotSprite) {
-          context.globalAlpha = layerAlpha * heat;
+          context.globalAlpha = layerAlpha * resolvedHeat;
           context.drawImage(
             hotSprite.canvas,
             -hotSprite.width * 0.5,
@@ -8221,9 +8315,13 @@ const gateStyle = [
         const shatterRecords = [];
         const ruptureEvents = [];
         const leaders = [];
-        const colorFront = -0.18
-          + phaseProgress(fill, 0.08, 1) * 1.34
-          + phaseProgress(intro, 0.18, 0.58) * 0.12;
+        const colorFront = -0.26
+          + phaseProgress(fill, 0.1, 1) * 1.16
+          + phaseProgress(intro, 0.02, 0.115) * 0.16;
+        const resolveChainHeat = (order, seed = 0.5) => {
+          const localFront = colorFront + (seed - 0.5) * 0.1;
+          return 1 - smootherstep(clamp((order - (localFront - 0.24)) / 0.48, 0, 1));
+        };
         const edgeMarginX = Math.max(24, chainCanvasWidth * 0.07);
         const edgeMarginY = Math.max(18, chainCanvasHeight * 0.08);
         const resolveCanvasEdgeFade = (sample) => {
@@ -8273,10 +8371,32 @@ const gateStyle = [
           const travelOffset = definition.direction > 0
             ? travel * travelSpan - travelSpan
             : travelSpan - travel * travelSpan;
-          const breakSample = sampleTitleChain(
+          const sealMotion = resolveSealMotion(fill, intro);
+          const scrollDrivenFrameFeed = definition.type === "frame"
+            ? smootherstep(phaseProgress(fill, definition.buildEnd, 1)) * 0.46
+            : 0;
+          const tighteningFrameFeed = (
+            sealMotion.takeUp * 0.17
+              + sealMotion.lock * 0.055
+              + sealMotion.lockKick * 0.018
+          ) * (1 - phaseProgress(intro, 0.12, 0.17));
+          const frameDistanceFeed = definition.type === "frame"
+            ? definition.direction * (
+                scrollDrivenFrameFeed + tighteningFrameFeed
+              )
+            : 0;
+          const normalizeFrameDistance = (distanceUnit) => {
+            const wrapped = distanceUnit % 1;
+            return wrapped < 0 ? wrapped + 1 : wrapped;
+          };
+          const breakTravelUnit = definition.type === "frame"
+            ? normalizeFrameDistance(breakDistanceUnit + frameDistanceFeed)
+            : breakDistanceUnit;
+          const breakSample = sampleTitleChainTravel(
             definition,
             path,
-            definition.breakT,
+            breakTravelUnit,
+            spacing,
             fill,
             intro,
             timestamp
@@ -8285,9 +8405,7 @@ const gateStyle = [
           const breakOrder = definition.direction > 0
             ? breakDistanceUnit
             : 1 - breakDistanceUnit;
-          const breakHeat = 1 - smootherstep(
-            clamp((breakOrder - (colorFront - 0.16)) / 0.32, 0, 1)
-          );
+          const breakHeat = resolveChainHeat(breakOrder, breakSeed);
           ruptureEvents.push({
             breakSample,
             breakSeed,
@@ -8301,17 +8419,19 @@ const gateStyle = [
           const leaderUnit = definition.direction > 0
             ? -definition.entryOverscan + travel * travelSpan
             : 1 + definition.entryOverscan - travel * travelSpan;
+          const leaderTravelUnit = leaderUnit
+            + frameDistanceFeed * phaseProgress(build, 0.84, 0.995);
           const leaderSample = sampleTitleChainTravel(
             definition,
             path,
-            leaderUnit,
+            leaderTravelUnit,
             spacing,
             fill,
             intro,
             timestamp
           );
           const leaderOrder = definition.direction > 0 ? leaderUnit : 1 - leaderUnit;
-          const leaderHeat = 1 - smootherstep(clamp((leaderOrder - (colorFront - 0.16)) / 0.32, 0, 1));
+          const leaderHeat = resolveChainHeat(leaderOrder, breakSeed * 0.73);
           const leaderAlpha = visibility
             * phaseProgress(build, 0.06, 0.13)
             * (1 - phaseProgress(build, 0.82, 0.99))
@@ -8327,7 +8447,14 @@ const gateStyle = [
           }
           for (let linkIndex = 0; linkIndex < spacing.records.length; linkIndex += 1) {
             const { unit, distanceUnit } = spacing.records[linkIndex];
-            const travelUnit = distanceUnit + travelOffset;
+            let travelUnit = distanceUnit + travelOffset;
+            if (definition.type === "frame") {
+              const feedBlend = phaseProgress(build, 0.84, 1);
+              travelUnit += frameDistanceFeed * feedBlend;
+              if (build >= 0.9995 && Math.abs(travelOffset) <= 0.001) {
+                travelUnit = normalizeFrameDistance(travelUnit);
+              }
+            }
             if (travelUnit < -0.42 || travelUnit > 1.42) continue;
             const sample = sampleTitleChainTravel(
               definition,
@@ -8342,7 +8469,10 @@ const gateStyle = [
             const ingressFade = 1 - smootherstep(clamp((outside - 0.02) / 0.11, 0, 1));
             let alpha = visibility * phaseProgress(build, 0.02, 0.07) * ingressFade;
             const order = definition.direction > 0 ? distanceUnit : 1 - distanceUnit;
-            const heat = 1 - smootherstep(clamp((order - (colorFront - 0.16)) / 0.32, 0, 1));
+            const heatSeed = randomSeed(
+              39019 + definition.id * 191.7 + linkIndex * 29.13
+            );
+            const heat = resolveChainHeat(order, heatSeed);
             let rotationOffset = 0;
             let shatterAge = 0;
             let shatterSide = linkIndex <= breakLinkIndex ? -1 : 1;
@@ -8395,7 +8525,7 @@ const gateStyle = [
               heat,
               rotationOffset,
               scale: definition.type === "frame"
-                ? (sample.plane === "back" ? 0.9 : 1.02)
+                ? 0.96 + sample.depth * 0.06
                 : 1,
               arcMode: "full"
             };
