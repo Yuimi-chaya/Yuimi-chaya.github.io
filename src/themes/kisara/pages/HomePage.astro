@@ -350,6 +350,16 @@ const gateStyle = [
       let chainCanvasHeight = 0;
       let chainPixelRatio = 1;
       let chainTitleBox = { left: 0, top: 0, width: 0, height: 0 };
+      const chainLinkUnitCache = new Map();
+      let chainGlyphLayout = {
+        textLeft: 0,
+        textRight: 0,
+        top: 0,
+        bottom: 0,
+        centerX: 0,
+        centerY: 0,
+        gaps: []
+      };
       let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
       let titleLayout = { width: 0, height: 0, left: 0, top: 0 };
       let renderQuality = 1;
@@ -1131,6 +1141,34 @@ const gateStyle = [
         }
       };
 
+      const rebuildTitleChainLayout = () => {
+        if (!chainBackContext || !title || chainTitleBox.width <= 1) return;
+        const text = "Kisara";
+        const style = window.getComputedStyle(title);
+        const fontSize = Math.max(1, Number.parseFloat(style.fontSize));
+        chainBackContext.save();
+        chainBackContext.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
+        const measuredWidth = Math.max(1, chainBackContext.measureText(text).width);
+        const widthScale = chainTitleBox.width / measuredWidth;
+        const centerX = chainTitleBox.left + chainTitleBox.width * 0.5;
+        const textLeft = centerX - measuredWidth * widthScale * 0.5;
+        const gaps = [];
+        for (let index = 1; index < text.length; index += 1) {
+          const prefixWidth = chainBackContext.measureText(text.slice(0, index)).width;
+          gaps.push(textLeft + prefixWidth * widthScale);
+        }
+        chainBackContext.restore();
+        chainGlyphLayout = {
+          textLeft,
+          textRight: textLeft + measuredWidth * widthScale,
+          top: chainTitleBox.top + chainTitleBox.height * 0.08,
+          bottom: chainTitleBox.top + chainTitleBox.height * 0.92,
+          centerX,
+          centerY: chainTitleBox.top + chainTitleBox.height * 0.52,
+          gaps
+        };
+      };
+
       const resizeTitleChains = (force = false) => {
         if (
           !chainBackCanvas
@@ -1161,15 +1199,18 @@ const gateStyle = [
           width: titleRect.width,
           height: titleRect.height
         };
-        if (!changed) return;
-        chainBackCanvas.width = pixelWidth;
-        chainBackCanvas.height = pixelHeight;
-        chainFrontCanvas.width = pixelWidth;
-        chainFrontCanvas.height = pixelHeight;
-        chainCanvasWidth = width;
-        chainCanvasHeight = height;
-        chainPixelRatio = pixelRatio;
-        clearTitleChains();
+        if (changed) {
+          chainBackCanvas.width = pixelWidth;
+          chainBackCanvas.height = pixelHeight;
+          chainFrontCanvas.width = pixelWidth;
+          chainFrontCanvas.height = pixelHeight;
+          chainCanvasWidth = width;
+          chainCanvasHeight = height;
+          chainPixelRatio = pixelRatio;
+          chainLinkUnitCache.clear();
+          clearTitleChains();
+        }
+        rebuildTitleChainLayout();
       };
 
       const clearTitleDataCanvas = () => {
@@ -6384,78 +6425,123 @@ const gateStyle = [
           id: 0,
           type: "frame",
           buildStart: 0.025,
-          buildEnd: 0.6,
+          buildEnd: 0.54,
           direction: 1,
           phase: -1.92,
-          radiusX: 0.575,
-          radiusY: 0.64,
+          radiusX: 0.565,
+          radiusY: 0.625,
           rotation: -0.045,
-          depthCycles: 1.88,
-          depthPhase: 0.3,
           breakT: 0.18,
-          desktopLinks: 72,
-          mobileLinks: 44,
-          linkScale: 1
+          desktopLinks: 68,
+          mobileLinks: 42,
+          linkScale: 0.98
         },
         {
           id: 1,
-          type: "curve",
-          buildStart: 0.24,
-          buildEnd: 0.82,
+          type: "weave",
+          buildStart: 0.1,
+          buildEnd: 0.76,
           direction: 1,
-          points: [
-            [-0.08, 0.2],
-            [0.24, 0.92],
-            [0.66, 0.08],
-            [1.08, 0.78]
-          ],
-          depthCycles: 1.36,
-          depthPhase: 1.28,
-          breakT: 0.51,
-          desktopLinks: 40,
-          mobileLinks: 25,
-          linkScale: 0.92
+          verticalPhase: 0,
+          planePhase: 0,
+          topInset: 0.02,
+          bottomInset: 0.02,
+          xInset: 0.075,
+          xShift: -0.006,
+          breakT: 0.5,
+          desktopLinksPerSegment: 8,
+          mobileLinksPerSegment: 5,
+          linkScale: 0.96
         },
         {
           id: 2,
-          type: "curve",
-          buildStart: 0.48,
-          buildEnd: 0.96,
+          type: "weave",
+          buildStart: 0.38,
+          buildEnd: 0.97,
           direction: -1,
-          points: [
-            [-0.06, 0.82],
-            [0.28, 0.04],
-            [0.72, 0.94],
-            [1.06, 0.22]
-          ],
-          depthCycles: 1.28,
-          depthPhase: 2.82,
-          breakT: 0.43,
-          desktopLinks: 38,
-          mobileLinks: 24,
-          linkScale: 0.88
+          verticalPhase: 1,
+          planePhase: 1,
+          topInset: 0.2,
+          bottomInset: 0.18,
+          xInset: 0.055,
+          xShift: 0.008,
+          breakT: 0.44,
+          desktopLinksPerSegment: 7,
+          mobileLinksPerSegment: 5,
+          linkScale: 0.82
         }
       ];
 
-      const cubicCoordinate = (start, controlA, controlB, end, unit) => {
-        const inverse = 1 - unit;
-        return inverse ** 3 * start
-          + 3 * inverse ** 2 * unit * controlA
-          + 3 * inverse * unit ** 2 * controlB
-          + unit ** 3 * end;
+      const catmullCoordinate = (point0, point1, point2, point3, unit) => {
+        const unit2 = unit * unit;
+        const unit3 = unit2 * unit;
+        return 0.5 * (
+          2 * point1
+          + (-point0 + point2) * unit
+          + (2 * point0 - 5 * point1 + 4 * point2 - point3) * unit2
+          + (-point0 + 3 * point1 - 3 * point2 + point3) * unit3
+        );
       };
 
-      const cubicTangent = (start, controlA, controlB, end, unit) => {
-        const inverse = 1 - unit;
-        return 3 * inverse ** 2 * (controlA - start)
-          + 6 * inverse * unit * (controlB - controlA)
-          + 3 * unit ** 2 * (end - controlB);
+      const catmullTangent = (point0, point1, point2, point3, unit) => {
+        const unit2 = unit * unit;
+        return 0.5 * (
+          -point0 + point2
+          + 2 * (2 * point0 - 5 * point1 + 4 * point2 - point3) * unit
+          + 3 * (-point0 + 3 * point1 - 3 * point2 + point3) * unit2
+        );
       };
 
-      const sampleTitleChain = (definition, unit, fill, intro, timestamp) => {
+      const resolveTitleChainPath = (definition, fill, intro) => {
+        if (definition.type === "frame") return { type: "frame", segmentCount: 4 };
         const box = chainTitleBox;
-        const centerX = box.left + box.width * 0.53;
-        const centerY = box.top + box.height * 0.57;
+        const layout = chainGlyphLayout;
+        const fallbackGaps = [0.19, 0.31, 0.47, 0.64, 0.81]
+          .map((unit) => box.left + box.width * unit);
+        const gaps = layout.gaps.length === 5 ? layout.gaps : fallbackGaps;
+        const textLeft = layout.textRight > layout.textLeft
+          ? layout.textLeft
+          : box.left;
+        const textRight = layout.textRight > layout.textLeft
+          ? layout.textRight
+          : box.left + box.width;
+        const centerX = layout.centerX || box.left + box.width * 0.5;
+        const centerY = layout.centerY || box.top + box.height * 0.52;
+        const top = (layout.bottom > layout.top ? layout.top : box.top)
+          + box.height * definition.topInset;
+        const bottom = (layout.bottom > layout.top ? layout.bottom : box.top + box.height)
+          - box.height * definition.bottomInset;
+        const xShift = box.width * definition.xShift;
+        const anchorXs = [
+          textLeft - box.width * definition.xInset,
+          ...gaps.map((gap) => gap + xShift),
+          textRight + box.width * definition.xInset
+        ];
+        const scrollTension = phaseProgress(fill, 0.48, 1);
+        const cinch = phaseProgress(intro, 0.035, 0.68);
+        const pull = scrollTension * 0.045 + cinch * 0.23;
+        const points = anchorXs.map((x, index) => {
+          const upper = (index + definition.verticalPhase) % 2 === 0;
+          const endpointEase = index === 0 || index === anchorXs.length - 1 ? 0.08 : 0;
+          const y = upper
+            ? top + box.height * endpointEase
+            : bottom - box.height * endpointEase;
+          return {
+            x: x + (centerX - x) * pull,
+            y: y + (centerY - y) * pull
+          };
+        });
+        return {
+          type: "weave",
+          points,
+          segmentCount: Math.max(1, points.length - 1)
+        };
+      };
+
+      const sampleTitleChain = (definition, path, unit, fill, intro, timestamp) => {
+        const box = chainTitleBox;
+        const centerX = chainGlyphLayout.centerX || box.left + box.width * 0.5;
+        const centerY = chainGlyphLayout.centerY || box.top + box.height * 0.52;
         const scrollTension = phaseProgress(fill, 0.48, 1);
         const cinch = phaseProgress(intro, 0.035, 0.68);
         const strain = phaseProgress(intro, 0.16, 0.64)
@@ -6464,6 +6550,8 @@ const gateStyle = [
         let y = centerY;
         let tangentX = 1;
         let tangentY = 0;
+        let plane = "back";
+        let crossing = false;
 
         if (definition.type === "frame") {
           const tighten = scrollTension * 0.16 + cinch * 0.38;
@@ -6475,31 +6563,24 @@ const gateStyle = [
           const rotationCosine = Math.cos(definition.rotation);
           const rotationSine = Math.sin(definition.rotation);
           const frameExponent = 0.58;
-          const frameX = Math.sign(cosine) * Math.abs(cosine) ** frameExponent;
-          const frameY = Math.sign(sine) * Math.abs(sine) ** frameExponent;
-          const localX = frameX * radiusX;
-          const localY = frameY * radiusY;
-          x = centerX + localX * rotationCosine - localY * rotationSine;
-          y = centerY + localX * rotationSine + localY * rotationCosine;
-          const tangentAngle = angle + definition.direction * 0.0025;
-          const tangentCosine = Math.cos(tangentAngle);
-          const tangentSine = Math.sin(tangentAngle);
-          const tangentFrameX = Math.sign(tangentCosine)
-            * Math.abs(tangentCosine) ** frameExponent;
-          const tangentFrameY = Math.sign(tangentSine)
-            * Math.abs(tangentSine) ** frameExponent;
-          const tangentLocalX = tangentFrameX * radiusX;
-          const tangentLocalY = tangentFrameY * radiusY;
-          const tangentPointX = centerX
-            + tangentLocalX * rotationCosine
-            - tangentLocalY * rotationSine;
-          const tangentPointY = centerY
-            + tangentLocalX * rotationSine
-            + tangentLocalY * rotationCosine;
-          const derivativeX = tangentPointX - x;
-          const derivativeY = tangentPointY - y;
-          tangentX = derivativeX * rotationCosine - derivativeY * rotationSine;
-          tangentY = derivativeX * rotationSine + derivativeY * rotationCosine;
+          const framePoint = (sampleAngle) => {
+            const sampleCosine = Math.cos(sampleAngle);
+            const sampleSine = Math.sin(sampleAngle);
+            const frameX = Math.sign(sampleCosine) * Math.abs(sampleCosine) ** frameExponent;
+            const frameY = Math.sign(sampleSine) * Math.abs(sampleSine) ** frameExponent;
+            const localX = frameX * radiusX;
+            const localY = frameY * radiusY;
+            return {
+              x: centerX + localX * rotationCosine - localY * rotationSine,
+              y: centerY + localX * rotationSine + localY * rotationCosine
+            };
+          };
+          const point = framePoint(angle);
+          const tangentPoint = framePoint(angle + definition.direction * 0.0025);
+          x = point.x;
+          y = point.y;
+          tangentX = tangentPoint.x - x;
+          tangentY = tangentPoint.y - y;
           const looseness = 1 - scrollTension * 0.72 - cinch * 0.18;
           const wobble = Math.sin(
             angle * 2.6
@@ -6509,20 +6590,27 @@ const gateStyle = [
           const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
           x += -tangentY / tangentLength * wobble;
           y += tangentX / tangentLength * wobble;
+          plane = y >= centerY ? "front" : "back";
         } else {
-          const pull = scrollTension * 0.055 + cinch * 0.2;
-          const points = definition.points.map(([normalizedX, normalizedY]) => {
-            const pointX = box.left + normalizedX * box.width;
-            const pointY = box.top + normalizedY * box.height;
-            return {
-              x: pointX + (centerX - pointX) * pull,
-              y: pointY + (centerY - pointY) * pull
-            };
-          });
-          x = cubicCoordinate(points[0].x, points[1].x, points[2].x, points[3].x, unit);
-          y = cubicCoordinate(points[0].y, points[1].y, points[2].y, points[3].y, unit);
-          tangentX = cubicTangent(points[0].x, points[1].x, points[2].x, points[3].x, unit);
-          tangentY = cubicTangent(points[0].y, points[1].y, points[2].y, points[3].y, unit);
+          const segmentPosition = clamp(unit, 0, 1) * path.segmentCount;
+          const segmentIndex = Math.min(
+            path.segmentCount - 1,
+            Math.floor(Math.min(segmentPosition, path.segmentCount - 0.000001))
+          );
+          const localUnit = clamp(segmentPosition - segmentIndex, 0, 1);
+          const point0 = path.points[Math.max(0, segmentIndex - 1)];
+          const point1 = path.points[segmentIndex];
+          const point2 = path.points[Math.min(path.points.length - 1, segmentIndex + 1)];
+          const point3 = path.points[Math.min(path.points.length - 1, segmentIndex + 2)];
+          x = catmullCoordinate(point0.x, point1.x, point2.x, point3.x, localUnit);
+          y = catmullCoordinate(point0.y, point1.y, point2.y, point3.y, localUnit);
+          tangentX = catmullTangent(point0.x, point1.x, point2.x, point3.x, localUnit);
+          tangentY = catmullTangent(point0.y, point1.y, point2.y, point3.y, localUnit);
+          plane = (segmentIndex + definition.planePhase) % 2 === 0 ? "front" : "back";
+          const nearestBoundary = Math.round(segmentPosition);
+          crossing = nearestBoundary > 0
+            && nearestBoundary < path.segmentCount
+            && Math.abs(segmentPosition - nearestBoundary) < 0.045;
         }
 
         const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
@@ -6533,7 +6621,7 @@ const gateStyle = [
         const tensionWave = Math.sin(
           timestamp * (0.001 + strain * 0.0048)
             + unit * fullTurn * (2.1 + definition.id * 0.16)
-            + definition.depthPhase
+            + definition.id * 1.73
         );
         const tensionOffset = tensionWave
           * box.height
@@ -6547,11 +6635,102 @@ const gateStyle = [
           tangentY,
           normalX,
           normalY,
-          angle: Math.atan2(tangentY, tangentX)
+          angle: Math.atan2(tangentY, tangentX),
+          plane,
+          crossing
         };
       };
 
-      const drawChainLink = (
+      const getChainLinkDimensions = (definition) => {
+        const linkUnit = clamp(chainTitleBox.height * 0.108, 8.4, 16.8) * definition.linkScale;
+        return {
+          width: linkUnit * 1.82,
+          height: linkUnit * 1.02
+        };
+      };
+
+      const buildTitleChainLinkUnits = (definition, isMobile) => {
+        const cacheKey = [
+          definition.id,
+          Math.round(chainTitleBox.width),
+          Math.round(chainTitleBox.height),
+          Math.round(renderQuality * 10),
+          isMobile ? 1 : 0
+        ].join(":");
+        const cached = chainLinkUnitCache.get(cacheKey);
+        if (cached) return cached;
+        const spacingPath = resolveTitleChainPath(definition, 0, 0);
+        const sampleCount = definition.type === "frame" ? 180 : 140;
+        const samples = [];
+        let totalLength = 0;
+        let previous = sampleTitleChain(definition, spacingPath, 0, 0, 0, 0);
+        samples.push({ unit: 0, length: 0 });
+        for (let index = 1; index <= sampleCount; index += 1) {
+          const unit = index / sampleCount;
+          const current = sampleTitleChain(definition, spacingPath, unit, 0, 0, 0);
+          totalLength += Math.hypot(current.x - previous.x, current.y - previous.y);
+          samples.push({ unit, length: totalLength });
+          previous = current;
+        }
+        if (totalLength <= 0.001) return [0];
+
+        const dimensions = getChainLinkDimensions(definition);
+        const qualitySpacing = 1 + (1 - renderQuality) * 0.08;
+        const mobileSpacing = isMobile ? 1.04 : 1;
+        const pitch = dimensions.width * 0.72 * qualitySpacing * mobileSpacing;
+        const minimum = definition.type === "frame" ? 48 : spacingPath.segmentCount * 5 + 1;
+        const maximum = definition.type === "frame"
+          ? (isMobile ? 78 : 108)
+          : (isMobile ? 55 : 74);
+        const desiredCount = definition.type === "frame"
+          ? Math.round(totalLength / pitch)
+          : Math.round(totalLength / pitch) + 1;
+        const linkCount = Math.round(clamp(desiredCount, minimum, maximum));
+        const unitAtLength = (targetLength) => {
+          let low = 1;
+          let high = samples.length - 1;
+          while (low < high) {
+            const middle = Math.floor((low + high) * 0.5);
+            if (samples[middle].length < targetLength) low = middle + 1;
+            else high = middle;
+          }
+          const upper = samples[low];
+          const lower = samples[Math.max(0, low - 1)];
+          const span = Math.max(0.0001, upper.length - lower.length);
+          const blend = clamp((targetLength - lower.length) / span, 0, 1);
+          return lower.unit + (upper.unit - lower.unit) * blend;
+        };
+        const units = [];
+        for (let index = 0; index < linkCount; index += 1) {
+          const distanceUnit = definition.type === "frame"
+            ? (index + 0.5) / linkCount
+            : index / Math.max(1, linkCount - 1);
+          units.push(unitAtLength(distanceUnit * totalLength));
+        }
+        if (definition.type === "weave") {
+          for (let boundary = 1; boundary < spacingPath.segmentCount; boundary += 1) {
+            const boundaryUnit = boundary / spacingPath.segmentCount;
+            let nearestIndex = 0;
+            let nearestDistance = Infinity;
+            for (let index = 0; index < units.length; index += 1) {
+              const distance = Math.abs(units[index] - boundaryUnit);
+              if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestIndex = index;
+              }
+            }
+            units[nearestIndex] = boundaryUnit;
+          }
+          units.sort((left, right) => left - right);
+        }
+        chainLinkUnitCache.set(cacheKey, units);
+        if (chainLinkUnitCache.size > 24) {
+          chainLinkUnitCache.delete(chainLinkUnitCache.keys().next().value);
+        }
+        return units;
+      };
+
+      const drawChainLinkArc = (
         context,
         sample,
         linkIndex,
@@ -6560,77 +6739,125 @@ const gateStyle = [
         fill,
         intro,
         isFront,
+        arcPart,
         rotationOffset = 0
       ) => {
         if (alpha <= 0.002) return;
-        const linkUnit = clamp(chainTitleBox.height * 0.104, 8.1, 16.4) * definition.linkScale;
-        const linkWidth = linkUnit * 1.84;
-        const linkHeight = linkUnit * 0.9;
-        const edgeOn = linkIndex % 2 === 0;
+        const dimensions = getChainLinkDimensions(definition);
+        const linkWidth = dimensions.width;
+        const linkHeight = dimensions.height;
+        const edgeOn = linkIndex % 2 === 1;
         const heat = clamp(fill * 0.72 + phaseProgress(intro, 0.08, 0.72) * 0.5, 0, 1);
-        const red = Math.round(104 + heat * 139);
-        const green = Math.round(127 - heat * 58);
-        const blue = Math.round(188 - heat * 52);
-        const layerAlpha = alpha * (isFront ? 1 : 0.68);
+        const layerAlpha = alpha * (isFront ? 1 : 0.66);
+        const nearUsesLowerArc = linkIndex % 2 === 0;
+        const lowerArc = [-Math.PI * 0.08, Math.PI * 1.08];
+        const upperArc = [Math.PI * 0.92, Math.PI * 2.08];
+        const [arcStart, arcEnd] = arcPart === "near"
+          ? (nearUsesLowerArc ? lowerArc : upperArc)
+          : (nearUsesLowerArc ? upperArc : lowerArc);
         context.save();
         context.translate(sample.x, sample.y);
-        context.rotate(sample.angle + (edgeOn ? 0.09 : -0.09) + rotationOffset);
-        context.scale(1, edgeOn ? 0.34 : 1);
+        context.rotate(sample.angle + (edgeOn ? 0.045 : -0.035) + rotationOffset);
+        context.scale(1, edgeOn ? 0.48 : 0.92);
         context.lineCap = "round";
+        context.lineJoin = "round";
 
-        context.globalAlpha = layerAlpha * 0.72;
-        context.strokeStyle = "rgba(8, 8, 34, 0.9)";
-        context.lineWidth = isFront ? 7.1 : 6.2;
-        context.shadowColor = "rgba(4, 5, 28, 0.82)";
-        context.shadowBlur = isFront ? 4.2 : 2.8;
-        context.beginPath();
-        context.ellipse(0, 0, linkWidth * 0.5, linkHeight * 0.5, 0, 0, fullTurn);
-        context.stroke();
+        const metal = context.createLinearGradient(
+          0,
+          -linkHeight * 0.58,
+          0,
+          linkHeight * 0.58
+        );
+        if (heat > 0.56) {
+          metal.addColorStop(0, "rgba(70, 35, 61, 0.98)");
+          metal.addColorStop(0.22, "rgba(255, 203, 220, 0.99)");
+          metal.addColorStop(0.42, "rgba(219, 53, 103, 0.99)");
+          metal.addColorStop(0.72, "rgba(101, 22, 58, 0.99)");
+          metal.addColorStop(1, "rgba(255, 133, 169, 0.98)");
+        } else {
+          metal.addColorStop(0, "rgba(31, 42, 70, 0.98)");
+          metal.addColorStop(0.22, "rgba(222, 232, 255, 0.99)");
+          metal.addColorStop(0.43, "rgba(105, 132, 186, 0.99)");
+          metal.addColorStop(0.72, "rgba(37, 53, 91, 0.99)");
+          metal.addColorStop(1, "rgba(154, 181, 232, 0.98)");
+        }
 
-        context.globalAlpha = layerAlpha;
-        context.strokeStyle = `rgba(${red}, ${green}, ${blue}, 0.98)`;
-        context.lineWidth = isFront ? 4.15 : 3.55;
-        context.shadowColor = heat > 0.55
-          ? "rgba(255, 57, 126, 0.54)"
-          : "rgba(111, 155, 236, 0.38)";
-        context.shadowBlur = isFront ? 1.4 + heat * 3.8 : 0.8 + heat * 1.7;
-        context.beginPath();
-        context.ellipse(0, 0, linkWidth * 0.5, linkHeight * 0.5, 0, 0, fullTurn);
-        context.stroke();
-
-        context.globalAlpha = layerAlpha * (0.48 + heat * 0.28);
-        context.strokeStyle = heat > 0.58
-          ? "rgba(255, 236, 244, 0.98)"
-          : "rgba(220, 232, 255, 0.94)";
-        context.lineWidth = 1.12;
-        context.shadowBlur = 1.4;
+        context.globalAlpha = layerAlpha * (arcPart === "near" ? 0.96 : 0.72);
+        context.strokeStyle = "rgba(4, 5, 19, 0.96)";
+        context.lineWidth = isFront ? 6.6 : 6;
+        context.shadowColor = "rgba(2, 3, 18, 0.76)";
+        context.shadowBlur = isFront && arcPart === "near" ? 4.4 : 2.2;
         context.beginPath();
         context.ellipse(
-          -linkWidth * 0.02,
-          -linkHeight * 0.02,
-          linkWidth * 0.43,
-          linkHeight * 0.39,
           0,
-          Math.PI * 1.08,
-          Math.PI * 1.82
+          0,
+          linkWidth * 0.5,
+          linkHeight * 0.5,
+          0,
+          arcStart,
+          arcEnd
         );
         context.stroke();
 
-        context.globalAlpha = layerAlpha * 0.34;
-        context.strokeStyle = "rgba(30, 6, 38, 0.92)";
-        context.lineWidth = 0.9;
+        context.globalAlpha = layerAlpha * (arcPart === "near" ? 1 : 0.8);
+        context.strokeStyle = metal;
+        context.lineWidth = isFront ? 3.75 : 3.25;
+        context.shadowColor = heat > 0.68
+          ? "rgba(255, 72, 128, 0.38)"
+          : "rgba(116, 158, 230, 0.22)";
+        context.shadowBlur = isFront && arcPart === "near" ? 1.5 + heat * 2.8 : 0.5;
         context.beginPath();
         context.ellipse(
-          linkWidth * 0.02,
-          linkHeight * 0.03,
-          linkWidth * 0.42,
-          linkHeight * 0.37,
           0,
-          Math.PI * 0.08,
-          Math.PI * 0.76
+          0,
+          linkWidth * 0.5,
+          linkHeight * 0.5,
+          0,
+          arcStart,
+          arcEnd
         );
         context.stroke();
+
+        if (arcPart === "near") {
+          context.globalAlpha = layerAlpha * (0.46 + heat * 0.22);
+          context.strokeStyle = heat > 0.58
+            ? "rgba(255, 240, 246, 0.96)"
+            : "rgba(235, 242, 255, 0.94)";
+          context.lineWidth = 0.9;
+          context.shadowBlur = 0.8;
+          context.beginPath();
+          context.ellipse(
+            0,
+            -linkHeight * 0.025,
+            linkWidth * 0.445,
+            linkHeight * 0.405,
+            0,
+            arcStart + Math.PI * 0.12,
+            arcEnd - Math.PI * 0.12
+          );
+          context.stroke();
+        }
         context.restore();
+      };
+
+      const drawChainLayer = (context, records, isFront) => {
+        for (const arcPart of ["far", "near"]) {
+          for (const record of records) {
+            if (record.arcMode !== "full" && record.arcMode !== arcPart) continue;
+            drawChainLinkArc(
+              context,
+              record.sample,
+              record.linkIndex,
+              record.definition,
+              record.alpha,
+              record.fill,
+              record.intro,
+              isFront,
+              arcPart,
+              record.rotationOffset
+            );
+          }
+        }
       };
 
       const createHeartPath = (centerX, centerY, size, scale = 1) => {
@@ -6745,35 +6972,32 @@ const gateStyle = [
         const isMobile = chainTitleBox.width < 360;
         const release = phaseProgress(intro, 0.69, 0.94);
         const rupturePulse = Math.sin(phaseProgress(intro, 0.66, 0.83) * Math.PI);
-        const centerX = chainTitleBox.left + chainTitleBox.width * 0.53;
-        const centerY = chainTitleBox.top + chainTitleBox.height * 0.57;
+        const centerX = chainGlyphLayout.centerX || chainTitleBox.left + chainTitleBox.width * 0.5;
+        const centerY = chainGlyphLayout.centerY || chainTitleBox.top + chainTitleBox.height * 0.52;
+        const layerRecords = { back: [], front: [] };
+        const ruptureEvents = [];
 
         for (const definition of chainDefinitions) {
           const build = phaseProgress(fill, definition.buildStart, definition.buildEnd);
           if (build <= 0.001) continue;
-          const baseCount = isMobile ? definition.mobileLinks : definition.desktopLinks;
-          const linkCount = Math.max(12, Math.floor(baseCount * (0.78 + renderQuality * 0.22)));
+          const path = resolveTitleChainPath(definition, fill, intro);
+          const linkUnits = buildTitleChainLinkUnits(definition, isMobile);
           const breakSample = sampleTitleChain(
             definition,
+            path,
             definition.breakT,
             fill,
             intro,
             timestamp
           );
           const breakSeed = randomSeed(18001 + definition.id * 47.9);
-          for (let linkIndex = 0; linkIndex < linkCount; linkIndex += 1) {
-            const unit = (linkIndex + 0.5) / linkCount;
+          for (let linkIndex = 0; linkIndex < linkUnits.length; linkIndex += 1) {
+            const unit = linkUnits[linkIndex];
             const order = definition.direction > 0 ? unit : 1 - unit;
             const appearStart = Math.min(0.94, order * 0.96);
             const appear = phaseProgress(build, appearStart, Math.min(1, appearStart + 0.08));
             if (appear <= 0.001) continue;
-            const sample = sampleTitleChain(definition, unit, fill, intro, timestamp);
-            const depthWave = Math.sin(
-              unit * fullTurn * definition.depthCycles
-                + definition.depthPhase
-            );
-            const isFront = depthWave > 0.08;
-            const context = isFront ? chainFrontContext : chainBackContext;
+            const sample = sampleTitleChain(definition, path, unit, fill, intro, timestamp);
             let alpha = visibility * appear;
             let rotationOffset = 0;
             if (release > 0.001) {
@@ -6790,20 +7014,33 @@ const gateStyle = [
               rotationOffset = side * release * (0.18 + seed * 0.34);
               alpha *= (1 - gap * 0.98) * (1 - release * (0.48 + seed * 0.18));
             }
-            drawChainLink(
-              context,
+            const record = {
               sample,
               linkIndex,
               definition,
               alpha,
               fill,
               intro,
-              isFront,
-              rotationOffset
-            );
+              rotationOffset,
+              arcMode: "full"
+            };
+            if (sample.crossing && definition.type === "weave") {
+              layerRecords.back.push({ ...record, arcMode: "far" });
+              layerRecords.front.push({ ...record, arcMode: "near" });
+            } else {
+              layerRecords[sample.plane].push(record);
+            }
           }
 
           if (rupturePulse > 0.001 && definition.id < 3) {
+            ruptureEvents.push({ breakSample, breakSeed });
+          }
+        }
+
+        drawChainLayer(chainBackContext, layerRecords.back, false);
+        drawChainLayer(chainFrontContext, layerRecords.front, true);
+
+        for (const { breakSample, breakSeed } of ruptureEvents) {
             const context = chainFrontContext;
             const flareRadius = clamp(chainTitleBox.height * 0.16, 10, 28)
               * (0.72 + rupturePulse * 0.7);
@@ -6848,7 +7085,6 @@ const gateStyle = [
               context.restore();
             }
             context.restore();
-          }
         }
 
         drawChainHeartSeal(timestamp, intro);
@@ -6870,7 +7106,7 @@ const gateStyle = [
           context.restore();
         }
 
-        chainBackCanvas.style.opacity = Math.min(1, visibility * 0.78).toFixed(3);
+        chainBackCanvas.style.opacity = Math.min(1, visibility * 0.88).toFixed(3);
         chainFrontCanvas.style.opacity = Math.min(1, visibility).toFixed(3);
       };
 
