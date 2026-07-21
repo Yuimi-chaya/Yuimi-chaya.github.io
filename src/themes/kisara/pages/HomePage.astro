@@ -277,6 +277,9 @@ const gateStyle = [
       const releaseCrossBuildEndAt = 0.045;
       const releaseCrossFlashEndAt = 0.072;
       const releaseCrossEndAt = 0.1;
+      const releaseCrossSpinEndAt = 0.046;
+      const releaseCrossHoldEndAt = 0.058;
+      const releaseCrossRetractEndAt = 0.078;
       const releaseCollapseStartAt = 0.17;
       const releaseCollapseEndAt = 0.39;
       const releaseShockwaveStartAt = 0.54;
@@ -5859,53 +5862,105 @@ const gateStyle = [
           titleLensCenterX = warpOriginX - (titleLensRect.left - lensGateRect.left);
           titleLensCenterY = warpOriginY - (titleLensRect.top - lensGateRect.top);
         }
+        const crossAutoplayTimeline = burstAutoplay && burstAutoplayStartedAt > 0
+          ? clamp((timestamp - burstAutoplayStartedAt) / releaseAutoplayDuration, 0, 1)
+          : null;
+        const crossFallbackTimeline = releaseCrossStartAt
+          + clamp((burst - crossStart) / (crossEnd - crossStart), 0, 1)
+            * (releaseCrossEndAt - releaseCrossStartAt);
+        const crossActionTimeline = crossAutoplayTimeline ?? crossFallbackTimeline;
+        const crossStrikeLinear = clamp(
+          (crossActionTimeline - releaseCrossStartAt) / 0.0045,
+          0,
+          1
+        );
+        const crossStrike = 1 - Math.pow(1 - crossStrikeLinear, 4);
+        const crossSpinLinear = clamp(
+          (crossActionTimeline - releaseCrossStartAt)
+            / (releaseCrossSpinEndAt - releaseCrossStartAt),
+          0,
+          1
+        );
+        const crossSpinProgress = 1 - Math.pow(1 - crossSpinLinear, 1.35);
+        const crossHoldLinear = clamp(
+          (crossActionTimeline - releaseCrossSpinEndAt)
+            / (releaseCrossHoldEndAt - releaseCrossSpinEndAt),
+          0,
+          1
+        );
+        const crossHoldPulse = Math.sin(crossHoldLinear * Math.PI);
+        const crossRetractLinear = clamp(
+          (crossActionTimeline - releaseCrossHoldEndAt)
+            / (releaseCrossRetractEndAt - releaseCrossHoldEndAt),
+          0,
+          1
+        );
+        const crossRetract = 1 - Math.pow(1 - crossRetractLinear, 3.4);
+        const crossRetractImpact = Math.pow(Math.sin(crossRetractLinear * Math.PI), 2.15);
+        const crossBeatEnvelope = crossStrike * (1 - crossRetract);
         const crossPulse = 0.5 + 0.5 * Math.sin(
           motionPhases.crossPulse + Math.sin(motionPhases.crossPulseMod)
         );
-        const crossStrobe = clamp(crossFlash * (0.42 + crossPulse * 0.64) + releaseFlash * 1.18, 0, 1.35);
+        const crossStrobe = clamp(
+          crossFlash * 0.18
+            + crossHoldPulse * 0.34
+            + crossRetractImpact * (0.88 + crossPulse * 0.22),
+          0,
+          1.35
+        );
         const crossWaveExit = 1 - smoothstep(clamp(
           (burst - (crossFlashEnd - 0.045)) / ((crossEnd - 0.05) - (crossFlashEnd - 0.045)),
           0,
           1
         ));
-        const crossRayProgress = clamp(crossBuild * (1 - crossCollapse) * crossWaveExit, 0, 1);
-        const crossRayBreath = 0.72 + crossBuild * 0.28 + crossStrobe * 0.22;
-        const crossRingProgress = crossReleaseLinear;
-        const crossRingOpacity = clamp(releaseFlash * (0.68 + crossPulse * 0.32), 0, 1);
-        const crossShardProgress = clamp((crossBuild * 0.46 + crossFlash * 0.54) * (1 - crossCollapse), 0, 1);
-        const crossShardOpacity = clamp(crossFlash * (0.24 + crossPulse * 0.62) * (1 - crossReleaseLinear) + releaseFlash * 0.28, 0, 1);
-        const crossSparkProgress = clamp(crossFlash * (1 - crossReleaseLinear) + releaseFlash * 0.26, 0, 1);
-        const crossSparkOpacity = clamp(Math.sin(crossFlashLinear * Math.PI) * 0.82 * (1 - crossReleaseLinear) + releaseFlash * 0.34, 0, 1);
-        const crossSparkDistance = crossSparkProgress * Math.min(168, gate.clientWidth * 0.14);
-        const crossCoreOpacity = clamp(
-          (crossBuild * 0.52 + crossFlash * 0.2 + releaseFlash * 0.98)
-            * (0.22 + crossWaveExit * 0.78),
+        const crossRayProgress = clamp(crossBeatEnvelope * crossWaveExit, 0, 1);
+        const crossRayBreath = 0.78 + crossHoldPulse * 0.08 + crossRetractImpact * 0.22;
+        const crossRingProgress = crossRetract;
+        const crossRingOpacity = clamp(crossRetractImpact * (0.7 + crossPulse * 0.3), 0, 1);
+        const crossShardProgress = clamp(
+          crossBeatEnvelope * (0.34 + crossSpinProgress * 0.66),
           0,
           1
         );
-        const crossCoreScale = 0.16 + crossBuild * 0.46 + crossFlash * 0.14 + releaseFlash * 0.76 + crossCollapse * 0.12;
+        const crossShardOpacity = clamp(
+          crossBeatEnvelope * (0.16 + crossFlash * 0.24 + crossPulse * 0.28)
+            + crossRetractImpact * 0.42,
+          0,
+          1
+        );
+        const crossSparkProgress = clamp(crossSpinProgress * 0.36 + crossRetractImpact * 0.64, 0, 1);
+        const crossSparkOpacity = clamp(
+          crossBeatEnvelope * crossFlash * 0.34 + crossRetractImpact * 0.88,
+          0,
+          1
+        );
+        const crossSparkDistance = crossSparkProgress * Math.min(168, gate.clientWidth * 0.14);
+        const crossCoreOpacity = clamp(
+          (crossBeatEnvelope * (0.74 + crossHoldPulse * 0.2) + crossRetractImpact * 0.46)
+            * (0.18 + crossWaveExit * 0.82),
+          0,
+          1
+        );
+        const crossCoreScale = 0.18
+          + crossStrike * 0.54
+          + crossHoldPulse * 0.06
+          + crossRetractImpact * 0.36
+          - crossRetract * 0.3;
         const crossOpacity = clamp(
-          crossBuild * (1 - crossReleaseLinear) * (0.68 + crossPulse * 0.24) + releaseFlash * 0.86,
+          crossBeatEnvelope
+            * (0.8 + crossPulse * 0.08 + crossHoldPulse * 0.1 + crossRetractImpact * 0.14),
           0,
           1
         ) * crossWaveExit;
-        const crossScale = 0.68 + crossBuild * 0.22 + crossFlash * 0.08 - crossCollapse * 0.14 + releaseFlash * 0.12;
-        // Keep the spin on one clock so the eased release keyframes cannot pause it at phase boundaries.
-        const crossAutoplayTimeline = burstAutoplay && burstAutoplayStartedAt > 0
-          ? clamp((timestamp - burstAutoplayStartedAt) / releaseAutoplayDuration, 0, 1)
-          : null;
-        const crossSpinLinear = crossAutoplayTimeline === null
-          ? clamp((burst - crossStart) / (crossEnd - crossStart), 0, 1)
-          : clamp(
-              (crossAutoplayTimeline - releaseCrossStartAt)
-                / (releaseCrossEndAt - releaseCrossStartAt),
-              0,
-              1
-            );
-        const crossSpinProgress = crossSpinLinear * (0.9 + crossSpinLinear * 0.1);
+        const crossScale = 0.72
+          + crossStrike * 0.26
+          + crossHoldPulse * 0.025
+          + crossRetractImpact * 0.055
+          - crossRetract * 0.32;
         const crossRotation = -18
-          + crossSpinProgress * 216;
-        const crossShakeStrength = crossFlash * (0.32 + crossPulse * 0.58) + releaseFlash * 0.9;
+          + crossSpinProgress * 360
+          - crossRetract * 12;
+        const crossShakeStrength = crossRetractImpact * (0.48 + crossPulse * 0.42);
         const crossShakeX = Math.sin(motionPhases.crossShakeX) * crossShakeStrength;
         const crossShakeY = Math.cos(motionPhases.crossShakeY) * crossShakeStrength * 0.68;
         const warningPrelude = phaseProgress(burst, glossFadeEnd, crossStart);
