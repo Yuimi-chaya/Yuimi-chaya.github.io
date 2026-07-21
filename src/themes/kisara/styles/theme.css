@@ -1005,23 +1005,6 @@ a {
   will-change: opacity, clip-path;
 }
 
-.kisara-title-infusion-canvas {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateZ(0);
-  mix-blend-mode: normal;
-  filter:
-    saturate(1.18)
-    contrast(1.08)
-    drop-shadow(0 0 9px rgba(255, 55, 119, 0.38));
-  will-change: opacity;
-}
-
 .kisara-title-data-canvas {
   position: absolute;
   z-index: 2;
@@ -1565,16 +1548,24 @@ a {
 }
 
 .kisara-contract-meter {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  opacity: 0 !important;
-  pointer-events: none;
-  transform: none !important;
-  filter: none !important;
+  position: relative;
+  width: min(620px, 78vw);
+  height: 68px;
+  margin-top: 34px;
+  isolation: isolate;
+  transform: translate3d(
+      calc(var(--kisara-beam-anchor-x) + var(--kisara-beam-shake-x)),
+      calc(var(--kisara-beam-anchor-y) + var(--kisara-beam-shake-y) + var(--kisara-beam-lift)),
+      0
+    )
+    rotate(var(--kisara-beam-angle))
+    scaleX(var(--kisara-beam-scale-x))
+    scaleY(var(--kisara-beam-scale-y));
+  transform-origin: center center;
+  opacity: var(--kisara-beam-opacity);
+  filter: brightness(var(--kisara-beam-brightness))
+    drop-shadow(0 0 var(--kisara-beam-glow) rgba(255, 92, 128, 0.72));
+  will-change: transform, opacity, filter;
 }
 
 .kisara-gate > :not(.kisara-contract-meter):not(.kisara-gate-visual):not(.kisara-title):not(.kisara-burst-canvas):not(.kisara-screen-impact) {
@@ -1584,15 +1575,14 @@ a {
 .kisara-energy-canvas {
   position: absolute;
   z-index: 2;
-  inset: 0;
-  width: 1px;
-  height: 1px;
+  inset: -16px -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 32px);
   pointer-events: none;
-  opacity: 0;
 }
 
 .kisara-contract-state {
-  margin-top: 30px;
+  margin-top: 12px;
   color: #ff7891;
   min-width: 20ch;
   width: min(42ch, calc(100vw - 48px));
