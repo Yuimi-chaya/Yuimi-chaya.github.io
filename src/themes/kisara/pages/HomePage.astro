@@ -359,7 +359,8 @@ const gateStyle = [
         bottom: 0,
         centerX: 0,
         centerY: 0,
-        gaps: []
+        gaps: [],
+        anchorBounds: []
       };
       let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
       let titleLayout = { width: 0, height: 0, left: 0, top: 0 };
@@ -1151,24 +1152,74 @@ const gateStyle = [
         const fontSize = Math.max(1, Number.parseFloat(style.fontSize));
         chainBackContext.save();
         chainBackContext.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
-        const measuredWidth = Math.max(1, chainBackContext.measureText(text).width);
+        chainBackContext.textBaseline = "alphabetic";
+        const textMetrics = chainBackContext.measureText(text);
+        const measuredWidth = Math.max(1, textMetrics.width);
         const widthScale = chainTitleBox.width / measuredWidth;
         const centerX = chainTitleBox.left + chainTitleBox.width * 0.5;
         const textLeft = centerX - measuredWidth * widthScale * 0.5;
+        const measuredAscent = Number.isFinite(textMetrics.actualBoundingBoxAscent)
+          && textMetrics.actualBoundingBoxAscent > 0
+          ? textMetrics.actualBoundingBoxAscent
+          : fontSize * 0.72;
+        const measuredDescent = Number.isFinite(textMetrics.actualBoundingBoxDescent)
+          && textMetrics.actualBoundingBoxDescent >= 0
+          ? textMetrics.actualBoundingBoxDescent
+          : fontSize * 0.06;
+        const top = chainTitleBox.top + chainTitleBox.height * 0.08;
+        const bottom = chainTitleBox.top + chainTitleBox.height * 0.92;
+        const heightScale = (bottom - top) / Math.max(1, measuredAscent + measuredDescent);
+        const baseline = top + measuredAscent * heightScale;
         const gaps = [];
-        for (let index = 1; index < text.length; index += 1) {
-          const prefixWidth = chainBackContext.measureText(text.slice(0, index)).width;
-          gaps.push(textLeft + prefixWidth * widthScale);
+        const glyphBounds = [];
+        let prefixWidth = 0;
+        for (let index = 0; index < text.length; index += 1) {
+          const nextPrefixWidth = chainBackContext.measureText(text.slice(0, index + 1)).width;
+          const glyphMetrics = chainBackContext.measureText(text[index]);
+          const glyphAscent = Number.isFinite(glyphMetrics.actualBoundingBoxAscent)
+            && glyphMetrics.actualBoundingBoxAscent > 0
+            ? glyphMetrics.actualBoundingBoxAscent
+            : measuredAscent;
+          const glyphDescent = Number.isFinite(glyphMetrics.actualBoundingBoxDescent)
+            && glyphMetrics.actualBoundingBoxDescent >= 0
+            ? glyphMetrics.actualBoundingBoxDescent
+            : measuredDescent;
+          glyphBounds.push({
+            left: textLeft + prefixWidth * widthScale,
+            right: textLeft + nextPrefixWidth * widthScale,
+            top: baseline - glyphAscent * heightScale,
+            bottom: baseline + glyphDescent * heightScale
+          });
+          if (index < text.length - 1) {
+            gaps.push(textLeft + nextPrefixWidth * widthScale);
+          }
+          prefixWidth = nextPrefixWidth;
         }
         chainBackContext.restore();
+        const anchorBounds = Array.from({ length: text.length + 1 }, (_, index) => {
+          if (index === 0) {
+            return { top: glyphBounds[0].top, bottom: glyphBounds[0].bottom };
+          }
+          if (index === text.length) {
+            const glyph = glyphBounds[glyphBounds.length - 1];
+            return { top: glyph.top, bottom: glyph.bottom };
+          }
+          const leftGlyph = glyphBounds[index - 1];
+          const rightGlyph = glyphBounds[index];
+          return {
+            top: (leftGlyph.top + rightGlyph.top) * 0.5,
+            bottom: (leftGlyph.bottom + rightGlyph.bottom) * 0.5
+          };
+        });
         chainGlyphLayout = {
           textLeft,
           textRight: textLeft + measuredWidth * widthScale,
-          top: chainTitleBox.top + chainTitleBox.height * 0.08,
-          bottom: chainTitleBox.top + chainTitleBox.height * 0.92,
+          top,
+          bottom,
           centerX,
           centerY: chainTitleBox.top + chainTitleBox.height * 0.52,
-          gaps
+          gaps,
+          anchorBounds
         };
       };
 
@@ -6532,24 +6583,33 @@ const gateStyle = [
           : box.left + box.width;
         const centerX = layout.centerX || box.left + box.width * 0.5;
         const centerY = layout.centerY || box.top + box.height * 0.52;
-        const top = (layout.bottom > layout.top ? layout.top : box.top)
-          + box.height * definition.topInset;
-        const bottom = (layout.bottom > layout.top ? layout.bottom : box.top + box.height)
-          - box.height * definition.bottomInset;
+        const fallbackTop = layout.bottom > layout.top ? layout.top : box.top;
+        const fallbackBottom = layout.bottom > layout.top
+          ? layout.bottom
+          : box.top + box.height;
         const xShift = box.width * definition.xShift;
         const anchorXs = [
           textLeft - box.width * definition.xInset,
           ...gaps.map((gap) => gap + xShift),
           textRight + box.width * definition.xInset
         ];
+        const anchorBounds = layout.anchorBounds.length === anchorXs.length
+          ? layout.anchorBounds
+          : anchorXs.map(() => ({ top: fallbackTop, bottom: fallbackBottom }));
         const sealMotion = resolveSealMotion(fill, intro);
         const pull = sealMotion.weavePull;
         const points = anchorXs.map((x, index) => {
           const upper = (index + definition.verticalPhase) % 2 === 0;
+          const bounds = anchorBounds[index];
+          const localTop = Number.isFinite(bounds?.top) ? bounds.top : fallbackTop;
+          const localBottom = Number.isFinite(bounds?.bottom) ? bounds.bottom : fallbackBottom;
+          const localHeight = Math.max(1, localBottom - localTop);
+          const top = localTop + localHeight * definition.topInset;
+          const bottom = localBottom - localHeight * definition.bottomInset;
           const endpointEase = index === 0 || index === anchorXs.length - 1 ? 0.08 : 0;
           const y = upper
-            ? top + box.height * endpointEase
-            : bottom - box.height * endpointEase;
+            ? top + localHeight * endpointEase
+            : bottom - localHeight * endpointEase;
           return {
             x: x + (centerX - x) * pull,
             y: y + (centerY - y) * pull
