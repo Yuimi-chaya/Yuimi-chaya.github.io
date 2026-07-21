@@ -6432,8 +6432,8 @@ const gateStyle = [
           buildEnd: 0.54,
           direction: 1,
           phase: -1.92,
-          radiusX: 0.508,
-          radiusY: 0.48,
+          radiusX: 0.49,
+          radiusY: 0.405,
           rotation: -0.02,
           breakT: 0.18,
           desktopLinks: 68,
@@ -6596,7 +6596,7 @@ const gateStyle = [
           const angle = definition.phase + definition.direction * unit * fullTurn;
           const rotationCosine = Math.cos(definition.rotation);
           const rotationSine = Math.sin(definition.rotation);
-          const frameExponent = 0.82;
+          const frameExponent = 0.76;
           const framePoint = (sampleAngle) => {
             const sampleCosine = Math.cos(sampleAngle);
             const sampleSine = Math.sin(sampleAngle);
@@ -7434,9 +7434,28 @@ const gateStyle = [
           }
         }
 
-        drawChainLayer(chainBackContext, layerRecords.back, false);
-        drawChainLayer(chainFrontContext, layerRecords.front, true);
-        for (const leader of leaders) drawChainLeader(chainFrontContext, leader);
+        const backFrameRecords = layerRecords.back.filter(
+          (record) => record.definition.type === "frame"
+        );
+        const backWeaveRecords = layerRecords.back.filter(
+          (record) => record.definition.type !== "frame"
+        );
+        const frontFrameRecords = layerRecords.front.filter(
+          (record) => record.definition.type === "frame"
+        );
+        const frontWeaveRecords = layerRecords.front.filter(
+          (record) => record.definition.type !== "frame"
+        );
+        drawChainLayer(chainBackContext, backFrameRecords, false);
+        drawChainLayer(chainBackContext, backWeaveRecords, false);
+        drawChainLayer(chainFrontContext, frontWeaveRecords, true);
+        drawChainLayer(chainFrontContext, frontFrameRecords, true);
+        for (const leader of leaders.filter((leader) => leader.definition.type !== "frame")) {
+          drawChainLeader(chainFrontContext, leader);
+        }
+        for (const leader of leaders.filter((leader) => leader.definition.type === "frame")) {
+          drawChainLeader(chainFrontContext, leader);
+        }
         drawChainRupture(timestamp, intro, ruptureEvents, visibility, isMobile);
 
         chainBackCanvas.style.opacity = Math.min(1, visibility * 0.88).toFixed(3);
