@@ -1,56 +1,148 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import "../styles/projects.css";
 import { Icon } from "astro-icon/components";
 import { projectEntries, projectTechLines } from "@/core/data/projects";
+
+const linePresentation = {
+  unity: { icon: "simple-icons:unity", code: "U3D" },
+  blender: { icon: "simple-icons:blender", code: "BLD" },
+  ue5: { icon: "simple-icons:unrealengine", code: "UE5" },
+  mmd: { icon: "tabler:movie", code: "MMD" },
+  astrbot: { icon: "tabler:terminal-2", code: "BOT" }
+} as const;
 ---
 
-<KisaraLayout title="Projects | Kisara" description="Yuimi Lab 的项目与实验记录。">
-  <section class="kisara-page-lead">
-    <div class="kisara-page-lead-inner">
-      <p class="kisara-section-index">LABORATORY INDEX / WORKS</p>
-      <h1>Active laboratory.</h1>
-      <p>正在运转、正在学习，也正在等待下一次灵感接入的项目线。按技术频道切换当前实验。</p>
-      <div class="kisara-lead-metrics">
-        <span><strong>{String(projectEntries.length).padStart(2, "0")}</strong> PROJECTS</span>
-        <span><strong>{String(projectTechLines.length).padStart(2, "0")}</strong> TECH LINES</span>
+<KisaraLayout title="Works | Kisara" description="Yuimi Lab 的项目与实验记录。">
+  <section class="kisara-works-intro">
+    <div class="kisara-works-intro-grid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="kisara-works-intro-inner">
+      <p class="kisara-works-kicker"><span>04</span> CONTRACT OPERATIONS / WORKS</p>
+      <div class="kisara-works-title-row">
+        <h1>Build the<br /><em>strange things.</em></h1>
+        <p>项目不一定都要长成产品。也可以是插件、镜头练习、交互原型，或一间还在学习怎么点亮的 UE5 房间。</p>
       </div>
+      <dl>
+        <div><dt>OPERATIONS</dt><dd>{String(projectEntries.length).padStart(2, "0")}</dd></div>
+        <div><dt>TECH LINES</dt><dd>{String(projectTechLines.length).padStart(2, "0")}</dd></div>
+        <div><dt>CURRENT MODE</dt><dd>ITERATING</dd></div>
+      </dl>
     </div>
   </section>
-  <section class="kisara-directory-shell" data-kisara-projects>
-    <div class="kisara-tech-selector" role="group" aria-label="技术线筛选">
-      <button type="button" data-project-filter="all" aria-pressed="true"><span>00</span>ALL CHANNELS</button>
+
+  <section class="kisara-works-console" data-kisara-projects data-active-line={projectEntries[0].line}>
+    <div class="kisara-works-channel-rail" role="group" aria-label="技术线筛选">
+      <button type="button" data-project-filter="all" aria-pressed="true">
+        <span>00</span><Icon name="tabler:sparkles" aria-hidden="true" /><strong>ALL</strong><small>全部频道</small>
+      </button>
       {projectTechLines.map((line, index) => (
-        <button type="button" data-project-filter={line.key} aria-pressed="false"><span>{String(index + 1).padStart(2, "0")}</span>{line.label}</button>
+        <button type="button" data-project-filter={line.key} aria-pressed="false">
+          <span>{String(index + 1).padStart(2, "0")}</span>
+          <Icon name={linePresentation[line.key].icon} aria-hidden="true" />
+          <strong>{linePresentation[line.key].code}</strong>
+          <small>{line.label}</small>
+        </button>
       ))}
     </div>
-    <div class="kisara-record-list kisara-project-list">
-      {projectEntries.map((project, index) => (
-        <article data-project-record data-line={project.line}>
-          <span>{String(index + 1).padStart(2, "0")}</span>
-          <div>
-            <small><i aria-hidden="true"></i>{project.type} / {project.status}</small>
-            <h2>{project.title}</h2>
-            <p>{project.summary}</p>
-            <ul>{project.details.map((detail) => <li>{detail}</li>)}</ul>
-          </div>
-          <strong>{project.line.toUpperCase()} <Icon name="tabler:activity-heartbeat" aria-hidden="true" /></strong>
-        </article>
-      ))}
+
+    <div class="kisara-works-bench">
+      <aside class="kisara-works-queue">
+        <header>
+          <div><span aria-hidden="true"></span><p>OPERATION QUEUE</p></div>
+          <output data-project-count>{projectEntries.length} ONLINE</output>
+        </header>
+        <div class="kisara-works-project-buttons">
+          {projectEntries.map((project, index) => (
+            <button
+              type="button"
+              data-project-select={project.id}
+              data-line={project.line}
+              aria-pressed={index === 0 ? "true" : "false"}
+              aria-controls={`kisara-project-${project.id}`}
+            >
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <Icon name={linePresentation[project.line].icon} aria-hidden="true" />
+              <span><strong>{project.title}</strong><small>{project.status}</small></span>
+              <i aria-hidden="true"></i>
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <div class="kisara-works-stage" aria-live="polite">
+        <div class="kisara-works-stage-grid" aria-hidden="true"><i></i><i></i><i></i></div>
+        {projectEntries.map((project, index) => (
+          <article
+            id={`kisara-project-${project.id}`}
+            data-project-panel={project.id}
+            data-line={project.line}
+            hidden={index !== 0}
+          >
+            <Icon class="kisara-works-watermark" name={linePresentation[project.line].icon} aria-hidden="true" />
+            <header>
+              <p><span aria-hidden="true"></span>{linePresentation[project.line].code} / {project.type}</p>
+              <small>{project.status}</small>
+            </header>
+            <div class="kisara-works-stage-copy">
+              <p class="kisara-works-stage-index">OPERATION {String(index + 1).padStart(2, "0")}</p>
+              <h2>{project.title}</h2>
+              <p>{project.summary}</p>
+            </div>
+            <ol>
+              {project.details.map((detail, detailIndex) => (
+                <li><span>{String(detailIndex + 1).padStart(2, "0")}</span><strong>{detail}</strong></li>
+              ))}
+            </ol>
+            <footer>
+              <span>LINE / {project.line.toUpperCase()}</span>
+              <span>STATE / {project.status}</span>
+              <Icon name="tabler:activity-heartbeat" aria-hidden="true" />
+            </footer>
+          </article>
+        ))}
+      </div>
     </div>
   </section>
 
   <script is:inline>
     (() => {
-      const projects = document.querySelector("[data-kisara-projects]");
-      if (!projects) return;
-      const buttons = Array.from(projects.querySelectorAll("[data-project-filter]"));
-      const records = Array.from(projects.querySelectorAll("[data-project-record]"));
-      buttons.forEach((button) => button.addEventListener("click", () => {
-        const filter = button.dataset.projectFilter ?? "all";
-        buttons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
-        records.forEach((record) => {
-          record.hidden = filter !== "all" && record.dataset.line !== filter;
+      const root = document.querySelector("[data-kisara-projects]");
+      if (!(root instanceof HTMLElement)) return;
+      const filters = Array.from(root.querySelectorAll("[data-project-filter]"));
+      const selectors = Array.from(root.querySelectorAll("[data-project-select]"));
+      const panels = Array.from(root.querySelectorAll("[data-project-panel]"));
+      const count = root.querySelector("[data-project-count]");
+
+      const activate = (selector) => {
+        if (!(selector instanceof HTMLElement) || selector.hidden) return;
+        const id = selector.dataset.projectSelect;
+        selectors.forEach((item) => item.setAttribute("aria-pressed", String(item === selector)));
+        panels.forEach((panel) => {
+          if (panel instanceof HTMLElement) panel.hidden = panel.dataset.projectPanel !== id;
         });
+        root.dataset.activeLine = selector.dataset.line ?? "astrbot";
+      };
+
+      const applyFilter = (filter) => {
+        let visibleCount = 0;
+        selectors.forEach((selector) => {
+          if (!(selector instanceof HTMLElement)) return;
+          const visible = filter === "all" || selector.dataset.line === filter;
+          selector.hidden = !visible;
+          if (visible) visibleCount += 1;
+        });
+        filters.forEach((button) => {
+          if (button instanceof HTMLElement) button.setAttribute("aria-pressed", String(button.dataset.projectFilter === filter));
+        });
+        const active = selectors.find((selector) => selector.getAttribute("aria-pressed") === "true" && !(selector instanceof HTMLElement && selector.hidden));
+        const fallback = selectors.find((selector) => selector instanceof HTMLElement && !selector.hidden);
+        activate(active ?? fallback);
+        if (count) count.textContent = `${String(visibleCount).padStart(2, "0")} ONLINE`;
+      };
+
+      selectors.forEach((selector) => selector.addEventListener("click", () => activate(selector)));
+      filters.forEach((button) => button.addEventListener("click", () => {
+        if (button instanceof HTMLElement) applyFilter(button.dataset.projectFilter ?? "all");
       }));
     })();
   </script>
