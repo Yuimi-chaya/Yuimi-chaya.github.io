@@ -247,6 +247,7 @@ a {
   --kisara-enchant-opacity: 0;
   --kisara-enchant-pulse: 0;
   --kisara-enchant-flow: 0%;
+  --kisara-title-vivid: 0;
   --kisara-title-impact-x: 0px;
   --kisara-title-impact-y: 0px;
   --kisara-beam-shake-x: 0px;
@@ -888,12 +889,22 @@ a {
 .kisara-title > .kisara-title-tide {
   position: relative;
   opacity: min(var(--kisara-tide-opacity, 0), var(--kisara-title-source-opacity));
-  background-image: linear-gradient(
-    180deg,
-    rgba(255, 194, 209, 0.58) 0%,
-    rgba(255, 68, 105, 0.62) 52%,
-    rgba(202, 21, 70, 0.58) 100%
-  );
+  background-image:
+    radial-gradient(circle at 24% 26%, rgba(238, 193, 184, 0.16) 0 1.4%, transparent 4.2%),
+    repeating-linear-gradient(
+      104deg,
+      rgba(255, 225, 218, 0.035) 0 1px,
+      rgba(24, 3, 14, 0.07) 1px 2px,
+      transparent 2px 7px
+    ),
+    linear-gradient(
+      180deg,
+      rgba(183, 132, 139, 0.88) 0%,
+      rgba(137, 48, 67, 0.94) 52%,
+      rgba(82, 19, 39, 0.96) 100%
+    );
+  background-size: 100% 100%, 11px 100%, 100% 100%;
+  background-blend-mode: screen, multiply, normal;
   -webkit-text-stroke-color: transparent;
   filter: none;
   -webkit-filter: none;
@@ -932,11 +943,13 @@ a {
 
 .kisara-title-tide::before {
   background-image: linear-gradient(180deg, #ff8da1 0%, #ff365f 52%, #d91f4c 100%);
-  opacity: 0.78;
+  opacity: calc(0.055 + var(--kisara-title-vivid, 0) * 0.805);
   filter: blur(var(--kisara-title-blur));
   -webkit-filter: blur(var(--kisara-title-blur));
-  text-shadow: 0 12px 30px rgba(5, 8, 28, 0.4);
-  will-change: filter;
+  text-shadow:
+    0 12px 30px rgba(5, 8, 28, 0.4),
+    0 0 calc(var(--kisara-title-vivid, 0) * 18px) rgba(255, 58, 112, 0.34);
+  will-change: filter, opacity;
 }
 
 .kisara-title > .kisara-title-enchant {
