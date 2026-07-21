@@ -749,23 +749,6 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   background-color: #111636;
 }
 
-.kisara-gate::after {
-  content: "";
-  position: absolute;
-  z-index: 20;
-  inset: -2px;
-  pointer-events: none;
-  opacity: 0;
-  background: rgba(17, 22, 54, 0.64);
-  backdrop-filter: blur(0) saturate(1);
-  transition: opacity 260ms ease, backdrop-filter 260ms ease;
-}
-
-.kisara-gate.is-color-resetting::after {
-  opacity: 0.88;
-  backdrop-filter: blur(14px) saturate(0.72);
-}
-
 .kisara-screen-impact,
 .kisara-screen-impact::before,
 .kisara-screen-impact::after {
@@ -2124,7 +2107,12 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 }
 
 .kisara-opening {
+  --kisara-opening-edge-base-image: linear-gradient(90deg, #111636, #111636);
+  --kisara-opening-edge-fight-image: linear-gradient(90deg, #111636, #111636);
+  --kisara-opening-edge-fight-opacity: 0;
   position: relative;
+  isolation: isolate;
+  overflow: hidden;
   width: 100%;
   margin: 0;
   padding: 130px 0 150px;
@@ -2132,18 +2120,39 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   background: #f7f3fb;
 }
 
-.kisara-opening-inner {
-  width: min(1180px, calc(100% - 48px));
-  margin-inline: auto;
-}
-
-.kisara-opening::before {
-  content: "";
+.kisara-opening-edge {
   position: absolute;
+  z-index: 0;
+  top: 0;
   right: 0;
   left: 0;
-  height: 1px;
-  background: #d9d7e8;
+  height: 180px;
+  pointer-events: none;
+}
+
+.kisara-opening-edge > span {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-position: top left;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.kisara-opening-edge-base {
+  background-image: var(--kisara-opening-edge-base-image);
+}
+
+.kisara-opening-edge-fight {
+  opacity: var(--kisara-opening-edge-fight-opacity);
+  background-image: var(--kisara-opening-edge-fight-image);
+}
+
+.kisara-opening-inner {
+  position: relative;
+  z-index: 1;
+  width: min(1180px, calc(100% - 48px));
+  margin-inline: auto;
 }
 
 .kisara-opening .kisara-section-index,

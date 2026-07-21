@@ -134,7 +134,17 @@ const gateStyle = [
     <a class="kisara-gate-skip" href="#kisara-opening" data-kisara-skip>SKIP</a>
   </section>
 
-  <section id="kisara-opening" class="kisara-opening" aria-labelledby="kisara-opening-title">
+  <section
+    id="kisara-opening"
+    class="kisara-opening"
+    aria-labelledby="kisara-opening-title"
+    data-kisara-edge-base-src={activeBackgroundUrl ?? ""}
+    data-kisara-edge-fight-src={activeFightUrl ?? ""}
+  >
+    <div class="kisara-opening-edge" aria-hidden="true">
+      <span class="kisara-opening-edge-base"></span>
+      <span class="kisara-opening-edge-fight"></span>
+    </div>
     <div class="kisara-opening-inner">
       <p class="kisara-section-index">AFTER THE SIGNATURE / 001</p>
       <div class="kisara-opening-heading">
@@ -253,15 +263,25 @@ const gateStyle = [
       const titleDataContext = titleDataCanvas?.getContext("2d", { alpha: true });
       const postReleaseCanvas = gate.querySelector("[data-kisara-post-release-canvas]");
       const postReleaseContext = postReleaseCanvas?.getContext("2d", { alpha: true });
+      const baseBackground = gate.querySelector(".kisara-gate-background-base");
       const fightBackground = gate.querySelector(".kisara-gate-background-fight");
+      const fightWashBackground = gate.querySelector(".kisara-gate-background-fight-wash");
       const meterShell = gate.querySelector(".kisara-contract-meter");
       const title = gate.querySelector(".kisara-title");
       const cross = gate.querySelector(".kisara-title-cross");
       const opening = document.querySelector("#kisara-opening");
+      const openingBaseEdgeSource = opening instanceof HTMLElement ? opening.dataset.kisaraEdgeBaseSrc ?? "" : "";
+      const openingFightEdgeSource = opening instanceof HTMLElement ? opening.dataset.kisaraEdgeFightSrc ?? "" : "";
       const state = gate.querySelector("[data-kisara-state]");
       const cue = gate.querySelector("[data-kisara-cue]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let openingEdgeMix = 0;
+      let lockedOpeningEdgeMix = null;
+      let openingBaseEdgeSampler = null;
+      let openingFightEdgeSampler = null;
+      let openingFightTextureReady = false;
+      let openingEdgeResizeFrame = 0;
       const renderLegacyChargeBeam = false;
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
@@ -311,6 +331,204 @@ const gateStyle = [
       const gravityIngressStart = crossEnd - 0.018;
       const warningTailEnd = blackHoleFieldEnd;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
+      const compositeOpeningEdgeColor = (backdrop, foreground, opacity) => {
+        const alpha = clamp(opacity, 0, 1);
+        return backdrop.map((channel, index) => channel + (foreground[index] - channel) * alpha);
+      };
+      const readOpeningEdgePixel = (sampler, u, v) => {
+        if (!sampler) return null;
+        const sampleX = clamp(u, 0, 1) * (sampler.width - 1);
+        const sampleY = clamp(v, 0, 1) * (sampler.height - 1);
+        const x0 = Math.floor(sampleX);
+        const y0 = Math.floor(sampleY);
+        const x1 = Math.min(sampler.width - 1, x0 + 1);
+        const y1 = Math.min(sampler.height - 1, y0 + 1);
+        const mixX = sampleX - x0;
+        const mixY = sampleY - y0;
+        const pixel = (x, y, channel) => sampler.data[(y * sampler.width + x) * 4 + channel];
+        return [0, 1, 2].map((channel) => {
+          const top = pixel(x0, y0, channel) + (pixel(x1, y0, channel) - pixel(x0, y0, channel)) * mixX;
+          const bottom = pixel(x0, y1, channel) + (pixel(x1, y1, channel) - pixel(x0, y1, channel)) * mixX;
+          return top + (bottom - top) * mixY;
+        });
+      };
+      const createOpeningEdgeProjection = (element, sampler) => {
+        if (!(element instanceof HTMLElement) || !sampler) return null;
+        const rect = element.getBoundingClientRect();
+        const layoutWidth = element.offsetWidth;
+        const layoutHeight = element.offsetHeight;
+        if (rect.width <= 0 || rect.height <= 0 || layoutWidth <= 0 || layoutHeight <= 0) return null;
+        const coverScale = Math.max(layoutWidth / sampler.sourceWidth, layoutHeight / sampler.sourceHeight);
+        const renderedWidth = sampler.sourceWidth * coverScale;
+        const renderedHeight = sampler.sourceHeight * coverScale;
+        const positionTokens = getComputedStyle(element).backgroundPosition.split(/\s+/);
+        const readPosition = (token, fallback) => {
+          if (!token?.endsWith("%")) return fallback;
+          const value = Number.parseFloat(token);
+          return Number.isFinite(value) ? value / 100 : fallback;
+        };
+        const positionX = readPosition(positionTokens[0], 0.5);
+        const positionY = readPosition(positionTokens[1], 0.5);
+        const renderedLeft = (layoutWidth - renderedWidth) * positionX;
+        const renderedTop = (layoutHeight - renderedHeight) * positionY;
+        return { rect, layoutWidth, layoutHeight, renderedWidth, renderedHeight, renderedLeft, renderedTop, sampler };
+      };
+      const sampleOpeningEdgeProjection = (projection, viewportX, viewportY) => {
+        if (!projection) return null;
+        const localX = (viewportX - projection.rect.left) * projection.layoutWidth / projection.rect.width;
+        const localY = (viewportY - projection.rect.top) * projection.layoutHeight / projection.rect.height;
+        const { renderedLeft, renderedTop, renderedWidth, renderedHeight, sampler } = projection;
+        const u = (localX - renderedLeft) / renderedWidth;
+        const v = (localY - renderedTop) / renderedHeight;
+        if (u < 0 || u > 1 || v < 0 || v > 1) return null;
+        return readOpeningEdgePixel(sampler, u, v);
+      };
+      const loadOpeningEdgeSampler = (source) => new Promise((resolveSampler) => {
+        if (!source) {
+          resolveSampler(null);
+          return;
+        }
+        const image = new Image();
+        image.decoding = "async";
+        image.addEventListener("load", () => {
+          try {
+            const sampleWidth = Math.min(960, image.naturalWidth);
+            const sampleHeight = Math.max(1, Math.round(sampleWidth * image.naturalHeight / image.naturalWidth));
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d", { willReadFrequently: true });
+            if (!context) {
+              resolveSampler(null);
+              return;
+            }
+            canvas.width = sampleWidth;
+            canvas.height = sampleHeight;
+            context.drawImage(image, 0, 0, sampleWidth, sampleHeight);
+            resolveSampler({
+              sourceWidth: image.naturalWidth,
+              sourceHeight: image.naturalHeight,
+              width: sampleWidth,
+              height: sampleHeight,
+              data: context.getImageData(0, 0, sampleWidth, sampleHeight).data
+            });
+          } catch {
+            resolveSampler(null);
+          }
+        }, { once: true });
+        image.addEventListener("error", () => resolveSampler(null), { once: true });
+        image.src = new URL(source, document.baseURI).href;
+      });
+      const renderOpeningEdgeTexture = (mode) => {
+        if (!(opening instanceof HTMLElement)) return false;
+        const sampler = mode === "fight" ? openingFightEdgeSampler : openingBaseEdgeSampler;
+        const layer = mode === "fight" ? fightWashBackground : baseBackground;
+        if (!sampler || !(layer instanceof HTMLElement)) return false;
+        const gateRect = gate.getBoundingClientRect();
+        const projection = createOpeningEdgeProjection(layer, sampler);
+        if (!projection) return false;
+        const textureWidth = Math.max(96, Math.min(960, Math.round(gateRect.width)));
+        const textureHeight = 180;
+        const textureCanvas = document.createElement("canvas");
+        const textureContext = textureCanvas.getContext("2d");
+        if (!textureContext) return false;
+        textureCanvas.width = textureWidth;
+        textureCanvas.height = textureHeight;
+        const imageData = textureContext.createImageData(textureWidth, textureHeight);
+        const edgeY = gateRect.bottom - 0.5;
+        const paperColor = [247, 243, 251];
+        const edgeSmoothstep = (value) => value * value * (3 - 2 * value);
+        for (let row = 0; row < textureHeight; row += 1) {
+          const rowProgress = row / Math.max(1, textureHeight - 1);
+          const sourceDepth = row * (0.4 + rowProgress * 0.2);
+          const sourceY = edgeY - sourceDepth;
+          const horizontalDrift = Math.sin(rowProgress * Math.PI * 1.35) * rowProgress * gateRect.width * 0.012;
+          const rowColors = [];
+          for (let index = 0; index < textureWidth; index += 1) {
+            const viewportX = gateRect.left + (index + 0.5) * gateRect.width / textureWidth + horizontalDrift;
+            const sampled = sampleOpeningEdgeProjection(projection, viewportX, sourceY);
+            let color;
+            if (mode === "fight") {
+              color = sampled ?? [17, 22, 54];
+            } else {
+              color = compositeOpeningEdgeColor([17, 22, 54], sampled ?? [17, 22, 54], 0.98);
+              const atmospherePosition = clamp((sourceY - gateRect.top) / Math.max(1, gateRect.height), 0, 1);
+              color = compositeOpeningEdgeColor(color, [7, 10, 31], 0.34 + atmospherePosition * 0.24);
+            }
+            rowColors.push(color);
+          }
+          const blurRadius = Math.round(Math.pow(rowProgress, 1.25) * 52);
+          const prefixes = [new Float64Array(textureWidth + 1), new Float64Array(textureWidth + 1), new Float64Array(textureWidth + 1)];
+          const rowAverage = [0, 0, 0];
+          rowColors.forEach((color, index) => {
+            for (let channel = 0; channel < 3; channel += 1) {
+              prefixes[channel][index + 1] = prefixes[channel][index] + color[channel];
+              rowAverage[channel] += color[channel] / textureWidth;
+            }
+          });
+          const flattenMix = edgeSmoothstep(clamp((rowProgress - 0.08) / 0.78, 0, 1)) * 0.62;
+          const paperMix = Math.pow(edgeSmoothstep(clamp((rowProgress - 0.015) / 0.985, 0, 1)), 0.88);
+          for (let index = 0; index < textureWidth; index += 1) {
+            const start = Math.max(0, index - blurRadius);
+            const end = Math.min(textureWidth, index + blurRadius + 1);
+            const count = Math.max(1, end - start);
+            const color = prefixes.map((prefix, channel) => {
+              const blurred = (prefix[end] - prefix[start]) / count;
+              const flattened = blurred + (rowAverage[channel] - blurred) * flattenMix;
+              return flattened + (paperColor[channel] - flattened) * paperMix;
+            });
+            const offset = (row * textureWidth + index) * 4;
+            imageData.data[offset] = Math.round(clamp(color[0], 0, 255));
+            imageData.data[offset + 1] = Math.round(clamp(color[1], 0, 255));
+            imageData.data[offset + 2] = Math.round(clamp(color[2], 0, 255));
+            imageData.data[offset + 3] = 255;
+          }
+        }
+        textureContext.putImageData(imageData, 0, 0);
+        const property = mode === "fight"
+          ? "--kisara-opening-edge-fight-image"
+          : "--kisara-opening-edge-base-image";
+        opening.style.setProperty(property, `url("${textureCanvas.toDataURL("image/png")}")`);
+        if (mode === "fight") openingFightTextureReady = true;
+        return true;
+      };
+      const refreshOpeningEdgeTextures = () => {
+        renderOpeningEdgeTexture("base");
+        if (openingFightTextureReady || openingEdgeMix > 0.5) renderOpeningEdgeTexture("fight");
+      };
+      const scheduleOpeningEdgeTextureRefresh = () => {
+        if (openingEdgeResizeFrame) window.cancelAnimationFrame(openingEdgeResizeFrame);
+        openingEdgeResizeFrame = window.requestAnimationFrame(() => {
+          openingEdgeResizeFrame = 0;
+          refreshOpeningEdgeTextures();
+        });
+      };
+      const applyOpeningEdgeMix = (mixAmount) => {
+        if (!(opening instanceof HTMLElement)) return;
+        const mix = clamp(mixAmount, 0, 1);
+        openingEdgeMix = mix;
+        opening.style.setProperty("--kisara-opening-edge-fight-opacity", mix.toFixed(4));
+      };
+      const syncOpeningEdgeMix = (mixAmount) => {
+        if (lockedOpeningEdgeMix !== null) return;
+        applyOpeningEdgeMix(mixAmount);
+      };
+      const lockOpeningEdgeMix = () => {
+        renderOpeningEdgeTexture("fight");
+        lockedOpeningEdgeMix = openingEdgeMix;
+        applyOpeningEdgeMix(lockedOpeningEdgeMix);
+      };
+      const releaseOpeningEdgeMix = () => {
+        lockedOpeningEdgeMix = null;
+      };
+      Promise.all([
+        loadOpeningEdgeSampler(openingBaseEdgeSource),
+        loadOpeningEdgeSampler(openingFightEdgeSource)
+      ]).then(([baseSampler, fightSampler]) => {
+        openingBaseEdgeSampler = baseSampler;
+        openingFightEdgeSampler = fightSampler;
+        renderOpeningEdgeTexture("base");
+        if (openingEdgeMix > 0.5) renderOpeningEdgeTexture("fight");
+      });
+      window.addEventListener("resize", scheduleOpeningEdgeTextureRefresh, { passive: true });
       const startsComplete = reducedMotion && !restoredBelowGate;
       let progress = startsComplete ? 1 : 0;
       let targetProgress = progress;
@@ -388,7 +606,6 @@ const gateStyle = [
       let pageMode = restoredBelowGate ? "next" : "gate";
       let scrollFrame = 0;
       let layoutResizeFrame = 0;
-      let resetTransitionTimer = 0;
       let restoreWindowOpen = true;
       let poseTimestamp = 0;
       let poseClock = 0;
@@ -8818,6 +9035,7 @@ const gateStyle = [
           && burstAutoplayComplete;
         const tideVisible = fill > 0.0005;
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
+        syncOpeningEdgeMix(reveal);
         const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
         const glossPosition = -18 + glossSweep * 136;
         const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
@@ -9143,34 +9361,20 @@ const gateStyle = [
         if (scrollFrame) return;
         pageMode = "snap";
         setPostReleaseActive(false);
-        let resetApplied = false;
-        gate.classList.remove("is-color-resetting");
+        lockOpeningEdgeMix();
         smoothScrollTo(getNextPageTop(), () => {
-          if (!resetApplied) resetGateState();
+          resetGateState();
           pageMode = "next";
           render();
-          if (resetTransitionTimer) window.clearTimeout(resetTransitionTimer);
-          resetTransitionTimer = window.setTimeout(() => {
-            gate.classList.remove("is-color-resetting");
-            resetTransitionTimer = 0;
-          }, 260);
-        }, (scrollProgress) => {
-          if (scrollProgress >= 0.68) gate.classList.add("is-color-resetting");
-          if (scrollProgress >= 0.86 && !resetApplied) {
-            resetApplied = true;
-            resetGateState();
-          }
         });
       };
 
       const returnToGate = () => {
         if (scrollFrame) return;
-        if (resetTransitionTimer) {
-          window.clearTimeout(resetTransitionTimer);
-          resetTransitionTimer = 0;
-        }
-        gate.classList.remove("is-color-resetting");
         pageMode = "snap";
+        releaseOpeningEdgeMix();
+        applyOpeningEdgeMix(0);
+        renderOpeningEdgeTexture("base");
         publishGateRailState({
           active: true,
           progress: getDocumentScrollProgress(),
@@ -9351,21 +9555,12 @@ const gateStyle = [
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
         animationFrame = 0;
         lastFrameTime = 0;
-        targetProgress = 1;
-        progress = 1;
         velocity = 0;
-        targetBurstProgress = 1;
-        burstProgress = 1;
         burstVelocity = 0;
         burstAutoplay = false;
-        burstAutoplayComplete = true;
         burstAutoplayStartedAt = 0;
-        burstAutoplayTimeline = 1;
-        chargeIntroProgress = 1;
         chargeIntroActive = false;
-        chargeIntroComplete = true;
         chargeIntroStartedAt = 0;
-        render();
         enterNextPage();
       });
 
