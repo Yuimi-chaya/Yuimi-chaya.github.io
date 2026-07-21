@@ -6040,8 +6040,7 @@ const gateStyle = [
         const warningTail = 1 - phaseProgress(burst, crossEnd, warningTailEnd);
         const warningExposure = clamp(
           crossExposurePulse * 0.92
-            + crossRetractImpact * 1.08
-            + releaseFlash * 0.14,
+            + crossRetractImpact * 1.08,
           0,
           1.38
         ) * warningTail;
@@ -6072,7 +6071,7 @@ const gateStyle = [
             + crossHoldPulse * 0.3
             + warningExposure * 1.12
             + crossRetractImpact * 0.72
-            + releaseFlash * 0.28,
+            + releaseFlash * 0.08,
           0,
           1.86
         ) * warningTail;
@@ -6211,11 +6210,19 @@ const gateStyle = [
         gate.style.setProperty("--kisara-warning-saturation", (1 - warningMonochrome * 0.98).toFixed(3));
         gate.style.setProperty(
           "--kisara-warning-contrast",
-          (1 + warningMonochrome * 0.28 + warningPulse * 0.05 + warningInvert * 0.72).toFixed(3)
+          (1
+            + warningMonochrome * 0.28
+            + warningPulse * 0.05
+            + warningExposure * 0.24
+            + warningInvert * 0.72).toFixed(3)
         );
         gate.style.setProperty(
           "--kisara-warning-brightness",
-          (1 - warningMonochrome * 0.42 + warningInvert * 0.06 + warningPulse * 0.01).toFixed(3)
+          (1
+            - warningMonochrome * 0.38
+            + warningExposure * 0.58
+            + warningInvert * 0.06
+            + warningPulse * 0.01).toFixed(3)
         );
         gate.style.setProperty("--kisara-warning-center-x", `${(clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1) * 100).toFixed(2)}%`);
         gate.style.setProperty("--kisara-warning-center-y", `${(clamp(warpOriginY / Math.max(1, gateHeight), 0, 1) * 100).toFixed(2)}%`);
