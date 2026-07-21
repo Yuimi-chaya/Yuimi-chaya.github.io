@@ -707,6 +707,8 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   --kisara-fight-scale: 1.06;
   --kisara-fight-saturation: 0.92;
   --kisara-fight-brightness: 0.9;
+  --kisara-fight-protection-image: none;
+  --kisara-protection-opacity: 0;
   --kisara-reconstruction-center-x: 50%;
   --kisara-reconstruction-center-y: 50%;
   --kisara-reconstruction-inner-radius: 0px;
@@ -1148,6 +1150,31 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
     scale(var(--kisara-gravity-scale));
 }
 
+.kisara-gate-background-fight-protection {
+  z-index: 2;
+  background-image: var(--kisara-fight-background-image);
+  opacity: var(--kisara-protection-opacity);
+  filter: saturate(var(--kisara-fight-saturation)) brightness(var(--kisara-fight-brightness));
+  transform: translate3d(
+      calc(var(--kisara-fight-shift-x) + var(--kisara-post-parallax-x)),
+      calc(var(--kisara-fight-shift-y) + var(--kisara-post-parallax-y)),
+      0
+    )
+    scale(var(--kisara-fight-scale))
+    scale(var(--kisara-gravity-scale));
+  -webkit-mask-image: var(--kisara-fight-protection-image);
+  mask-image: var(--kisara-fight-protection-image);
+  -webkit-mask-position: var(--kisara-gate-background-position);
+  mask-position: var(--kisara-gate-background-position);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: cover;
+  mask-size: cover;
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
+  will-change: opacity, filter, transform;
+}
+
 .kisara-gate-background-fight-wash {
   z-index: 3;
   background-image: var(--kisara-fight-background-image);
@@ -1513,6 +1540,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   aspect-ratio: 1;
   display: block;
   pointer-events: none;
+  visibility: hidden;
   opacity: var(--kisara-cross-opacity);
   transform: translate3d(
       calc(-50% + var(--kisara-cross-shake-x)),
@@ -1524,8 +1552,14 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   transform-origin: 50% 50%;
   overflow: visible;
   font-style: normal;
-  filter: blur(var(--kisara-cross-blur));
-  will-change: opacity, transform, filter;
+  filter: none;
+  backface-visibility: hidden;
+  contain: layout style;
+  will-change: opacity, transform;
+}
+
+.kisara-gate.is-warning-active .kisara-title-cross {
+  visibility: visible;
 }
 
 .kisara-title-cross::before,
@@ -1754,7 +1788,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 .kisara-title-cross {
   width: clamp(190px, 44vw, 500px);
   isolation: isolate;
-  filter: blur(var(--kisara-cross-blur));
+  filter: none;
 }
 
 .kisara-title-cross::before,

@@ -41,7 +41,8 @@ const gateStyle = [
   "--kisara-fill: 0%",
   "--kisara-burst-progress: 0%",
   `--kisara-gate-background-image: ${activeBackgroundUrl ? `url("${activeBackgroundUrl}")` : "none"}`,
-  `--kisara-fight-background-image: ${activeFightUrl ? `url("${activeFightUrl}")` : "none"}`
+  `--kisara-fight-background-image: ${activeFightUrl ? `url("${activeFightUrl}")` : "none"}`,
+  `--kisara-fight-protection-image: ${fightProtectionMaskUrl ? `url("${fightProtectionMaskUrl}")` : "none"}`
 ].join("; ");
 ---
 
@@ -50,6 +51,7 @@ const gateStyle = [
     <div class="kisara-gate-visual" aria-hidden="true">
       <div class="kisara-gate-background kisara-gate-background-base"></div>
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
+      <div class="kisara-gate-background kisara-gate-background-fight-protection"></div>
       <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
       <canvas
         class="kisara-space-lens-canvas"
@@ -307,19 +309,19 @@ const gateStyle = [
       const detonationEnd = 0.982;
       const rainStart = 0.956;
       const rainPeak = 0.992;
-      const releaseAutoplayDuration = 8000;
-      const releaseCrossStartAt = 0.018;
-      const releaseCrossBuildEndAt = 0.038;
-      const releaseCrossFlashEndAt = 0.054;
-      const releaseCrossEndAt = 0.074;
-      const releaseCrossSpinEndAt = 0.043;
-      const releaseCrossHoldEndAt = 0.05;
-      const releaseCrossRetractEndAt = 0.067;
-      const releaseCollapseStartAt = 0.14;
+      const releaseAutoplayDuration = 5500;
+      const releaseCrossStartAt = 0.022;
+      const releaseCrossBuildEndAt = 0.048;
+      const releaseCrossFlashEndAt = 0.07;
+      const releaseCrossEndAt = 0.095;
+      const releaseCrossSpinEndAt = 0.055;
+      const releaseCrossHoldEndAt = 0.064;
+      const releaseCrossRetractEndAt = 0.087;
+      const releaseCollapseStartAt = 0.145;
       const releaseCollapseEndAt = 0.39;
-      const releaseShockwaveStartAt = 0.54;
-      const releaseDetonationStartAt = 0.67;
-      const releaseDetonationEndAt = 0.89;
+      const releaseShockwaveStartAt = 0.49;
+      const releaseDetonationStartAt = 0.61;
+      const releaseDetonationEndAt = 0.82;
       const blackHoleIngressStart = crossFlashEnd + (crossEnd - crossFlashEnd) * 0.28;
       const blackHoleCoreEnd = crossEnd + 0.022;
       const blackHoleDiskStart = crossEnd - 0.008;
@@ -544,6 +546,10 @@ const gateStyle = [
       let chargeIntroActive = false;
       let chargeIntroComplete = startsComplete;
       let chargeIntroStartedAt = 0;
+      let chargeIntroFrom = chargeIntroProgress;
+      let chargeIntroTarget = chargeIntroProgress;
+      let chargeIntroTransitionDuration = 0;
+      let chargeIntroReversing = false;
       let animationFrame = 0;
       let lastFrameTime = 0;
       let touchY = null;
@@ -556,6 +562,7 @@ const gateStyle = [
       let renderedRailActive = null;
       let renderedRailGuided = null;
       let renderedRailTransitioning = null;
+      let warningPresentationActive = false;
       let energyFrame = 0;
       let energyTimer = 0;
       let energyLoopActive = false;
@@ -2854,32 +2861,21 @@ const gateStyle = [
 
           float sampleProtection(vec2 uv) {
             vec2 pixel = 1.0 / max(uResolution, vec2(1.0));
-            vec2 nearOffset = pixel * 12.0;
-            vec2 diagonalOffset = pixel * 20.0;
+            vec2 featherOffset = pixel * 10.0;
             float center = sampleProtectionRaw(uv);
-            float axial = max(
+            float feather = max(
               max(
-                sampleProtectionRaw(uv + vec2(nearOffset.x, 0.0)),
-                sampleProtectionRaw(uv - vec2(nearOffset.x, 0.0))
+                sampleProtectionRaw(uv + vec2(featherOffset.x, 0.0)),
+                sampleProtectionRaw(uv - vec2(featherOffset.x, 0.0))
               ),
               max(
-                sampleProtectionRaw(uv + vec2(0.0, nearOffset.y)),
-                sampleProtectionRaw(uv - vec2(0.0, nearOffset.y))
+                sampleProtectionRaw(uv + vec2(0.0, featherOffset.y)),
+                sampleProtectionRaw(uv - vec2(0.0, featherOffset.y))
               )
             );
-            float diagonal = max(
-              max(
-                sampleProtectionRaw(uv + diagonalOffset),
-                sampleProtectionRaw(uv - diagonalOffset)
-              ),
-              max(
-                sampleProtectionRaw(uv + vec2(diagonalOffset.x, -diagonalOffset.y)),
-                sampleProtectionRaw(uv + vec2(-diagonalOffset.x, diagonalOffset.y))
-              )
-            );
-            float expanded = max(center, max(axial * 0.68, diagonal * 0.5));
-            float protectedCore = smoothstep(0.48, 0.94, center);
-            float protectedFeather = smoothstep(0.012, 0.82, expanded);
+            float expanded = max(center, feather * 0.58);
+            float protectedCore = smoothstep(0.42, 0.92, center);
+            float protectedFeather = smoothstep(0.035, 0.8, expanded);
             return max(protectedCore, protectedFeather);
           }
 
@@ -2906,7 +2902,7 @@ const gateStyle = [
             float radialReach = pow(max(0.0, 1.0 - reachProgress), 1.12);
             float gravityField = outsideCore * radialReach;
             float sourceProtection = sampleProtection(vUv);
-            float distortionMask = pow(max(0.0, 1.0 - sourceProtection), 2.1);
+            float distortionMask = pow(max(0.0, 1.0 - sourceProtection), 1.75);
             float sideDistance = abs(vUv.x - 0.5);
             float sideDepth = smoothstep(0.0, 0.5, sideDistance);
             float sideReach = max(
@@ -3003,17 +2999,13 @@ const gateStyle = [
             vec2 displacedPoint = mix(point, lensedPoint, edgeFade);
             vec2 displacedCandidate = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
             displacedCandidate += sideDisplacement * edgeFade;
-            float destinationProtection = smoothstep(
-              0.018,
-              0.88,
-              sampleProtectionRaw(displacedCandidate)
-            );
+            float destinationProtection = sampleProtection(displacedCandidate);
             float destinationFreedom = pow(
               max(0.0, 1.0 - destinationProtection),
-              1.6
+              1.45
             );
-            float finalDistortionMask = min(distortionMask, destinationFreedom);
-            float distortionBlend = smoothstep(0.015, 0.985, finalDistortionMask);
+            float finalDistortionMask = distortionMask * destinationFreedom;
+            float distortionBlend = smoothstep(0.01, 0.96, finalDistortionMask);
             vec3 color;
             if (distortionBlend <= 0.002) {
               color = sampleScene(vUv);
@@ -3037,7 +3029,7 @@ const gateStyle = [
             float horizon = 1.0 - smoothstep(core * 0.98, core * 1.04, radius);
             color = mix(color, vec3(0.0), horizon * distortionBlend);
             float lensAlpha = max(
-              clamp(uOpacity, 0.0, 1.0),
+              clamp(uOpacity, 0.0, 1.0) * smoothstep(0.025, 0.92, distortionBlend),
               horizon * distortionBlend * smoothstep(0.05, 0.15, gravityStrength)
             );
 
@@ -6238,6 +6230,11 @@ const gateStyle = [
         );
         const lensShockStrength = Math.pow(Math.max(0, shockwavePulse), 0.82) * lensRecovery;
         const lensReveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
+        const protectionClarity = phaseProgress(
+          burst,
+          gravityIngressStart,
+          collapseStart + 0.012
+        ) * (1 - blurRecovery) * lensReveal * 0.98;
         const lensRadius = gateShortSide
           * (0.36 + gravityPressure * 0.24 + collapseDepth * 0.14)
           / gateHeight;
@@ -6615,49 +6612,57 @@ const gateStyle = [
         gate.style.setProperty("--kisara-impact-flash", impactFlash.toFixed(3));
         gate.style.setProperty("--kisara-impact-vignette", impactVignette.toFixed(3));
         gate.style.setProperty("--kisara-impact-scale", impactScale.toFixed(4));
-        gate.style.setProperty("--kisara-warning-monochrome", warningMonochrome.toFixed(3));
-        gate.style.setProperty("--kisara-warning-invert", warningInvert.toFixed(3));
-        gate.style.setProperty("--kisara-warning-focus", warningFocus.toFixed(3));
-        gate.style.setProperty("--kisara-warning-pulse", warningPulse.toFixed(3));
-        gate.style.setProperty("--kisara-warning-exposure", warningExposure.toFixed(3));
-        gate.style.setProperty("--kisara-warning-core-exposure", warningCoreExposure.toFixed(3));
-        gate.style.setProperty("--kisara-warning-aperture", `${warningAperture.toFixed(2)}%`);
-        gate.style.setProperty("--kisara-warning-saturation", (1 - warningMonochrome * 0.98).toFixed(3));
-        gate.style.setProperty(
-          "--kisara-warning-contrast",
-          (1
-            + warningMonochrome * 0.28
-            + warningPulse * 0.05
-            + warningExposure * 0.24
-            + warningInvert * 0.72).toFixed(3)
-        );
-        gate.style.setProperty(
-          "--kisara-warning-brightness",
-          (1
-            - warningMonochrome * 0.38
-            + warningExposure * 0.58
-            + warningInvert * 0.06
-            + warningPulse * 0.01).toFixed(3)
-        );
-        gate.style.setProperty("--kisara-warning-center-x", `${(clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1) * 100).toFixed(2)}%`);
-        gate.style.setProperty("--kisara-warning-center-y", `${(clamp(warpOriginY / Math.max(1, gateHeight), 0, 1) * 100).toFixed(2)}%`);
-        gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-ray-progress", crossRayProgress.toFixed(4));
-        gate.style.setProperty("--kisara-cross-ray-breath", crossRayBreath.toFixed(3));
-        gate.style.setProperty("--kisara-cross-core-scale", crossCoreScale.toFixed(3));
-        gate.style.setProperty("--kisara-cross-core-opacity", crossCoreOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-ring-progress", crossRingProgress.toFixed(3));
-        gate.style.setProperty("--kisara-cross-ring-opacity", crossRingOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-shard-progress", crossShardProgress.toFixed(4));
-        gate.style.setProperty("--kisara-cross-shard-opacity", crossShardOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-spark-opacity", crossSparkOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-cross-spark-distance", `${crossSparkDistance.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-cross-strobe", crossStrobe.toFixed(3));
-        gate.style.setProperty("--kisara-cross-scale", crossScale.toFixed(3));
-        gate.style.setProperty("--kisara-cross-rotation", `${crossRotation.toFixed(3)}deg`);
-        gate.style.setProperty("--kisara-cross-shake-x", `${crossShakeX.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-cross-shake-y", `${crossShakeY.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-cross-blur", `${(0.08 + crossStrobe * 0.42 + releaseFlash * 0.5).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-protection-opacity", protectionClarity.toFixed(3));
+        const warningPresentationVisible = warningMonochrome > 0.001
+          || warningFocus > 0.001
+          || warningExposure > 0.001
+          || crossOpacity > 0.001;
+        if (warningPresentationVisible || warningPresentationActive) {
+          gate.classList.toggle("is-warning-active", warningPresentationVisible);
+          gate.style.setProperty("--kisara-warning-monochrome", warningMonochrome.toFixed(3));
+          gate.style.setProperty("--kisara-warning-invert", warningInvert.toFixed(3));
+          gate.style.setProperty("--kisara-warning-focus", warningFocus.toFixed(3));
+          gate.style.setProperty("--kisara-warning-pulse", warningPulse.toFixed(3));
+          gate.style.setProperty("--kisara-warning-exposure", warningExposure.toFixed(3));
+          gate.style.setProperty("--kisara-warning-core-exposure", warningCoreExposure.toFixed(3));
+          gate.style.setProperty("--kisara-warning-aperture", `${warningAperture.toFixed(2)}%`);
+          gate.style.setProperty("--kisara-warning-saturation", (1 - warningMonochrome * 0.98).toFixed(3));
+          gate.style.setProperty(
+            "--kisara-warning-contrast",
+            (1
+              + warningMonochrome * 0.28
+              + warningPulse * 0.05
+              + warningExposure * 0.24
+              + warningInvert * 0.72).toFixed(3)
+          );
+          gate.style.setProperty(
+            "--kisara-warning-brightness",
+            (1
+              - warningMonochrome * 0.38
+              + warningExposure * 0.58
+              + warningInvert * 0.06
+              + warningPulse * 0.01).toFixed(3)
+          );
+          gate.style.setProperty("--kisara-warning-center-x", `${(clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1) * 100).toFixed(2)}%`);
+          gate.style.setProperty("--kisara-warning-center-y", `${(clamp(warpOriginY / Math.max(1, gateHeight), 0, 1) * 100).toFixed(2)}%`);
+          gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
+          gate.style.setProperty("--kisara-cross-ray-progress", crossRayProgress.toFixed(4));
+          gate.style.setProperty("--kisara-cross-ray-breath", crossRayBreath.toFixed(3));
+          gate.style.setProperty("--kisara-cross-core-scale", crossCoreScale.toFixed(3));
+          gate.style.setProperty("--kisara-cross-core-opacity", crossCoreOpacity.toFixed(3));
+          gate.style.setProperty("--kisara-cross-ring-progress", crossRingProgress.toFixed(3));
+          gate.style.setProperty("--kisara-cross-ring-opacity", crossRingOpacity.toFixed(3));
+          gate.style.setProperty("--kisara-cross-shard-progress", crossShardProgress.toFixed(4));
+          gate.style.setProperty("--kisara-cross-shard-opacity", crossShardOpacity.toFixed(3));
+          gate.style.setProperty("--kisara-cross-spark-opacity", crossSparkOpacity.toFixed(3));
+          gate.style.setProperty("--kisara-cross-spark-distance", `${crossSparkDistance.toFixed(3)}px`);
+          gate.style.setProperty("--kisara-cross-strobe", crossStrobe.toFixed(3));
+          gate.style.setProperty("--kisara-cross-scale", crossScale.toFixed(3));
+          gate.style.setProperty("--kisara-cross-rotation", `${crossRotation.toFixed(3)}deg`);
+          gate.style.setProperty("--kisara-cross-shake-x", `${crossShakeX.toFixed(3)}px`);
+          gate.style.setProperty("--kisara-cross-shake-y", `${crossShakeY.toFixed(3)}px`);
+          warningPresentationActive = warningPresentationVisible;
+        }
       };
 
       const updateGlitchState = (timestamp) => {
@@ -9060,11 +9065,10 @@ const gateStyle = [
         gate.style.setProperty("--kisara-fight-scale", (1.06 - reveal * 0.06).toFixed(4));
         gate.style.setProperty("--kisara-fight-saturation", (0.84 + reveal * 0.36).toFixed(3));
         gate.style.setProperty("--kisara-fight-brightness", (0.86 + reveal * 0.22).toFixed(3));
-        gate.style.setProperty("--kisara-reconstruction-inner-radius", "0px");
-        gate.style.setProperty("--kisara-reconstruction-outer-radius", "0px");
-        gate.style.setProperty("--kisara-reconstruction-wash-opacity", "0");
         energyProgress = fill;
-        updateBurstPresentation(performance.now(), false);
+        if (!energyLoopActive || reducedMotion) {
+          updateBurstPresentation(performance.now(), false);
+        }
         startEnergyAnimation();
         const stage = fillComplete
           ? "glitch"
@@ -9098,13 +9102,21 @@ const gateStyle = [
         gate.classList.toggle("is-burst-complete", burstComplete);
         gate.classList.toggle("is-released", pageMode === "next");
         gate.classList.toggle("is-receding", velocity < -0.0003);
+        gate.classList.toggle(
+          "is-rewinding",
+          chargeIntroReversing
+            || burstVelocity < -0.00025
+            || targetBurstProgress < burstProgress - 0.0005
+        );
         setPostReleaseActive(burstComplete && pageMode === "gate");
         if (cue) {
           const cueGuided = pageMode === "gate" && !chargeIntroActive && !burstAutoplay;
           cue.classList.toggle("is-guiding", cueGuided);
           cue.classList.toggle("is-enter-ready", burstComplete && pageMode === "gate");
           cue.textContent = chargeIntroActive
-            ? "LOCKED HEART / BREAKING"
+            ? chargeIntroReversing
+              ? "CONTRACT SIGNAL / REWINDING"
+              : "LOCKED HEART / BREAKING"
             : burstAutoplay
             ? "AUTOMATIC RELEASE / STAND BY"
             : burstComplete
@@ -9115,15 +9127,39 @@ const gateStyle = [
         }
       };
 
+      const transitionChargeIntro = (nextTarget, timestamp) => {
+        const target = clamp(nextTarget, 0, 1);
+        if (
+          pageMode !== "gate"
+          || (chargeIntroActive && Math.abs(chargeIntroTarget - target) < 0.0005)
+        ) return;
+        const distance = Math.abs(target - chargeIntroProgress);
+        if (distance < 0.0005) {
+          chargeIntroProgress = target;
+          chargeIntroActive = false;
+          chargeIntroComplete = target >= 0.9995;
+          chargeIntroReversing = false;
+          return;
+        }
+        chargeIntroFrom = chargeIntroProgress;
+        chargeIntroTarget = target;
+        chargeIntroTransitionDuration = Math.max(
+          180,
+          (target < chargeIntroProgress ? 820 : chargeIntroDuration) * distance
+        );
+        chargeIntroActive = true;
+        chargeIntroComplete = false;
+        chargeIntroReversing = target < chargeIntroProgress;
+        chargeIntroStartedAt = timestamp;
+      };
+
       const startChargeIntro = (timestamp) => {
-        if (chargeIntroActive || chargeIntroComplete || pageMode !== "gate") return;
+        if (chargeIntroComplete || pageMode !== "gate") return;
         progress = 1;
         targetProgress = 1;
         velocity = 0;
         energyProgress = 1;
-        chargeIntroActive = true;
-        chargeIntroStartedAt = timestamp;
-        chargeIntroProgress = 0;
+        transitionChargeIntro(1, timestamp);
       };
 
       const startReleaseAutoplay = (timestamp) => {
@@ -9150,12 +9186,21 @@ const gateStyle = [
           startChargeIntro(timestamp);
         }
         if (chargeIntroActive) {
-          chargeIntroProgress = clamp((timestamp - chargeIntroStartedAt) / chargeIntroDuration, 0, 1);
-          if (chargeIntroProgress >= 1) {
-            chargeIntroProgress = 1;
+          const transitionProgress = clamp(
+            (timestamp - chargeIntroStartedAt) / Math.max(1, chargeIntroTransitionDuration),
+            0,
+            1
+          );
+          const transitionEase = smootherstep(transitionProgress);
+          chargeIntroProgress = chargeIntroFrom
+            + (chargeIntroTarget - chargeIntroFrom) * transitionEase;
+          if (transitionProgress >= 1) {
+            chargeIntroProgress = chargeIntroTarget;
             chargeIntroActive = false;
-            chargeIntroComplete = true;
+            chargeIntroComplete = chargeIntroTarget >= 0.9995;
+            chargeIntroReversing = false;
             chargeIntroStartedAt = 0;
+            chargeIntroTransitionDuration = 0;
           }
         }
         if (burstAutoplay) {
@@ -9297,6 +9342,10 @@ const gateStyle = [
         chargeIntroActive = false;
         chargeIntroComplete = false;
         chargeIntroStartedAt = 0;
+        chargeIntroFrom = 0;
+        chargeIntroTarget = 0;
+        chargeIntroTransitionDuration = 0;
+        chargeIntroReversing = false;
         energyProgress = 0;
         poseTimestamp = 0;
         poseClock = 0;
@@ -9372,12 +9421,13 @@ const gateStyle = [
       const returnToGate = () => {
         if (scrollFrame) return;
         pageMode = "snap";
+        const returnRailStart = getDocumentScrollProgress();
         releaseOpeningEdgeMix();
         applyOpeningEdgeMix(0);
         renderOpeningEdgeTexture("base");
         publishGateRailState({
           active: true,
-          progress: getDocumentScrollProgress(),
+          progress: returnRailStart,
           stage: "returning",
           guided: false,
           transitioning: true
@@ -9399,10 +9449,10 @@ const gateStyle = [
           beamHeadVelocityY = 0;
           beamMotionEnergy = 0;
           render();
-        }, () => {
+        }, (journeyProgress) => {
           publishGateRailState({
             active: true,
-            progress: getDocumentScrollProgress(),
+            progress: returnRailStart * (1 - journeyProgress),
             stage: "returning",
             guided: false,
             transitioning: true
@@ -9411,20 +9461,38 @@ const gateStyle = [
       };
 
       const addProgress = (delta) => {
-        if (chargeIntroActive || burstAutoplay || burstAutoplayComplete) return;
+        if (burstAutoplay || burstAutoplayComplete) return;
         const boundedDelta = clamp(delta, -180, 180);
         const fillComplete = targetProgress >= 0.9995 && progress >= 0.995;
         const burstInProgress = targetBurstProgress > 0.0005 || burstProgress > 0.0005;
-        if (fillComplete && !chargeIntroComplete) {
-          startChargeIntro(performance.now());
+        const timestamp = performance.now();
+        if (chargeIntroActive) {
+          if (delta < 0) {
+            targetProgress = clamp(
+              targetProgress + boundedDelta / fillDistance * 0.22,
+              0,
+              0.988
+            );
+            velocity += boundedDelta / fillDistance * 0.012;
+            transitionChargeIntro(0, timestamp);
+          } else if (chargeIntroReversing) {
+            targetProgress = 1;
+            transitionChargeIntro(1, timestamp);
+          }
           startAnimation();
           return;
         }
         if (delta < 0 && chargeIntroComplete && !burstInProgress) {
-          chargeIntroProgress = 0;
-          chargeIntroActive = false;
-          chargeIntroComplete = false;
-          chargeIntroStartedAt = 0;
+          targetProgress = Math.min(targetProgress, 0.988);
+          velocity += boundedDelta / fillDistance * 0.012;
+          transitionChargeIntro(0, timestamp);
+          startAnimation();
+          return;
+        }
+        if (delta > 0 && fillComplete && !chargeIntroComplete) {
+          startChargeIntro(timestamp);
+          startAnimation();
+          return;
         }
         if ((delta > 0 && fillComplete) || (delta < 0 && burstInProgress)) {
           targetBurstProgress = clamp(targetBurstProgress + boundedDelta / burstDistance, 0, crossEnd);
@@ -9433,7 +9501,7 @@ const gateStyle = [
           targetProgress = clamp(targetProgress + boundedDelta / fillDistance, 0, 1);
           velocity += boundedDelta / fillDistance * 0.03;
           if (delta > 0 && targetProgress >= 0.9995 && !chargeIntroComplete) {
-            startChargeIntro(performance.now());
+            startChargeIntro(timestamp);
           }
         }
         startAnimation();
