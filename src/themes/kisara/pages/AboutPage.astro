@@ -1,48 +1,162 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import "../styles/about.css";
 import { Icon } from "astro-icon/components";
-import { currentSignals, profileIdentity, profileStatus, profileTech } from "@/core/data/profile";
+import {
+  animeFavorites,
+  currentSignals,
+  favoriteGames,
+  profileIdentity,
+  profileStatus,
+  profileTech,
+  xpFavorites
+} from "@/core/data/profile";
+
+const techPresentation = {
+  unity: { icon: "simple-icons:unity", code: "U3D" },
+  blender: { icon: "simple-icons:blender", code: "BLD" },
+  ue5: { icon: "simple-icons:unrealengine", code: "UE5" },
+  mmd: { icon: "tabler:movie", code: "MMD" },
+  astrbot: { icon: "tabler:terminal-2", code: "BOT" }
+} as const;
+
+const interestGroups = [
+  { key: "anime", label: "ANIME", title: "喜欢看的番剧", note: "故事、角色和那些看完以后还会留在脑子里的情绪。", items: animeFavorites },
+  { key: "xp", label: "XP", title: "角色属性偏好", note: "不绑定某一个角色，但看到这些关键词通常会多停两秒。", items: xpFavorites },
+  { key: "games", label: "GAMES", title: "喜欢的游戏", note: "夜之城、竞技场和为了再准一点而反复打开的练枪软件。", items: favoriteGames }
+] as const;
 ---
 
-<KisaraLayout title="About | Kisara" description="关于喝益胃与 Yuimi Lab。">
-  <section class="kisara-page-lead">
-    <div class="kisara-page-lead-inner">
-      <p class="kisara-section-index">IDENTITY TRACE / CONTRACTOR</p>
-      <h1>{profileIdentity.displayName}.</h1>
-      <p>{profileIdentity.bio}</p>
-      <div class="kisara-lead-metrics">
-        <span><strong>03</strong> CONTRACT CHANNEL</span>
-        <span><strong>ON</strong> INTEREST DRIVEN</span>
+<KisaraLayout title="Me | Kisara" description="关于喝益胃与 Yuimi Lab。">
+  <section class="kisara-me" data-kisara-me>
+    <aside class="kisara-me-spine">
+      <div class="kisara-me-spine-inner">
+        <figure>
+          <img src="/themes/kisara/assets/profile.jpg" alt="喝益胃 / Yuimi-chaya 的头像" width="640" height="640" decoding="async" />
+          <span aria-hidden="true"><i></i></span>
+        </figure>
+        <p class="kisara-me-handle">@{profileIdentity.handle}</p>
+        <h1>{profileIdentity.displayName}</h1>
+        <p class="kisara-me-bio">{profileIdentity.bio}</p>
+
+        <ul class="kisara-me-status">
+          {profileStatus.map((status, index) => <li><span>0{index + 1}</span>{status}</li>)}
+        </ul>
+
+        <nav aria-label="Yuimi 社交链接">
+          <a href={profileIdentity.github} target="_blank" rel="noreferrer">
+            <Icon name="tabler:brand-github" aria-hidden="true" /><span>GITHUB</span><i>↗</i>
+          </a>
+          <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer">
+            <Icon name="tabler:brand-bilibili" aria-hidden="true" /><span>BILIBILI</span><i>↗</i>
+          </a>
+        </nav>
       </div>
+    </aside>
+
+    <div class="kisara-me-dossier">
+      <header class="kisara-me-heading">
+        <p><span>06</span> CONTRACTOR DOSSIER / ME</p>
+        <h2>Not a resume.<br /><em>A signal map.</em></h2>
+        <div>
+          <p>二次元技术宅，兴趣驱动型折腾人。喜欢研究有意思的小东西，也喜欢让技术页面保留一点角色感和玩具感。</p>
+          <dl>
+            <div><dt>SPACE</dt><dd>{profileIdentity.siteName}</dd></div>
+            <div><dt>MODE</dt><dd>ANIME × CODE</dd></div>
+            <div><dt>STATUS</dt><dd>INTEREST DRIVEN</dd></div>
+          </dl>
+        </div>
+      </header>
+
+      <section class="kisara-me-tech">
+        <header>
+          <div><p>TECHNICAL LINES / 01</p><h3>Tools in orbit.</h3></div>
+          <p>不做熟练度百分比，只记录正在用、正在学、以及还想继续做下去的方向。</p>
+        </header>
+        <div class="kisara-me-tech-list">
+          {profileTech.map((tech, index) => (
+            <article>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <div class="kisara-me-tech-icon"><Icon name={techPresentation[tech.key].icon} aria-hidden="true" /></div>
+              <div><h4>{tech.name}</h4><p>{tech.note}</p></div>
+              <strong>{techPresentation[tech.key].code}</strong>
+              <i aria-hidden="true"></i>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section class="kisara-me-interests">
+        <header>
+          <div><p>INTEREST INDEX / 02</p><h3>Things I keep close.</h3></div>
+          <div class="kisara-me-interest-tabs" role="tablist" aria-label="兴趣分类">
+            {interestGroups.map((group, index) => (
+              <button
+                type="button"
+                role="tab"
+                data-interest-tab={group.key}
+                aria-selected={index === 0 ? "true" : "false"}
+                aria-controls={`kisara-interest-${group.key}`}
+              >
+                <span>0{index + 1}</span>{group.label}
+              </button>
+            ))}
+          </div>
+        </header>
+
+        <div class="kisara-me-interest-panels">
+          {interestGroups.map((group, groupIndex) => (
+            <article
+              id={`kisara-interest-${group.key}`}
+              role="tabpanel"
+              data-interest-panel={group.key}
+              hidden={groupIndex !== 0}
+            >
+              <div class="kisara-me-interest-copy">
+                <p>INDEX / 0{groupIndex + 1}</p>
+                <h4>{group.title}</h4>
+                <p>{group.note}</p>
+              </div>
+              <ol>
+                {group.items.map((item, index) => (
+                  <li>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <div><strong>{item.title}</strong><small>{item.subtitle}</small></div>
+                    <i aria-hidden="true"></i>
+                  </li>
+                ))}
+              </ol>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section class="kisara-me-pulse">
+        <header><p>LIVE PULSE / 03</p><h3>Still transmitting.</h3></header>
+        <ol>
+          {currentSignals.map((signal, index) => (
+            <li><span>0{index + 1}</span><small>{signal.label}</small><p>{signal.text}</p></li>
+          ))}
+        </ol>
+      </section>
     </div>
   </section>
-  <section class="kisara-identity-shell">
-    <div class="kisara-identity-intro">
-      <p class="kisara-section-index">CONTRACTOR PROFILE / 01</p>
-      <h2>Yuimi-chaya</h2>
-      <p>二次元技术宅，喜欢研究有意思的东西。技术内容可以认真，呈现方式可以保留一点角色感和玩具感。</p>
-      <nav aria-label="Yuimi 社交链接">
-        <a href={profileIdentity.github} target="_blank" rel="noreferrer"><Icon name="tabler:brand-github" aria-hidden="true" />GITHUB <span>↗</span></a>
-        <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer"><Icon name="tabler:brand-bilibili" aria-hidden="true" />BILIBILI <span>↗</span></a>
-      </nav>
-    </div>
-    <dl class="kisara-identity-matrix">
-      <div><dt>DISPLAY NAME</dt><dd>{profileIdentity.displayName}</dd></div>
-      <div><dt>HANDLE</dt><dd>{profileIdentity.handle}</dd></div>
-      <div><dt>SPACE</dt><dd>{profileIdentity.siteName}</dd></div>
-      <div><dt>MODE</dt><dd>ANIME × CODE × INTERACTION</dd></div>
-    </dl>
-  </section>
-  <section class="kisara-data-section">
-    <div class="kisara-data-heading"><p class="kisara-section-index">CURRENT STATUS / 02</p><h2>Signals now.</h2></div>
-    <div class="kisara-inline-signals">{profileStatus.map((item, index) => <span><i>0{index + 1}</i>{item}</span>)}</div>
-  </section>
-  <section class="kisara-data-section">
-    <div class="kisara-data-heading"><p class="kisara-section-index">TECHNICAL LINES / 03</p><h2>Tools in orbit.</h2></div>
-    <dl class="kisara-tech-lines">{profileTech.map((item, index) => <div><span>{String(index + 1).padStart(2, "0")}</span><dt>{item.name}</dt><dd>{item.note}</dd><strong>{item.key.toUpperCase()}</strong></div>)}</dl>
-  </section>
-  <section class="kisara-data-section kisara-pulse-section">
-    <div class="kisara-data-heading"><p class="kisara-section-index">LIVE PULSE / 04</p><h2>Still transmitting.</h2></div>
-    <div class="kisara-signal-grid">{currentSignals.map((signal, index) => <article><span>0{index + 1}</span><small>{signal.label}</small><h3>{signal.text}</h3></article>)}</div>
-  </section>
+
+  <script is:inline>
+    (() => {
+      const root = document.querySelector("[data-kisara-me]");
+      if (!root) return;
+      const tabs = Array.from(root.querySelectorAll("[data-interest-tab]"));
+      const panels = Array.from(root.querySelectorAll("[data-interest-panel]"));
+
+      tabs.forEach((tab) => tab.addEventListener("click", () => {
+        if (!(tab instanceof HTMLElement)) return;
+        const key = tab.dataset.interestTab;
+        tabs.forEach((item) => item.setAttribute("aria-selected", String(item === tab)));
+        panels.forEach((panel) => {
+          if (panel instanceof HTMLElement) panel.hidden = panel.dataset.interestPanel !== key;
+        });
+      }));
+    })();
+  </script>
 </KisaraLayout>
