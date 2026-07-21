@@ -351,6 +351,7 @@ const gateStyle = [
       let chainPixelRatio = 1;
       let chainTitleBox = { left: 0, top: 0, width: 0, height: 0 };
       const chainLinkUnitCache = new Map();
+      const chainLinkSpriteCache = new Map();
       let chainGlyphLayout = {
         textLeft: 0,
         textRight: 0,
@@ -454,6 +455,7 @@ const gateStyle = [
       const smoothstep = (value) => value * value * (3 - 2 * value);
       const phaseProgress = (value, start, end) => smoothstep(clamp((value - start) / (end - start), 0, 1));
       const easeOutCubic = (value) => 1 - (1 - clamp(value, 0, 1)) ** 3;
+      const easeInQuint = (value) => clamp(value, 0, 1) ** 5;
       const releaseAutoplayKeyframes = [
         [0, glossFadeEnd],
         [releaseCrossStartAt, crossStart],
@@ -1209,6 +1211,7 @@ const gateStyle = [
           chainCanvasHeight = height;
           chainPixelRatio = pixelRatio;
           chainLinkUnitCache.clear();
+          chainLinkSpriteCache.clear();
           clearTitleChains();
         }
         rebuildTitleChainLayout();
@@ -6429,15 +6432,15 @@ const gateStyle = [
           buildEnd: 0.54,
           direction: 1,
           phase: -1.92,
-          radiusX: 0.565,
-          radiusY: 0.625,
-          rotation: -0.045,
+          radiusX: 0.525,
+          radiusY: 0.52,
+          rotation: -0.02,
           breakT: 0.18,
           desktopLinks: 68,
           mobileLinks: 42,
           linkScale: 0.98,
-          entryOverscan: 0.1,
-          entryBend: -0.2
+          entryOverscan: 0.055,
+          entryBend: -0.08
         },
         {
           id: 1,
@@ -6455,8 +6458,8 @@ const gateStyle = [
           desktopLinksPerSegment: 8,
           mobileLinksPerSegment: 5,
           linkScale: 0.96,
-          entryOverscan: 0.13,
-          entryBend: 0.28
+          entryOverscan: 0.075,
+          entryBend: 0.12
         },
         {
           id: 2,
@@ -6474,8 +6477,8 @@ const gateStyle = [
           desktopLinksPerSegment: 7,
           mobileLinksPerSegment: 5,
           linkScale: 0.82,
-          entryOverscan: 0.13,
-          entryBend: -0.24
+          entryOverscan: 0.075,
+          entryBend: -0.11
         }
       ];
 
@@ -6501,21 +6504,13 @@ const gateStyle = [
 
       const resolveSealMotion = (fill, intro) => {
         const scrollTension = phaseProgress(fill, 0.48, 1);
-        const preloadPhase = phaseProgress(intro, 0.015, 0.13);
-        const preload = Math.sin(preloadPhase * Math.PI);
-        const cinchLinear = clamp((intro - 0.115) / 0.445, 0, 1);
-        const cinch = easeOutCubic(cinchLinear);
-        const lockSet = phaseProgress(intro, 0.54, 0.62);
-        const strain = Math.sin(phaseProgress(intro, 0.45, 0.655) * Math.PI);
-        const tension = clamp(
-          scrollTension * 0.14
-            - preload * 0.034
-            + cinch * 0.51
-            + lockSet * 0.026,
-          0,
-          0.72
-        );
-        return { scrollTension, cinch, strain, tension };
+        const settle = phaseProgress(intro, 0, 0.16);
+        const takeUp = phaseProgress(intro, 0.16, 0.48);
+        const lockUnit = clamp((intro - 0.48) / 0.13, 0, 1);
+        const lock = clamp(1 - Math.exp(-7 * lockUnit) * Math.cos(9 * lockUnit), 0, 1.02);
+        const strain = Math.sin(phaseProgress(intro, 0.47, 0.625) * Math.PI);
+        const weavePull = scrollTension * 0.022 + takeUp * 0.055 + lock * 0.07;
+        return { scrollTension, settle, takeUp, lock, strain, weavePull };
       };
 
       const resolveTitleChainPath = (definition, fill, intro) => {
@@ -6544,7 +6539,7 @@ const gateStyle = [
           textRight + box.width * definition.xInset
         ];
         const sealMotion = resolveSealMotion(fill, intro);
-        const pull = sealMotion.tension * 0.47;
+        const pull = sealMotion.weavePull;
         const points = anchorXs.map((x, index) => {
           const upper = (index + definition.verticalPhase) % 2 === 0;
           const endpointEase = index === 0 || index === anchorXs.length - 1 ? 0.08 : 0;
@@ -6568,7 +6563,7 @@ const gateStyle = [
         const centerX = chainGlyphLayout.centerX || box.left + box.width * 0.5;
         const centerY = chainGlyphLayout.centerY || box.top + box.height * 0.52;
         const sealMotion = resolveSealMotion(fill, intro);
-        const { scrollTension, strain, tension } = sealMotion;
+        const { scrollTension, settle, takeUp, lock, strain } = sealMotion;
         let x = centerX;
         let y = centerY;
         let tangentX = 1;
@@ -6577,14 +6572,16 @@ const gateStyle = [
         let crossing = false;
 
         if (definition.type === "frame") {
-          const radiusX = box.width * definition.radiusX * (1 - tension * 0.72);
-          const radiusY = box.height * definition.radiusY * (1 - tension * 0.8);
-          const angle = definition.phase + definition.direction * unit * fullTurn * 1.035;
+          const radiusX = box.width * definition.radiusX
+            * (1 - scrollTension * 0.01 - takeUp * 0.02 - lock * 0.03);
+          const radiusY = box.height * definition.radiusY
+            * (1 - scrollTension * 0.015 - takeUp * 0.035 - lock * 0.05);
+          const angle = definition.phase + definition.direction * unit * fullTurn;
           const cosine = Math.cos(angle);
           const sine = Math.sin(angle);
           const rotationCosine = Math.cos(definition.rotation);
           const rotationSine = Math.sin(definition.rotation);
-          const frameExponent = 0.58;
+          const frameExponent = 0.74;
           const framePoint = (sampleAngle) => {
             const sampleCosine = Math.cos(sampleAngle);
             const sampleSine = Math.sin(sampleAngle);
@@ -6603,12 +6600,17 @@ const gateStyle = [
           y = point.y;
           tangentX = tangentPoint.x - x;
           tangentY = tangentPoint.y - y;
-          const looseness = clamp(1 - tension * 1.18, 0.14, 1);
+          const slackBlend = clamp(
+            scrollTension * 0.2 + settle * 0.18 + takeUp * 0.68 + lock * 0.14,
+            0,
+            1
+          );
+          const slackAmplitude = 0.018 + (0.003 - 0.018) * slackBlend;
           const wobble = Math.sin(
-            angle * 2.6
-              + timestamp * 0.00046
+            angle * 2.35
+              + timestamp * 0.00038
               + definition.id * 1.37
-          ) * box.height * 0.022 * looseness;
+          ) * box.height * slackAmplitude;
           const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
           x += -tangentY / tangentLength * wobble;
           y += tangentX / tangentLength * wobble;
@@ -6641,13 +6643,14 @@ const gateStyle = [
         const normalX = -tangentY;
         const normalY = tangentX;
         const tensionWave = Math.sin(
-          timestamp * (0.001 + strain * 0.0048)
+          timestamp * (0.0008 + strain * 0.0032)
             + unit * fullTurn * (2.1 + definition.id * 0.16)
             + definition.id * 1.73
         );
+        const residualSlack = 1 - clamp(settle * 0.18 + takeUp * 0.68 + lock * 0.14, 0, 1);
         const tensionOffset = tensionWave
           * box.height
-          * (0.0028 + scrollTension * 0.005 + strain * 0.014);
+          * (0.0018 + residualSlack * 0.0045 + strain * 0.0065);
         x += normalX * tensionOffset;
         y += normalY * tensionOffset;
         return {
@@ -6750,15 +6753,15 @@ const gateStyle = [
         }
 
         const dimensions = getChainLinkDimensions(definition);
-        const desiredCount = Math.round(totalLength / (dimensions.width * (isMobile ? 0.62 : 0.58)));
+        const desiredCount = Math.round(totalLength / (dimensions.width * (isMobile ? 0.64 : 0.6)));
         const minimum = definition.type === "frame"
           ? (isMobile ? definition.mobileLinks : definition.desktopLinks)
           : (isMobile
               ? definition.mobileLinksPerSegment
               : definition.desktopLinksPerSegment) * spacingPath.segmentCount + 1;
         const maximum = definition.type === "frame"
-          ? (isMobile ? 86 : 116)
-          : (isMobile ? 66 : 92);
+          ? (isMobile ? 82 : 110)
+          : (isMobile ? 62 : 86);
         const linkCount = Math.round(clamp(desiredCount, minimum, maximum));
         const unitAtLength = (targetLength) => {
           let low = 1;
@@ -6824,121 +6827,149 @@ const gateStyle = [
         return spacing;
       };
 
+      const getChainLinkSprite = (definition, isFront, arcPart, hot, parity) => {
+        const dimensions = getChainLinkDimensions(definition);
+        const cacheKey = [
+          definition.id,
+          Math.round(dimensions.width * 10),
+          Math.round(dimensions.height * 10),
+          isFront ? 1 : 0,
+          arcPart,
+          hot ? 1 : 0,
+          parity
+        ].join(":");
+        const cached = chainLinkSpriteCache.get(cacheKey);
+        if (cached) return cached;
+        const spriteScale = 2;
+        const padding = isFront ? 13 : 10;
+        const width = dimensions.width + padding * 2;
+        const height = dimensions.height + padding * 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.ceil(width * spriteScale));
+        canvas.height = Math.max(1, Math.ceil(height * spriteScale));
+        const context = canvas.getContext("2d", { alpha: true });
+        if (!context) return null;
+        context.setTransform(spriteScale, 0, 0, spriteScale, width * spriteScale * 0.5, height * spriteScale * 0.5);
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        const detailedMetal = isFront && arcPart === "near";
+        const nearUsesLowerArc = parity === 0;
+        const lowerArc = [-Math.PI * 0.08, Math.PI * 1.08];
+        const upperArc = [Math.PI * 0.92, Math.PI * 2.08];
+        const [arcStart, arcEnd] = arcPart === "near"
+          ? (nearUsesLowerArc ? lowerArc : upperArc)
+          : (nearUsesLowerArc ? upperArc : lowerArc);
+        let metal;
+        if (detailedMetal) {
+          metal = context.createLinearGradient(
+            0,
+            -dimensions.height * 0.58,
+            0,
+            dimensions.height * 0.58
+          );
+          if (hot) {
+            metal.addColorStop(0, "rgba(70,35,61,0.98)");
+            metal.addColorStop(0.22, "rgba(255,203,220,0.99)");
+            metal.addColorStop(0.42, "rgba(219,53,103,0.99)");
+            metal.addColorStop(0.72, "rgba(101,22,58,0.99)");
+            metal.addColorStop(1, "rgba(255,133,169,0.98)");
+          } else {
+            metal.addColorStop(0, "rgba(31,42,70,0.98)");
+            metal.addColorStop(0.22, "rgba(222,232,255,0.99)");
+            metal.addColorStop(0.43, "rgba(105,132,186,0.99)");
+            metal.addColorStop(0.72, "rgba(37,53,91,0.99)");
+            metal.addColorStop(1, "rgba(154,181,232,0.98)");
+          }
+        } else {
+          metal = hot ? "rgba(174,50,93,0.98)" : "rgba(83,108,160,0.98)";
+        }
+
+        context.globalAlpha = arcPart === "near" ? 0.96 : 0.72;
+        context.strokeStyle = "rgba(4,5,19,0.96)";
+        context.lineWidth = isFront ? 7.2 : 6.4;
+        context.shadowColor = "rgba(2,3,18,0.82)";
+        context.shadowBlur = detailedMetal ? 3.2 : 0;
+        context.beginPath();
+        context.ellipse(0, 0, dimensions.width * 0.5, dimensions.height * 0.5, 0, arcStart, arcEnd);
+        context.stroke();
+
+        context.globalAlpha = arcPart === "near" ? 1 : 0.8;
+        context.strokeStyle = metal;
+        context.lineWidth = isFront ? 4.05 : 3.45;
+        context.shadowColor = hot ? "rgba(255,72,128,0.38)" : "rgba(116,158,230,0.22)";
+        context.shadowBlur = detailedMetal ? (hot ? 3.2 : 2.2) : 0;
+        context.beginPath();
+        context.ellipse(0, 0, dimensions.width * 0.5, dimensions.height * 0.5, 0, arcStart, arcEnd);
+        context.stroke();
+
+        if (detailedMetal) {
+          context.globalAlpha = hot ? 0.68 : 0.46;
+          context.strokeStyle = hot ? "rgba(255,240,246,0.96)" : "rgba(235,242,255,0.94)";
+          context.lineWidth = 0.9;
+          context.shadowBlur = 0.8;
+          context.beginPath();
+          context.ellipse(
+            0,
+            -dimensions.height * 0.025,
+            dimensions.width * 0.445,
+            dimensions.height * 0.405,
+            0,
+            arcStart + Math.PI * 0.12,
+            arcEnd - Math.PI * 0.12
+          );
+          context.stroke();
+        }
+        const sprite = { canvas, width, height };
+        chainLinkSpriteCache.set(cacheKey, sprite);
+        return sprite;
+      };
+
       const drawChainLinkArc = (
         context,
         sample,
         linkIndex,
         definition,
         alpha,
-        fill,
-        intro,
+        heat,
         isFront,
         arcPart,
         rotationOffset = 0,
         scale = 1
       ) => {
         if (alpha <= 0.002) return;
-        const dimensions = getChainLinkDimensions(definition);
-        const linkWidth = dimensions.width * scale;
-        const linkHeight = dimensions.height * scale;
-        const edgeOn = linkIndex % 2 === 1;
-        const heat = clamp(fill * 0.72 + phaseProgress(intro, 0.08, 0.72) * 0.5, 0, 1);
+        const parity = linkIndex % 2;
+        const edgeOn = parity === 1;
         const layerAlpha = alpha * (isFront ? 1 : 0.66);
-        const detailedMetal = isFront && arcPart === "near";
-        const nearUsesLowerArc = linkIndex % 2 === 0;
-        const lowerArc = [-Math.PI * 0.08, Math.PI * 1.08];
-        const upperArc = [Math.PI * 0.92, Math.PI * 2.08];
-        const [arcStart, arcEnd] = arcPart === "near"
-          ? (nearUsesLowerArc ? lowerArc : upperArc)
-          : (nearUsesLowerArc ? upperArc : lowerArc);
+        const coldSprite = heat < 0.985
+          ? getChainLinkSprite(definition, isFront, arcPart, false, parity)
+          : null;
+        const hotSprite = heat > 0.015
+          ? getChainLinkSprite(definition, isFront, arcPart, true, parity)
+          : null;
         context.save();
         context.translate(sample.x, sample.y);
         context.rotate(sample.angle + (edgeOn ? 0.045 : -0.035) + rotationOffset);
-        context.scale(1, edgeOn ? 0.48 : 0.92);
-        context.lineCap = "round";
-        context.lineJoin = "round";
-
-        let metal;
-        if (detailedMetal) {
-          metal = context.createLinearGradient(
-            0,
-            -linkHeight * 0.58,
-            0,
-            linkHeight * 0.58
+        context.scale(scale, scale * (edgeOn ? 0.48 : 0.92));
+        context.imageSmoothingEnabled = true;
+        if (coldSprite) {
+          context.globalAlpha = layerAlpha * (1 - heat);
+          context.drawImage(
+            coldSprite.canvas,
+            -coldSprite.width * 0.5,
+            -coldSprite.height * 0.5,
+            coldSprite.width,
+            coldSprite.height
           );
-          if (heat > 0.56) {
-            metal.addColorStop(0, "rgba(70, 35, 61, 0.98)");
-            metal.addColorStop(0.22, "rgba(255, 203, 220, 0.99)");
-            metal.addColorStop(0.42, "rgba(219, 53, 103, 0.99)");
-            metal.addColorStop(0.72, "rgba(101, 22, 58, 0.99)");
-            metal.addColorStop(1, "rgba(255, 133, 169, 0.98)");
-          } else {
-            metal.addColorStop(0, "rgba(31, 42, 70, 0.98)");
-            metal.addColorStop(0.22, "rgba(222, 232, 255, 0.99)");
-            metal.addColorStop(0.43, "rgba(105, 132, 186, 0.99)");
-            metal.addColorStop(0.72, "rgba(37, 53, 91, 0.99)");
-            metal.addColorStop(1, "rgba(154, 181, 232, 0.98)");
-          }
-        } else {
-          metal = heat > 0.56
-            ? "rgba(174, 50, 93, 0.98)"
-            : "rgba(83, 108, 160, 0.98)";
         }
-
-        context.globalAlpha = layerAlpha * (arcPart === "near" ? 0.96 : 0.72);
-        context.strokeStyle = "rgba(4, 5, 19, 0.96)";
-        context.lineWidth = isFront ? 7.2 : 6.4;
-        context.shadowColor = "rgba(2, 3, 18, 0.82)";
-        context.shadowBlur = detailedMetal ? 3.2 : 0;
-        context.beginPath();
-        context.ellipse(
-          0,
-          0,
-          linkWidth * 0.5,
-          linkHeight * 0.5,
-          0,
-          arcStart,
-          arcEnd
-        );
-        context.stroke();
-
-        context.globalAlpha = layerAlpha * (arcPart === "near" ? 1 : 0.8);
-        context.strokeStyle = metal;
-        context.lineWidth = isFront ? 4.05 : 3.45;
-        context.shadowColor = heat > 0.68
-          ? "rgba(255, 72, 128, 0.38)"
-          : "rgba(116, 158, 230, 0.22)";
-        context.shadowBlur = detailedMetal ? 1.2 + heat * 2.2 : 0;
-        context.beginPath();
-        context.ellipse(
-          0,
-          0,
-          linkWidth * 0.5,
-          linkHeight * 0.5,
-          0,
-          arcStart,
-          arcEnd
-        );
-        context.stroke();
-
-        if (detailedMetal) {
-          context.globalAlpha = layerAlpha * (0.46 + heat * 0.22);
-          context.strokeStyle = heat > 0.58
-            ? "rgba(255, 240, 246, 0.96)"
-            : "rgba(235, 242, 255, 0.94)";
-          context.lineWidth = 0.9;
-          context.shadowBlur = 0.8;
-          context.beginPath();
-          context.ellipse(
-            0,
-            -linkHeight * 0.025,
-            linkWidth * 0.445,
-            linkHeight * 0.405,
-            0,
-            arcStart + Math.PI * 0.12,
-            arcEnd - Math.PI * 0.12
+        if (hotSprite) {
+          context.globalAlpha = layerAlpha * heat;
+          context.drawImage(
+            hotSprite.canvas,
+            -hotSprite.width * 0.5,
+            -hotSprite.height * 0.5,
+            hotSprite.width,
+            hotSprite.height
           );
-          context.stroke();
         }
         context.restore();
       };
@@ -6953,8 +6984,7 @@ const gateStyle = [
               record.linkIndex,
               record.definition,
               record.alpha,
-              record.fill,
-              record.intro,
+              record.heat,
               isFront,
               arcPart,
               record.rotationOffset,
@@ -6966,7 +6996,7 @@ const gateStyle = [
 
       const drawChainLeader = (context, leader) => {
         if (!leader || leader.alpha <= 0.002) return;
-        const { definition, sample, alpha, fill, intro } = leader;
+        const { definition, sample, alpha, heat } = leader;
         const dimensions = getChainLinkDimensions(definition);
         const forward = definition.direction > 0 ? 1 : -1;
         context.save();
@@ -6975,42 +7005,25 @@ const gateStyle = [
         context.globalCompositeOperation = "screen";
         const trail = context.createLinearGradient(-dimensions.width * 2.5, 0, dimensions.width * 0.4, 0);
         trail.addColorStop(0, "rgba(117,161,255,0)");
-        trail.addColorStop(0.62, fill > 0.56 ? "rgba(255,62,128,0.16)" : "rgba(117,161,255,0.14)");
+        trail.addColorStop(0.62, "rgba(255,255,255,0.1)");
         trail.addColorStop(1, "rgba(255,248,252,0.88)");
-        context.globalAlpha = alpha * 0.76;
+        context.globalAlpha = alpha * (0.46 + heat * 0.3);
         context.strokeStyle = trail;
         context.lineWidth = 1.4 + Math.abs(velocity) * 24;
         context.beginPath();
         context.moveTo(-dimensions.width * 2.5, 0);
         context.lineTo(dimensions.width * 0.38, 0);
         context.stroke();
+        context.globalAlpha = alpha * 0.72;
+        context.strokeStyle = heat > 0.5
+          ? "rgba(255,92,151,0.92)"
+          : "rgba(151,188,255,0.9)";
+        context.lineWidth = 1.1;
+        context.beginPath();
+        context.moveTo(dimensions.width * 0.12, 0);
+        context.lineTo(dimensions.width * 0.46, 0);
+        context.stroke();
         context.restore();
-        drawChainLinkArc(
-          context,
-          sample,
-          0,
-          definition,
-          alpha,
-          fill,
-          intro,
-          true,
-          "far",
-          0,
-          1.18
-        );
-        drawChainLinkArc(
-          context,
-          sample,
-          0,
-          definition,
-          alpha,
-          fill,
-          intro,
-          true,
-          "near",
-          0,
-          1.18
-        );
       };
 
       const cubicChainPoint = (start, controlA, controlB, end, unit) => {
@@ -7240,6 +7253,9 @@ const gateStyle = [
         const breakAnchors = [];
         const leaders = [];
         const breakStreaks = [];
+        const colorFront = -0.18
+          + phaseProgress(fill, 0.08, 1) * 1.34
+          + phaseProgress(intro, 0.18, 0.58) * 0.12;
 
         for (const definition of chainDefinitions) {
           const build = phaseProgress(fill, definition.buildStart, definition.buildEnd);
@@ -7273,6 +7289,8 @@ const gateStyle = [
             intro,
             timestamp
           );
+          const leaderOrder = definition.direction > 0 ? leaderUnit : 1 - leaderUnit;
+          const leaderHeat = 1 - smootherstep(clamp((leaderOrder - (colorFront - 0.16)) / 0.32, 0, 1));
           const leaderAlpha = visibility
             * phaseProgress(build, 0.06, 0.13)
             * (1 - phaseProgress(build, 0.82, 0.99));
@@ -7281,8 +7299,7 @@ const gateStyle = [
               definition,
               sample: leaderSample,
               alpha: leaderAlpha,
-              fill,
-              intro
+              heat: leaderHeat
             });
           }
           for (let linkIndex = 0; linkIndex < spacing.records.length; linkIndex += 1) {
@@ -7299,8 +7316,10 @@ const gateStyle = [
               timestamp
             );
             const outside = Math.max(0, -travelUnit, travelUnit - 1);
-            const ingressFade = 1 - phaseProgress(outside, 0.24, 0.42);
-            let alpha = visibility * phaseProgress(build, 0.038, 0.095) * ingressFade;
+            const ingressFade = 1 - smootherstep(clamp((outside - 0.015) / 0.05, 0, 1));
+            let alpha = visibility * phaseProgress(build, 0.02, 0.07) * ingressFade;
+            const order = definition.direction > 0 ? distanceUnit : 1 - distanceUnit;
+            const heat = 1 - smootherstep(clamp((order - (colorFront - 0.16)) / 0.32, 0, 1));
             let rotationOffset = 0;
             if (sling > 0.001) {
               const side = unit < definition.breakT ? -1 : 1;
@@ -7343,6 +7362,7 @@ const gateStyle = [
               alpha,
               fill,
               intro,
+              heat,
               rotationOffset,
               scale: 1,
               arcMode: "full"
