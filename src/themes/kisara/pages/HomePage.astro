@@ -2454,10 +2454,40 @@ const gateStyle = [
             return texture(uFightTexture, fightUv).rgb;
           }
 
+          float sampleProtectionRaw(vec2 uv) {
+            vec2 fightUv = coverUv(clamp(uv, vec2(0.0), vec2(1.0)), uFightSize, 1.0);
+            return texture(uProtectionTexture, fightUv).a;
+          }
+
           float sampleProtection(vec2 uv) {
-            vec2 fightUv = coverUv(uv, uFightSize, 1.0);
-            float protection = texture(uProtectionTexture, fightUv).a;
-            return smoothstep(0.04, 0.96, protection);
+            vec2 pixel = 1.0 / max(uResolution, vec2(1.0));
+            vec2 nearOffset = pixel * 12.0;
+            vec2 diagonalOffset = pixel * 20.0;
+            float center = sampleProtectionRaw(uv);
+            float axial = max(
+              max(
+                sampleProtectionRaw(uv + vec2(nearOffset.x, 0.0)),
+                sampleProtectionRaw(uv - vec2(nearOffset.x, 0.0))
+              ),
+              max(
+                sampleProtectionRaw(uv + vec2(0.0, nearOffset.y)),
+                sampleProtectionRaw(uv - vec2(0.0, nearOffset.y))
+              )
+            );
+            float diagonal = max(
+              max(
+                sampleProtectionRaw(uv + diagonalOffset),
+                sampleProtectionRaw(uv - diagonalOffset)
+              ),
+              max(
+                sampleProtectionRaw(uv + vec2(diagonalOffset.x, -diagonalOffset.y)),
+                sampleProtectionRaw(uv + vec2(-diagonalOffset.x, diagonalOffset.y))
+              )
+            );
+            float expanded = max(center, max(axial * 0.68, diagonal * 0.5));
+            float protectedCore = smoothstep(0.48, 0.94, center);
+            float protectedFeather = smoothstep(0.012, 0.82, expanded);
+            return max(protectedCore, protectedFeather);
           }
 
           void main() {
@@ -2483,7 +2513,7 @@ const gateStyle = [
             float radialReach = pow(max(0.0, 1.0 - reachProgress), 1.12);
             float gravityField = outsideCore * radialReach;
             float sourceProtection = sampleProtection(vUv);
-            float distortionMask = 1.0 - sourceProtection;
+            float distortionMask = pow(max(0.0, 1.0 - sourceProtection), 2.1);
             float sideDistance = abs(vUv.x - 0.5);
             float sideDepth = smoothstep(0.0, 0.5, sideDistance);
             float sideReach = max(
@@ -2580,25 +2610,42 @@ const gateStyle = [
             vec2 displacedPoint = mix(point, lensedPoint, edgeFade);
             vec2 displacedCandidate = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
             displacedCandidate += sideDisplacement * edgeFade;
-            float destinationProtection = sampleProtection(displacedCandidate);
-            float finalDistortionMask = distortionMask * (1.0 - destinationProtection * 0.88);
-            vec2 displacedUv = mix(vUv, displacedCandidate, finalDistortionMask);
-
-            vec3 color = sampleScene(displacedUv);
+            float destinationProtection = smoothstep(
+              0.018,
+              0.88,
+              sampleProtectionRaw(displacedCandidate)
+            );
+            float destinationFreedom = pow(
+              max(0.0, 1.0 - destinationProtection),
+              1.6
+            );
+            float finalDistortionMask = min(distortionMask, destinationFreedom);
+            float distortionBlend = smoothstep(0.015, 0.985, finalDistortionMask);
+            vec3 color;
+            if (distortionBlend <= 0.002) {
+              color = sampleScene(vUv);
+            } else if (distortionBlend >= 0.998) {
+              color = sampleScene(displacedCandidate);
+            } else {
+              vec2 softenedUv = mix(vUv, displacedCandidate, distortionBlend);
+              vec3 stableColor = sampleScene(vUv);
+              vec3 distortedColor = sampleScene(softenedUv);
+              color = mix(stableColor, distortedColor, distortionBlend);
+            }
             float refractionSheen = sin(vUv.y * 15.0 + sideDepth * 5.2 - uTime * 1.28)
-              * finalDistortionMask
+              * distortionBlend
               * gravityStrength
               * (0.012 + uCollapse * 0.022 + uCrush * 0.026);
             color *= 1.0
-              + caustic * finalDistortionMask * 0.065
-              + waveEnvelope * uShockStrength * finalDistortionMask * 0.028
+              + caustic * distortionBlend * 0.065
+              + waveEnvelope * uShockStrength * distortionBlend * 0.028
               + refractionSheen;
 
             float horizon = 1.0 - smoothstep(core * 0.98, core * 1.04, radius);
-            color = mix(color, vec3(0.0), horizon * finalDistortionMask);
+            color = mix(color, vec3(0.0), horizon * distortionBlend);
             float lensAlpha = max(
               clamp(uOpacity, 0.0, 1.0),
-              horizon * finalDistortionMask * smoothstep(0.05, 0.15, gravityStrength)
+              horizon * distortionBlend * smoothstep(0.05, 0.15, gravityStrength)
             );
 
             vec2 pixel = vUv * uResolution;
