@@ -271,7 +271,7 @@ const gateStyle = [
       const damping = 0.76;
       const burstDamping = 0.86;
       const settleDistance = 0.00035;
-      const chargeIntroDuration = 2400;
+      const chargeIntroDuration = 2150;
       const chargeHandoffStart = 0.015;
       const chargeHandoffEnd = 0.18;
       const glossFadeEnd = 0.42;
@@ -453,6 +453,7 @@ const gateStyle = [
 
       const smoothstep = (value) => value * value * (3 - 2 * value);
       const phaseProgress = (value, start, end) => smoothstep(clamp((value - start) / (end - start), 0, 1));
+      const easeOutCubic = (value) => 1 - (1 - clamp(value, 0, 1)) ** 3;
       const releaseAutoplayKeyframes = [
         [0, glossFadeEnd],
         [releaseCrossStartAt, crossStart],
@@ -6434,7 +6435,9 @@ const gateStyle = [
           breakT: 0.18,
           desktopLinks: 68,
           mobileLinks: 42,
-          linkScale: 0.98
+          linkScale: 0.98,
+          entryOverscan: 0.1,
+          entryBend: -0.2
         },
         {
           id: 1,
@@ -6451,7 +6454,9 @@ const gateStyle = [
           breakT: 0.5,
           desktopLinksPerSegment: 8,
           mobileLinksPerSegment: 5,
-          linkScale: 0.96
+          linkScale: 0.96,
+          entryOverscan: 0.13,
+          entryBend: 0.28
         },
         {
           id: 2,
@@ -6468,7 +6473,9 @@ const gateStyle = [
           breakT: 0.44,
           desktopLinksPerSegment: 7,
           mobileLinksPerSegment: 5,
-          linkScale: 0.82
+          linkScale: 0.82,
+          entryOverscan: 0.13,
+          entryBend: -0.24
         }
       ];
 
@@ -6490,6 +6497,25 @@ const gateStyle = [
           + 2 * (2 * point0 - 5 * point1 + 4 * point2 - point3) * unit
           + 3 * (-point0 + 3 * point1 - 3 * point2 + point3) * unit2
         );
+      };
+
+      const resolveSealMotion = (fill, intro) => {
+        const scrollTension = phaseProgress(fill, 0.48, 1);
+        const preloadPhase = phaseProgress(intro, 0.015, 0.13);
+        const preload = Math.sin(preloadPhase * Math.PI);
+        const cinchLinear = clamp((intro - 0.115) / 0.445, 0, 1);
+        const cinch = easeOutCubic(cinchLinear);
+        const lockSet = phaseProgress(intro, 0.54, 0.62);
+        const strain = Math.sin(phaseProgress(intro, 0.45, 0.655) * Math.PI);
+        const tension = clamp(
+          scrollTension * 0.14
+            - preload * 0.034
+            + cinch * 0.51
+            + lockSet * 0.026,
+          0,
+          0.72
+        );
+        return { scrollTension, cinch, strain, tension };
       };
 
       const resolveTitleChainPath = (definition, fill, intro) => {
@@ -6517,9 +6543,8 @@ const gateStyle = [
           ...gaps.map((gap) => gap + xShift),
           textRight + box.width * definition.xInset
         ];
-        const scrollTension = phaseProgress(fill, 0.48, 1);
-        const cinch = phaseProgress(intro, 0.035, 0.68);
-        const pull = scrollTension * 0.045 + cinch * 0.23;
+        const sealMotion = resolveSealMotion(fill, intro);
+        const pull = sealMotion.tension * 0.47;
         const points = anchorXs.map((x, index) => {
           const upper = (index + definition.verticalPhase) % 2 === 0;
           const endpointEase = index === 0 || index === anchorXs.length - 1 ? 0.08 : 0;
@@ -6542,10 +6567,8 @@ const gateStyle = [
         const box = chainTitleBox;
         const centerX = chainGlyphLayout.centerX || box.left + box.width * 0.5;
         const centerY = chainGlyphLayout.centerY || box.top + box.height * 0.52;
-        const scrollTension = phaseProgress(fill, 0.48, 1);
-        const cinch = phaseProgress(intro, 0.035, 0.68);
-        const strain = phaseProgress(intro, 0.16, 0.64)
-          * (1 - phaseProgress(intro, 0.68, 0.86));
+        const sealMotion = resolveSealMotion(fill, intro);
+        const { scrollTension, strain, tension } = sealMotion;
         let x = centerX;
         let y = centerY;
         let tangentX = 1;
@@ -6554,9 +6577,8 @@ const gateStyle = [
         let crossing = false;
 
         if (definition.type === "frame") {
-          const tighten = scrollTension * 0.16 + cinch * 0.38;
-          const radiusX = box.width * definition.radiusX * (1 - tighten * 0.72);
-          const radiusY = box.height * definition.radiusY * (1 - tighten * 0.78);
+          const radiusX = box.width * definition.radiusX * (1 - tension * 0.72);
+          const radiusY = box.height * definition.radiusY * (1 - tension * 0.8);
           const angle = definition.phase + definition.direction * unit * fullTurn * 1.035;
           const cosine = Math.cos(angle);
           const sine = Math.sin(angle);
@@ -6581,7 +6603,7 @@ const gateStyle = [
           y = point.y;
           tangentX = tangentPoint.x - x;
           tangentY = tangentPoint.y - y;
-          const looseness = 1 - scrollTension * 0.72 - cinch * 0.18;
+          const looseness = clamp(1 - tension * 1.18, 0.14, 1);
           const wobble = Math.sin(
             angle * 2.6
               + timestamp * 0.00046
@@ -6625,7 +6647,7 @@ const gateStyle = [
         );
         const tensionOffset = tensionWave
           * box.height
-          * (0.0035 + scrollTension * 0.006 + strain * 0.012);
+          * (0.0028 + scrollTension * 0.005 + strain * 0.014);
         x += normalX * tensionOffset;
         y += normalY * tensionOffset;
         return {
@@ -6638,6 +6660,39 @@ const gateStyle = [
           angle: Math.atan2(tangentY, tangentX),
           plane,
           crossing
+        };
+      };
+
+      const sampleTitleChainTravel = (definition, path, unit, fill, intro, timestamp) => {
+        if (unit >= 0 && unit <= 1) {
+          return sampleTitleChain(definition, path, unit, fill, intro, timestamp);
+        }
+        const boundaryUnit = unit < 0 ? 0 : 1;
+        const boundary = sampleTitleChain(
+          definition,
+          path,
+          boundaryUnit,
+          fill,
+          intro,
+          timestamp
+        );
+        const outside = Math.abs(unit - boundaryUnit);
+        const direction = unit < 0 ? -1 : 1;
+        const extension = Math.max(chainTitleBox.width, chainTitleBox.height)
+          * (definition.type === "frame" ? 0.88 : 1.02);
+        const bend = Math.sin(clamp(outside / 0.72, 0, 1) * Math.PI)
+          * chainTitleBox.height
+          * definition.entryBend;
+        return {
+          ...boundary,
+          x: boundary.x
+            + boundary.tangentX * direction * outside * extension
+            + boundary.normalX * bend,
+          y: boundary.y
+            + boundary.tangentY * direction * outside * extension
+            + boundary.normalY * bend,
+          plane: "back",
+          crossing: false
         };
       };
 
@@ -6654,7 +6709,6 @@ const gateStyle = [
           definition.id,
           Math.round(chainTitleBox.width),
           Math.round(chainTitleBox.height),
-          Math.round(renderQuality * 10),
           isMobile ? 1 : 0
         ].join(":");
         const cached = chainLinkUnitCache.get(cacheKey);
@@ -6674,18 +6728,11 @@ const gateStyle = [
         }
         if (totalLength <= 0.001) return [0];
 
-        const dimensions = getChainLinkDimensions(definition);
-        const qualitySpacing = 1 + (1 - renderQuality) * 0.08;
-        const mobileSpacing = isMobile ? 1.04 : 1;
-        const pitch = dimensions.width * 0.72 * qualitySpacing * mobileSpacing;
-        const minimum = definition.type === "frame" ? 48 : spacingPath.segmentCount * 5 + 1;
-        const maximum = definition.type === "frame"
-          ? (isMobile ? 78 : 108)
-          : (isMobile ? 55 : 74);
-        const desiredCount = definition.type === "frame"
-          ? Math.round(totalLength / pitch)
-          : Math.round(totalLength / pitch) + 1;
-        const linkCount = Math.round(clamp(desiredCount, minimum, maximum));
+        const linkCount = definition.type === "frame"
+          ? (isMobile ? definition.mobileLinks : definition.desktopLinks)
+          : (isMobile
+              ? definition.mobileLinksPerSegment
+              : definition.desktopLinksPerSegment) * spacingPath.segmentCount + 1;
         const unitAtLength = (targetLength) => {
           let low = 1;
           let high = samples.length - 1;
@@ -6740,15 +6787,17 @@ const gateStyle = [
         intro,
         isFront,
         arcPart,
-        rotationOffset = 0
+        rotationOffset = 0,
+        scale = 1
       ) => {
         if (alpha <= 0.002) return;
         const dimensions = getChainLinkDimensions(definition);
-        const linkWidth = dimensions.width;
-        const linkHeight = dimensions.height;
+        const linkWidth = dimensions.width * scale;
+        const linkHeight = dimensions.height * scale;
         const edgeOn = linkIndex % 2 === 1;
         const heat = clamp(fill * 0.72 + phaseProgress(intro, 0.08, 0.72) * 0.5, 0, 1);
         const layerAlpha = alpha * (isFront ? 1 : 0.66);
+        const detailedMetal = isFront && arcPart === "near";
         const nearUsesLowerArc = linkIndex % 2 === 0;
         const lowerArc = [-Math.PI * 0.08, Math.PI * 1.08];
         const upperArc = [Math.PI * 0.92, Math.PI * 2.08];
@@ -6762,31 +6811,38 @@ const gateStyle = [
         context.lineCap = "round";
         context.lineJoin = "round";
 
-        const metal = context.createLinearGradient(
-          0,
-          -linkHeight * 0.58,
-          0,
-          linkHeight * 0.58
-        );
-        if (heat > 0.56) {
-          metal.addColorStop(0, "rgba(70, 35, 61, 0.98)");
-          metal.addColorStop(0.22, "rgba(255, 203, 220, 0.99)");
-          metal.addColorStop(0.42, "rgba(219, 53, 103, 0.99)");
-          metal.addColorStop(0.72, "rgba(101, 22, 58, 0.99)");
-          metal.addColorStop(1, "rgba(255, 133, 169, 0.98)");
+        let metal;
+        if (detailedMetal) {
+          metal = context.createLinearGradient(
+            0,
+            -linkHeight * 0.58,
+            0,
+            linkHeight * 0.58
+          );
+          if (heat > 0.56) {
+            metal.addColorStop(0, "rgba(70, 35, 61, 0.98)");
+            metal.addColorStop(0.22, "rgba(255, 203, 220, 0.99)");
+            metal.addColorStop(0.42, "rgba(219, 53, 103, 0.99)");
+            metal.addColorStop(0.72, "rgba(101, 22, 58, 0.99)");
+            metal.addColorStop(1, "rgba(255, 133, 169, 0.98)");
+          } else {
+            metal.addColorStop(0, "rgba(31, 42, 70, 0.98)");
+            metal.addColorStop(0.22, "rgba(222, 232, 255, 0.99)");
+            metal.addColorStop(0.43, "rgba(105, 132, 186, 0.99)");
+            metal.addColorStop(0.72, "rgba(37, 53, 91, 0.99)");
+            metal.addColorStop(1, "rgba(154, 181, 232, 0.98)");
+          }
         } else {
-          metal.addColorStop(0, "rgba(31, 42, 70, 0.98)");
-          metal.addColorStop(0.22, "rgba(222, 232, 255, 0.99)");
-          metal.addColorStop(0.43, "rgba(105, 132, 186, 0.99)");
-          metal.addColorStop(0.72, "rgba(37, 53, 91, 0.99)");
-          metal.addColorStop(1, "rgba(154, 181, 232, 0.98)");
+          metal = heat > 0.56
+            ? "rgba(174, 50, 93, 0.98)"
+            : "rgba(83, 108, 160, 0.98)";
         }
 
         context.globalAlpha = layerAlpha * (arcPart === "near" ? 0.96 : 0.72);
         context.strokeStyle = "rgba(4, 5, 19, 0.96)";
-        context.lineWidth = isFront ? 6.6 : 6;
-        context.shadowColor = "rgba(2, 3, 18, 0.76)";
-        context.shadowBlur = isFront && arcPart === "near" ? 4.4 : 2.2;
+        context.lineWidth = isFront ? 7.2 : 6.4;
+        context.shadowColor = "rgba(2, 3, 18, 0.82)";
+        context.shadowBlur = detailedMetal ? 3.2 : 0;
         context.beginPath();
         context.ellipse(
           0,
@@ -6801,11 +6857,11 @@ const gateStyle = [
 
         context.globalAlpha = layerAlpha * (arcPart === "near" ? 1 : 0.8);
         context.strokeStyle = metal;
-        context.lineWidth = isFront ? 3.75 : 3.25;
+        context.lineWidth = isFront ? 4.05 : 3.45;
         context.shadowColor = heat > 0.68
           ? "rgba(255, 72, 128, 0.38)"
           : "rgba(116, 158, 230, 0.22)";
-        context.shadowBlur = isFront && arcPart === "near" ? 1.5 + heat * 2.8 : 0.5;
+        context.shadowBlur = detailedMetal ? 1.2 + heat * 2.2 : 0;
         context.beginPath();
         context.ellipse(
           0,
@@ -6818,7 +6874,7 @@ const gateStyle = [
         );
         context.stroke();
 
-        if (arcPart === "near") {
+        if (detailedMetal) {
           context.globalAlpha = layerAlpha * (0.46 + heat * 0.22);
           context.strokeStyle = heat > 0.58
             ? "rgba(255, 240, 246, 0.96)"
@@ -6854,88 +6910,182 @@ const gateStyle = [
               record.intro,
               isFront,
               arcPart,
-              record.rotationOffset
+              record.rotationOffset,
+              record.scale
             );
           }
         }
       };
 
-      const createHeartPath = (centerX, centerY, size, scale = 1) => {
-        const path = new Path2D();
-        const steps = 42;
-        for (let index = 0; index <= steps; index += 1) {
-          const angle = index / steps * fullTurn;
-          const x = Math.sin(angle) ** 3 * 16;
-          const y = -(
-            13 * Math.cos(angle)
-              - 5 * Math.cos(angle * 2)
-              - 2 * Math.cos(angle * 3)
-              - Math.cos(angle * 4)
-          );
-          const pointX = centerX + x / 17 * size * scale;
-          const pointY = centerY + y / 17 * size * scale;
-          if (index === 0) path.moveTo(pointX, pointY);
-          else path.lineTo(pointX, pointY);
-        }
-        path.closePath();
-        return path;
+      const drawChainLeader = (context, leader) => {
+        if (!leader || leader.alpha <= 0.002) return;
+        const { definition, sample, alpha, fill, intro } = leader;
+        const dimensions = getChainLinkDimensions(definition);
+        const forward = definition.direction > 0 ? 1 : -1;
+        context.save();
+        context.translate(sample.x, sample.y);
+        context.rotate(sample.angle + (forward < 0 ? Math.PI : 0));
+        context.globalCompositeOperation = "screen";
+        const trail = context.createLinearGradient(-dimensions.width * 2.5, 0, dimensions.width * 0.4, 0);
+        trail.addColorStop(0, "rgba(117,161,255,0)");
+        trail.addColorStop(0.62, fill > 0.56 ? "rgba(255,62,128,0.16)" : "rgba(117,161,255,0.14)");
+        trail.addColorStop(1, "rgba(255,248,252,0.88)");
+        context.globalAlpha = alpha * 0.76;
+        context.strokeStyle = trail;
+        context.lineWidth = 1.4 + Math.abs(velocity) * 24;
+        context.beginPath();
+        context.moveTo(-dimensions.width * 2.5, 0);
+        context.lineTo(dimensions.width * 0.38, 0);
+        context.stroke();
+        context.restore();
+        drawChainLinkArc(
+          context,
+          sample,
+          0,
+          definition,
+          alpha,
+          fill,
+          intro,
+          true,
+          "far",
+          0,
+          1.18
+        );
+        drawChainLinkArc(
+          context,
+          sample,
+          0,
+          definition,
+          alpha,
+          fill,
+          intro,
+          true,
+          "near",
+          0,
+          1.18
+        );
       };
 
-      const drawChainHeartSeal = (timestamp, intro) => {
-        if (!chainFrontContext || intro <= 0.001) return;
-        const build = phaseProgress(intro, 0.54, 0.75);
-        const release = phaseProgress(intro, 0.7, 0.93);
-        const fade = 1 - phaseProgress(intro, 0.9, 1);
-        const opacity = build * fade;
-        if (opacity <= 0.001) return;
-        const centerX = chainTitleBox.left + chainTitleBox.width * 0.53;
-        const centerY = chainTitleBox.top + chainTitleBox.height * 0.57;
-        const heartbeat = 0.5 + Math.sin(timestamp / 92) * 0.5;
-        const size = clamp(chainTitleBox.height * 0.17, 12, 27)
-          * (0.76 + build * 0.24 + release * 0.16);
+      const cubicChainPoint = (start, controlA, controlB, end, unit) => {
+        const inverse = 1 - unit;
+        return {
+          x: inverse ** 3 * start.x
+            + 3 * inverse ** 2 * unit * controlA.x
+            + 3 * inverse * unit ** 2 * controlB.x
+            + unit ** 3 * end.x,
+          y: inverse ** 3 * start.y
+            + 3 * inverse ** 2 * unit * controlA.y
+            + 3 * inverse * unit ** 2 * controlB.y
+            + unit ** 3 * end.y
+        };
+      };
+
+      const drawChainContractCore = (timestamp, intro, anchors, visibility) => {
+        if (!chainFrontContext || anchors.length === 0) return;
+        const gather = phaseProgress(intro, 0.69, 0.855);
+        const crush = phaseProgress(intro, 0.835, 0.97);
+        const fade = 1 - phaseProgress(intro, 0.95, 1);
+        if (gather * fade <= 0.001) return;
         const context = chainFrontContext;
-        const heart = createHeartPath(centerX, centerY, size);
+        const centerX = chainGlyphLayout.centerX || chainTitleBox.left + chainTitleBox.width * 0.5;
+        const centerY = (chainGlyphLayout.centerY || chainTitleBox.top + chainTitleBox.height * 0.52)
+          + chainTitleBox.height * 0.035;
+        const size = clamp(chainTitleBox.height * 0.31, 25, 54);
+        const sortedAnchors = [...anchors].sort((left, right) => left.x - right.x);
+        const starts = [sortedAnchors[0], sortedAnchors[sortedAnchors.length - 1]];
+        const time = timestamp / 1000;
+
         context.save();
         context.globalCompositeOperation = "screen";
+        context.lineCap = "round";
         context.lineJoin = "round";
-        context.globalAlpha = opacity * 0.62;
-        context.strokeStyle = "rgba(49, 5, 48, 0.94)";
-        context.lineWidth = 5.2;
-        context.shadowColor = "rgba(255, 37, 111, 0.82)";
-        context.shadowBlur = 13 + release * 13;
-        context.stroke(heart);
-        context.globalAlpha = opacity * (0.78 + heartbeat * 0.2);
-        context.strokeStyle = "rgba(255, 96, 153, 0.98)";
-        context.lineWidth = 2.3;
-        context.shadowColor = "rgba(255, 104, 157, 0.96)";
-        context.shadowBlur = 7 + release * 10;
-        context.stroke(heart);
-        context.globalAlpha = opacity * (0.58 + release * 0.38);
-        context.strokeStyle = "rgba(255, 248, 251, 0.98)";
-        context.lineWidth = 0.82;
-        context.shadowBlur = 2.5;
-        context.stroke(heart);
+        for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
+          const side = sideIndex === 0 ? -1 : 1;
+          const start = starts[sideIndex];
+          const controlA = {
+            x: centerX + side * size * 1.52,
+            y: centerY - size * (0.58 + sideIndex * 0.08)
+          };
+          const controlB = {
+            x: centerX + side * size * 0.72,
+            y: centerY - size * 1.18
+          };
+          const end = { x: centerX, y: centerY + size * 0.36 };
+          const head = gather;
+          const tail = Math.max(0, head - (0.22 + gather * 0.46));
+          const path = new Path2D();
+          const steps = 28;
+          for (let step = 0; step <= steps; step += 1) {
+            const unit = tail + (head - tail) * (step / steps);
+            const point = cubicChainPoint(start, controlA, controlB, end, unit);
+            const collapseStrength = crush ** 1.72;
+            const x = point.x + (centerX - point.x) * collapseStrength;
+            const y = point.y + (centerY - point.y) * collapseStrength;
+            if (step === 0) path.moveTo(x, y);
+            else path.lineTo(x, y);
+          }
+          const pulse = 0.88 + Math.sin(time * 11 + sideIndex * 1.7) * 0.12;
+          context.globalAlpha = visibility * fade * gather * 0.48;
+          context.strokeStyle = "rgba(70,7,51,0.94)";
+          context.lineWidth = 8.2 - crush * 3.8;
+          context.shadowColor = "rgba(255,36,112,0.9)";
+          context.shadowBlur = 14 + gather * 10;
+          context.stroke(path);
+          context.globalAlpha = visibility * fade * gather * pulse;
+          context.strokeStyle = side < 0
+            ? "rgba(255,65,134,0.98)"
+            : "rgba(255,119,170,0.98)";
+          context.lineWidth = 2.7 - crush * 0.9;
+          context.shadowBlur = 6 + gather * 7;
+          context.stroke(path);
+          context.globalAlpha = visibility * fade * gather * 0.84;
+          context.strokeStyle = "rgba(255,245,250,0.98)";
+          context.lineWidth = 0.8;
+          context.shadowBlur = 2;
+          context.stroke(path);
 
-        const diamondSize = size * (0.16 + build * 0.07);
-        context.globalAlpha = opacity * 0.86;
-        context.fillStyle = "rgba(255, 229, 240, 0.94)";
+          const tipPoint = cubicChainPoint(start, controlA, controlB, end, head);
+          const tipX = tipPoint.x + (centerX - tipPoint.x) * crush ** 1.72;
+          const tipY = tipPoint.y + (centerY - tipPoint.y) * crush ** 1.72;
+          const tipRadius = 3.5 + gather * 5.5;
+          const tipGlow = context.createRadialGradient(tipX, tipY, 0, tipX, tipY, tipRadius);
+          tipGlow.addColorStop(0, "rgba(255,255,255,1)");
+          tipGlow.addColorStop(0.28, "rgba(255,107,162,0.92)");
+          tipGlow.addColorStop(1, "rgba(255,45,119,0)");
+          context.globalAlpha = visibility * fade * gather;
+          context.fillStyle = tipGlow;
+          context.fillRect(tipX - tipRadius, tipY - tipRadius, tipRadius * 2, tipRadius * 2);
+        }
+
+        const coreBuild = phaseProgress(intro, 0.77, 0.9);
+        const corePulse = Math.sin(phaseProgress(intro, 0.79, 0.975) * Math.PI);
+        const coreRadius = size * (0.12 + coreBuild * 0.12) * (1 - crush * 0.66);
+        const coreGlow = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, size * 0.72);
+        coreGlow.addColorStop(0, "rgba(255,255,255,0.98)");
+        coreGlow.addColorStop(0.12, "rgba(255,162,196,0.9)");
+        coreGlow.addColorStop(0.38, "rgba(255,47,120,0.42)");
+        coreGlow.addColorStop(1, "rgba(255,35,111,0)");
+        context.globalAlpha = visibility * fade * coreBuild * (0.72 + corePulse * 0.28);
+        context.fillStyle = coreGlow;
+        context.fillRect(centerX - size, centerY - size, size * 2, size * 2);
+        context.globalAlpha = visibility * fade * coreBuild;
+        context.fillStyle = "rgba(255,246,250,0.98)";
+        context.shadowColor = "rgba(255,54,126,0.95)";
+        context.shadowBlur = 9 + corePulse * 14;
         context.beginPath();
-        context.moveTo(centerX, centerY - diamondSize);
-        context.lineTo(centerX + diamondSize * 0.72, centerY);
-        context.lineTo(centerX, centerY + diamondSize);
-        context.lineTo(centerX - diamondSize * 0.72, centerY);
-        context.closePath();
+        context.ellipse(centerX, centerY, Math.max(1.2, coreRadius * 0.42), Math.max(2.2, coreRadius), 0.08, 0, fullTurn);
         context.fill();
 
-        if (release > 0.001) {
-          const pulse = Math.sin(release * Math.PI);
-          const pulseHeart = createHeartPath(centerX, centerY, size, 1 + release * 2.45);
-          context.globalAlpha = pulse * opacity * 0.44;
-          context.strokeStyle = "rgba(255, 231, 241, 0.96)";
-          context.lineWidth = 1.1 + pulse * 1.2;
-          context.shadowColor = "rgba(255, 54, 124, 0.9)";
-          context.shadowBlur = 11 + release * 22;
-          context.stroke(pulseHeart);
+        if (crush > 0.001) {
+          const shock = Math.sin(crush * Math.PI);
+          const radius = size * (0.28 + crush * 1.85);
+          context.globalAlpha = visibility * fade * shock * 0.7;
+          context.strokeStyle = "rgba(255,226,239,0.96)";
+          context.lineWidth = 1.1 + shock * 1.6;
+          context.shadowBlur = 10 + shock * 16;
+          context.beginPath();
+          context.ellipse(centerX, centerY, radius, radius * 0.38, -0.06, 0, fullTurn);
+          context.stroke();
         }
         context.restore();
       };
@@ -6949,7 +7099,7 @@ const gateStyle = [
 
         const intro = clamp(chargeIntroProgress, 0, 1);
         const activation = phaseProgress(fill, 0.012, 0.11);
-        const introFade = 1 - phaseProgress(intro, 0.91, 1);
+        const introFade = 1 - phaseProgress(intro, 0.955, 1);
         const burstFade = 1 - phaseProgress(burstProgress, 0.004, 0.045);
         const visibility = activation * introFade * burstFade;
         if (visibility <= 0.001) {
@@ -6970,18 +7120,28 @@ const gateStyle = [
         }
 
         const isMobile = chainTitleBox.width < 360;
-        const release = phaseProgress(intro, 0.69, 0.94);
-        const rupturePulse = Math.sin(phaseProgress(intro, 0.66, 0.83) * Math.PI);
+        const breakOpen = easeOutCubic(clamp((intro - 0.6) / 0.1, 0, 1));
+        const sling = easeOutCubic(clamp((intro - 0.635) / 0.245, 0, 1));
+        const releaseFade = phaseProgress(intro, 0.84, 0.99);
+        const stressPulse = Math.sin(phaseProgress(intro, 0.45, 0.635) * Math.PI);
+        const rupturePulse = Math.sin(phaseProgress(intro, 0.595, 0.72) * Math.PI);
         const centerX = chainGlyphLayout.centerX || chainTitleBox.left + chainTitleBox.width * 0.5;
         const centerY = chainGlyphLayout.centerY || chainTitleBox.top + chainTitleBox.height * 0.52;
         const layerRecords = { back: [], front: [] };
         const ruptureEvents = [];
+        const breakAnchors = [];
+        const leaders = [];
 
         for (const definition of chainDefinitions) {
           const build = phaseProgress(fill, definition.buildStart, definition.buildEnd);
           if (build <= 0.001) continue;
           const path = resolveTitleChainPath(definition, fill, intro);
           const linkUnits = buildTitleChainLinkUnits(definition, isMobile);
+          const travel = easeOutCubic(build);
+          const travelSpan = 1 + definition.entryOverscan;
+          const travelOffset = definition.direction > 0
+            ? travel * travelSpan - travelSpan
+            : travelSpan - travel * travelSpan;
           const breakSample = sampleTitleChain(
             definition,
             path,
@@ -6991,28 +7151,65 @@ const gateStyle = [
             timestamp
           );
           const breakSeed = randomSeed(18001 + definition.id * 47.9);
+          breakAnchors.push(breakSample);
+          const leaderUnit = definition.direction > 0
+            ? -definition.entryOverscan + travel * travelSpan
+            : 1 + definition.entryOverscan - travel * travelSpan;
+          const leaderSample = sampleTitleChainTravel(
+            definition,
+            path,
+            leaderUnit,
+            fill,
+            intro,
+            timestamp
+          );
+          const leaderAlpha = visibility
+            * phaseProgress(build, 0.012, 0.075)
+            * (1 - phaseProgress(build, 0.82, 0.99));
+          if (leaderAlpha > 0.002) {
+            leaders.push({
+              definition,
+              sample: leaderSample,
+              alpha: leaderAlpha,
+              fill,
+              intro
+            });
+          }
           for (let linkIndex = 0; linkIndex < linkUnits.length; linkIndex += 1) {
             const unit = linkUnits[linkIndex];
-            const order = definition.direction > 0 ? unit : 1 - unit;
-            const appearStart = Math.min(0.94, order * 0.96);
-            const appear = phaseProgress(build, appearStart, Math.min(1, appearStart + 0.08));
-            if (appear <= 0.001) continue;
-            const sample = sampleTitleChain(definition, path, unit, fill, intro, timestamp);
-            let alpha = visibility * appear;
+            const travelUnit = unit + travelOffset;
+            if (travelUnit < -0.42 || travelUnit > 1.42) continue;
+            const sample = sampleTitleChainTravel(
+              definition,
+              path,
+              travelUnit,
+              fill,
+              intro,
+              timestamp
+            );
+            const outside = Math.max(0, -travelUnit, travelUnit - 1);
+            const ingressFade = 1 - phaseProgress(outside, 0.24, 0.42);
+            let alpha = visibility * phaseProgress(build, 0.005, 0.045) * ingressFade;
             let rotationOffset = 0;
-            if (release > 0.001) {
+            if (sling > 0.001) {
               const side = unit < definition.breakT ? -1 : 1;
               const seed = randomSeed(18203 + definition.id * 101 + linkIndex * 17.3);
               const distanceFromBreak = Math.abs(unit - definition.breakT);
-              const gap = (1 - phaseProgress(distanceFromBreak, 0.018, 0.09)) * release;
-              const releaseDistance = release ** 2
-                * (chainTitleBox.width * (0.026 + seed * 0.018) + chainTitleBox.height * 0.045);
+              const gap = (1 - phaseProgress(distanceFromBreak, 0.012, 0.085)) * breakOpen;
+              const impulseReach = 1 - phaseProgress(distanceFromBreak, 0.08, 0.58);
+              const releaseDistance = sling
+                * (chainTitleBox.width * (0.11 + seed * 0.045) + chainTitleBox.height * 0.075)
+                * (0.72 + impulseReach * 0.28);
               sample.x += breakSample.tangentX * side * releaseDistance;
               sample.y += breakSample.tangentY * side * releaseDistance;
-              sample.x += breakSample.normalX * (seed - 0.5) * chainTitleBox.height * 0.16 * release;
-              sample.y += breakSample.normalY * (seed - 0.5) * chainTitleBox.height * 0.16 * release;
-              rotationOffset = side * release * (0.18 + seed * 0.34);
-              alpha *= (1 - gap * 0.98) * (1 - release * (0.48 + seed * 0.18));
+              const whip = Math.sin(clamp(sling * 1.28 - distanceFromBreak * 1.35, 0, 1) * Math.PI);
+              const normalTravel = ((seed - 0.5) * 0.22 + side * whip * 0.12)
+                * chainTitleBox.height
+                * sling;
+              sample.x += breakSample.normalX * normalTravel;
+              sample.y += breakSample.normalY * normalTravel;
+              rotationOffset = side * sling * (0.5 + seed * 0.88);
+              alpha *= (1 - gap * 0.995) * (1 - releaseFade * (0.74 + seed * 0.2));
             }
             const record = {
               sample,
@@ -7022,6 +7219,7 @@ const gateStyle = [
               fill,
               intro,
               rotationOffset,
+              scale: 1,
               arcMode: "full"
             };
             if (sample.crossing && definition.type === "weave") {
@@ -7032,79 +7230,94 @@ const gateStyle = [
             }
           }
 
-          if (rupturePulse > 0.001 && definition.id < 3) {
-            ruptureEvents.push({ breakSample, breakSeed });
+          if (Math.max(stressPulse, rupturePulse) > 0.001) {
+            ruptureEvents.push({ breakSample, breakSeed, definition });
           }
         }
 
         drawChainLayer(chainBackContext, layerRecords.back, false);
         drawChainLayer(chainFrontContext, layerRecords.front, true);
+        for (const leader of leaders) drawChainLeader(chainFrontContext, leader);
 
         for (const { breakSample, breakSeed } of ruptureEvents) {
-            const context = chainFrontContext;
-            const flareRadius = clamp(chainTitleBox.height * 0.16, 10, 28)
-              * (0.72 + rupturePulse * 0.7);
-            const flare = context.createRadialGradient(
-              breakSample.x,
-              breakSample.y,
-              0,
-              breakSample.x,
-              breakSample.y,
-              flareRadius
-            );
-            flare.addColorStop(0, "rgba(255,255,255,0.98)");
-            flare.addColorStop(0.18, "rgba(255,210,229,0.9)");
-            flare.addColorStop(0.48, "rgba(255,55,126,0.56)");
-            flare.addColorStop(1, "rgba(255,39,114,0)");
-            context.save();
-            context.globalCompositeOperation = "screen";
-            context.globalAlpha = rupturePulse * visibility * 0.9;
-            context.fillStyle = flare;
-            context.fillRect(
-              breakSample.x - flareRadius,
-              breakSample.y - flareRadius,
-              flareRadius * 2,
-              flareRadius * 2
-            );
-            context.translate(breakSample.x, breakSample.y);
-            context.rotate(breakSample.angle);
-            for (let shardIndex = 0; shardIndex < 2; shardIndex += 1) {
-              const direction = shardIndex === 0 ? -1 : 1;
-              const shardTravel = release * chainTitleBox.height * (0.12 + breakSeed * 0.08);
-              context.save();
-              context.translate(direction * shardTravel, direction * shardTravel * 0.24);
-              context.rotate(direction * (0.45 + release * 0.8));
-              context.globalAlpha = rupturePulse * visibility * 0.76;
-              context.strokeStyle = "rgba(255, 216, 232, 0.94)";
-              context.lineWidth = 2.1;
-              context.shadowColor = "rgba(255, 54, 124, 0.84)";
-              context.shadowBlur = 6;
-              context.beginPath();
-              context.arc(0, 0, 5.8 + breakSeed * 3.2, -1.2, 0.72);
-              context.stroke();
-              context.restore();
-            }
-            context.restore();
-        }
-
-        drawChainHeartSeal(timestamp, intro);
-        const heartAfterglow = phaseProgress(intro, 0.72, 0.94);
-        if (heartAfterglow > 0.001) {
           const context = chainFrontContext;
-          const radius = Math.max(chainTitleBox.width, chainTitleBox.height)
-            * (0.04 + heartAfterglow * 0.17);
-          const glow = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-          glow.addColorStop(0, "rgba(255,255,255,0.82)");
-          glow.addColorStop(0.16, "rgba(255,124,168,0.42)");
-          glow.addColorStop(0.48, "rgba(116,162,255,0.12)");
-          glow.addColorStop(1, "rgba(255,54,122,0)");
+          const eventIntensity = Math.max(stressPulse * 0.5, rupturePulse);
+          const flareRadius = clamp(chainTitleBox.height * 0.18, 11, 31)
+            * (0.76 + eventIntensity * 0.88);
+          const flare = context.createRadialGradient(
+            breakSample.x,
+            breakSample.y,
+            0,
+            breakSample.x,
+            breakSample.y,
+            flareRadius
+          );
+          flare.addColorStop(0, "rgba(255,255,255,1)");
+          flare.addColorStop(0.15, "rgba(255,216,232,0.94)");
+          flare.addColorStop(0.46, "rgba(255,55,126,0.58)");
+          flare.addColorStop(1, "rgba(255,39,114,0)");
           context.save();
           context.globalCompositeOperation = "screen";
-          context.globalAlpha = Math.sin(heartAfterglow * Math.PI) * visibility * 0.52;
-          context.fillStyle = glow;
-          context.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+          context.globalAlpha = eventIntensity * visibility;
+          context.fillStyle = flare;
+          context.fillRect(
+            breakSample.x - flareRadius,
+            breakSample.y - flareRadius,
+            flareRadius * 2,
+            flareRadius * 2
+          );
+          context.translate(breakSample.x, breakSample.y);
+          context.rotate(breakSample.angle);
+          context.globalAlpha = visibility * stressPulse * 0.72;
+          context.strokeStyle = "rgba(255,244,249,0.96)";
+          context.lineWidth = 1.3 + stressPulse * 1.8;
+          context.shadowColor = "rgba(255,52,124,0.92)";
+          context.shadowBlur = 7 + stressPulse * 10;
+          context.beginPath();
+          context.moveTo(-flareRadius * 0.92, 0);
+          context.lineTo(flareRadius * 0.92, 0);
+          context.stroke();
+          const shardCount = isMobile ? 4 : 7;
+          for (let shardIndex = 0; shardIndex < shardCount; shardIndex += 1) {
+            const shardSeed = randomSeed(breakSeed * 1000 + shardIndex * 31.7);
+            const direction = shardIndex % 2 === 0 ? -1 : 1;
+            const shardTravel = sling * chainTitleBox.height * (0.24 + shardSeed * 0.48);
+            const shardLift = (shardSeed - 0.5) * chainTitleBox.height * 0.22 * sling;
+            context.save();
+            context.translate(direction * shardTravel, shardLift);
+            context.rotate(direction * (0.5 + sling * 1.2 + shardSeed * 0.62));
+            context.globalAlpha = rupturePulse * visibility * (0.52 + shardSeed * 0.4);
+            context.strokeStyle = shardIndex % 3 === 0
+              ? "rgba(255,255,255,0.98)"
+              : "rgba(255,129,174,0.94)";
+            context.lineWidth = 1.2 + shardSeed * 1.4;
+            context.shadowBlur = 5;
+            context.beginPath();
+            context.moveTo(-3 - shardSeed * 4, 0);
+            context.lineTo(5 + shardSeed * 10, 0);
+            context.stroke();
+            context.restore();
+          }
           context.restore();
         }
+
+        const ruptureShock = Math.sin(phaseProgress(intro, 0.625, 0.79) * Math.PI);
+        if (ruptureShock > 0.001) {
+          const context = chainFrontContext;
+          const radius = chainTitleBox.width * (0.045 + ruptureShock * 0.2);
+          context.save();
+          context.globalCompositeOperation = "screen";
+          context.globalAlpha = ruptureShock * visibility * 0.72;
+          context.strokeStyle = "rgba(255,226,239,0.96)";
+          context.lineWidth = 1.2 + ruptureShock * 2.1;
+          context.shadowColor = "rgba(255,45,118,0.9)";
+          context.shadowBlur = 11 + ruptureShock * 18;
+          context.beginPath();
+          context.ellipse(centerX, centerY, radius, radius * 0.29, -0.04, 0, fullTurn);
+          context.stroke();
+          context.restore();
+        }
+        drawChainContractCore(timestamp, intro, breakAnchors, visibility);
 
         chainBackCanvas.style.opacity = Math.min(1, visibility * 0.88).toFixed(3);
         chainFrontCanvas.style.opacity = Math.min(1, visibility).toFixed(3);
