@@ -1,0 +1,528 @@
+.kisara-arcade {
+  --arcade-accent: #ffb64c;
+  --arcade-hot: #ff5579;
+  --arcade-cold: #91b1ff;
+  min-height: 100vh;
+  padding: 156px 0 150px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 88% 7%, rgba(91, 74, 181, 0.18), transparent 24%),
+    linear-gradient(180deg, #080a20, #111636 68%);
+}
+
+.kisara-arcade[data-active-game="2048"] { --arcade-accent: #ffbe5c; --arcade-hot: #ff6f82; --arcade-cold: #8ea8ff; }
+.kisara-arcade[data-active-game="hextris"] { --arcade-accent: #79e6ff; --arcade-hot: #ff5d9e; --arcade-cold: #9187ff; }
+.kisara-arcade[data-active-game="clumsy-bird"] { --arcade-accent: #ffe66d; --arcade-hot: #ff6e91; --arcade-cold: #64d8c7; }
+
+.kisara-arcade-heading,
+.kisara-arcade-cabinet {
+  width: min(1240px, calc(100% - 48px));
+  margin-inline: auto;
+}
+
+.kisara-arcade-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
+  gap: 80px;
+  align-items: end;
+  margin-bottom: 58px;
+}
+
+.kisara-arcade-heading > div > p {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: #9db1e7;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.kisara-arcade-heading > div > p::before {
+  content: "";
+  width: 34px;
+  height: 1px;
+  background: var(--arcade-hot);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--arcade-hot) 78%, transparent);
+}
+
+.kisara-arcade-heading > div > p span { color: var(--arcade-hot); }
+
+.kisara-arcade-heading h1 {
+  margin: 30px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(4.5rem, 8vw, 8.4rem);
+  font-weight: 400;
+  line-height: 0.84;
+  letter-spacing: 0;
+}
+
+.kisara-arcade-heading h1 em {
+  color: var(--arcade-accent);
+  font-weight: 400;
+  transition: color 300ms ease;
+}
+
+.kisara-arcade-heading > p {
+  margin: 0 0 6px;
+  color: #aab3d0;
+  line-height: 1.82;
+}
+
+.kisara-arcade-cabinet {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  min-height: 680px;
+  border: 1px solid rgba(145, 177, 255, 0.28);
+  background: #070a1e;
+  box-shadow: 0 36px 90px rgba(2, 4, 18, 0.4);
+}
+
+.kisara-arcade-queue {
+  border-right: 1px solid rgba(145, 177, 255, 0.22);
+  background: linear-gradient(180deg, rgba(145, 177, 255, 0.035), transparent 70%);
+}
+
+.kisara-arcade-queue > header {
+  display: grid;
+  gap: 6px;
+  min-height: 78px;
+  align-content: center;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(145, 177, 255, 0.2);
+  font-family: "Courier New", Courier, monospace;
+  font-weight: 800;
+}
+
+.kisara-arcade-queue > header span { color: #dbe4ff; font-size: 0.66rem; }
+.kisara-arcade-queue > header small { color: #7581a7; font-size: 0.6rem; }
+
+.kisara-arcade-queue > div { display: grid; }
+
+.kisara-arcade-queue button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 7px;
+  gap: 11px;
+  align-items: center;
+  min-height: 112px;
+  padding: 18px;
+  border: 0;
+  border-bottom: 1px solid rgba(145, 177, 255, 0.16);
+  color: #8c97ba;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: color 180ms ease, background 180ms ease;
+}
+
+.kisara-arcade-queue button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--arcade-accent);
+  transform: scaleY(0);
+  transition: transform 220ms ease;
+}
+
+.kisara-arcade-queue button:hover,
+.kisara-arcade-queue button:focus-visible,
+.kisara-arcade-queue button[aria-pressed="true"] {
+  color: #fff;
+  outline: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--arcade-accent) 11%, transparent), transparent);
+}
+
+.kisara-arcade-queue button[aria-pressed="true"]::before { transform: scaleY(1); }
+
+.kisara-arcade-queue button > span:first-child {
+  color: var(--arcade-accent);
+  font: 700 0.64rem/1 "Courier New", Courier, monospace;
+}
+
+.kisara-arcade-queue button > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.kisara-arcade-queue button strong {
+  overflow: hidden;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kisara-arcade-queue button small {
+  color: #707c9f;
+  font: 700 0.58rem/1 "Courier New", Courier, monospace;
+}
+
+.kisara-arcade-queue button i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #505a7c;
+}
+
+.kisara-arcade-queue button[aria-pressed="true"] i {
+  background: var(--arcade-hot);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--arcade-hot) 76%, transparent);
+}
+
+.kisara-arcade-screen {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-rows: 1fr 66px;
+  min-width: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 78% 45%, color-mix(in srgb, var(--arcade-cold) 10%, transparent), transparent 32%),
+    #0c102f;
+  transition: background 320ms ease;
+}
+
+.kisara-arcade-screen::before {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  opacity: 0.42;
+  background: repeating-linear-gradient(180deg, transparent 0 5px, rgba(145, 177, 255, 0.045) 6px, transparent 7px);
+  pointer-events: none;
+}
+
+.kisara-arcade-visual {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  bottom: 66px;
+  width: 54%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.kisara-arcade-visual::before {
+  content: "";
+  position: absolute;
+  inset: 12% -18% 8% 2%;
+  border: 1px solid color-mix(in srgb, var(--arcade-accent) 38%, transparent);
+  border-radius: 50%;
+  transform: rotate(-12deg);
+  box-shadow: inset 0 0 80px color-mix(in srgb, var(--arcade-cold) 8%, transparent), 0 0 34px color-mix(in srgb, var(--arcade-accent) 10%, transparent);
+}
+
+.kisara-arcade-orbit {
+  position: absolute;
+  inset: 14% 6% 10% 8%;
+}
+
+.kisara-arcade-orbit i {
+  position: absolute;
+  display: block;
+  border: 2px solid var(--arcade-accent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--arcade-accent) 35%, transparent);
+  transition: width 360ms ease, height 360ms ease, border-radius 360ms ease, clip-path 360ms ease, transform 360ms ease, background 360ms ease;
+}
+
+.kisara-arcade[data-active-game="2048"] .kisara-arcade-orbit i {
+  width: 78px;
+  height: 78px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--arcade-accent) 10%, transparent);
+}
+
+.kisara-arcade[data-active-game="2048"] .kisara-arcade-orbit i:nth-child(1) { top: 15%; left: 18%; transform: rotate(-8deg); }
+.kisara-arcade[data-active-game="2048"] .kisara-arcade-orbit i:nth-child(2) { top: 15%; left: 48%; transform: scale(1.18) rotate(5deg); }
+.kisara-arcade[data-active-game="2048"] .kisara-arcade-orbit i:nth-child(3) { top: 44%; left: 33%; transform: scale(1.35); }
+.kisara-arcade[data-active-game="2048"] .kisara-arcade-orbit i:nth-child(4) { top: 66%; left: 58%; transform: scale(0.82) rotate(12deg); }
+.kisara-arcade[data-active-game="2048"] .kisara-arcade-orbit i:nth-child(5) { top: 52%; left: 72%; transform: scale(0.55); }
+.kisara-arcade[data-active-game="2048"] .kisara-arcade-orbit i:nth-child(6) { top: 76%; left: 18%; transform: scale(0.45); }
+
+.kisara-arcade[data-active-game="hextris"] .kisara-arcade-orbit i {
+  top: 50%;
+  left: 50%;
+  width: 250px;
+  height: 250px;
+  border-radius: 0;
+  clip-path: polygon(25% 7%, 75% 7%, 100% 50%, 75% 93%, 25% 93%, 0 50%);
+  background: transparent;
+  transform: translate(-50%, -50%) rotate(var(--hex-rotate, 0deg)) scale(var(--hex-scale, 1));
+}
+
+.kisara-arcade[data-active-game="hextris"] .kisara-arcade-orbit i:nth-child(1) { --hex-scale: 1; --hex-rotate: 0deg; }
+.kisara-arcade[data-active-game="hextris"] .kisara-arcade-orbit i:nth-child(2) { --hex-scale: 0.82; --hex-rotate: 30deg; opacity: 0.72; }
+.kisara-arcade[data-active-game="hextris"] .kisara-arcade-orbit i:nth-child(3) { --hex-scale: 0.64; --hex-rotate: 60deg; opacity: 0.58; }
+.kisara-arcade[data-active-game="hextris"] .kisara-arcade-orbit i:nth-child(4) { --hex-scale: 0.46; --hex-rotate: 90deg; opacity: 0.44; }
+.kisara-arcade[data-active-game="hextris"] .kisara-arcade-orbit i:nth-child(5) { --hex-scale: 0.28; --hex-rotate: 120deg; opacity: 0.32; }
+.kisara-arcade[data-active-game="hextris"] .kisara-arcade-orbit i:nth-child(6) { --hex-scale: 0.12; --hex-rotate: 150deg; background: var(--arcade-hot); }
+
+.kisara-arcade[data-active-game="clumsy-bird"] .kisara-arcade-orbit i {
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--arcade-accent);
+  box-shadow: 48px 0 0 color-mix(in srgb, var(--arcade-accent) 72%, #fff), 96px 0 0 var(--arcade-hot), 48px -48px 0 var(--arcade-cold);
+}
+
+.kisara-arcade[data-active-game="clumsy-bird"] .kisara-arcade-orbit i:nth-child(1) { top: 36%; left: 25%; transform: rotate(-8deg); }
+.kisara-arcade[data-active-game="clumsy-bird"] .kisara-arcade-orbit i:nth-child(2) { top: 60%; left: 55%; transform: scale(0.55); opacity: 0.65; }
+.kisara-arcade[data-active-game="clumsy-bird"] .kisara-arcade-orbit i:nth-child(3) { top: 18%; left: 68%; transform: scale(0.28); opacity: 0.42; }
+.kisara-arcade[data-active-game="clumsy-bird"] .kisara-arcade-orbit i:nth-child(n+4) { opacity: 0; }
+
+.kisara-arcade-reticle {
+  position: absolute;
+  top: 50%;
+  left: 55%;
+  width: 310px;
+  height: 310px;
+  border: 1px solid color-mix(in srgb, var(--arcade-cold) 24%, transparent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.kisara-arcade-reticle::before,
+.kisara-arcade-reticle::after {
+  content: "";
+  position: absolute;
+  background: color-mix(in srgb, var(--arcade-hot) 42%, transparent);
+}
+
+.kisara-arcade-reticle::before { top: 50%; right: -38px; left: -38px; height: 1px; }
+.kisara-arcade-reticle::after { top: -38px; bottom: -38px; left: 50%; width: 1px; }
+
+.kisara-arcade-beam {
+  position: absolute;
+  right: 8%;
+  bottom: 13%;
+  width: 42%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--arcade-accent), transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--arcade-accent) 54%, transparent);
+  transform: rotate(-12deg);
+}
+
+.kisara-arcade-panels {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  align-items: center;
+  min-height: 610px;
+  padding: 48px 50% 46px 54px;
+}
+
+.kisara-arcade-panels article { animation: kisara-arcade-panel-enter 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.kisara-arcade-panels article[hidden] { display: none; }
+
+@keyframes kisara-arcade-panel-enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.kisara-arcade.is-switching .kisara-arcade-orbit { animation: kisara-arcade-switch 420ms ease both; }
+
+@keyframes kisara-arcade-switch {
+  0% { opacity: 0.25; transform: scale(0.94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.kisara-arcade-panel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.kisara-arcade-panel-meta span { color: var(--arcade-accent); }
+.kisara-arcade-panel-meta small { color: #8190b9; font: inherit; }
+
+.kisara-arcade-panels h2 {
+  margin: 24px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(4rem, 7vw, 7.4rem);
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: 0;
+}
+
+.kisara-arcade-panels article > p {
+  max-width: 540px;
+  margin: 28px 0 0;
+  color: #aeb7d3;
+  line-height: 1.82;
+}
+
+.kisara-arcade-panels dl {
+  display: grid;
+  gap: 8px;
+  margin: 28px 0 0;
+}
+
+.kisara-arcade-panels dl div {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.kisara-arcade-panels dt {
+  color: var(--arcade-hot);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.kisara-arcade-panels dd {
+  margin: 0;
+  color: #8e9abe;
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+.kisara-arcade-panels blockquote {
+  max-width: 560px;
+  margin: 28px 0 0;
+  padding: 0 0 0 14px;
+  color: #7f8aae;
+  border-left: 1px solid var(--arcade-cold);
+  font-size: 0.68rem;
+  line-height: 1.68;
+}
+
+.kisara-arcade-panels nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 32px;
+}
+
+.kisara-arcade-panels nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 15px;
+  border: 1px solid rgba(145, 177, 255, 0.3);
+  color: #dbe3ff;
+  font-size: 0.67rem;
+  font-weight: 800;
+  transition: border-color 180ms ease, color 180ms ease, background 180ms ease;
+}
+
+.kisara-arcade-panels nav a.is-primary {
+  color: #080a20;
+  border-color: var(--arcade-accent);
+  background: var(--arcade-accent);
+}
+
+.kisara-arcade-panels nav a:hover,
+.kisara-arcade-panels nav a:focus-visible {
+  color: #fff;
+  border-color: var(--arcade-hot);
+  outline: none;
+  background: color-mix(in srgb, var(--arcade-hot) 15%, transparent);
+}
+
+.kisara-arcade-panels nav svg { width: 16px; height: 16px; }
+.kisara-arcade-panels nav .is-primary svg:last-child { width: 13px; height: 13px; }
+
+.kisara-arcade-controls {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 48px auto minmax(0, 1fr) 48px;
+  gap: 16px;
+  align-items: center;
+  min-height: 66px;
+  padding: 0 18px;
+  border-top: 1px solid rgba(145, 177, 255, 0.22);
+  background: rgba(5, 8, 28, 0.78);
+}
+
+.kisara-arcade-controls button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid rgba(145, 177, 255, 0.28);
+  border-radius: 50%;
+  color: #cdd7f8;
+  background: transparent;
+  cursor: pointer;
+}
+
+.kisara-arcade-controls button:hover,
+.kisara-arcade-controls button:focus-visible {
+  color: #fff;
+  border-color: var(--arcade-hot);
+  outline: none;
+}
+
+.kisara-arcade-controls button svg { width: 18px; height: 18px; }
+
+.kisara-arcade-controls output {
+  color: var(--arcade-accent);
+  font: 800 0.72rem/1 "Courier New", Courier, monospace;
+}
+
+.kisara-arcade-controls div {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #7783a6;
+  font: 700 0.6rem/1 "Courier New", Courier, monospace;
+}
+
+.kisara-arcade-controls div i {
+  width: 34px;
+  height: 1px;
+  background: var(--arcade-hot);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--arcade-hot) 66%, transparent);
+}
+
+@media (max-width: 1000px) {
+  .kisara-arcade-heading { grid-template-columns: 1fr; gap: 30px; }
+  .kisara-arcade-heading > p { max-width: 620px; }
+  .kisara-arcade-cabinet { grid-template-columns: 1fr; }
+  .kisara-arcade-queue { border-right: 0; border-bottom: 1px solid rgba(145, 177, 255, 0.22); }
+  .kisara-arcade-queue > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kisara-arcade-queue button { min-height: 90px; border-right: 1px solid rgba(145, 177, 255, 0.16); }
+}
+
+@media (max-width: 700px) {
+  .kisara-arcade { padding: 132px 0 110px; }
+  .kisara-arcade-heading,
+  .kisara-arcade-cabinet { width: min(100% - 32px, 1240px); }
+  .kisara-arcade-heading { margin-bottom: 42px; }
+  .kisara-arcade-heading h1 { font-size: 3.75rem; }
+  .kisara-arcade-queue > header { min-height: 64px; }
+  .kisara-arcade-queue > div { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .kisara-arcade-queue > div::-webkit-scrollbar { display: none; }
+  .kisara-arcade-queue button { flex: 0 0 220px; min-height: 84px; }
+  .kisara-arcade-screen { grid-template-rows: 1fr 62px; }
+  .kisara-arcade-visual { top: 28px; bottom: auto; width: 100%; height: 310px; opacity: 0.46; }
+  .kisara-arcade-panels { min-height: 720px; align-items: end; padding: 300px 22px 38px; }
+  .kisara-arcade-panels h2 { font-size: 4rem; }
+  .kisara-arcade-panels article > p { font-size: 0.9rem; line-height: 1.75; }
+  .kisara-arcade-panels dl div { grid-template-columns: 1fr; gap: 4px; }
+  .kisara-arcade-controls { grid-template-columns: 42px auto 1fr 42px; gap: 8px; padding-inline: 10px; }
+  .kisara-arcade-controls div span:first-child,
+  .kisara-arcade-controls div i { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kisara-arcade-panels article,
+  .kisara-arcade.is-switching .kisara-arcade-orbit { animation: none; }
+  .kisara-arcade-orbit i { transition: none; }
+}

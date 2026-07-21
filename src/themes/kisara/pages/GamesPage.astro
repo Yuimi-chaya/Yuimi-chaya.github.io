@@ -1,38 +1,123 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import "../styles/games.css";
 import { Icon } from "astro-icon/components";
 import { gamePicks } from "@/core/data/games";
+
+const gamePresentation = {
+  "2048": { channel: "TILE LOGIC", code: "02 / 48" },
+  hextris: { channel: "HEX REACTOR", code: "HEX / 06" },
+  "clumsy-bird": { channel: "PIXEL FLIGHT", code: "FLY / 01" }
+} as const;
 ---
 
 <KisaraLayout title="Games | Kisara" description="Yuimi Lab 的小游戏收藏。">
-  <section class="kisara-page-lead">
-    <div class="kisara-page-lead-inner">
-      <p class="kisara-section-index">PLAY CHANNEL / GAME</p>
-      <h1>Temporary escape.</h1>
-      <p>短暂离开记录区，切进一局刚刚好的小游戏。这里保留原作者、许可和项目来源。</p>
-      <div class="kisara-lead-metrics"><span><strong>{String(gamePicks.length).padStart(2, "0")}</strong> GAMES READY</span></div>
+  <section class="kisara-arcade" data-kisara-arcade data-active-game={gamePicks[0].id}>
+    <header class="kisara-arcade-heading">
+      <div>
+        <p><span>05</span> NIGHT SHIFT / GAME CHANNEL</p>
+        <h1>One more round<br /><em>before morning.</em></h1>
+      </div>
+      <p>短暂离开记录区，切进一局刚刚好的网页游戏。所有项目都保留原作者、许可和源码入口。</p>
+    </header>
+
+    <div class="kisara-arcade-cabinet">
+      <aside class="kisara-arcade-queue" aria-label="游戏选择">
+        <header><span>SELECT CHANNEL</span><small>{String(gamePicks.length).padStart(2, "0")} READY</small></header>
+        <div>
+          {gamePicks.map((game, index) => (
+            <button
+              type="button"
+              data-game-select={game.id}
+              aria-pressed={index === 0 ? "true" : "false"}
+              aria-controls={`kisara-game-${game.id}`}
+            >
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <span><strong>{game.name}</strong><small>{gamePresentation[game.id].channel}</small></span>
+              <i aria-hidden="true"></i>
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <div class="kisara-arcade-screen">
+        <div class="kisara-arcade-visual" aria-hidden="true">
+          <div class="kisara-arcade-orbit"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="kisara-arcade-reticle"></span>
+          <span class="kisara-arcade-beam"></span>
+        </div>
+
+        <div class="kisara-arcade-panels" aria-live="polite">
+          {gamePicks.map((game, index) => (
+            <article id={`kisara-game-${game.id}`} data-game-panel={game.id} hidden={index !== 0}>
+              <div class="kisara-arcade-panel-meta">
+                <span>{gamePresentation[game.id].code}</span>
+                <small>{game.vibe}</small>
+              </div>
+              <h2>{game.name}</h2>
+              <p>{game.summary}</p>
+              <dl>
+                <div><dt>AUTHOR</dt><dd>{game.author}</dd></div>
+                <div><dt>LICENSE</dt><dd>{game.license}</dd></div>
+              </dl>
+              <blockquote>{game.thanks}</blockquote>
+              <nav aria-label={`${game.name} 操作`}>
+                <a class="is-primary" href={game.play} target="_blank" rel="noreferrer">
+                  <Icon name="tabler:player-play" aria-hidden="true" />START GAME<Icon name="tabler:external-link" aria-hidden="true" />
+                </a>
+                <a href={game.repo} target="_blank" rel="noreferrer">
+                  <Icon name="tabler:brand-github" aria-hidden="true" />SOURCE
+                </a>
+              </nav>
+            </article>
+          ))}
+        </div>
+
+        <footer class="kisara-arcade-controls">
+          <button type="button" data-game-previous aria-label="上一个游戏" title="上一个游戏"><Icon name="tabler:chevron-left" aria-hidden="true" /></button>
+          <output data-game-counter aria-live="polite">01 / {String(gamePicks.length).padStart(2, "0")}</output>
+          <div><span>ARROW KEYS</span><i aria-hidden="true"></i><span>CHANNEL READY</span></div>
+          <button type="button" data-game-next aria-label="下一个游戏" title="下一个游戏"><Icon name="tabler:chevron-right" aria-hidden="true" /></button>
+        </footer>
+      </div>
     </div>
   </section>
-  <section class="kisara-directory-shell">
-    <div class="kisara-record-list kisara-game-list">
-      {gamePicks.map((game, index) => (
-        <article>
-          <span>{String(index + 1).padStart(2, "0")}</span>
-          <div>
-            <small>{game.vibe} / {game.license}</small>
-            <h2>{game.name}</h2>
-            <p>{game.summary}</p>
-            <dl>
-              <div><dt>AUTHOR</dt><dd>{game.author}</dd></div>
-              <div><dt>SIGNAL</dt><dd>{game.thanks}</dd></div>
-            </dl>
-          </div>
-          <nav aria-label={`${game.name} 操作`}>
-            <a href={game.play} target="_blank" rel="noreferrer"><Icon name="tabler:player-play" aria-hidden="true" />START</a>
-            <a href={game.repo} target="_blank" rel="noreferrer"><Icon name="tabler:brand-github" aria-hidden="true" />SOURCE</a>
-          </nav>
-        </article>
-      ))}
-    </div>
-  </section>
+
+  <script is:inline>
+    (() => {
+      const root = document.querySelector("[data-kisara-arcade]");
+      if (!(root instanceof HTMLElement)) return;
+      const selectors = Array.from(root.querySelectorAll("[data-game-select]"));
+      const panels = Array.from(root.querySelectorAll("[data-game-panel]"));
+      const counter = root.querySelector("[data-game-counter]");
+      let activeIndex = 0;
+
+      const activate = (nextIndex) => {
+        const total = selectors.length;
+        activeIndex = (nextIndex + total) % total;
+        const selector = selectors[activeIndex];
+        if (!(selector instanceof HTMLElement)) return;
+        const id = selector.dataset.gameSelect ?? "2048";
+        root.dataset.activeGame = id;
+        root.classList.remove("is-switching");
+        void root.offsetWidth;
+        root.classList.add("is-switching");
+        selectors.forEach((item, index) => item.setAttribute("aria-pressed", String(index === activeIndex)));
+        panels.forEach((panel) => {
+          if (panel instanceof HTMLElement) panel.hidden = panel.dataset.gamePanel !== id;
+        });
+        if (counter) counter.textContent = `${String(activeIndex + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`;
+      };
+
+      selectors.forEach((selector, index) => selector.addEventListener("click", () => activate(index)));
+      root.querySelector("[data-game-previous]")?.addEventListener("click", () => activate(activeIndex - 1));
+      root.querySelector("[data-game-next]")?.addEventListener("click", () => activate(activeIndex + 1));
+      window.addEventListener("keydown", (event) => {
+        const target = event.target;
+        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
+        if (event.key === "ArrowLeft") activate(activeIndex - 1);
+        if (event.key === "ArrowRight") activate(activeIndex + 1);
+      });
+    })();
+  </script>
 </KisaraLayout>
