@@ -26,6 +26,43 @@ const findThemeAsset = (baseName: string) => {
 };
 const activeBackgroundUrl = findThemeAsset("gate-background");
 const activeFightUrl = findThemeAsset("fight");
+const memoryScenes = [
+  {
+    id: "rescue",
+    image: "/themes/kisara/assets/memory-rescue.webp",
+    position: "center 50%",
+    saturation: 0.88,
+    brightness: 1.03
+  },
+  {
+    id: "attack",
+    image: "/themes/kisara/assets/memory-attack.webp",
+    position: "center 42%",
+    saturation: 0.96,
+    brightness: 1.04
+  },
+  {
+    id: "clash",
+    image: "/themes/kisara/assets/memory-clash.webp",
+    position: "center 50%",
+    saturation: 1.08,
+    brightness: 1.08
+  },
+  {
+    id: "embrace",
+    image: "/themes/kisara/assets/memory-embrace.webp",
+    position: "center 50%",
+    saturation: 0.9,
+    brightness: 1.03
+  },
+  {
+    id: "kiss",
+    image: "/themes/kisara/assets/memory-kiss.webp",
+    position: "center 50%",
+    saturation: 0.88,
+    brightness: 1.06
+  }
+] as const;
 const fightProtectionMaskUrl = existsSync(
   resolve("public/themes/kisara/assets/fight-distortion-protect.svg")
 )
@@ -50,7 +87,16 @@ const gateStyle = [
   <section class="kisara-gate" data-kisara-gate style={gateStyle}>
     <div class="kisara-gate-visual" aria-hidden="true">
       <div class="kisara-gate-background kisara-gate-background-base"></div>
+      {memoryScenes.map((scene, index) => (
+        <div
+          class="kisara-gate-background kisara-gate-memory"
+          data-kisara-memory-scene={index}
+          data-memory-id={scene.id}
+          style={`--kisara-memory-image: url("${scene.image}"); --kisara-memory-position: ${scene.position}; --kisara-memory-saturation: ${scene.saturation}; --kisara-memory-brightness: ${scene.brightness};`}
+        ></div>
+      ))}
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
+      <div class="kisara-memory-flare"></div>
       <div class="kisara-gate-background kisara-gate-background-fight-protection"></div>
       <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
       <canvas
@@ -268,6 +314,7 @@ const gateStyle = [
       const baseBackground = gate.querySelector(".kisara-gate-background-base");
       const fightBackground = gate.querySelector(".kisara-gate-background-fight");
       const fightWashBackground = gate.querySelector(".kisara-gate-background-fight-wash");
+      const memorySceneElements = Array.from(gate.querySelectorAll("[data-kisara-memory-scene]"));
       const meterShell = gate.querySelector(".kisara-contract-meter");
       const title = gate.querySelector(".kisara-title");
       const cross = gate.querySelector(".kisara-title-cross");
@@ -789,6 +836,63 @@ const gateStyle = [
         const progressSquared = progress * progress;
         const progressCubed = progressSquared * progress;
         return progressCubed * (progress * (progress * 6 - 15) + 10);
+      };
+      const memoryTimeline = [
+        { start: 0.035, enterEnd: 0.105, leaveStart: 0.185, end: 0.275, drift: 22, lift: -4 },
+        { start: 0.19, enterEnd: 0.265, leaveStart: 0.35, end: 0.445, drift: -26, lift: 3 },
+        { start: 0.36, enterEnd: 0.435, leaveStart: 0.525, end: 0.615, drift: 18, lift: -2 },
+        { start: 0.53, enterEnd: 0.605, leaveStart: 0.695, end: 0.785, drift: -18, lift: 2 },
+        { start: 0.7, enterEnd: 0.775, leaveStart: 0.865, end: 0.955, drift: 16, lift: -1 }
+      ];
+      const memoryTransitionCenters = [0.205, 0.375, 0.545, 0.715, 0.885];
+      const syncMemorySequence = (fill) => {
+        const motionBlur = clamp(Math.abs(velocity) * 96, 0, 4.4);
+        let strongestScene = 0;
+
+        memorySceneElements.forEach((element, index) => {
+          const scene = memoryTimeline[index];
+          if (!(element instanceof HTMLElement) || !scene) return;
+          const enter = smootherstep((fill - scene.start) / Math.max(0.0001, scene.enterEnd - scene.start));
+          const leave = 1 - smootherstep((fill - scene.leaveStart) / Math.max(0.0001, scene.end - scene.leaveStart));
+          const opacity = clamp(enter * leave, 0, 1);
+          const local = clamp((fill - scene.start) / Math.max(0.0001, scene.end - scene.start), 0, 1);
+          const focus = Math.sin(local * Math.PI);
+          const edgeSoftness = Math.pow(1 - Math.max(0, focus), 1.35);
+          const directionalTravel = (local - 0.5) * scene.drift;
+          const scale = 1.065 - focus * 0.032 + local * 0.006;
+
+          strongestScene = Math.max(strongestScene, opacity);
+          element.style.setProperty("--kisara-memory-opacity", (opacity * 0.985).toFixed(4));
+          element.style.setProperty("--kisara-memory-blur", `${(0.45 + edgeSoftness * 8.6 + motionBlur).toFixed(3)}px`);
+          element.style.setProperty("--kisara-memory-scale", scale.toFixed(5));
+          element.style.setProperty("--kisara-memory-shift-x", `${directionalTravel.toFixed(3)}px`);
+          element.style.setProperty("--kisara-memory-shift-y", `${(scene.lift * focus).toFixed(3)}px`);
+        });
+
+        const transitionProximity = memoryTransitionCenters.reduce((strongest, center) => {
+          const proximity = clamp(1 - Math.abs(fill - center) / 0.034, 0, 1);
+          return Math.max(strongest, smootherstep(proximity));
+        }, 0);
+        const transitionEnergy = clamp(Math.abs(velocity) * 34, 0, 1);
+        const memoryEnvelope = phaseProgress(fill, 0.018, 0.09)
+          * (1 - phaseProgress(fill, 0.93, 0.985));
+        const baseExit = smootherstep((fill - 0.035) / 0.115);
+        const fightReveal = smootherstep((fill - 0.855) / 0.13);
+
+        gate.style.setProperty(
+          "--kisara-memory-flash",
+          (transitionProximity * transitionEnergy * 0.34).toFixed(4)
+        );
+        gate.style.setProperty(
+          "--kisara-memory-haze",
+          (memoryEnvelope * (0.045 + strongestScene * 0.045)).toFixed(4)
+        );
+        gate.style.setProperty(
+          "--kisara-memory-flare-shift",
+          `${(clamp(velocity * 155, -1, 1) * 10).toFixed(3)}px`
+        );
+
+        return { baseExit, fightReveal };
       };
       const pointOnQuinticCurve = (start, controlA, controlB, controlC, controlD, end, progress) => {
         const inverse = 1 - progress;
@@ -9297,7 +9401,8 @@ const gateStyle = [
           && burstAutoplayComplete;
         const tideVisible = fill > 0.0005;
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
-        syncOpeningEdgeMix(reveal);
+        const memoryState = syncMemorySequence(fill);
+        syncOpeningEdgeMix(memoryState.fightReveal);
         const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
         const glossPosition = -18 + glossSweep * 136;
         const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
@@ -9313,15 +9418,15 @@ const gateStyle = [
         gate.style.setProperty("--kisara-tide-opacity", tideVisible ? "1" : "0");
         gate.style.setProperty("--kisara-crest-opacity", crestOpacity.toFixed(3));
         gate.style.setProperty("--kisara-crest-drift", `${crestDrift.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-bg-blur", `${(reveal * 12).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-bg-opacity", (0.98 - reveal * 0.66).toFixed(3));
-        gate.style.setProperty("--kisara-bg-saturation", (1 - reveal * 0.26).toFixed(3));
-        gate.style.setProperty("--kisara-bg-brightness", (1 - reveal * 0.14).toFixed(3));
-        gate.style.setProperty("--kisara-fight-opacity", (reveal * 0.98).toFixed(3));
-        gate.style.setProperty("--kisara-fight-blur", `${((1 - reveal) * 15).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-fight-scale", (1.06 - reveal * 0.06).toFixed(4));
-        gate.style.setProperty("--kisara-fight-saturation", (0.84 + reveal * 0.36).toFixed(3));
-        gate.style.setProperty("--kisara-fight-brightness", (0.86 + reveal * 0.22).toFixed(3));
+        gate.style.setProperty("--kisara-bg-blur", `${(memoryState.baseExit * 10).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-bg-opacity", (0.98 - memoryState.baseExit * 0.78).toFixed(3));
+        gate.style.setProperty("--kisara-bg-saturation", (1 - memoryState.baseExit * 0.2).toFixed(3));
+        gate.style.setProperty("--kisara-bg-brightness", (1 - memoryState.baseExit * 0.12).toFixed(3));
+        gate.style.setProperty("--kisara-fight-opacity", (memoryState.fightReveal * 0.98).toFixed(3));
+        gate.style.setProperty("--kisara-fight-blur", `${((1 - memoryState.fightReveal) * 15).toFixed(3)}px`);
+        gate.style.setProperty("--kisara-fight-scale", (1.06 - memoryState.fightReveal * 0.06).toFixed(4));
+        gate.style.setProperty("--kisara-fight-saturation", (0.84 + memoryState.fightReveal * 0.36).toFixed(3));
+        gate.style.setProperty("--kisara-fight-brightness", (0.86 + memoryState.fightReveal * 0.22).toFixed(3));
         energyProgress = fill;
         if (!energyLoopActive || reducedMotion) {
           updateBurstPresentation(performance.now(), false);
