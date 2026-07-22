@@ -1082,6 +1082,7 @@ const gateStyle = [
       let layoutResizeFrame = 0;
       let restoreSyncTimer = 0;
       let restoreWindowOpen = true;
+      let gateVisualResetPending = false;
       let poseTimestamp = 0;
       let poseClock = 0;
       let poseAtRest = true;
@@ -10737,20 +10738,34 @@ const gateStyle = [
         render();
       };
 
+      const finalizeGateResetForNextPage = () => {
+        if (!gateVisualResetPending) return;
+        gateVisualResetPending = false;
+        releaseOpeningEdgeState();
+        resetGateState();
+        lockOpeningEdgeState();
+      };
+
       const enterNextPage = () => {
         if (scrollFrame) return;
         pageMode = "snap";
         setPostReleaseActive(false);
-        lockOpeningEdgeState();
+        releaseOpeningEdgeState();
+        syncOpeningEdgeLiveGeometry(true);
         smoothScrollTo(getNextPageTop(), () => {
-          resetGateState();
           pageMode = "next";
           render();
+          syncOpeningEdgeLiveGeometry(true);
+          lockOpeningEdgeState();
+          gateVisualResetPending = true;
+        }, () => {
+          syncOpeningEdgeLiveGeometry(true);
         });
       };
 
       const returnToGate = () => {
         if (scrollFrame) return;
+        finalizeGateResetForNextPage();
         pageMode = "snap";
         const returnRailStart = getDocumentScrollProgress();
         releaseOpeningEdgeState();
@@ -11107,10 +11122,20 @@ const gateStyle = [
       const syncRestoredPosition = () => {
         if (!restoreWindowOpen || scrollFrame || pageMode !== "gate" || window.scrollY <= 2) return;
         pageMode = "next";
-        resetGateState();
+        gateVisualResetPending = true;
+        finalizeGateResetForNextPage();
+      };
+      const syncDeferredGateReset = () => {
+        if (!gateVisualResetPending || pageMode !== "next" || scrollFrame) return;
+        const edgeRect = openingEdge instanceof HTMLElement
+          ? openingEdge.getBoundingClientRect()
+          : null;
+        if (edgeRect && edgeRect.bottom >= -24) return;
+        finalizeGateResetForNextPage();
       };
       window.addEventListener("pageshow", syncRestoredPosition, { signal });
       window.addEventListener("scroll", syncRestoredPosition, { passive: true, signal });
+      window.addEventListener("scroll", syncDeferredGateReset, { passive: true, signal });
       window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
         if (disposed) return;
         syncRestoredPosition();
