@@ -70,7 +70,7 @@
 }
 
 .kisara-blog-character-stage::after {
-  z-index: 5;
+  z-index: 6;
   inset: -8% -20%;
   opacity: 0;
   transform: translate3d(48%, 0, 0) skewX(-10deg);
@@ -96,6 +96,23 @@
   height: 100%;
   object-fit: contain;
   object-position: center;
+}
+
+.kisara-blog-pair-sync {
+  position: absolute;
+  z-index: 5;
+  inset: 22% 30% 5% 29%;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(104deg, transparent 35%, rgba(158, 194, 255, 0.14) 45%, rgba(244, 248, 255, 0.58) 50%, rgba(255, 95, 139, 0.24) 55%, transparent 65%),
+    radial-gradient(ellipse at 48% 57%, rgba(112, 164, 255, 0.2), rgba(255, 70, 112, 0.1) 42%, transparent 72%);
+  filter: blur(10px);
+  mix-blend-mode: screen;
+  transform: translate3d(12%, 1%, 0) scale(0.96);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 56%, #000 0 38%, rgba(0, 0, 0, 0.78) 57%, transparent 82%);
+  mask-image: radial-gradient(ellipse at 50% 56%, #000 0 38%, rgba(0, 0, 0, 0.78) 57%, transparent 82%);
+  will-change: opacity, transform, filter;
 }
 
 .kisara-blog-character {
@@ -139,7 +156,7 @@
   z-index: 3;
   --blog-enter-x: -30px;
   --blog-enter-y: 20px;
-  --blog-enter-delay: 380ms;
+  --blog-enter-delay: 280ms;
   --blog-depth-blur: 0.35px;
   --blog-depth-saturation: 0.94;
   --blog-depth-brightness: 0.97;
@@ -149,11 +166,21 @@
   z-index: 4;
   --blog-enter-x: 34px;
   --blog-enter-y: 42px;
-  --blog-enter-delay: 120ms;
+  --blog-enter-delay: 90ms;
 }
 
 .kisara-blog-hero[data-intro-state="playing"] .kisara-blog-character {
   animation: kisara-blog-character-enter 900ms cubic-bezier(0.16, 0.84, 0.22, 1) var(--blog-enter-delay) both;
+}
+
+.kisara-blog-hero[data-intro-state="playing"] .kisara-blog-character.is-kisara {
+  animation-name: kisara-blog-front-enter;
+  animation-duration: 1280ms;
+  animation-timing-function: cubic-bezier(0.18, 0.78, 0.2, 1);
+}
+
+.kisara-blog-hero[data-intro-state="playing"] .kisara-blog-pair-sync {
+  animation: kisara-blog-pair-sync 1180ms cubic-bezier(0.18, 0.72, 0.18, 1) 100ms both;
 }
 
 .kisara-blog-hero[data-intro-state="playing"] .kisara-blog-character-stage::after {
@@ -215,6 +242,94 @@
       brightness(var(--blog-depth-brightness))
       drop-shadow(0 12px 18px rgba(2, 4, 18, 0.5))
       drop-shadow(0 0 10px rgba(145, 177, 255, 0.08));
+  }
+}
+
+@keyframes kisara-blog-front-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(var(--blog-enter-x), var(--blog-enter-y), 0) scale(1.055);
+    filter:
+      blur(20px)
+      saturate(0.5)
+      contrast(0.88)
+      brightness(1.22)
+      drop-shadow(-14px 0 0 rgba(116, 164, 255, 0.28))
+      drop-shadow(14px 0 0 rgba(255, 73, 105, 0.24));
+  }
+  20% {
+    opacity: 0.46;
+    filter:
+      blur(15px)
+      saturate(0.62)
+      contrast(0.96)
+      brightness(1.17)
+      drop-shadow(-10px 0 0 rgba(116, 164, 255, 0.24))
+      drop-shadow(10px 0 0 rgba(255, 73, 105, 0.2));
+  }
+  48% {
+    opacity: 0.76;
+    transform: translate3d(4px, 5px, 0) scale(1.012);
+    filter:
+      blur(9px)
+      saturate(0.76)
+      contrast(1.02)
+      brightness(1.1)
+      drop-shadow(-6px 0 0 rgba(116, 164, 255, 0.18))
+      drop-shadow(6px 0 0 rgba(255, 73, 105, 0.15));
+  }
+  68% {
+    opacity: 0.88;
+    transform: translate3d(1px, 1px, 0) scale(1.002);
+    filter:
+      blur(5.5px)
+      saturate(0.9)
+      contrast(1.05)
+      brightness(1.05)
+      drop-shadow(-3px 0 0 rgba(116, 164, 255, 0.12))
+      drop-shadow(3px 0 0 rgba(255, 73, 105, 0.1));
+  }
+  84% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(0.999);
+    filter:
+      blur(1.4px)
+      saturate(1.04)
+      contrast(1.06)
+      brightness(1.02)
+      drop-shadow(-1px 0 0 rgba(116, 164, 255, 0.08))
+      drop-shadow(1px 0 0 rgba(255, 73, 105, 0.06));
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter:
+      blur(0)
+      saturate(1)
+      contrast(1.025)
+      brightness(1)
+      drop-shadow(0 12px 18px rgba(2, 4, 18, 0.5))
+      drop-shadow(0 0 10px rgba(145, 177, 255, 0.08));
+  }
+}
+
+@keyframes kisara-blog-pair-sync {
+  0%, 8% {
+    opacity: 0;
+    transform: translate3d(13%, 1%, 0) scale(0.96);
+    filter: blur(14px);
+  }
+  24% { opacity: 0.42; }
+  56% {
+    opacity: 0.58;
+    transform: translate3d(1%, 0, 0) scale(1);
+    filter: blur(9px);
+  }
+  78% { opacity: 0.3; }
+  100% {
+    opacity: 0;
+    transform: translate3d(-9%, 0, 0) scale(1.035);
+    filter: blur(6px);
   }
 }
 
