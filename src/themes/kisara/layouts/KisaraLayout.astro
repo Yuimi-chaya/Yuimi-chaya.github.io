@@ -5,6 +5,12 @@ import ThemePreferenceGate from "@/core/themes/ThemePreferenceGate.astro";
 import { getCanonicalPath, getThemePath, themes } from "@/core/themes/registry";
 import { site } from "@/lib/site";
 import KisaraAudioControl from "../components/KisaraAudioControl.astro";
+import {
+  KISARA_AUDIO_LEGACY_STORAGE_KEY,
+  KISARA_AUDIO_STORAGE_KEY,
+  KISARA_AUDIO_VOLUME,
+  kisaraAudioTracks
+} from "../lib/audio";
 
 interface Props {
   title?: string;
@@ -25,6 +31,12 @@ const themeOptions = themes.map((theme) => ({
   ...theme,
   href: getThemePath(theme.id, canonicalPath)
 }));
+const audioConfig = {
+  tracks: kisaraAudioTracks,
+  storageKey: KISARA_AUDIO_STORAGE_KEY,
+  legacyStorageKey: KISARA_AUDIO_LEGACY_STORAGE_KEY,
+  volume: KISARA_AUDIO_VOLUME
+};
 ---
 
 <!doctype html>
@@ -37,18 +49,119 @@ const themeOptions = themes.map((theme) => ({
     <meta name="robots" content="noindex,follow" />
     <link rel="canonical" href={canonical} />
     <ThemePreferenceGate currentTheme="kisara" />
+    <script is:inline define:vars={{ audioConfig }}>
+      (() => {
+        if (window.__yuimiKisaraAudioBootstrap?.audio instanceof HTMLAudioElement) return;
+
+        const bootstrap = {
+          audio: null,
+          tracks: audioConfig.tracks,
+          trackId: audioConfig.tracks[0]?.id ?? "",
+          enabled: true,
+          persistedResumeIntent: false,
+          restoredFromStorage: false,
+          restoreTime: 0,
+          playPromise: null,
+          blocked: false,
+          settled: false,
+          claimed: false
+        };
+        window.__yuimiKisaraAudioBootstrap = bootstrap;
+        if (!Array.isArray(audioConfig.tracks) || audioConfig.tracks.length === 0) return;
+
+        let storedState = null;
+        try {
+          const stored = JSON.parse(localStorage.getItem(audioConfig.storageKey) ?? "null");
+          if (stored && typeof stored === "object") {
+            storedState = stored;
+            bootstrap.restoredFromStorage = true;
+          }
+        } catch {}
+
+        if (!storedState) {
+          try {
+            const legacy = JSON.parse(sessionStorage.getItem(audioConfig.legacyStorageKey) ?? "null");
+            if (legacy && typeof legacy === "object") {
+              storedState = legacy;
+              bootstrap.restoredFromStorage = true;
+            }
+          } catch {}
+        }
+
+        if (typeof storedState?.enabled === "boolean") {
+          bootstrap.enabled = storedState.enabled;
+          bootstrap.persistedResumeIntent = storedState.enabled;
+        }
+        if (Number.isFinite(storedState?.currentTime)) {
+          bootstrap.restoreTime = Math.max(0, storedState.currentTime);
+        }
+
+        const storedTrackId = typeof storedState?.trackId === "string" ? storedState.trackId : "";
+        const track = audioConfig.tracks.find((candidate) => candidate.id === storedTrackId)
+          ?? audioConfig.tracks[0];
+        bootstrap.trackId = track.id;
+
+        try {
+          const audio = new Audio();
+          audio.dataset.kisaraThemeAudio = "";
+          audio.dataset.kisaraAudioBootstrap = "head";
+          audio.preload = "auto";
+          audio.playsInline = true;
+          audio.setAttribute("playsinline", "");
+          audio.volume = audioConfig.volume;
+          bootstrap.audio = audio;
+
+          const restorePosition = () => {
+            const time = bootstrap.restoreTime;
+            if (!(time > 0)) return;
+            try {
+              if (Number.isFinite(audio.duration) && audio.duration > 0) {
+                audio.currentTime = time >= audio.duration - 0.5
+                  ? 0
+                  : Math.min(time, audio.duration - 0.25);
+              } else {
+                audio.currentTime = time;
+              }
+            } catch {}
+          };
+
+          audio.addEventListener("loadedmetadata", restorePosition, { once: true });
+          audio.src = track.src;
+          audio.load();
+
+          if (bootstrap.enabled) {
+            bootstrap.playPromise = Promise.resolve(audio.play())
+              .then(() => {
+                bootstrap.blocked = false;
+                return true;
+              })
+              .catch(() => {
+                bootstrap.blocked = !audio.error;
+                return false;
+              })
+              .finally(() => {
+                bootstrap.settled = true;
+              });
+          } else {
+            bootstrap.settled = true;
+          }
+        } catch {
+          bootstrap.settled = true;
+        }
+      })();
+    </script>
     <title>{title}</title>
   </head>
   <body class:list={[isHome ? "kisara-home-page" : "kisara-inner-page"]} data-kisara-page={pageKey} data-pagefind-ignore>
     <a class="kisara-skip-link" href="#kisara-main">跳到正文</a>
     <header class:list={["kisara-header", isHome ? "is-home-header" : "is-inner-header"]}>
-      <a class="kisara-brand" href={getThemePath("kisara", "/")} aria-label="Kisara 主题首页">
+      <a class="kisara-brand" href={getThemePath("kisara", "/")} aria-label="Kisara 主题首页" data-astro-prefetch="load">
         <span class="kisara-brand-mark" aria-hidden="true"></span>
         <span><strong>YUIMI LAB</strong><small>KISARA / 03</small></span>
       </a>
       <nav class="kisara-nav" aria-label="Kisara theme navigation">
         {navItems.map((item) => (
-          <a href={item.href} aria-current={item.active ? "page" : undefined}>
+          <a href={item.href} aria-current={item.active ? "page" : undefined} data-astro-prefetch="load">
             <Icon name={item.icon} aria-hidden="true" />
             <span>{item.label}</span>
           </a>
@@ -83,7 +196,7 @@ const themeOptions = themes.map((theme) => ({
     <footer class="kisara-footer">
       <span class="kisara-footer-signal"><i aria-hidden="true"></i>CONTRACT CHANNEL 03 / ONLINE</span>
       <nav aria-label="Kisara footer navigation">
-        {navItems.slice(1).map((item) => <a href={item.href}>{item.label}</a>)}
+        {navItems.slice(1).map((item) => <a href={item.href} data-astro-prefetch="load">{item.label}</a>)}
       </nav>
       <span>© 2026 喝益胃 / YUIMI LAB</span>
     </footer>

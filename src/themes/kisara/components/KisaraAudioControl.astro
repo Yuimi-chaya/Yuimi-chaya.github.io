@@ -1,5 +1,18 @@
 ---
 import { Icon } from "astro-icon/components";
+import {
+  KISARA_AUDIO_LEGACY_STORAGE_KEY,
+  KISARA_AUDIO_STORAGE_KEY,
+  KISARA_AUDIO_VOLUME,
+  kisaraAudioTracks
+} from "../lib/audio";
+
+const audioConfig = {
+  tracks: kisaraAudioTracks,
+  storageKey: KISARA_AUDIO_STORAGE_KEY,
+  legacyStorageKey: KISARA_AUDIO_LEGACY_STORAGE_KEY,
+  volume: KISARA_AUDIO_VOLUME
+};
 ---
 
 <div class="kisara-audio-player" data-kisara-audio-player>
@@ -36,29 +49,28 @@ import { Icon } from "astro-icon/components";
   </div>
 </div>
 
-<script is:inline>
+<script is:inline define:vars={{ audioConfig }}>
   (() => {
     const player = document.querySelector("[data-kisara-audio-player]");
-    const audio = player?.querySelector("[data-kisara-theme-audio]");
+    const placeholderAudio = player?.querySelector("[data-kisara-theme-audio]");
     const control = player?.querySelector("[data-kisara-audio-control]");
     const title = player?.querySelector("[data-kisara-audio-title]");
     const status = player?.querySelector("[data-kisara-audio-status]");
     const previous = player?.querySelector("[data-kisara-audio-prev]");
     const next = player?.querySelector("[data-kisara-audio-next]");
-    if (!(audio instanceof HTMLAudioElement) || !(control instanceof HTMLButtonElement)) return;
+    if (!(placeholderAudio instanceof HTMLAudioElement) || !(control instanceof HTMLButtonElement)) return;
 
-    const tracks = [
-      { id: "taisaku-kanryo", title: "対策完了", src: "/themes/kisara/audio/taisaku-kanryo.mp3" },
-      { id: "bayron-city", title: "ベイロンシティ", src: "/themes/kisara/audio/bayron-city.mp3" },
-      { id: "ai-no-chikara", title: "愛の力", src: "/themes/kisara/audio/ai-no-chikara.mp3" },
-      { id: "aikagi", title: "合鍵", src: "/themes/kisara/audio/aikagi.mp3" },
-      { id: "kokoro-no-oku", title: "心の奥", src: "/themes/kisara/audio/kokoro-no-oku.mp3" },
-      { id: "mitakunai-kako", title: "見たくない過去", src: "/themes/kisara/audio/mitakunai-kako.mp3" },
-      { id: "chanto-tabeteru", title: "ちゃんと食べてる？", src: "/themes/kisara/audio/chanto-tabeteru.mp3" },
-      { id: "ichaicha-mousou", title: "イチャイチャ（妄想）", src: "/themes/kisara/audio/ichaicha-mousou.mp3" }
-    ];
-    const storageKey = "yuimi-kisara-playlist-v2";
-    const legacyStorageKey = "yuimi-kisara-audio-v1";
+    const bootstrap = window.__yuimiKisaraAudioBootstrap;
+    const canAdoptBootstrap = bootstrap?.audio instanceof HTMLAudioElement && !bootstrap.claimed;
+    const audio = canAdoptBootstrap ? bootstrap.audio : placeholderAudio;
+    if (canAdoptBootstrap) {
+      bootstrap.claimed = true;
+      placeholderAudio.replaceWith(audio);
+    }
+
+    const tracks = audioConfig.tracks;
+    const storageKey = audioConfig.storageKey;
+    const legacyStorageKey = audioConfig.legacyStorageKey;
     const stateLabels = {
       loading: "LINKING",
       playing: "PLAYING",
@@ -80,21 +92,30 @@ import { Icon } from "astro-icon/components";
     let ambientUnlockAvailable = true;
 
     let restoredFromStorage = false;
-    try {
-      const stored = JSON.parse(localStorage.getItem(storageKey) ?? "null");
-      if (stored && typeof stored === "object") {
-        if (typeof stored.enabled === "boolean") {
-          enabled = stored.enabled;
-          persistedResumeIntent = stored.enabled;
+    if (canAdoptBootstrap) {
+      enabled = bootstrap.enabled !== false;
+      persistedResumeIntent = Boolean(bootstrap.persistedResumeIntent);
+      const bootstrapIndex = tracks.findIndex((track) => track.id === bootstrap.trackId);
+      if (bootstrapIndex >= 0) trackIndex = bootstrapIndex;
+      if (Number.isFinite(bootstrap.restoreTime)) restoreTime = Math.max(0, bootstrap.restoreTime);
+      restoredFromStorage = Boolean(bootstrap.restoredFromStorage);
+    } else {
+      try {
+        const stored = JSON.parse(localStorage.getItem(storageKey) ?? "null");
+        if (stored && typeof stored === "object") {
+          if (typeof stored.enabled === "boolean") {
+            enabled = stored.enabled;
+            persistedResumeIntent = stored.enabled;
+          }
+          if (typeof stored.trackId === "string") {
+            const storedIndex = tracks.findIndex((track) => track.id === stored.trackId);
+            if (storedIndex >= 0) trackIndex = storedIndex;
+          }
+          if (Number.isFinite(stored.currentTime)) restoreTime = Math.max(0, stored.currentTime);
+          restoredFromStorage = true;
         }
-        if (typeof stored.trackId === "string") {
-          const storedIndex = tracks.findIndex((track) => track.id === stored.trackId);
-          if (storedIndex >= 0) trackIndex = storedIndex;
-        }
-        if (Number.isFinite(stored.currentTime)) restoreTime = Math.max(0, stored.currentTime);
-        restoredFromStorage = true;
-      }
-    } catch {}
+      } catch {}
+    }
 
     if (!restoredFromStorage) {
       try {
@@ -109,7 +130,7 @@ import { Icon } from "astro-icon/components";
       } catch {}
     }
 
-    audio.volume = 0.48;
+    audio.volume = audioConfig.volume;
 
     const activeTrack = () => tracks[trackIndex];
 
@@ -149,6 +170,13 @@ import { Icon } from "astro-icon/components";
 
     const persistState = () => {
       const currentTime = Number.isFinite(audio.currentTime) ? audio.currentTime : restoreTime;
+      persistedResumeIntent = enabled;
+      if (bootstrap) {
+        bootstrap.enabled = enabled;
+        bootstrap.persistedResumeIntent = enabled;
+        bootstrap.trackId = activeTrack().id;
+        bootstrap.restoreTime = currentTime;
+      }
       try {
         localStorage.setItem(storageKey, JSON.stringify({
           enabled,
@@ -205,6 +233,30 @@ import { Icon } from "astro-icon/components";
       return playbackPromise;
     };
 
+    const adoptBootstrapPlayback = () => {
+      if (!bootstrap?.playPromise) return false;
+      const token = ++playbackToken;
+      setUiState("loading");
+      playbackPromise = Promise.resolve(bootstrap.playPromise)
+        .then(() => {
+          if (token !== playbackToken) return false;
+          const playing = !audio.paused && !audio.ended;
+          autoplayBlocked = !playing && !audio.error && Boolean(bootstrap.blocked);
+          setUiState(playing ? "playing" : audio.error ? "error" : autoplayBlocked ? "blocked" : "loading");
+          return playing;
+        })
+        .catch(() => {
+          if (token !== playbackToken) return false;
+          autoplayBlocked = !audio.error;
+          setUiState(audio.error ? "error" : "blocked");
+          return false;
+        })
+        .finally(() => {
+          if (token === playbackToken) playbackPromise = null;
+        });
+      return true;
+    };
+
     const selectTrack = (nextIndex, options = {}) => {
       const normalizedIndex = (nextIndex + tracks.length) % tracks.length;
       const requestedTime = Number.isFinite(options.time) ? Math.max(0, options.time) : 0;
@@ -220,6 +272,13 @@ import { Icon } from "astro-icon/components";
       restoreTime = requestedTime;
       audio.src = activeTrack().src;
       audio.load();
+      if (bootstrap) {
+        bootstrap.trackId = activeTrack().id;
+        bootstrap.restoreTime = requestedTime;
+        bootstrap.playPromise = null;
+        bootstrap.blocked = false;
+        bootstrap.settled = false;
+      }
       updateTrackUi();
       setUiState(shouldPlay ? "loading" : "paused");
       if (shouldPersist) persistState();
@@ -247,6 +306,8 @@ import { Icon } from "astro-icon/components";
     control.addEventListener("click", () => {
       if (audio.paused) {
         enabled = true;
+        persistedResumeIntent = true;
+        ambientUnlockAvailable = true;
         autoplayBlocked = false;
         persistState();
         requestPlayback();
@@ -254,6 +315,7 @@ import { Icon } from "astro-icon/components";
       }
 
       enabled = false;
+      persistedResumeIntent = false;
       autoplayBlocked = false;
       audio.pause();
       setUiState("paused");
@@ -320,6 +382,24 @@ import { Icon } from "astro-icon/components";
       if (Math.abs(audio.currentTime - lastStoredTime) >= 3) persistState();
     });
 
-    selectTrack(trackIndex, { time: restoreTime, autoplay: enabled, persist: false });
+    updateTrackUi();
+    if (canAdoptBootstrap) {
+      if (!enabled) {
+        setUiState("paused");
+      } else if (!bootstrap.settled && adoptBootstrapPlayback()) {
+        // The head bootstrap already owns the first play request.
+      } else if (!audio.paused && !audio.ended) {
+        setUiState("playing");
+      } else if (audio.error) {
+        setUiState("error");
+      } else if (bootstrap.blocked) {
+        autoplayBlocked = true;
+        setUiState("blocked");
+      } else {
+        requestPlayback();
+      }
+    } else {
+      selectTrack(trackIndex, { time: restoreTime, autoplay: enabled, persist: false });
+    }
   })();
 </script>
