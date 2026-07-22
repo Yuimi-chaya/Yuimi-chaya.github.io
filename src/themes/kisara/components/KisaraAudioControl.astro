@@ -76,12 +76,17 @@ import { Icon } from "astro-icon/components";
     let loadToken = 0;
     let playbackToken = 0;
     let switchingTrack = false;
+    let persistedResumeIntent = false;
+    let ambientUnlockAvailable = true;
 
     let restoredFromStorage = false;
     try {
       const stored = JSON.parse(localStorage.getItem(storageKey) ?? "null");
       if (stored && typeof stored === "object") {
-        if (typeof stored.enabled === "boolean") enabled = stored.enabled;
+        if (typeof stored.enabled === "boolean") {
+          enabled = stored.enabled;
+          persistedResumeIntent = stored.enabled;
+        }
         if (typeof stored.trackId === "string") {
           const storedIndex = tracks.findIndex((track) => track.id === stored.trackId);
           if (storedIndex >= 0) trackIndex = storedIndex;
@@ -95,7 +100,10 @@ import { Icon } from "astro-icon/components";
       try {
         const legacy = JSON.parse(sessionStorage.getItem(legacyStorageKey) ?? "null");
         if (legacy && typeof legacy === "object") {
-          if (typeof legacy.enabled === "boolean") enabled = legacy.enabled;
+          if (typeof legacy.enabled === "boolean") {
+            enabled = legacy.enabled;
+            persistedResumeIntent = legacy.enabled;
+          }
           if (Number.isFinite(legacy.currentTime)) restoreTime = Math.max(0, legacy.currentTime);
         }
       } catch {}
@@ -259,14 +267,29 @@ import { Icon } from "astro-icon/components";
       if (!enabled || !autoplayBlocked || !audio.paused) return;
       const target = event.target instanceof Element ? event.target : null;
       if (target?.closest("[data-kisara-audio-control]")) return;
+      const ambientAttempt = event.type === "pointermove" || event.type === "wheel";
+      if (ambientAttempt) {
+        if (!persistedResumeIntent || !ambientUnlockAvailable) return;
+        ambientUnlockAvailable = false;
+      }
       requestPlayback();
     };
 
+    window.addEventListener("pointermove", unlockPlayback, { passive: true });
+    window.addEventListener("wheel", unlockPlayback, { passive: true });
     window.addEventListener("pointerdown", unlockPlayback, { passive: true });
     window.addEventListener("mousedown", unlockPlayback, { passive: true });
     window.addEventListener("touchend", unlockPlayback, { passive: true });
     window.addEventListener("click", unlockPlayback, { passive: true });
     window.addEventListener("keydown", unlockPlayback);
+    document.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const link = target?.closest("a[href]");
+      if (!(link instanceof HTMLAnchorElement) || link.target === "_blank" || link.hasAttribute("download")) return;
+      const destination = new URL(link.href, document.baseURI);
+      if (destination.origin !== window.location.origin) return;
+      persistState();
+    }, true);
     window.addEventListener("pageshow", () => {
       if (enabled && audio.paused && !autoplayBlocked) requestPlayback();
     });
