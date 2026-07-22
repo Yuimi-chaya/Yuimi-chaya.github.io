@@ -353,19 +353,20 @@ const gateStyle = [
       const detonationEnd = 0.972;
       const rainStart = 0.948;
       const rainPeak = 0.989;
-      const releaseAutoplayDuration = 4300;
-      const releaseCrossStartAt = 0.015;
-      const releaseCrossBuildEndAt = 0.034;
+      const releaseFirstAutoplayDuration = 3000;
+      const releaseReplayAutoplayDuration = 1750;
+      const releaseCrossStartAt = 0.012;
+      const releaseCrossBuildEndAt = 0.033;
       const releaseCrossFlashEndAt = 0.05;
-      const releaseCrossEndAt = 0.068;
-      const releaseCrossSpinEndAt = 0.038;
+      const releaseCrossEndAt = 0.076;
+      const releaseCrossSpinEndAt = 0.036;
       const releaseCrossHoldEndAt = 0.044;
-      const releaseCrossRetractEndAt = 0.061;
-      const releaseCollapseStartAt = 0.082;
-      const releaseCollapseEndAt = 0.26;
-      const releaseShockwaveStartAt = 0.32;
-      const releaseDetonationStartAt = 0.39;
-      const releaseDetonationEndAt = 0.61;
+      const releaseCrossRetractEndAt = 0.067;
+      const releaseCollapseStartAt = 0.11;
+      const releaseCollapseEndAt = 0.31;
+      const releaseShockwaveStartAt = 0.38;
+      const releaseDetonationStartAt = 0.45;
+      const releaseDetonationEndAt = 0.67;
       const blackHoleIngressStart = crossFlashEnd + (crossEnd - crossFlashEnd) * 0.08;
       const blackHoleCoreEnd = crossEnd + 0.014;
       const blackHoleDiskStart = crossEnd - 0.025;
@@ -575,6 +576,13 @@ const gateStyle = [
         if (openingEdgeMix > 0.5) renderOpeningEdgeTexture("fight");
       });
       window.addEventListener("resize", scheduleOpeningEdgeTextureRefresh, { passive: true });
+      const releaseSessionKey = "yuimi-kisara-release-viewed-v1";
+      let releaseCompletedInTab = false;
+      try {
+        releaseCompletedInTab = window.sessionStorage.getItem(releaseSessionKey) === "1";
+      } catch {
+        releaseCompletedInTab = false;
+      }
       const startsComplete = reducedMotion && !restoredBelowGate;
       let progress = startsComplete ? 1 : 0;
       let targetProgress = progress;
@@ -582,10 +590,19 @@ const gateStyle = [
       let burstProgress = startsComplete ? 1 : 0;
       let targetBurstProgress = burstProgress;
       let burstVelocity = 0;
-      let burstAutoplay = false;
-      let burstAutoplayComplete = startsComplete;
-      let burstAutoplayStartedAt = 0;
-      let burstAutoplayTimeline = startsComplete ? 1 : 0;
+      let releaseMode = startsComplete ? "complete" : "manual";
+      let releaseTimeline = startsComplete ? 1 : 0;
+      let releaseDuration = releaseCompletedInTab
+        ? releaseReplayAutoplayDuration
+        : releaseFirstAutoplayDuration;
+      let releaseLastTimestamp = 0;
+      let releasePlaybackRate = 1;
+      let releaseBoost = 0;
+      let releaseVisualPressure = 0;
+      let releaseRewindFromTimeline = 0;
+      let releaseRewindStartedAt = 0;
+      let releaseRewindDuration = 0;
+      let releaseRewindVeil = 0;
       let chargeIntroProgress = startsComplete ? 1 : 0;
       let chargeIntroActive = false;
       let chargeIntroComplete = startsComplete;
@@ -606,6 +623,9 @@ const gateStyle = [
       let renderedRailActive = null;
       let renderedRailGuided = null;
       let renderedRailTransitioning = null;
+      let renderedRailPlaybackRate = -1;
+      let renderedRailPressure = -1;
+      let renderedRailReleaseMode = "";
       let warningPresentationActive = false;
       let energyFrame = 0;
       let energyTimer = 0;
@@ -4988,8 +5008,10 @@ const gateStyle = [
 
         const orbitLimit = Math.floor((width < 640 ? 82 : 160) * renderQuality);
         const orbitDrive = blackHoleOrbitOpacity * (1 - detonationLinear) * (1 - crushCompression * 0.78);
-        if (!reducedMotion && orbitDrive > 0.01) {
-          orbitEmissionBudget += frameSeconds * (18 + gravityLock * 86) * densityScale;
+        if (!reducedMotion && releaseMode !== "rewinding" && orbitDrive > 0.01) {
+          orbitEmissionBudget += frameSeconds
+            * (18 + gravityLock * 86 + releaseVisualPressure * 46)
+            * densityScale;
           while (orbitEmissionBudget >= 1 && orbitParticles.length < orbitLimit) {
             orbitEmissionBudget -= 1;
             orbitParticles.push({
@@ -5672,7 +5694,7 @@ const gateStyle = [
           context.restore();
         }
 
-        if (!reducedMotion) {
+        if (!reducedMotion && releaseMode !== "rewinding") {
           const waveThresholds = [0.06, 0.34, 0.66];
           for (let waveIndex = 0; waveIndex < waveThresholds.length; waveIndex += 1) {
             const waveBit = 1 << waveIndex;
@@ -5955,8 +5977,10 @@ const gateStyle = [
 
         const rainLimit = Math.floor((width < 640 ? 88 : 152) * renderQuality);
         const rainDrive = rainBuild * (1 - rainStop);
-        if (!reducedMotion && rainDrive > 0.001) {
-          rainEmissionBudget += frameSeconds * (10 + rainDrive * 76) * densityScale;
+        if (!reducedMotion && releaseMode !== "rewinding" && rainDrive > 0.001) {
+          rainEmissionBudget += frameSeconds
+            * (10 + rainDrive * 76 + releaseVisualPressure * 32)
+            * densityScale;
           while (rainEmissionBudget >= 1 && rainParticles.length < rainLimit) {
             rainEmissionBudget -= 1;
             const angle = nextParticleRandom() * Math.PI * 2;
@@ -6296,7 +6320,10 @@ const gateStyle = [
           + collapseDepth * 1.35
           + shockwavePulse * 2.55
           + detonationRush * 5.8;
-        const performanceBlur = preBlastBlur + gravityBlur + impactBlur * (1 - blurRecovery);
+        const performanceBlur = preBlastBlur
+          + gravityBlur
+          + impactBlur * (1 - blurRecovery)
+          + releaseRewindVeil * 5.2;
         const gravityScreen = phaseProgress(burst, gravityIngressStart, collapseStart + 0.019)
           * (1 - phaseProgress(burst, rainPeak, 1));
         const gravityPressure = phaseProgress(burst, collapseStart - 0.003, shockwaveStart);
@@ -6307,13 +6334,28 @@ const gateStyle = [
           : clamp(inversionFlash + ruptureFlash, 0, 1.2);
         const impactTail = phaseProgress(burst, detonationStart, rainPeak)
           * (1 - phaseProgress(burst, rainPeak, 1));
-        const screenShakeStrength = collapsePulse * 0.38 + shockwavePulse * 0.92 + impactFlash * 1.48;
+        const screenShakeStrength = collapsePulse * 0.38
+          + shockwavePulse * 0.92
+          + impactFlash * 1.48
+          + releaseVisualPressure * gravityScreen * 0.24;
         const screenShakeX = Math.sin(motionPhases.screenX) * screenShakeStrength
           + Math.cos(motionPhases.screenXSecondary) * impactFlash * 0.44;
         const screenShakeY = Math.cos(motionPhases.screenY) * screenShakeStrength * 0.62
           + Math.sin(motionPhases.screenYSecondary) * impactFlash * 0.34;
         const gravityDriftX = Math.sin(motionPhases.gravityX) * gravityScreen * (0.7 + gravityPressure * 1.8);
         const gravityDriftY = Math.cos(motionPhases.gravityY) * gravityScreen * (0.5 + gravityPressure * 1.25);
+        const cameraBeatOne = Math.sin(
+          phaseProgress(burst, blackHoleIngressStart, collapseEnd) * Math.PI
+        );
+        const cameraBeatTwo = Math.sin(
+          phaseProgress(burst, collapseEnd, detonationStart) * Math.PI
+        );
+        const sceneCameraX = cameraBeatOne * -6.5 + cameraBeatTwo * 8.5;
+        const sceneCameraY = cameraBeatOne * -3.2 + cameraBeatTwo * 2.4;
+        const sceneCameraScale = 1
+          + cameraBeatOne * 0.008
+          + cameraBeatTwo * 0.013
+          + releaseVisualPressure * 0.003;
         const collapseZoom = collapseDepth * (1 - shockwave * 0.72);
         const gravityScale = 1
           + gravityScreen * 0.012
@@ -6344,7 +6386,7 @@ const gateStyle = [
         const lensRecovery = 1 - phaseProgress(burst, rainPeak - 0.006, 1);
         const lensOpacity = clamp(
           (
-            lensBuild * 0.34
+            lensBuild * (0.34 + releaseVisualPressure * 0.16)
               + gravityScreen * 0.56
               + gravityPressure * 0.66
               + collapseDepth * 0.74
@@ -6356,7 +6398,7 @@ const gateStyle = [
           1
         );
         const lensGravity = clamp(
-          lensBuild * 0.58
+          lensBuild * (0.58 + releaseVisualPressure * 0.28)
             + gravityPressure * 0.86
             + collapseDepth * 0.98
             + crushCompression * 0.72,
@@ -6446,8 +6488,8 @@ const gateStyle = [
           titleLensCenterX = warpOriginX - (titleLensRect.left - lensGateRect.left);
           titleLensCenterY = warpOriginY - (titleLensRect.top - lensGateRect.top);
         }
-        const crossAutoplayTimeline = burstAutoplay && burstAutoplayStartedAt > 0
-          ? clamp((timestamp - burstAutoplayStartedAt) / releaseAutoplayDuration, 0, 1)
+        const crossAutoplayTimeline = ["forward", "rewinding", "paused"].includes(releaseMode)
+          ? releaseTimeline
           : null;
         const crossFallbackTimeline = releaseCrossStartAt
           + clamp((burst - crossStart) / (crossEnd - crossStart), 0, 1)
@@ -6672,8 +6714,13 @@ const gateStyle = [
         gate.style.setProperty("--kisara-title-impact-x", `${introKickX.toFixed(3)}px`);
         gate.style.setProperty("--kisara-title-impact-y", `${introKickY.toFixed(3)}px`);
         gate.style.setProperty("--kisara-performance-blur", `${performanceBlur.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-release-rewind", releaseRewindVeil.toFixed(4));
+        gate.style.setProperty("--kisara-release-pressure", releaseVisualPressure.toFixed(4));
         gate.style.setProperty("--kisara-screen-shake-x", `${screenShakeX.toFixed(3)}px`);
         gate.style.setProperty("--kisara-screen-shake-y", `${screenShakeY.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-scene-camera-x", `${sceneCameraX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-scene-camera-y", `${sceneCameraY.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-scene-camera-scale", sceneCameraScale.toFixed(5));
         gate.style.setProperty("--kisara-base-shift-x", `${(-gravityDriftX).toFixed(3)}px`);
         gate.style.setProperty("--kisara-base-shift-y", `${(-gravityDriftY).toFixed(3)}px`);
         gate.style.setProperty("--kisara-fight-shift-x", `${(gravityDriftX * 1.65).toFixed(3)}px`);
@@ -6806,7 +6853,7 @@ const gateStyle = [
         const burstComplete = targetBurstProgress >= 0.9995
           && burstProgress >= 0.999
           && Math.abs(burstVelocity) < 0.001
-          && burstAutoplayComplete;
+          && releaseMode === "complete";
         state.textContent = makeGlitchState(timestamp, burstProgress, burstComplete);
         renderedGlitchTick = tick;
       };
@@ -8815,7 +8862,7 @@ const gateStyle = [
       const drawEnergy = (timestamp) => {
         energyFrame = 0;
         if (!energyLoopActive || !energyCanvas || !energyContext) return;
-        const releaseSettled = burstAutoplayComplete
+        const releaseSettled = releaseMode === "complete"
           && burstProgress >= 0.999
           && targetBurstProgress >= 0.9995;
         const residualParticleCount = wakeParticles.length
@@ -9335,23 +9382,37 @@ const gateStyle = [
         metadata = {}
       }) => {
         const railProgress = clamp(nextProgress, 0, 1);
+        const railPlaybackRate = clamp(Number(metadata.playbackRate) || 1, 0.1, 2);
+        const railPressure = clamp(Number(metadata.pressure) || 0, 0, 1);
+        const railReleaseMode = typeof metadata.releaseMode === "string"
+          ? metadata.releaseMode
+          : "manual";
         if (
           Math.abs(railProgress - renderedRailProgress) < 0.0005
           && stage === renderedRailStage
           && active === renderedRailActive
           && guided === renderedRailGuided
           && transitioning === renderedRailTransitioning
+          && Math.abs(railPlaybackRate - renderedRailPlaybackRate) < 0.01
+          && Math.abs(railPressure - renderedRailPressure) < 0.01
+          && railReleaseMode === renderedRailReleaseMode
         ) return;
         renderedRailProgress = railProgress;
         renderedRailStage = stage;
         renderedRailActive = active;
         renderedRailGuided = guided;
         renderedRailTransitioning = transitioning;
+        renderedRailPlaybackRate = railPlaybackRate;
+        renderedRailPressure = railPressure;
+        renderedRailReleaseMode = railReleaseMode;
         gate.dataset.kisaraScrollProgress = railProgress.toFixed(5);
         gate.dataset.kisaraScrollStage = stage;
         gate.dataset.kisaraScrollActive = String(active);
         gate.dataset.kisaraScrollGuided = String(guided);
         gate.dataset.kisaraScrollTransitioning = String(transitioning);
+        gate.dataset.kisaraScrollPlaybackRate = railPlaybackRate.toFixed(3);
+        gate.dataset.kisaraScrollPressure = railPressure.toFixed(3);
+        gate.dataset.kisaraScrollReleaseMode = railReleaseMode;
         window.dispatchEvent(new CustomEvent("kisara:gate-progress", {
           detail: {
             active,
@@ -9366,16 +9427,18 @@ const gateStyle = [
 
       const syncGateProgressRail = (fill, burstComplete, chainStage) => {
         const active = pageMode === "gate";
-        const automatic = chargeIntroActive || burstAutoplay;
+        const releaseAutomatic = ["forward", "rewinding"].includes(releaseMode);
+        const releaseTimelineActive = ["forward", "rewinding", "paused", "complete"].includes(releaseMode);
+        const automatic = chargeIntroActive || releaseAutomatic;
         const manualReleaseProgress = clamp(burstProgress / glossFadeEnd, 0, 1);
         const overallProgress = !chargeIntroComplete
           ? chargeIntroActive
             ? 0.45 + chargeIntroProgress * 0.1
             : fill * 0.45
-          : burstAutoplayComplete
+          : releaseMode === "complete"
             ? 1
-            : burstAutoplay
-              ? 0.65 + burstAutoplayTimeline * 0.35
+            : releaseTimelineActive
+              ? 0.65 + releaseTimeline * 0.35
               : 0.55 + manualReleaseProgress * 0.1;
         const railProgress = clamp(overallProgress, 0, 1);
         const railStage = burstComplete
@@ -9384,6 +9447,8 @@ const gateStyle = [
             ? chargeIntroProgress < 0.62 ? "rupture" : "enchant"
             : !chargeIntroComplete
               ? chainStage
+              : releaseMode === "paused"
+                ? "blade"
               : burstProgress < glossFadeEnd
                 ? "blade"
                 : burstProgress < blackHoleIngressStart
@@ -9399,14 +9464,19 @@ const gateStyle = [
           active,
           progress: railProgress,
           stage: railStage,
-          guided: active && !automatic,
+          guided: active
+            && !chargeIntroActive
+            && ["manual", "forward", "paused"].includes(releaseMode),
           metadata: {
             fill,
             intro: chargeIntroProgress,
             burst: burstProgress,
-            autoplay: burstAutoplayTimeline,
+            autoplay: releaseTimeline,
             automatic,
-            complete: burstComplete
+            complete: burstComplete,
+            playbackRate: releasePlaybackRate,
+            pressure: releaseVisualPressure,
+            releaseMode
           }
         });
       };
@@ -9420,7 +9490,7 @@ const gateStyle = [
           && targetBurstProgress >= 0.9995
           && burstProgress >= 0.999
           && Math.abs(burstVelocity) < 0.001
-          && burstAutoplayComplete;
+          && releaseMode === "complete";
         const tideVisible = fill > 0.0005;
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
         const memoryState = syncMemorySequence(fill);
@@ -9512,20 +9582,29 @@ const gateStyle = [
         gate.classList.toggle(
           "is-rewinding",
           chargeIntroReversing
+            || releaseMode === "rewinding"
             || burstVelocity < -0.00025
             || targetBurstProgress < burstProgress - 0.0005
         );
         setPostReleaseActive(burstComplete && pageMode === "gate");
         if (cue) {
-          const cueGuided = pageMode === "gate" && !chargeIntroActive && !burstAutoplay;
+          const cueGuided = pageMode === "gate"
+            && !chargeIntroActive
+            && ["manual", "forward", "paused"].includes(releaseMode);
           cue.classList.toggle("is-guiding", cueGuided);
           cue.classList.toggle("is-enter-ready", burstComplete && pageMode === "gate");
           cue.textContent = chargeIntroActive
             ? chargeIntroReversing
               ? "CONTRACT SIGNAL / REWINDING"
               : "LOCKED HEART / BREAKING"
-            : burstAutoplay
-            ? "AUTOMATIC RELEASE / STAND BY"
+            : releaseMode === "rewinding"
+            ? "CONTRACT SIGNAL / FOLDING BACK"
+            : releaseMode === "forward"
+            ? releaseVisualPressure > 0.12
+              ? "RELEASE DRIVE / ACCELERATING"
+              : "SCROLL / DRIVE THE RELEASE"
+            : releaseMode === "paused"
+            ? "SCROLL / RESUME THE RELEASE"
             : burstComplete
             ? "SCROLL DOWN / ENTER CHANNEL"
             : fillComplete
@@ -9569,14 +9648,102 @@ const gateStyle = [
         transitionChargeIntro(1, timestamp);
       };
 
-      const startReleaseAutoplay = (timestamp) => {
-        if (burstAutoplay || burstAutoplayComplete) return;
-        burstAutoplay = true;
-        burstAutoplayStartedAt = timestamp;
-        burstAutoplayTimeline = 0;
+      const markReleaseCompletedInTab = () => {
+        releaseCompletedInTab = true;
+        try {
+          window.sessionStorage.setItem(releaseSessionKey, "1");
+        } catch {
+          // Session persistence is optional; the in-memory flag still shortens later runs.
+        }
+      };
+
+      const clearReleaseTransientEffects = (timestamp = performance.now()) => {
+        orbitEmissionBudget = 0;
+        rainEmissionBudget = 0;
+        burstWaveMask = 0;
+        orbitParticles.length = 0;
+        burstParticles.length = 0;
+        rainParticles.length = 0;
+        screenParticleTimestamp = timestamp;
+        poseTimestamp = timestamp;
+        lastSpaceLensPaintTimestamp = 0;
+        lastTitleLensPaintTimestamp = 0;
+        burstContext?.clearRect(0, 0, burstCanvasWidth, burstCanvasHeight);
+        singularityFieldContext?.clearRect(
+          0,
+          0,
+          singularityFieldCanvas.width,
+          singularityFieldCanvas.height
+        );
+        spaceLensRenderer?.clear();
+        titleLensRenderer?.clear();
+      };
+
+      const startReleaseAutoplay = (timestamp, { resume = false } = {}) => {
+        if (releaseMode === "forward" || releaseMode === "complete") return;
+        releaseMode = "forward";
+        releaseDuration = releaseCompletedInTab
+          ? releaseReplayAutoplayDuration
+          : releaseFirstAutoplayDuration;
+        releaseLastTimestamp = timestamp;
+        releasePlaybackRate = 1;
+        releaseBoost = 0;
+        releaseVisualPressure = 0;
+        releaseRewindVeil = 0;
+        releaseRewindStartedAt = 0;
+        releaseRewindDuration = 0;
+        if (!resume) {
+          releaseTimeline = 0;
+          burstProgress = clamp(burstProgress, glossFadeEnd, crossStart);
+        }
         targetBurstProgress = 1;
-        burstProgress = clamp(burstProgress, glossFadeEnd, crossStart);
         burstVelocity = 0;
+      };
+
+      const startReleaseRewind = (timestamp) => {
+        if (releaseMode !== "forward" || releaseTimeline >= releaseDetonationStartAt) return false;
+        releaseMode = "rewinding";
+        releaseRewindFromTimeline = releaseTimeline;
+        releaseRewindStartedAt = timestamp;
+        releaseRewindDuration = clamp(320 + releaseTimeline * 520, 320, 560);
+        releaseLastTimestamp = timestamp;
+        releasePlaybackRate = 1;
+        releaseBoost = 0;
+        releaseVisualPressure = 0;
+        releaseRewindVeil = 0;
+        targetBurstProgress = burstProgress;
+        burstVelocity = 0;
+        clearReleaseTransientEffects(timestamp);
+        startAnimation();
+        return true;
+      };
+
+      const handleReleaseInput = (delta, timestamp) => {
+        if (releaseMode === "rewinding") return true;
+        if (releaseMode === "paused") {
+          if (delta > 0) {
+            startReleaseAutoplay(timestamp, { resume: true });
+            startAnimation();
+            return true;
+          }
+          releaseMode = "manual";
+          releaseTimeline = 0;
+          releaseRewindVeil = 0;
+          return false;
+        }
+        if (releaseMode !== "forward") return false;
+        if (delta < 0) {
+          if (startReleaseRewind(timestamp)) return true;
+          releaseBoost = Math.max(releaseBoost, 0.72);
+          releasePlaybackRate = Math.max(releasePlaybackRate, 1.5);
+          releaseVisualPressure = Math.max(releaseVisualPressure, 0.72);
+        } else {
+          const impulse = clamp(delta, 0, 180) / 180;
+          releaseBoost = clamp(releaseBoost + impulse * 0.28, 0, 0.8);
+          releaseVisualPressure = Math.max(releaseVisualPressure, releaseBoost / 0.8);
+        }
+        startAnimation();
+        return true;
       };
 
       const animate = (timestamp) => {
@@ -9610,24 +9777,71 @@ const gateStyle = [
             chargeIntroTransitionDuration = 0;
           }
         }
-        if (burstAutoplay) {
-          const autoplayProgress = clamp((timestamp - burstAutoplayStartedAt) / releaseAutoplayDuration, 0, 1);
-          burstAutoplayTimeline = autoplayProgress;
-          burstProgress = mapReleaseAutoplayProgress(autoplayProgress);
+        if (releaseMode === "rewinding") {
+          const rewindProgress = clamp(
+            (timestamp - releaseRewindStartedAt) / Math.max(1, releaseRewindDuration),
+            0,
+            1
+          );
+          const rewindEase = smootherstep(rewindProgress);
+          releaseTimeline = releaseRewindFromTimeline * (1 - rewindEase);
+          releaseRewindVeil = Math.sin(rewindProgress * Math.PI);
+          releaseVisualPressure += (0 - releaseVisualPressure)
+            * (1 - Math.exp(-frameRatio * 0.22));
+          burstProgress = mapReleaseAutoplayProgress(releaseTimeline);
+          targetBurstProgress = burstProgress;
+          burstVelocity = 0;
+          if (rewindProgress >= 1) {
+            releaseMode = "paused";
+            releaseTimeline = 0;
+            releaseRewindVeil = 0;
+            releaseRewindStartedAt = 0;
+            releaseRewindDuration = 0;
+            burstProgress = mapReleaseAutoplayProgress(0);
+            targetBurstProgress = burstProgress;
+            burstVelocity = 0;
+            clearReleaseTransientEffects(timestamp);
+          }
+        } else if (releaseMode === "forward") {
+          const releaseDelta = releaseLastTimestamp
+            ? clamp(timestamp - releaseLastTimestamp, 0, 50)
+            : 16.667;
+          releaseLastTimestamp = timestamp;
+          releaseBoost *= Math.exp(-releaseDelta * 0.00155);
+          const targetPlaybackRate = 1 + releaseBoost;
+          releasePlaybackRate += (targetPlaybackRate - releasePlaybackRate)
+            * (1 - Math.exp(-releaseDelta * 0.012));
+          releasePlaybackRate = clamp(releasePlaybackRate, 1, 1.8);
+          const targetPressure = clamp(
+            Math.max(releaseBoost / 0.8, (releasePlaybackRate - 1) / 0.8),
+            0,
+            1
+          );
+          releaseVisualPressure += (targetPressure - releaseVisualPressure)
+            * (1 - Math.exp(-releaseDelta * 0.014));
+          releaseTimeline = clamp(
+            releaseTimeline + releaseDelta / Math.max(1, releaseDuration) * releasePlaybackRate,
+            0,
+            1
+          );
+          burstProgress = mapReleaseAutoplayProgress(releaseTimeline);
           targetBurstProgress = 1;
           burstVelocity = 0;
-          if (autoplayProgress >= 1) {
-            burstAutoplay = false;
-            burstAutoplayComplete = true;
-            burstAutoplayTimeline = 1;
+          if (releaseTimeline >= 1) {
+            releaseMode = "complete";
+            releaseTimeline = 1;
+            releasePlaybackRate = 1;
+            releaseBoost = 0;
+            releaseVisualPressure = 0;
             burstProgress = 1;
+            markReleaseCompletedInTab();
           }
         } else {
           const burstSpring = (targetBurstProgress - burstProgress) * burstSpringStrength * frameRatio;
           burstVelocity = (burstVelocity + burstSpring) * Math.pow(burstDamping, frameRatio);
           burstProgress = clamp(burstProgress + burstVelocity * frameRatio, 0, 1);
           if (
-            !burstAutoplayComplete
+            releaseMode === "manual"
             && chargeIntroComplete
             && targetProgress >= 0.9995
             && progress >= 0.999
@@ -9638,7 +9852,7 @@ const gateStyle = [
         }
 
         const settled = !chargeIntroActive
-          && !burstAutoplay
+          && !["forward", "rewinding"].includes(releaseMode)
           && Math.abs(targetProgress - progress) < settleDistance
           && Math.abs(velocity) < settleDistance
           && Math.abs(targetBurstProgress - burstProgress) < settleDistance
@@ -9741,10 +9955,19 @@ const gateStyle = [
         targetBurstProgress = 0;
         burstProgress = 0;
         burstVelocity = 0;
-        burstAutoplay = false;
-        burstAutoplayComplete = false;
-        burstAutoplayStartedAt = 0;
-        burstAutoplayTimeline = 0;
+        releaseMode = "manual";
+        releaseTimeline = 0;
+        releaseDuration = releaseCompletedInTab
+          ? releaseReplayAutoplayDuration
+          : releaseFirstAutoplayDuration;
+        releaseLastTimestamp = 0;
+        releasePlaybackRate = 1;
+        releaseBoost = 0;
+        releaseVisualPressure = 0;
+        releaseRewindFromTimeline = 0;
+        releaseRewindStartedAt = 0;
+        releaseRewindDuration = 0;
+        releaseRewindVeil = 0;
         chargeIntroProgress = 0;
         chargeIntroActive = false;
         chargeIntroComplete = false;
@@ -9795,6 +10018,14 @@ const gateStyle = [
         renderedPercent = -1;
         renderedStage = "";
         renderedGlitchTick = -1;
+        renderedRailProgress = -1;
+        renderedRailStage = "";
+        renderedRailActive = null;
+        renderedRailGuided = null;
+        renderedRailTransitioning = null;
+        renderedRailPlaybackRate = -1;
+        renderedRailPressure = -1;
+        renderedRailReleaseMode = "";
         energyContext?.clearRect(0, 0, energyCanvasWidth, energyCanvasHeight);
         clearTitleChains();
         burstContext?.clearRect(0, 0, burstCanvasWidth, burstCanvasHeight);
@@ -9868,7 +10099,7 @@ const gateStyle = [
       };
 
       const addProgress = (delta) => {
-        if (burstAutoplay || burstAutoplayComplete) return;
+        if (["forward", "rewinding", "complete"].includes(releaseMode)) return;
         const boundedDelta = clamp(delta, -180, 180);
         const fillComplete = targetProgress >= 0.9995 && progress >= 0.995;
         const burstInProgress = targetBurstProgress > 0.0005 || burstProgress > 0.0005;
@@ -9922,11 +10153,11 @@ const gateStyle = [
         && targetBurstProgress >= 0.9995
         && burstProgress >= 0.999
         && Math.abs(burstVelocity) < 0.001
-        && burstAutoplayComplete;
+        && releaseMode === "complete";
 
       const shouldCaptureGate = (delta) => {
         if (window.scrollY > 2 || delta === 0) return false;
-        if (chargeIntroActive || burstAutoplay) return true;
+        if (chargeIntroActive || ["forward", "rewinding", "paused"].includes(releaseMode)) return true;
         if (delta > 0 && isFillComplete() && !chargeIntroComplete) return true;
         if (delta > 0) return !isComplete();
         return targetBurstProgress > 0.0005
@@ -9955,6 +10186,13 @@ const gateStyle = [
             event.preventDefault();
             enterNextPage();
             return;
+          }
+          if (["forward", "rewinding", "paused"].includes(releaseMode)) {
+            const releaseInputHandled = handleReleaseInput(delta, performance.now());
+            if (releaseInputHandled) {
+              event.preventDefault();
+              return;
+            }
           }
           if (!shouldCaptureGate(delta)) return;
           event.preventDefault();
@@ -10032,8 +10270,13 @@ const gateStyle = [
         lastFrameTime = 0;
         velocity = 0;
         burstVelocity = 0;
-        burstAutoplay = false;
-        burstAutoplayStartedAt = 0;
+        releaseMode = "manual";
+        releaseTimeline = 0;
+        releaseLastTimestamp = 0;
+        releasePlaybackRate = 1;
+        releaseBoost = 0;
+        releaseVisualPressure = 0;
+        releaseRewindVeil = 0;
         chargeIntroActive = false;
         chargeIntroStartedAt = 0;
         enterNextPage();

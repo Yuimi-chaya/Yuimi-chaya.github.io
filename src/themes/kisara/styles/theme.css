@@ -268,6 +268,10 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 .kisara-scrollbar {
   --kisara-scroll-progress: 0;
   --kisara-scroll-energy: 0;
+  --kisara-scroll-boost: 0;
+  --kisara-scroll-boost-scale: 1;
+  --kisara-scroll-boost-glow: 8px;
+  --kisara-scroll-boost-duration: 820ms;
   --kisara-scroll-thumb-size: 46px;
   --kisara-scroll-thumb-y: 0px;
   --kisara-scroll-accent: #ff4969;
@@ -585,6 +589,21 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   animation: kisara-scroll-complete 1500ms ease-in-out infinite;
 }
 
+.kisara-scrollbar.is-release-boosted .kisara-scrollbar-thumb {
+  transform: translate3d(-50%, var(--kisara-scroll-thumb-y), 0)
+    scale(var(--kisara-scroll-boost-scale));
+  filter:
+    drop-shadow(0 0 var(--kisara-scroll-boost-glow) var(--kisara-scroll-hot))
+    drop-shadow(0 0 7px var(--kisara-scroll-accent));
+}
+
+.kisara-scrollbar.is-release-boosted .kisara-scrollbar-thumb::after,
+.kisara-scrollbar.is-release-boosted .kisara-scrollbar-progress::after,
+.kisara-scrollbar.is-release-boosted .kisara-scrollbar-thumb i::before,
+.kisara-scrollbar.is-release-boosted .kisara-scrollbar-thumb i::after {
+  animation-duration: var(--kisara-scroll-boost-duration);
+}
+
 @keyframes kisara-scroll-rupture {
   0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.88); }
   42% { transform: translate(-50%, -50%) rotate(51deg) scale(1.26); }
@@ -679,6 +698,8 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   --kisara-beam-glow: 0px;
   --kisara-beam-brightness: 1;
   --kisara-performance-blur: 0px;
+  --kisara-release-rewind: 0;
+  --kisara-release-pressure: 0;
   --kisara-cross-opacity: 0;
   --kisara-cross-ray-progress: 0;
   --kisara-cross-ray-breath: 1;
@@ -725,6 +746,9 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   --kisara-reconstruction-wash-opacity: 0;
   --kisara-screen-shake-x: 0px;
   --kisara-screen-shake-y: 0px;
+  --kisara-scene-camera-x: 0px;
+  --kisara-scene-camera-y: 0px;
+  --kisara-scene-camera-scale: 1;
   --kisara-base-shift-x: 0px;
   --kisara-base-shift-y: 0px;
   --kisara-fight-shift-x: 0px;
@@ -1107,13 +1131,18 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   overflow: hidden;
   background: #111636;
   isolation: isolate;
-  transform: translateZ(0);
+  transform: translate3d(
+      var(--kisara-scene-camera-x),
+      var(--kisara-scene-camera-y),
+      0
+    )
+    scale(var(--kisara-scene-camera-scale));
   filter:
     grayscale(var(--kisara-warning-monochrome))
     saturate(var(--kisara-warning-saturation))
     contrast(var(--kisara-warning-contrast))
     brightness(var(--kisara-warning-brightness));
-  will-change: filter;
+  will-change: filter, transform;
 }
 
 .kisara-gate-background {
@@ -1310,6 +1339,21 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   z-index: 2;
   background: linear-gradient(180deg, rgba(7, 10, 31, 0.34), rgba(7, 10, 31, 0.58));
   filter: blur(var(--kisara-performance-blur));
+}
+
+.kisara-gate-atmosphere::after {
+  content: "";
+  position: absolute;
+  inset: -14%;
+  opacity: var(--kisara-release-rewind);
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(251, 246, 255, 0.64) 0 8%, rgba(209, 218, 246, 0.32) 27%, transparent 63%),
+    linear-gradient(112deg, transparent 17%, rgba(255, 220, 234, 0.2) 46%, rgba(178, 199, 242, 0.16) 57%, transparent 82%);
+  filter: blur(19px);
+  mix-blend-mode: screen;
+  transform: translateZ(0) scale(1.08);
+  will-change: opacity;
 }
 
 .kisara-burst-canvas {
