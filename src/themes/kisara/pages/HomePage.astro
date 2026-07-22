@@ -186,6 +186,7 @@ const gateStyle = [
         height="900"
       ></canvas>
     </div>
+    <div class="kisara-gate-color-grade" aria-hidden="true"></div>
     <canvas class="kisara-burst-canvas" data-kisara-burst-canvas width="1280" height="900" aria-hidden="true"></canvas>
     <div class="kisara-screen-impact" aria-hidden="true">
       <span class="kisara-warning-monochrome"></span>
@@ -1297,6 +1298,13 @@ const gateStyle = [
         { start: 0.66, enterEnd: 0.83, leaveStart: 1, end: 1, drift: -8, lift: -1, persistent: true }
       ];
       const memoryTransitionCenters = [0.205, 0.375, 0.545, 0.715, 0.885];
+      const syncLayerVisibility = (element, visible) => {
+        if (!(element instanceof HTMLElement)) return;
+        const nextVisibility = visible ? "visible" : "hidden";
+        if (element.style.visibility !== nextVisibility) {
+          element.style.visibility = nextVisibility;
+        }
+      };
       const syncMemorySequence = (fill) => {
         const motionBlur = clamp(Math.abs(velocity) * 96, 0, 4.4);
         const transformationEntrance = smootherstep((chargeIntroProgress - 0.025) / 0.205);
@@ -1348,6 +1356,7 @@ const gateStyle = [
           strongestScene = Math.max(strongestScene, opacity);
           memoryOpacities[index] = opacity * 0.985;
           memoryFilters[index] = `blur(${memoryBlur.toFixed(3)}px) saturate(${memorySaturation}) brightness(${memoryBrightness}) contrast(1.035)`;
+          syncLayerVisibility(element, opacity > 0.002);
           element.style.setProperty("--kisara-memory-opacity", (opacity * 0.985).toFixed(4));
           element.style.setProperty("--kisara-memory-blur", `${memoryBlur.toFixed(3)}px`);
           element.style.setProperty("--kisara-memory-scale", scale.toFixed(5));
@@ -1401,6 +1410,7 @@ const gateStyle = [
             saturation: transformationSaturation,
             brightness: transformationBrightness
           };
+          syncLayerVisibility(element, opacity > 0.002);
           element.style.setProperty("--kisara-transformation-opacity", (opacity * 0.995).toFixed(4));
           element.style.setProperty(
             "--kisara-transformation-blur",
@@ -1425,6 +1435,7 @@ const gateStyle = [
         gate.style.setProperty("--kisara-memory-flash", memoryFlash.toFixed(4));
         gate.style.setProperty("--kisara-memory-haze", memoryHaze.toFixed(4));
         gate.style.setProperty("--kisara-memory-flare-shift", `${memoryFlareShift.toFixed(3)}px`);
+        syncLayerVisibility(memoryFlare, memoryFlash + memoryHaze > 0.002);
 
         return {
           baseExit,
@@ -10273,6 +10284,7 @@ const gateStyle = [
           transformationReleaseOpacity.toFixed(4)
         );
         gate.style.setProperty("--kisara-fight-opacity", (fightVisible * 0.985).toFixed(3));
+        syncLayerVisibility(fightBackground, fightVisible > 0.002);
         gate.style.setProperty("--kisara-fight-blur", `${fightBlur.toFixed(3)}px`);
         gate.style.setProperty(
           "--kisara-fight-scale",
@@ -10288,6 +10300,7 @@ const gateStyle = [
         );
         gate.style.setProperty("--kisara-fight-handoff-x", "0px");
         gate.style.setProperty("--kisara-fight-handoff-y", "0px");
+        syncLayerVisibility(fightWashBackground, reconstructionWashOpacity > 0.002);
         energyProgress = fill;
         if (!energyLoopActive || reducedMotion) {
           updateBurstPresentation(performance.now(), false);
