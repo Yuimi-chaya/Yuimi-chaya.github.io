@@ -710,6 +710,14 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   --kisara-fight-scale: 1.06;
   --kisara-fight-saturation: 0.92;
   --kisara-fight-brightness: 0.9;
+  --kisara-fight-handoff-x: 0px;
+  --kisara-fight-handoff-y: 0px;
+  --kisara-fight-smoke-opacity: 0;
+  --kisara-fight-smoke-scale: 0.78;
+  --kisara-fight-smoke-left-x: -22px;
+  --kisara-fight-smoke-right-x: 22px;
+  --kisara-fight-smoke-rise-y: -10px;
+  --kisara-fight-smoke-center-y: 18px;
   --kisara-reconstruction-center-x: 50%;
   --kisara-reconstruction-center-y: 50%;
   --kisara-reconstruction-inner-radius: 0px;
@@ -1160,15 +1168,71 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   opacity: var(--kisara-fight-opacity);
   filter: blur(calc(var(--kisara-fight-blur) + var(--kisara-performance-blur))) saturate(var(--kisara-fight-saturation)) brightness(var(--kisara-fight-brightness));
   transform: translate3d(
-      calc(var(--kisara-fight-shift-x) + var(--kisara-post-parallax-x)),
-      calc(var(--kisara-fight-shift-y) + var(--kisara-post-parallax-y)),
+      calc(var(--kisara-fight-shift-x) + var(--kisara-post-parallax-x) + var(--kisara-fight-handoff-x)),
+      calc(var(--kisara-fight-shift-y) + var(--kisara-post-parallax-y) + var(--kisara-fight-handoff-y)),
       0
     )
     scale(var(--kisara-fight-scale))
     scale(var(--kisara-gravity-scale));
 }
 
+.kisara-fight-smoke {
+  position: absolute;
+  z-index: 1;
+  inset: -16%;
+  opacity: var(--kisara-fight-smoke-opacity);
+  pointer-events: none;
+  overflow: hidden;
+  filter: blur(calc(13px + var(--kisara-performance-blur)));
+  mix-blend-mode: screen;
+  transform: translateZ(0) scale(var(--kisara-fight-smoke-scale));
+  transform-origin: center;
+  will-change: opacity, filter, transform;
+}
+
+.kisara-fight-smoke-cloud {
+  position: absolute;
+  display: block;
+  width: 72%;
+  height: 68%;
+  border-radius: 48% 52% 45% 55%;
+  opacity: 0.82;
+  background:
+    radial-gradient(circle at 27% 48%, rgba(246, 248, 255, 0.72) 0 8%, rgba(217, 222, 240, 0.34) 24%, transparent 51%),
+    radial-gradient(circle at 58% 35%, rgba(255, 226, 238, 0.5) 0 7%, rgba(187, 192, 221, 0.3) 29%, transparent 56%),
+    radial-gradient(circle at 72% 67%, rgba(222, 226, 241, 0.58) 0 8%, rgba(130, 136, 173, 0.2) 32%, transparent 61%);
+  filter: blur(18px);
+  will-change: transform, opacity;
+}
+
+.kisara-fight-smoke-cloud-left {
+  top: 14%;
+  left: -8%;
+  transform: translate3d(var(--kisara-fight-smoke-left-x), var(--kisara-fight-smoke-rise-y), 0)
+    rotate(-8deg) scale(1.06, 0.88);
+}
+
+.kisara-fight-smoke-cloud-right {
+  top: 20%;
+  right: -9%;
+  transform: translate3d(var(--kisara-fight-smoke-right-x), var(--kisara-fight-smoke-rise-y), 0)
+    rotate(11deg) scale(1.02, 0.84);
+}
+
+.kisara-fight-smoke-cloud-center {
+  bottom: 1%;
+  left: 18%;
+  width: 66%;
+  height: 56%;
+  opacity: 0.68;
+  transform: translate3d(0, var(--kisara-fight-smoke-center-y), 0) scale(1.12, 0.74);
+  background:
+    radial-gradient(ellipse at 48% 54%, rgba(248, 245, 252, 0.7) 0 9%, rgba(210, 211, 230, 0.36) 28%, transparent 58%),
+    radial-gradient(ellipse at 30% 62%, rgba(255, 207, 227, 0.34) 0 6%, rgba(140, 146, 180, 0.16) 34%, transparent 64%);
+}
+
 .kisara-memory-flare {
+  z-index: 2;
   inset: -12%;
   opacity: clamp(0, calc(var(--kisara-memory-haze) + var(--kisara-memory-flash)), 0.44);
   background:

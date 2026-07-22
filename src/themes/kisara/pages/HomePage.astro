@@ -90,6 +90,11 @@ const gateStyle = [
         ></div>
       ))}
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
+      <div class="kisara-fight-smoke" aria-hidden="true">
+        <span class="kisara-fight-smoke-cloud kisara-fight-smoke-cloud-left"></span>
+        <span class="kisara-fight-smoke-cloud kisara-fight-smoke-cloud-right"></span>
+        <span class="kisara-fight-smoke-cloud kisara-fight-smoke-cloud-center"></span>
+      </div>
       <div class="kisara-memory-flare"></div>
       <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
       <canvas
@@ -341,35 +346,35 @@ const gateStyle = [
       const crossFlashEnd = 0.72;
       const crossEnd = 0.82;
       const reformEnd = 0.9;
-      const collapseStart = 0.855;
-      const collapseEnd = 0.905;
-      const shockwaveStart = 0.925;
-      const detonationStart = 0.948;
-      const detonationEnd = 0.982;
-      const rainStart = 0.956;
-      const rainPeak = 0.992;
-      const releaseAutoplayDuration = 5500;
-      const releaseCrossStartAt = 0.022;
-      const releaseCrossBuildEndAt = 0.048;
-      const releaseCrossFlashEndAt = 0.07;
-      const releaseCrossEndAt = 0.095;
-      const releaseCrossSpinEndAt = 0.055;
-      const releaseCrossHoldEndAt = 0.064;
-      const releaseCrossRetractEndAt = 0.087;
-      const releaseCollapseStartAt = 0.145;
-      const releaseCollapseEndAt = 0.39;
-      const releaseShockwaveStartAt = 0.49;
-      const releaseDetonationStartAt = 0.61;
-      const releaseDetonationEndAt = 0.82;
-      const blackHoleIngressStart = crossFlashEnd + (crossEnd - crossFlashEnd) * 0.28;
-      const blackHoleCoreEnd = crossEnd + 0.022;
-      const blackHoleDiskStart = crossEnd - 0.008;
+      const collapseStart = 0.842;
+      const collapseEnd = 0.884;
+      const shockwaveStart = 0.904;
+      const detonationStart = 0.928;
+      const detonationEnd = 0.972;
+      const rainStart = 0.948;
+      const rainPeak = 0.989;
+      const releaseAutoplayDuration = 4300;
+      const releaseCrossStartAt = 0.015;
+      const releaseCrossBuildEndAt = 0.034;
+      const releaseCrossFlashEndAt = 0.05;
+      const releaseCrossEndAt = 0.068;
+      const releaseCrossSpinEndAt = 0.038;
+      const releaseCrossHoldEndAt = 0.044;
+      const releaseCrossRetractEndAt = 0.061;
+      const releaseCollapseStartAt = 0.082;
+      const releaseCollapseEndAt = 0.26;
+      const releaseShockwaveStartAt = 0.32;
+      const releaseDetonationStartAt = 0.39;
+      const releaseDetonationEndAt = 0.61;
+      const blackHoleIngressStart = crossFlashEnd + (crossEnd - crossFlashEnd) * 0.08;
+      const blackHoleCoreEnd = crossEnd + 0.014;
+      const blackHoleDiskStart = crossEnd - 0.025;
       const blackHoleDiskEnd = collapseStart - 0.004;
-      const blackHoleOrbitStart = crossEnd + 0.002;
+      const blackHoleOrbitStart = crossEnd - 0.012;
       const blackHoleOrbitEnd = collapseStart + 0.01;
-      const blackHoleFieldStart = crossEnd - 0.004;
+      const blackHoleFieldStart = crossEnd - 0.022;
       const blackHoleFieldEnd = collapseStart + 0.006;
-      const gravityIngressStart = crossEnd - 0.018;
+      const gravityIngressStart = crossEnd - 0.032;
       const warningTailEnd = blackHoleFieldEnd;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
       const compositeOpeningEdgeColor = (backdrop, foreground, opacity) => {
@@ -840,6 +845,22 @@ const gateStyle = [
       const syncMemorySequence = (fill) => {
         const motionBlur = clamp(Math.abs(velocity) * 96, 0, 4.4);
         const fightHandoff = smootherstep((chargeIntroProgress - 0.46) / 0.3);
+        const memoryClock = reducedMotion ? 0 : performance.now() / 1000;
+        const kissHold = smootherstep(clamp((fill - 0.76) / 0.16, 0, 1));
+        const kissPrelude = phaseProgress(chargeIntroProgress, 0.12, 0.5);
+        const kissMotionX = (
+          Math.sin(memoryClock * 0.72) * 3.8
+          + Math.sin(memoryClock * 0.31 + 1.4) * 1.7
+          - kissPrelude * 9.5
+        ) * kissHold;
+        const kissMotionY = (
+          Math.cos(memoryClock * 0.53) * 2.1
+          + Math.sin(memoryClock * 0.27 + 0.8) * 1.1
+          - kissPrelude * 4.8
+        ) * kissHold;
+        const kissBreath = (
+          0.0032 + Math.sin(memoryClock * 0.88) * 0.0018 + kissPrelude * 0.013
+        ) * kissHold;
         let strongestScene = 0;
 
         memorySceneElements.forEach((element, index) => {
@@ -854,17 +875,22 @@ const gateStyle = [
             ? clamp((fill - scene.start) / Math.max(0.0001, scene.enterEnd - scene.start), 0, 1)
             : clamp((fill - scene.start) / Math.max(0.0001, scene.end - scene.start), 0, 1);
           const focus = scene.persistent ? smootherstep(local) : Math.sin(local * Math.PI);
+          const persistentMotion = scene.persistent ? 1 - fightHandoff * 0.28 : 0;
           const edgeSoftness = Math.pow(1 - Math.max(0, focus), 1.35)
-            + (scene.persistent ? fightHandoff * 1.2 : 0);
-          const directionalTravel = (local - 0.5) * scene.drift;
-          const scale = 1.065 - focus * 0.032 + local * 0.006;
+            + (scene.persistent ? Math.pow(fightHandoff, 1.35) * 0.9 : 0);
+          const directionalTravel = (local - 0.5) * scene.drift
+            + kissMotionX * persistentMotion;
+          const verticalTravel = scene.lift * focus
+            + kissMotionY * persistentMotion;
+          const scale = 1.065 - focus * 0.032 + local * 0.006
+            + (scene.persistent ? kissBreath : 0);
 
           strongestScene = Math.max(strongestScene, opacity);
           element.style.setProperty("--kisara-memory-opacity", (opacity * 0.985).toFixed(4));
           element.style.setProperty("--kisara-memory-blur", `${(0.45 + edgeSoftness * 8.6 + motionBlur).toFixed(3)}px`);
           element.style.setProperty("--kisara-memory-scale", scale.toFixed(5));
           element.style.setProperty("--kisara-memory-shift-x", `${directionalTravel.toFixed(3)}px`);
-          element.style.setProperty("--kisara-memory-shift-y", `${(scene.lift * focus).toFixed(3)}px`);
+          element.style.setProperty("--kisara-memory-shift-y", `${verticalTravel.toFixed(3)}px`);
         });
 
         const transitionProximity = memoryTransitionCenters.reduce((strongest, center) => {
@@ -875,6 +901,13 @@ const gateStyle = [
         const memoryEnvelope = phaseProgress(fill, 0.018, 0.09) * (1 - fightHandoff);
         const baseExit = smootherstep((fill - 0.035) / 0.115);
         const fightReveal = fightHandoff;
+        const smokeBuild = phaseProgress(chargeIntroProgress, 0.3, 0.49);
+        const smokeClear = phaseProgress(chargeIntroProgress, 0.5, 0.94);
+        const smokeSpread = smootherstep(clamp((chargeIntroProgress - 0.36) / 0.58, 0, 1));
+        const smokeOpacity = smokeBuild * (1 - smokeClear) * 0.92;
+        const smokeTurbulence = reducedMotion
+          ? 0
+          : Math.sin(memoryClock * 1.35) * 9 + Math.cos(memoryClock * 0.71) * 4;
 
         gate.style.setProperty(
           "--kisara-memory-flash",
@@ -889,7 +922,18 @@ const gateStyle = [
           `${(clamp(velocity * 155, -1, 1) * 10).toFixed(3)}px`
         );
 
-        return { baseExit, fightReveal };
+        return {
+          baseExit,
+          fightReveal,
+          fightCarryX: kissMotionX * (1 - smootherstep(fightHandoff)),
+          fightCarryY: kissMotionY * (1 - smootherstep(fightHandoff)),
+          smokeOpacity,
+          smokeScale: 0.78 + smokeSpread * 0.48,
+          smokeLeftX: -22 - smokeSpread * 190 + smokeTurbulence,
+          smokeRightX: 22 + smokeSpread * 190 - smokeTurbulence * 0.78,
+          smokeRiseY: -10 - smokeSpread * 112 + Math.sin(memoryClock * 0.9) * 5,
+          smokeCenterY: 18 - smokeSpread * 82
+        };
       };
       const pointOnQuinticCurve = (start, controlA, controlB, controlC, controlD, end, progress) => {
         const inverse = 1 - progress;
@@ -2936,6 +2980,29 @@ const gateStyle = [
             return fract(point.x * point.y);
           }
 
+          vec3 localVortex(
+            vec2 uv,
+            vec2 center,
+            float radius,
+            float spin,
+            float phase,
+            float aspect
+          ) {
+            vec2 delta = uv - center;
+            delta.x *= aspect;
+            float distanceToCenter = length(delta);
+            vec2 direction = delta / max(distanceToCenter, 0.0001);
+            vec2 tangent = vec2(-direction.y, direction.x);
+            float innerFade = smoothstep(radius * 0.08, radius * 0.27, distanceToCenter);
+            float outerFade = 1.0 - smoothstep(radius * 0.58, radius, distanceToCenter);
+            float envelope = innerFade * outerFade;
+            float pulse = 0.78 + sin(uTime * 1.18 + phase + distanceToCenter * 31.0) * 0.22;
+            vec2 offset = tangent * spin * envelope * pulse
+              - direction * abs(spin) * envelope * (0.12 + pulse * 0.08);
+            offset.x /= aspect;
+            return vec3(offset, envelope);
+          }
+
           vec3 sampleScene(vec2 uv) {
             vec2 baseUv = coverUv(uv, uBaseSize, 1.045);
             vec2 fightUv = coverUv(uv, uFightSize, 1.0);
@@ -3054,6 +3121,52 @@ const gateStyle = [
               cos(vUv.y * 13.0 - uTime * 1.1) * waveEnvelope * uShockStrength * 0.008
             ) * distortionMask;
 
+            float vortexScale = mix(0.58, 1.0, smoothstep(0.72, 1.2, aspect));
+            float vortexDrive = gravityStrength
+              * (0.48 + uCollapse * 0.42 + uCrush * 0.34);
+            vec3 vortexA = localVortex(
+              vUv,
+              vec2(0.12, 0.24),
+              0.18 * vortexScale,
+              0.027,
+              0.4,
+              aspect
+            );
+            vec3 vortexB = localVortex(
+              vUv,
+              vec2(0.17, 0.73),
+              0.2 * vortexScale,
+              -0.025,
+              2.1,
+              aspect
+            );
+            vec3 vortexC = localVortex(
+              vUv,
+              vec2(0.85, 0.22),
+              0.17 * vortexScale,
+              -0.026,
+              3.7,
+              aspect
+            );
+            vec3 vortexD = localVortex(
+              vUv,
+              vec2(0.88, 0.71),
+              0.19 * vortexScale,
+              0.028,
+              5.2,
+              aspect
+            );
+            float centerKeepout = smoothstep(0.145, 0.235, sideDistance);
+            vec2 vortexDisplacement = (
+              vortexA.xy + vortexB.xy + vortexC.xy + vortexD.xy
+            ) * vortexDrive * centerKeepout;
+            float vortexLength = length(vortexDisplacement);
+            vortexDisplacement *= min(1.0, 0.028 / max(vortexLength, 0.0001));
+            float localVortexField = max(
+              max(vortexA.z, vortexB.z),
+              max(vortexC.z, vortexD.z)
+            ) * vortexDrive * centerKeepout;
+
             float edgeFade = smoothstep(0.0, 0.11, vUv.x)
               * smoothstep(0.0, 0.11, vUv.y)
               * smoothstep(0.0, 0.11, 1.0 - vUv.x)
@@ -3063,10 +3176,14 @@ const gateStyle = [
             ) + tangent * sideSweep;
             vec2 displacedPoint = mix(point, lensedPoint, edgeFade);
             vec2 displacedCandidate = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
-            displacedCandidate += sideDisplacement * edgeFade;
+            displacedCandidate += (sideDisplacement + vortexDisplacement) * edgeFade;
             displacedCandidate = clamp(displacedCandidate, vec2(0.002), vec2(0.998));
-            float finalField = clamp(distortionField * edgeFade, 0.0, 1.0);
-            float distortionBlend = smoothstep(0.015, 0.72, finalField);
+            float finalField = clamp(
+              max(distortionField, localVortexField * 1.22) * edgeFade,
+              0.0,
+              1.0
+            );
+            float distortionBlend = smoothstep(0.012, 0.64, finalField);
             vec2 finalUv = mix(vUv, displacedCandidate, distortionBlend);
             vec3 color = sampleScene(finalUv);
             float refractionSheen = sin(vUv.y * 15.0 + sideDepth * 5.2 - uTime * 1.28)
@@ -3076,7 +3193,8 @@ const gateStyle = [
             color *= 1.0
               + caustic * distortionBlend * 0.065
               + waveEnvelope * uShockStrength * distortionBlend * 0.028
-              + refractionSheen;
+              + refractionSheen
+              + localVortexField * (0.028 + gravityStrength * 0.028);
 
             float horizon = 1.0 - smoothstep(core * 0.98, core * 1.04, radius);
             color = mix(color, vec3(0.0), horizon * distortionBlend);
@@ -6226,7 +6344,8 @@ const gateStyle = [
         const lensRecovery = 1 - phaseProgress(burst, rainPeak - 0.006, 1);
         const lensOpacity = clamp(
           (
-            gravityScreen * 0.56
+            lensBuild * 0.34
+              + gravityScreen * 0.56
               + gravityPressure * 0.66
               + collapseDepth * 0.74
               + Math.pow(Math.max(0, shockwavePulse), 0.74) * 1.02
@@ -6237,7 +6356,10 @@ const gateStyle = [
           1
         );
         const lensGravity = clamp(
-          gravityPressure * 0.86 + collapseDepth * 0.98 + crushCompression * 0.72,
+          lensBuild * 0.58
+            + gravityPressure * 0.86
+            + collapseDepth * 0.98
+            + crushCompression * 0.72,
           0,
           1.72
         );
@@ -8721,6 +8843,9 @@ const gateStyle = [
         const renderStartedAt = performance.now();
         if (energyCanvasWidth <= 0 || energyCanvasHeight <= 0) resizeEnergyCanvas();
         updateBurstPresentation(timestamp);
+        if (!reducedMotion && progress > 0.7 && chargeIntroProgress < 0.999) {
+          syncMemorySequence(clamp(progress, 0, 1));
+        }
         updateGlitchState(timestamp);
         const width = energyCanvasWidth;
         const height = energyCanvasHeight;
@@ -9301,8 +9426,11 @@ const gateStyle = [
         const memoryState = syncMemorySequence(fill);
         syncOpeningEdgeMix(memoryState.fightReveal);
         const fightSettle = phaseProgress(burstProgress, 0.01, 0.28);
-        const fightBlur = (1 - memoryState.fightReveal) * 18
-          + memoryState.fightReveal * 3.4 * (1 - fightSettle);
+        const fightVisible = smootherstep(memoryState.fightReveal);
+        const fightBlur = 0.55
+          + 18.5 * Math.pow(1 - memoryState.fightReveal, 2)
+          + memoryState.smokeOpacity * 1.8
+          - fightSettle * 0.35;
         const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
         const glossPosition = -18 + glossSweep * 136;
         const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
@@ -9322,20 +9450,28 @@ const gateStyle = [
         gate.style.setProperty("--kisara-bg-opacity", (0.98 - memoryState.baseExit * 0.78).toFixed(3));
         gate.style.setProperty("--kisara-bg-saturation", (1 - memoryState.baseExit * 0.2).toFixed(3));
         gate.style.setProperty("--kisara-bg-brightness", (1 - memoryState.baseExit * 0.12).toFixed(3));
-        gate.style.setProperty("--kisara-fight-opacity", (memoryState.fightReveal * 0.98).toFixed(3));
+        gate.style.setProperty("--kisara-fight-opacity", (fightVisible * 0.985).toFixed(3));
         gate.style.setProperty("--kisara-fight-blur", `${fightBlur.toFixed(3)}px`);
         gate.style.setProperty(
           "--kisara-fight-scale",
-          (1.075 - memoryState.fightReveal * 0.055 - fightSettle * 0.02).toFixed(4)
+          (1 + 0.075 * Math.pow(1 - memoryState.fightReveal, 1.4)).toFixed(4)
         );
         gate.style.setProperty(
           "--kisara-fight-saturation",
-          (0.82 + memoryState.fightReveal * 0.18 + fightSettle * 0.2).toFixed(3)
+          (0.8 + fightVisible * 0.2 + fightSettle * 0.18).toFixed(3)
         );
         gate.style.setProperty(
           "--kisara-fight-brightness",
-          (0.84 + memoryState.fightReveal * 0.12 + fightSettle * 0.12).toFixed(3)
+          (0.82 + fightVisible * 0.16 + fightSettle * 0.14).toFixed(3)
         );
+        gate.style.setProperty("--kisara-fight-handoff-x", `${memoryState.fightCarryX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-fight-handoff-y", `${memoryState.fightCarryY.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-fight-smoke-opacity", memoryState.smokeOpacity.toFixed(4));
+        gate.style.setProperty("--kisara-fight-smoke-scale", memoryState.smokeScale.toFixed(4));
+        gate.style.setProperty("--kisara-fight-smoke-left-x", `${memoryState.smokeLeftX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-fight-smoke-right-x", `${memoryState.smokeRightX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-fight-smoke-rise-y", `${memoryState.smokeRiseY.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-fight-smoke-center-y", `${memoryState.smokeCenterY.toFixed(3)}px`);
         energyProgress = fill;
         if (!energyLoopActive || reducedMotion) {
           updateBurstPresentation(performance.now(), false);
