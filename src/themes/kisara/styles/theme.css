@@ -1207,18 +1207,27 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 }
 
 .kisara-gate.is-warning-prewarm {
-  --kisara-warning-monochrome: 0.001;
-  --kisara-warning-focus: 0.001;
-  --kisara-warning-exposure: 0.001;
-  --kisara-warning-core-exposure: 0.001;
-  --kisara-warning-saturation: 0.999;
-  --kisara-warning-contrast: 1.001;
-  --kisara-warning-brightness: 1.001;
-  --kisara-cross-opacity: 0.001;
-  --kisara-cross-core-opacity: 0.001;
-  --kisara-cross-ray-progress: 0.001;
-  --kisara-impact-flash: 0.001;
-  --kisara-impact-vignette: 0.001;
+  --kisara-warning-monochrome: 0.001 !important;
+  --kisara-warning-focus: 0.001 !important;
+  --kisara-warning-exposure: 0.004 !important;
+  --kisara-warning-core-exposure: 0.08 !important;
+  --kisara-warning-saturation: 0.999 !important;
+  --kisara-warning-contrast: 1.002 !important;
+  --kisara-warning-brightness: 1.002 !important;
+  --kisara-cross-opacity: 0.002 !important;
+  --kisara-cross-core-opacity: 0.008 !important;
+  --kisara-cross-core-scale: 0.42 !important;
+  --kisara-cross-ray-progress: 0.12 !important;
+  --kisara-cross-ring-progress: 0.12 !important;
+  --kisara-cross-ring-opacity: 0.006 !important;
+  --kisara-cross-shard-progress: 0.14 !important;
+  --kisara-cross-shard-opacity: 0.006 !important;
+  --kisara-cross-spark-opacity: 0.006 !important;
+  --kisara-cross-spark-distance: 18px !important;
+  --kisara-cross-strobe: 0.08 !important;
+  --kisara-cross-scale: 0.82 !important;
+  --kisara-impact-flash: 0.001 !important;
+  --kisara-impact-vignette: 0.001 !important;
 }
 
 .kisara-screen-impact::before,
@@ -2680,15 +2689,12 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 }
 
 .kisara-opening {
-  --kisara-opening-edge-base-image: linear-gradient(90deg, #111636, #111636);
-  --kisara-opening-edge-fight-image: linear-gradient(90deg, #111636, #111636);
-  --kisara-opening-edge-fight-opacity: 0;
   position: relative;
   isolation: isolate;
   overflow: hidden;
   width: 100%;
-  margin: 0;
-  padding: 130px 0 150px;
+  margin: -2px 0 0;
+  padding: 132px 0 150px;
   color: #161a3b;
   background: #f7f3fb;
 }
@@ -2700,25 +2706,129 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   right: 0;
   left: 0;
   height: 180px;
+  overflow: hidden;
   pointer-events: none;
 }
 
 .kisara-opening-edge > span {
   position: absolute;
-  inset: 0;
   display: block;
+  background-position: top left;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.kisara-opening-edge-backdrop {
+  inset: 0;
+  background: linear-gradient(180deg, #111636 0%, #292b4a 8%, #f7f3fb 100%);
+}
+
+.kisara-opening-edge > .kisara-opening-edge-scene,
+.kisara-opening-edge > .kisara-opening-edge-flare {
+  top: -24px;
+  right: -18px;
+  bottom: 0;
+  left: -18px;
+  opacity: 0;
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0 18%,
+    rgba(0, 0, 0, 0.96) 32%,
+    rgba(0, 0, 0, 0.58) 60%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    #000 0 18%,
+    rgba(0, 0, 0, 0.96) 32%,
+    rgba(0, 0, 0, 0.58) 60%,
+    transparent 100%
+  );
+  contain: paint;
+  overflow: hidden;
+  will-change: opacity, filter;
+}
+
+.kisara-opening-edge-continuation,
+.kisara-opening-edge-live-clip,
+.kisara-opening-edge-live-surface,
+.kisara-opening-edge-flare-surface {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.kisara-opening-edge-continuation,
+.kisara-opening-edge-live-clip {
+  inset: 0;
+}
+
+.kisara-opening-edge-continuation {
+  z-index: 0;
   background-position: top left;
   background-repeat: no-repeat;
   background-size: 100% 100%;
 }
 
-.kisara-opening-edge-base {
-  background-image: var(--kisara-opening-edge-base-image);
+.kisara-opening-edge-live-clip {
+  z-index: 1;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0 28%,
+    rgba(0, 0, 0, 0.98) 42%,
+    rgba(0, 0, 0, 0.88) 58%,
+    rgba(0, 0, 0, 0.58) 76%,
+    rgba(0, 0, 0, 0.22) 90%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    #000 0 28%,
+    rgba(0, 0, 0, 0.98) 42%,
+    rgba(0, 0, 0, 0.88) 58%,
+    rgba(0, 0, 0, 0.58) 76%,
+    rgba(0, 0, 0, 0.22) 90%,
+    transparent 100%
+  );
 }
 
-.kisara-opening-edge-fight {
-  opacity: var(--kisara-opening-edge-fight-opacity);
-  background-image: var(--kisara-opening-edge-fight-image);
+.kisara-opening-edge-live-surface,
+.kisara-opening-edge-flare-surface {
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: translate3d(0, 0, 0);
+  transform-origin: top left;
+  backface-visibility: hidden;
+}
+
+.kisara-opening-edge > .kisara-opening-edge-atmosphere {
+  z-index: 2;
+  top: -24px;
+  right: -18px;
+  bottom: 0;
+  left: -18px;
+  background: linear-gradient(
+    180deg,
+    rgba(7, 10, 31, 0.58) 0 18%,
+    rgba(7, 10, 31, 0.54) 30%,
+    rgba(7, 10, 31, 0.34) 54%,
+    rgba(7, 10, 31, 0.12) 76%,
+    transparent 100%
+  );
+  contain: paint;
+}
+
+.kisara-opening-edge-flare {
+  z-index: 1;
+  mix-blend-mode: screen;
+  will-change: opacity, filter;
 }
 
 .kisara-opening-inner {

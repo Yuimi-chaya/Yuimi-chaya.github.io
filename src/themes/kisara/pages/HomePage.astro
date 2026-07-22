@@ -87,6 +87,36 @@ const transformationScenes = [
     brightness: 0.96
   }
 ] as const;
+const openingEdgeScenes = [
+  {
+    id: "base",
+    kind: "base",
+    index: -1,
+    image: activeBackgroundUrl ?? "",
+    position: "center 50%"
+  },
+  ...memoryScenes.map((scene, index) => ({
+    id: `memory-${scene.id}`,
+    kind: "memory",
+    index,
+    image: scene.image,
+    position: scene.position
+  })),
+  ...transformationScenes.map((scene, index) => ({
+    id: `transformation-${scene.id}`,
+    kind: "transformation",
+    index,
+    image: scene.image,
+    position: scene.position
+  })),
+  {
+    id: "fight",
+    kind: "fight",
+    index: -1,
+    image: activeFightUrl ?? "",
+    position: "center 50%"
+  }
+].filter((scene) => scene.image);
 const channelLinks = [
   { index: "01", label: "READ THE LOG", note: "开发与部署记录", href: getThemePath("kisara", "/blog/"), icon: "tabler:book-2" },
   { index: "02", label: "OPEN THE LAB", note: "项目与互动实验", href: getThemePath("kisara", "/projects/"), icon: "tabler:flask-2" },
@@ -223,12 +253,28 @@ const gateStyle = [
     id="kisara-opening"
     class="kisara-opening"
     aria-labelledby="kisara-opening-title"
-    data-kisara-edge-base-src={activeBackgroundUrl ?? ""}
-    data-kisara-edge-fight-src={activeFightUrl ?? ""}
   >
     <div class="kisara-opening-edge" aria-hidden="true">
-      <span class="kisara-opening-edge-base"></span>
-      <span class="kisara-opening-edge-fight"></span>
+      <span class="kisara-opening-edge-backdrop"></span>
+      {openingEdgeScenes.map((scene) => (
+        <span
+          class="kisara-opening-edge-scene"
+          data-kisara-opening-edge-scene={scene.id}
+          data-edge-kind={scene.kind}
+          data-edge-index={scene.index}
+          data-edge-source={scene.image}
+          data-edge-position={scene.position}
+        >
+          <i class="kisara-opening-edge-continuation"></i>
+          <i class="kisara-opening-edge-live-clip">
+            <b class="kisara-opening-edge-live-surface"></b>
+          </i>
+        </span>
+      ))}
+      <span class="kisara-opening-edge-atmosphere"></span>
+      <span class="kisara-opening-edge-flare">
+        <i class="kisara-opening-edge-flare-surface"></i>
+      </span>
     </div>
     <div class="kisara-opening-inner">
       <p class="kisara-section-index">AFTER THE SIGNATURE / 001</p>
@@ -384,6 +430,7 @@ const gateStyle = [
       const baseBackground = gate.querySelector(".kisara-gate-background-base");
       const fightBackground = gate.querySelector(".kisara-gate-background-fight");
       const fightWashBackground = gate.querySelector(".kisara-gate-background-fight-wash");
+      const memoryFlare = gate.querySelector(".kisara-memory-flare");
       const memorySceneElements = Array.from(gate.querySelectorAll("[data-kisara-memory-scene]"));
       const transformationSceneElements = Array.from(
         gate.querySelectorAll("[data-kisara-transformation-scene]")
@@ -395,18 +442,73 @@ const gateStyle = [
       const title = gate.querySelector(".kisara-title");
       const cross = gate.querySelector(".kisara-title-cross");
       const opening = document.querySelector("#kisara-opening");
-      const openingBaseEdgeSource = opening instanceof HTMLElement ? opening.dataset.kisaraEdgeBaseSrc ?? "" : "";
-      const openingFightEdgeSource = opening instanceof HTMLElement ? opening.dataset.kisaraEdgeFightSrc ?? "" : "";
+      const openingEdge = opening instanceof HTMLElement
+        ? opening.querySelector(".kisara-opening-edge")
+        : null;
+      const openingEdgeElements = opening instanceof HTMLElement
+        ? Array.from(opening.querySelectorAll("[data-kisara-opening-edge-scene]"))
+        : [];
+      const openingEdgeFlare = opening instanceof HTMLElement
+        ? opening.querySelector(".kisara-opening-edge-flare")
+        : null;
+      const openingEdgeFlareSurface = openingEdgeFlare instanceof HTMLElement
+        ? openingEdgeFlare.querySelector(".kisara-opening-edge-flare-surface")
+        : null;
+      const openingEdgeRecords = openingEdgeElements.map((element) => {
+        const kind = element instanceof HTMLElement ? element.dataset.edgeKind ?? "" : "";
+        const index = element instanceof HTMLElement
+          ? Number.parseInt(element.dataset.edgeIndex ?? "-1", 10)
+          : -1;
+        const layer = kind === "base"
+          ? baseBackground
+          : kind === "memory"
+            ? memorySceneElements[index]
+            : kind === "transformation"
+              ? transformationSceneElements[index]
+              : kind === "fight"
+                ? fightBackground
+                : null;
+        return {
+          id: element instanceof HTMLElement ? element.dataset.kisaraOpeningEdgeScene ?? "" : "",
+          kind,
+          index,
+          source: element instanceof HTMLElement ? element.dataset.edgeSource ?? "" : "",
+          position: element instanceof HTMLElement ? element.dataset.edgePosition ?? "center 50%" : "center 50%",
+          element,
+          layer,
+          continuationSurface: element instanceof HTMLElement
+            ? element.querySelector(".kisara-opening-edge-continuation")
+            : null,
+          liveSurface: element instanceof HTMLElement
+            ? element.querySelector(".kisara-opening-edge-live-surface")
+            : null,
+          sampler: null,
+          textureReady: false,
+          textureQueued: false,
+          renderedOpacity: -1,
+          renderedFilter: "",
+          renderedLiveBackground: "",
+          renderedLiveGeometry: ""
+        };
+      });
+      const openingEdgeRecordById = new Map(openingEdgeRecords.map((record) => [record.id, record]));
       const state = gate.querySelector("[data-kisara-state]");
       const cue = gate.querySelector("[data-kisara-cue]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      let openingEdgeMix = 0;
-      let lockedOpeningEdgeMix = null;
-      let openingBaseEdgeSampler = null;
-      let openingFightEdgeSampler = null;
-      let openingFightTextureReady = false;
+      let openingEdgeState = {};
+      let openingEdgeFlareState = { opacity: 0, filter: "none", shift: 0 };
+      let lockedOpeningEdgeState = null;
+      let renderedOpeningEdgeFlareOpacity = -1;
+      let renderedOpeningEdgeFlareFilter = "";
+      let renderedOpeningEdgeFlareShift = Number.NaN;
+      let renderedOpeningEdgeFlareBackground = "";
+      let renderedOpeningEdgeFlareGeometry = "";
+      let openingEdgeLiveSyncTimestamp = 0;
       let openingEdgeResizeFrame = 0;
+      let openingEdgeRenderHandle = 0;
+      let openingEdgeRenderUsesIdleCallback = false;
+      const openingEdgeRenderQueue = [];
       const renderLegacyChargeBeam = false;
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
@@ -457,10 +559,6 @@ const gateStyle = [
       const gravityIngressStart = crossEnd - 0.032;
       const warningTailEnd = blackHoleFieldEnd;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
-      const compositeOpeningEdgeColor = (backdrop, foreground, opacity) => {
-        const alpha = clamp(opacity, 0, 1);
-        return backdrop.map((channel, index) => channel + (foreground[index] - channel) * alpha);
-      };
       const readOpeningEdgePixel = (sampler, u, v) => {
         if (!sampler) return null;
         const sampleX = clamp(u, 0, 1) * (sampler.width - 1);
@@ -478,7 +576,7 @@ const gateStyle = [
           return top + (bottom - top) * mixY;
         });
       };
-      const createOpeningEdgeProjection = (element, sampler) => {
+      const createOpeningEdgeProjection = (element, sampler, positionOverride = "") => {
         if (!(element instanceof HTMLElement) || !sampler) return null;
         const rect = element.getBoundingClientRect();
         const layoutWidth = element.offsetWidth;
@@ -487,8 +585,11 @@ const gateStyle = [
         const coverScale = Math.max(layoutWidth / sampler.sourceWidth, layoutHeight / sampler.sourceHeight);
         const renderedWidth = sampler.sourceWidth * coverScale;
         const renderedHeight = sampler.sourceHeight * coverScale;
-        const positionTokens = getComputedStyle(element).backgroundPosition.split(/\s+/);
+        const positionTokens = (positionOverride || getComputedStyle(element).backgroundPosition).trim().split(/\s+/);
         const readPosition = (token, fallback) => {
+          if (token === "left" || token === "top") return 0;
+          if (token === "right" || token === "bottom") return 1;
+          if (token === "center") return 0.5;
           if (!token?.endsWith("%")) return fallback;
           const value = Number.parseFloat(token);
           return Number.isFinite(value) ? value / 100 : fallback;
@@ -508,6 +609,61 @@ const gateStyle = [
         const v = (localY - renderedTop) / renderedHeight;
         if (u < 0 || u > 1 || v < 0 || v > 1) return null;
         return readOpeningEdgePixel(sampler, u, v);
+      };
+      const blendOpeningEdgeChannel = (backdrop, source, alpha, mode) => {
+        const backdropUnit = clamp(backdrop / 255, 0, 1);
+        const sourceUnit = clamp(source / 255, 0, 1);
+        let blended = sourceUnit;
+        if (mode === "multiply") {
+          blended = backdropUnit * sourceUnit;
+        } else if (mode === "soft-light") {
+          const curve = backdropUnit <= 0.25
+            ? ((16 * backdropUnit - 12) * backdropUnit + 4) * backdropUnit
+            : Math.sqrt(backdropUnit);
+          blended = sourceUnit <= 0.5
+            ? backdropUnit - (1 - 2 * sourceUnit) * backdropUnit * (1 - backdropUnit)
+            : backdropUnit + (2 * sourceUnit - 1) * (curve - backdropUnit);
+        }
+        return (backdropUnit + (blended - backdropUnit) * alpha) * 255;
+      };
+      const applyMemoryOpeningEdgeTreatment = (color, projection, viewportX, viewportY) => {
+        if (!color || !projection) return color;
+        const localX = (viewportX - projection.rect.left) * projection.layoutWidth / projection.rect.width;
+        const localY = (viewportY - projection.rect.top) * projection.layoutHeight / projection.rect.height;
+        const width = Math.max(1, projection.layoutWidth);
+        const height = Math.max(1, projection.layoutHeight);
+        const radialX = (localX - width * 0.5) / (width * 0.5);
+        const radialY = (localY - height * 0.48) / (height * 0.5);
+        const radialCorner = Math.hypot(1, 1.04);
+        const radialDistance = Math.hypot(radialX, radialY) / radialCorner;
+        const radialAlpha = smootherstep(clamp((radialDistance - 0.48) / 0.52, 0, 1)) * 0.3;
+        const vignetted = color.map((channel, index) => (
+          blendOpeningEdgeChannel(channel, [8, 10, 31][index], radialAlpha, "multiply")
+        ));
+
+        const gradientAngle = 112 * Math.PI / 180;
+        const directionX = Math.sin(gradientAngle);
+        const directionY = -Math.cos(gradientAngle);
+        const gradientLength = Math.max(
+          1,
+          Math.abs(width * directionX) + Math.abs(height * directionY)
+        );
+        const gradientProgress = clamp(
+          0.5 + (
+            (localX - width * 0.5) * directionX
+            + (localY - height * 0.5) * directionY
+          ) / gradientLength,
+          0,
+          1
+        );
+        const isCoolSide = gradientProgress <= 0.42;
+        const overlayColor = isCoolSide ? [20, 25, 55] : [255, 190, 210];
+        const overlayAlpha = isCoolSide
+          ? 0.16 * (1 - gradientProgress / 0.42)
+          : 0.12 * ((gradientProgress - 0.42) / 0.58);
+        return vignetted.map((channel, index) => (
+          blendOpeningEdgeChannel(channel, overlayColor[index], overlayAlpha, "soft-light")
+        ));
       };
       const loadOpeningEdgeSampler = (source) => new Promise((resolveSampler) => {
         if (!source) {
@@ -543,16 +699,21 @@ const gateStyle = [
         image.addEventListener("error", () => resolveSampler(null), { once: true, signal });
         image.src = new URL(source, document.baseURI).href;
       });
-      const renderOpeningEdgeTexture = (mode) => {
-        if (!(opening instanceof HTMLElement)) return false;
-        const sampler = mode === "fight" ? openingFightEdgeSampler : openingBaseEdgeSampler;
-        const layer = mode === "fight" ? fightWashBackground : baseBackground;
-        if (!sampler || !(layer instanceof HTMLElement)) return false;
+      const renderOpeningEdgeTexture = (record) => {
+        if (!(opening instanceof HTMLElement) || !record) return false;
+        const { sampler, layer, continuationSurface, kind, position } = record;
+        if (
+          !sampler
+          || !(layer instanceof HTMLElement)
+          || !(continuationSurface instanceof HTMLElement)
+        ) return false;
         const gateRect = gate.getBoundingClientRect();
-        const projection = createOpeningEdgeProjection(layer, sampler);
+        const projection = createOpeningEdgeProjection(layer, sampler, position);
         if (!projection) return false;
-        const textureWidth = Math.max(96, Math.min(960, Math.round(gateRect.width)));
-        const textureHeight = 180;
+        const textureWidth = Math.max(96, Math.min(720, Math.round(gateRect.width)));
+        const textureVisibleHeight = 180;
+        const textureOverscan = 24;
+        const textureHeight = textureVisibleHeight + textureOverscan;
         const textureCanvas = document.createElement("canvas");
         const textureContext = textureCanvas.getContext("2d");
         if (!textureContext) return false;
@@ -560,28 +721,32 @@ const gateStyle = [
         textureCanvas.height = textureHeight;
         const imageData = textureContext.createImageData(textureWidth, textureHeight);
         const edgeY = gateRect.bottom - 0.5;
-        const paperColor = [247, 243, 251];
+        const availableSourceDepth = Math.max(0, projection.rect.bottom - edgeY - 1);
         const edgeSmoothstep = (value) => value * value * (3 - 2 * value);
         for (let row = 0; row < textureHeight; row += 1) {
-          const rowProgress = row / Math.max(1, textureHeight - 1);
-          const sourceDepth = row * (0.4 + rowProgress * 0.2);
-          const sourceY = edgeY - sourceDepth;
+          const visibleRow = Math.max(0, row - textureOverscan);
+          const rowProgress = visibleRow / Math.max(1, textureVisibleHeight - 1);
+          const sourceDepth = availableSourceDepth > 0
+            ? availableSourceDepth * (
+                1 - Math.exp(
+                  -visibleRow / Math.max(18, availableSourceDepth * 1.6)
+                )
+              )
+            : 0;
+          const sourceY = edgeY + sourceDepth;
           const horizontalDrift = Math.sin(rowProgress * Math.PI * 1.35) * rowProgress * gateRect.width * 0.012;
           const rowColors = [];
           for (let index = 0; index < textureWidth; index += 1) {
             const viewportX = gateRect.left + (index + 0.5) * gateRect.width / textureWidth + horizontalDrift;
             const sampled = sampleOpeningEdgeProjection(projection, viewportX, sourceY);
-            let color;
-            if (mode === "fight") {
-              color = sampled ?? [17, 22, 54];
-            } else {
-              color = compositeOpeningEdgeColor([17, 22, 54], sampled ?? [17, 22, 54], 0.98);
-              const atmospherePosition = clamp((sourceY - gateRect.top) / Math.max(1, gateRect.height), 0, 1);
-              color = compositeOpeningEdgeColor(color, [7, 10, 31], 0.34 + atmospherePosition * 0.24);
-            }
-            rowColors.push(color);
+            rowColors.push(
+              kind === "memory"
+                ? applyMemoryOpeningEdgeTreatment(sampled, projection, viewportX, sourceY) ?? [17, 22, 54]
+                : sampled ?? [17, 22, 54]
+            );
           }
-          const blurRadius = Math.round(Math.pow(rowProgress, 1.25) * 52);
+          const blurProgress = clamp((rowProgress - 0.18) / 0.82, 0, 1);
+          const blurRadius = Math.round(Math.pow(blurProgress, 2.3) * 42);
           const prefixes = [new Float64Array(textureWidth + 1), new Float64Array(textureWidth + 1), new Float64Array(textureWidth + 1)];
           const rowAverage = [0, 0, 0];
           rowColors.forEach((color, index) => {
@@ -590,16 +755,14 @@ const gateStyle = [
               rowAverage[channel] += color[channel] / textureWidth;
             }
           });
-          const flattenMix = edgeSmoothstep(clamp((rowProgress - 0.08) / 0.78, 0, 1)) * 0.62;
-          const paperMix = Math.pow(edgeSmoothstep(clamp((rowProgress - 0.015) / 0.985, 0, 1)), 0.88);
+          const flattenMix = edgeSmoothstep(clamp((rowProgress - 0.34) / 0.66, 0, 1)) * 0.46;
           for (let index = 0; index < textureWidth; index += 1) {
             const start = Math.max(0, index - blurRadius);
             const end = Math.min(textureWidth, index + blurRadius + 1);
             const count = Math.max(1, end - start);
             const color = prefixes.map((prefix, channel) => {
               const blurred = (prefix[end] - prefix[start]) / count;
-              const flattened = blurred + (rowAverage[channel] - blurred) * flattenMix;
-              return flattened + (paperColor[channel] - flattened) * paperMix;
+              return blurred + (rowAverage[channel] - blurred) * flattenMix;
             });
             const offset = (row * textureWidth + index) * 4;
             imageData.data[offset] = Math.round(clamp(color[0], 0, 255));
@@ -609,51 +772,194 @@ const gateStyle = [
           }
         }
         textureContext.putImageData(imageData, 0, 0);
-        const property = mode === "fight"
-          ? "--kisara-opening-edge-fight-image"
-          : "--kisara-opening-edge-base-image";
-        opening.style.setProperty(property, `url("${textureCanvas.toDataURL("image/png")}")`);
-        if (mode === "fight") openingFightTextureReady = true;
+        const textureImage = `url("${textureCanvas.toDataURL("image/png")}")`;
+        continuationSurface.style.backgroundImage = textureImage;
+        record.textureReady = true;
+        record.textureQueued = false;
         return true;
       };
+      const runOpeningEdgeRenderQueue = (deadline = null) => {
+        openingEdgeRenderHandle = 0;
+        if (disposed) return;
+        const record = openingEdgeRenderQueue.shift();
+        if (record) {
+          record.textureQueued = false;
+          renderOpeningEdgeTexture(record);
+        }
+        if (openingEdgeRenderQueue.length > 0) scheduleOpeningEdgeRenderQueue();
+      };
+      const scheduleOpeningEdgeRenderQueue = () => {
+        if (disposed || openingEdgeRenderHandle || openingEdgeRenderQueue.length === 0) return;
+        if ("requestIdleCallback" in window) {
+          openingEdgeRenderUsesIdleCallback = true;
+          openingEdgeRenderHandle = window.requestIdleCallback(runOpeningEdgeRenderQueue, { timeout: 420 });
+        } else {
+          openingEdgeRenderUsesIdleCallback = false;
+          openingEdgeRenderHandle = window.setTimeout(() => runOpeningEdgeRenderQueue(), 32);
+        }
+      };
+      const queueOpeningEdgeTexture = (record, priority = false) => {
+        if (!record || record.textureQueued || !record.sampler) return;
+        record.textureQueued = true;
+        if (priority) openingEdgeRenderQueue.unshift(record);
+        else openingEdgeRenderQueue.push(record);
+        scheduleOpeningEdgeRenderQueue();
+      };
       const refreshOpeningEdgeTextures = () => {
-        renderOpeningEdgeTexture("base");
-        if (openingFightTextureReady || openingEdgeMix > 0.5) renderOpeningEdgeTexture("fight");
+        openingEdgeRecords.forEach((record) => {
+          record.textureReady = false;
+          queueOpeningEdgeTexture(record, (openingEdgeState[record.id]?.opacity ?? 0) > 0.02);
+        });
       };
       const scheduleOpeningEdgeTextureRefresh = () => {
         if (openingEdgeResizeFrame) window.cancelAnimationFrame(openingEdgeResizeFrame);
         openingEdgeResizeFrame = window.requestAnimationFrame(() => {
           openingEdgeResizeFrame = 0;
           refreshOpeningEdgeTextures();
+          openingEdgeLiveSyncTimestamp = 0;
         });
       };
-      const applyOpeningEdgeMix = (mixAmount) => {
-        if (!(opening instanceof HTMLElement)) return;
-        const mix = clamp(mixAmount, 0, 1);
-        openingEdgeMix = mix;
-        opening.style.setProperty("--kisara-opening-edge-fight-opacity", mix.toFixed(4));
+      const syncOpeningEdgeLiveSurface = (source, surface, record, backgroundKey, geometryKey, containerRect) => {
+        if (
+          !(source instanceof HTMLElement)
+          || !(surface instanceof HTMLElement)
+          || !record
+        ) return;
+        if (!record[backgroundKey]) {
+          const sourceStyle = getComputedStyle(source);
+          surface.style.backgroundImage = sourceStyle.backgroundImage;
+          surface.style.backgroundPosition = sourceStyle.backgroundPosition;
+          surface.style.backgroundSize = sourceStyle.backgroundSize;
+          surface.style.backgroundRepeat = sourceStyle.backgroundRepeat;
+          surface.style.backgroundBlendMode = sourceStyle.backgroundBlendMode;
+          surface.style.backgroundOrigin = sourceStyle.backgroundOrigin;
+          surface.style.backgroundClip = sourceStyle.backgroundClip;
+          surface.style.backgroundColor = sourceStyle.backgroundColor;
+          record[backgroundKey] = "ready";
+        }
+
+        const sourceRect = source.getBoundingClientRect();
+        const offsetX = sourceRect.left - containerRect.left;
+        const offsetY = sourceRect.top - containerRect.top;
+        const geometrySignature = [offsetX, offsetY, sourceRect.width, sourceRect.height]
+          .map((value) => value.toFixed(2))
+          .join("|");
+        if (record[geometryKey] !== geometrySignature) {
+          surface.style.width = `${sourceRect.width.toFixed(3)}px`;
+          surface.style.height = `${sourceRect.height.toFixed(3)}px`;
+          surface.style.transform = `translate3d(${offsetX.toFixed(3)}px, ${offsetY.toFixed(3)}px, 0)`;
+          record[geometryKey] = geometrySignature;
+        }
       };
-      const syncOpeningEdgeMix = (mixAmount) => {
-        if (lockedOpeningEdgeMix !== null) return;
-        applyOpeningEdgeMix(mixAmount);
+      const syncOpeningEdgeLiveGeometry = (force = false) => {
+        if (!(openingEdge instanceof HTMLElement)) return;
+        if (!force && lockedOpeningEdgeState !== null) return;
+        const timestamp = performance.now();
+        if (!force && timestamp - openingEdgeLiveSyncTimestamp < 28) return;
+        openingEdgeLiveSyncTimestamp = timestamp;
+        openingEdgeRecords.forEach((record) => {
+          const opacity = openingEdgeState[record.id]?.opacity ?? 0;
+          if (
+            (!force && opacity <= 0.001)
+            || !(record.element instanceof HTMLElement)
+          ) return;
+          syncOpeningEdgeLiveSurface(
+            record.layer,
+            record.liveSurface,
+            record,
+            "renderedLiveBackground",
+            "renderedLiveGeometry",
+            record.element.getBoundingClientRect()
+          );
+        });
+        if (
+          force
+          || (openingEdgeFlareState.opacity ?? 0) > 0.001
+        ) {
+          const flareRecord = {
+            renderedOpeningEdgeFlareBackground,
+            renderedOpeningEdgeFlareGeometry
+          };
+          syncOpeningEdgeLiveSurface(
+            memoryFlare,
+            openingEdgeFlareSurface,
+            flareRecord,
+            "renderedOpeningEdgeFlareBackground",
+            "renderedOpeningEdgeFlareGeometry",
+            openingEdgeFlare instanceof HTMLElement
+              ? openingEdgeFlare.getBoundingClientRect()
+              : openingEdge.getBoundingClientRect()
+          );
+          renderedOpeningEdgeFlareBackground = flareRecord.renderedOpeningEdgeFlareBackground;
+          renderedOpeningEdgeFlareGeometry = flareRecord.renderedOpeningEdgeFlareGeometry;
+        }
       };
-      const lockOpeningEdgeMix = () => {
-        renderOpeningEdgeTexture("fight");
-        lockedOpeningEdgeMix = openingEdgeMix;
-        applyOpeningEdgeMix(lockedOpeningEdgeMix);
+      const applyOpeningEdgeState = (nextState, nextFlareState = openingEdgeFlareState) => {
+        openingEdgeState = { ...nextState };
+        openingEdgeFlareState = { ...nextFlareState };
+        openingEdgeRecords.forEach((record) => {
+          const sceneState = nextState[record.id] ?? { opacity: 0, filter: "none" };
+          const opacity = clamp(sceneState.opacity ?? 0, 0, 1);
+          const filter = sceneState.filter || "none";
+          if (
+            record.element instanceof HTMLElement
+            && Math.abs(record.renderedOpacity - opacity) > 0.0005
+          ) {
+            record.element.style.opacity = opacity.toFixed(4);
+            record.renderedOpacity = opacity;
+          }
+          if (
+            opacity > 0.001
+            && record.element instanceof HTMLElement
+            && record.renderedFilter !== filter
+          ) {
+            record.element.style.filter = filter;
+            record.renderedFilter = filter;
+          }
+          if (opacity > 0.015 && !record.textureReady) {
+            queueOpeningEdgeTexture(record, true);
+          }
+        });
+        if (openingEdgeFlare instanceof HTMLElement) {
+          const flareOpacity = clamp(nextFlareState.opacity ?? 0, 0, 0.44);
+          const flareFilter = nextFlareState.filter || "none";
+          const flareShift = Number.isFinite(nextFlareState.shift) ? nextFlareState.shift : 0;
+          if (Math.abs(renderedOpeningEdgeFlareOpacity - flareOpacity) > 0.0005) {
+            openingEdgeFlare.style.opacity = flareOpacity.toFixed(4);
+            renderedOpeningEdgeFlareOpacity = flareOpacity;
+          }
+          if (flareOpacity > 0.001 && renderedOpeningEdgeFlareFilter !== flareFilter) {
+            openingEdgeFlare.style.filter = flareFilter;
+            renderedOpeningEdgeFlareFilter = flareFilter;
+          }
+          if (Math.abs(renderedOpeningEdgeFlareShift - flareShift) > 0.02) {
+            openingEdgeFlare.style.setProperty("--kisara-opening-flare-shift", `${flareShift.toFixed(3)}px`);
+            renderedOpeningEdgeFlareShift = flareShift;
+          }
+        }
       };
-      const releaseOpeningEdgeMix = () => {
-        lockedOpeningEdgeMix = null;
+      const syncOpeningEdgeState = (nextState, nextFlareState) => {
+        if (lockedOpeningEdgeState !== null) return;
+        applyOpeningEdgeState(nextState, nextFlareState);
       };
-      Promise.all([
-        loadOpeningEdgeSampler(openingBaseEdgeSource),
-        loadOpeningEdgeSampler(openingFightEdgeSource)
-      ]).then(([baseSampler, fightSampler]) => {
-        if (disposed) return;
-        openingBaseEdgeSampler = baseSampler;
-        openingFightEdgeSampler = fightSampler;
-        renderOpeningEdgeTexture("base");
-        if (openingEdgeMix > 0.5) renderOpeningEdgeTexture("fight");
+      const lockOpeningEdgeState = () => {
+        syncOpeningEdgeLiveGeometry(true);
+        lockedOpeningEdgeState = {
+          scenes: { ...openingEdgeState },
+          flare: { ...openingEdgeFlareState }
+        };
+        applyOpeningEdgeState(lockedOpeningEdgeState.scenes, lockedOpeningEdgeState.flare);
+      };
+      const releaseOpeningEdgeState = () => {
+        lockedOpeningEdgeState = null;
+        openingEdgeLiveSyncTimestamp = 0;
+      };
+      openingEdgeRecords.forEach((record) => {
+        loadOpeningEdgeSampler(record.source).then((sampler) => {
+          if (disposed) return;
+          record.sampler = sampler;
+          queueOpeningEdgeTexture(record, record.kind === "base");
+        });
       });
       window.addEventListener("resize", scheduleOpeningEdgeTextureRefresh, { passive: true, signal });
       const releaseSessionKey = "yuimi-kisara-release-viewed-v1";
@@ -707,6 +1013,7 @@ const gateStyle = [
       let renderedRailPressure = -1;
       let renderedRailReleaseMode = "";
       let warningPresentationActive = false;
+      let crossPresentationActive = false;
       let energyFrame = 0;
       let energyTimer = 0;
       let energyLoopActive = false;
@@ -984,6 +1291,8 @@ const gateStyle = [
           0.0032 + Math.sin(memoryClock * 0.88) * 0.0018 + kissPrelude * 0.013
         ) * kissHold;
         let strongestScene = 0;
+        const memoryOpacities = new Array(memorySceneElements.length).fill(0);
+        const memoryFilters = new Array(memorySceneElements.length).fill("none");
 
         memorySceneElements.forEach((element, index) => {
           const scene = memoryTimeline[index];
@@ -1006,16 +1315,23 @@ const gateStyle = [
             + kissMotionY * persistentMotion;
           const scale = 1.065 - focus * 0.032 + local * 0.006
             + (scene.persistent ? kissBreath : 0);
+          const memoryBlur = 0.45 + edgeSoftness * 8.6 + motionBlur;
+          const memorySaturation = element.style.getPropertyValue("--kisara-memory-saturation").trim() || "0.92";
+          const memoryBrightness = element.style.getPropertyValue("--kisara-memory-brightness").trim() || "1";
 
           strongestScene = Math.max(strongestScene, opacity);
+          memoryOpacities[index] = opacity * 0.985;
+          memoryFilters[index] = `blur(${memoryBlur.toFixed(3)}px) saturate(${memorySaturation}) brightness(${memoryBrightness}) contrast(1.035)`;
           element.style.setProperty("--kisara-memory-opacity", (opacity * 0.985).toFixed(4));
-          element.style.setProperty("--kisara-memory-blur", `${(0.45 + edgeSoftness * 8.6 + motionBlur).toFixed(3)}px`);
+          element.style.setProperty("--kisara-memory-blur", `${memoryBlur.toFixed(3)}px`);
           element.style.setProperty("--kisara-memory-scale", scale.toFixed(5));
           element.style.setProperty("--kisara-memory-shift-x", `${directionalTravel.toFixed(3)}px`);
           element.style.setProperty("--kisara-memory-shift-y", `${verticalTravel.toFixed(3)}px`);
         });
 
         let transformationReveal = 0;
+        const transformationOpacities = new Array(transformationSceneElements.length).fill(0);
+        const transformationFilters = new Array(transformationSceneElements.length).fill(null);
         transformationSceneElements.forEach((element, index) => {
           const scene = transformationTimeline[index];
           if (!(element instanceof HTMLElement) || !scene) return;
@@ -1047,13 +1363,22 @@ const gateStyle = [
           const directionalTravel = (local - 0.5) * scene.drift + breath * (scene.persistent ? 2.2 : 1.2);
           const verticalTravel = scene.lift * focus + breath * (scene.persistent ? 0.9 : 0.45);
           const scale = 1.072 - focus * 0.034 + local * 0.005 + breath * 0.0015;
+          const transformationBlur = 0.35 + edgeSoftness * 7.4 + motionBlur * 0.38;
+          const transformationSaturation = element.style.getPropertyValue("--kisara-transformation-saturation").trim() || "1";
+          const transformationBrightness = element.style.getPropertyValue("--kisara-transformation-brightness").trim() || "1";
 
           transformationReveal = Math.max(transformationReveal, opacity);
           strongestScene = Math.max(strongestScene, opacity);
+          transformationOpacities[index] = opacity * 0.995;
+          transformationFilters[index] = {
+            blur: transformationBlur,
+            saturation: transformationSaturation,
+            brightness: transformationBrightness
+          };
           element.style.setProperty("--kisara-transformation-opacity", (opacity * 0.995).toFixed(4));
           element.style.setProperty(
             "--kisara-transformation-blur",
-            `${(0.35 + edgeSoftness * 7.4 + motionBlur * 0.38).toFixed(3)}px`
+            `${transformationBlur.toFixed(3)}px`
           );
           element.style.setProperty("--kisara-transformation-scale", scale.toFixed(5));
           element.style.setProperty("--kisara-transformation-shift-x", `${directionalTravel.toFixed(3)}px`);
@@ -1068,22 +1393,25 @@ const gateStyle = [
         const memoryEnvelope = phaseProgress(fill, 0.018, 0.09) * (1 - transformationEntrance);
         const baseExit = smootherstep((fill - 0.035) / 0.115);
 
-        gate.style.setProperty(
-          "--kisara-memory-flash",
-          (transitionProximity * transitionEnergy * 0.34).toFixed(4)
-        );
-        gate.style.setProperty(
-          "--kisara-memory-haze",
-          (memoryEnvelope * (0.045 + strongestScene * 0.045)).toFixed(4)
-        );
-        gate.style.setProperty(
-          "--kisara-memory-flare-shift",
-          `${(clamp(velocity * 155, -1, 1) * 10).toFixed(3)}px`
-        );
+        const memoryFlash = transitionProximity * transitionEnergy * 0.34;
+        const memoryHaze = memoryEnvelope * (0.045 + strongestScene * 0.045);
+        const memoryFlareShift = clamp(velocity * 155, -1, 1) * 10;
+        gate.style.setProperty("--kisara-memory-flash", memoryFlash.toFixed(4));
+        gate.style.setProperty("--kisara-memory-haze", memoryHaze.toFixed(4));
+        gate.style.setProperty("--kisara-memory-flare-shift", `${memoryFlareShift.toFixed(3)}px`);
 
         return {
           baseExit,
-          transformationReveal
+          transformationReveal,
+          memoryOpacities,
+          memoryFilters,
+          transformationOpacities,
+          transformationFilters,
+          flare: {
+            opacity: clamp(memoryFlash + memoryHaze, 0, 0.44),
+            filter: "blur(8px)",
+            shift: memoryFlareShift
+          }
         };
       };
       const pointOnQuinticCurve = (start, controlA, controlB, controlC, controlD, end, progress) => {
@@ -3617,8 +3945,8 @@ const gateStyle = [
           spaceLensCanvas.dataset.active = "true";
         };
 
-        const warm = () => {
-          if (warmed) return;
+        const warm = (force = false) => {
+          if (warmed && !force) return;
           warmed = true;
           draw({
             centerX: 0.5,
@@ -4159,8 +4487,8 @@ const gateStyle = [
           titleLensCanvas.dataset.active = "true";
         };
 
-        const warm = () => {
-          if (warmed) return;
+        const warm = (force = false) => {
+          if (warmed && !force) return;
           warmed = true;
           draw({
             centerX: cssWidth * 0.5,
@@ -4212,39 +4540,53 @@ const gateStyle = [
       };
 
       let warningWarmupScheduled = false;
-      let warningCssWarmupComplete = false;
       let warningWarmupHandle = 0;
       let warningWarmupUsesIdleCallback = false;
+      let warningWarmupReleaseFrame = 0;
+      let warningWarmupLastAt = -Infinity;
+      let warningWarmupForceRequested = false;
       const runWarningWarmup = () => {
         warningWarmupHandle = 0;
         warningWarmupScheduled = false;
+        const force = warningWarmupForceRequested;
+        warningWarmupForceRequested = false;
         if (disposed || !gate.isConnected) return;
         if (reducedMotion || pageMode !== "gate" || document.visibilityState !== "visible") return;
+        if (warningPresentationActive || burstProgress >= crossStart - 0.03) return;
+        const timestamp = performance.now();
+        if (!force && timestamp - warningWarmupLastAt < 3200) return;
+        warningWarmupLastAt = timestamp;
 
         ensureSingularityFieldBuffer(gate.clientWidth < 640 ? 80 : 108);
-        spaceLensRenderer?.warm?.();
-        titleLensRenderer?.warm?.();
+        spaceLensRenderer?.warm?.(true);
+        titleLensRenderer?.warm?.(true);
 
-        if (warningCssWarmupComplete) return;
-        warningCssWarmupComplete = true;
+        if (warningWarmupReleaseFrame) {
+          window.cancelAnimationFrame(warningWarmupReleaseFrame);
+          warningWarmupReleaseFrame = 0;
+        }
         gate.classList.add("is-warning-prewarm");
         gate.getBoundingClientRect();
-        window.requestAnimationFrame(() => {
+        warningWarmupReleaseFrame = window.requestAnimationFrame(() => {
           if (disposed) return;
-          window.requestAnimationFrame(() => {
+          warningWarmupReleaseFrame = window.requestAnimationFrame(() => {
+            warningWarmupReleaseFrame = 0;
             if (!disposed) gate.classList.remove("is-warning-prewarm");
           });
         });
       };
-      const scheduleWarningWarmup = () => {
-        if (disposed || warningWarmupScheduled || reducedMotion || pageMode !== "gate") return;
+      const scheduleWarningWarmup = (force = false) => {
+        if (force) warningWarmupForceRequested = true;
+        if (disposed || reducedMotion || pageMode !== "gate") return;
+        if (warningWarmupScheduled) return;
+        if (!force && performance.now() - warningWarmupLastAt < 3200) return;
         warningWarmupScheduled = true;
         if ("requestIdleCallback" in window) {
           warningWarmupUsesIdleCallback = true;
-          warningWarmupHandle = window.requestIdleCallback(runWarningWarmup, { timeout: 900 });
+          warningWarmupHandle = window.requestIdleCallback(runWarningWarmup, { timeout: force ? 240 : 900 });
         } else {
           warningWarmupUsesIdleCallback = false;
-          warningWarmupHandle = window.setTimeout(runWarningWarmup, 180);
+          warningWarmupHandle = window.setTimeout(runWarningWarmup, force ? 32 : 180);
         }
       };
 
@@ -6955,6 +7297,12 @@ const gateStyle = [
           7,
           38
         );
+        const warningPresentationVisible = warningMonochrome > 0.001
+          || warningFocus > 0.001
+          || warningExposure > 0.001
+          || crossOpacity > 0.001;
+        const crossPresentationVisible = crossOpacity > 0.001;
+        const crossJustActivated = crossPresentationVisible && !crossPresentationActive;
         const introKickFade = 1 - phaseProgress(introImpactLinear, 0.58, 1);
         const introKickX = Math.sin(introImpactLinear * Math.PI * 5.2)
           * introImpactPulse * introKickFade * 4.6;
@@ -7030,58 +7378,56 @@ const gateStyle = [
           "--kisara-reconstruction-wash-opacity",
           reconstructionWashOpacity.toFixed(3)
         );
-        drawSpaceLens(timestamp, {
-          centerX: clamp(warpOriginX / gateWidth, 0, 1),
-          centerY: clamp(1 - warpOriginY / gateHeight, 0, 1),
-          reveal: lensReveal,
-          opacity: lensOpacity,
-          gravity: lensGravity * spaceLensStrengthScale,
-          collapse: collapseDepth * (0.62 + spaceLensStrengthScale * 0.38),
-          crush: crushCompression * (0.56 + spaceLensStrengthScale * 0.44),
-          shockStrength: lensShockStrength * (0.68 + spaceLensStrengthScale * 0.32),
-          shockRadius: lensShockRadiusPixels / gateHeight,
-          shockWidth: Math.max(8, lensShockWidthPixels * 0.56) / gateHeight,
-          coreRadius: lensCoreRadius / gateHeight,
-          lensRadius,
-          reconstruction: reconstructionLinear,
-          reconstructionOpacity,
-          time: timestamp / 1000
-        });
-        if (!postReleaseActive) {
-          const titleLegacyWeight = 1 - titleLiquidHandoff;
-          drawTitleLens(timestamp, {
-            centerX: titleLensCenterX,
-            centerY: titleLensCenterY,
-            opacity: titleLensOpacity,
-            strength: titleWarp * titleLensStrengthScale * titleLegacyWeight,
-            gravity: lensGravity * (0.72 + titleLensStrengthScale * 0.28) * titleLegacyWeight,
-            collapse: collapseDepth * titleLegacyWeight,
-            crush: crushCompression * titleLegacyWeight,
-            shockStrength: lensShockStrength * titleLensStrengthScale * titleLegacyWeight,
-            shockRadius: lensShockRadiusPixels,
-            shockWidth: Math.max(12, lensShockWidthPixels * 0.72),
-            coreRadius: lensCoreRadius,
-            lensRadius: gateShortSide * (0.42 + gravityPressure * 0.2 + collapseDepth * 0.12),
-            release: titleRupture * titleLegacyWeight,
-            dissolve: titleDissolve * titleLegacyWeight,
-            sourceOpacity: titleSourceOpacity,
-            finalFlow: titleLiquidHandoff,
-            liquidPhase: postReleaseDataPhase,
-            liquidPressure: 0.2 + titleLiquidHandoff * 0.08,
-            flowDirection: -1,
-            flowFront: 0.5,
-            parallax: 0,
+        if (!crossJustActivated) {
+          drawSpaceLens(timestamp, {
+            centerX: clamp(warpOriginX / gateWidth, 0, 1),
+            centerY: clamp(1 - warpOriginY / gateHeight, 0, 1),
+            reveal: lensReveal,
+            opacity: lensOpacity,
+            gravity: lensGravity * spaceLensStrengthScale,
+            collapse: collapseDepth * (0.62 + spaceLensStrengthScale * 0.38),
+            crush: crushCompression * (0.56 + spaceLensStrengthScale * 0.44),
+            shockStrength: lensShockStrength * (0.68 + spaceLensStrengthScale * 0.32),
+            shockRadius: lensShockRadiusPixels / gateHeight,
+            shockWidth: Math.max(8, lensShockWidthPixels * 0.56) / gateHeight,
+            coreRadius: lensCoreRadius / gateHeight,
+            lensRadius,
+            reconstruction: reconstructionLinear,
+            reconstructionOpacity,
             time: timestamp / 1000
           });
+          if (!postReleaseActive) {
+            const titleLegacyWeight = 1 - titleLiquidHandoff;
+            drawTitleLens(timestamp, {
+              centerX: titleLensCenterX,
+              centerY: titleLensCenterY,
+              opacity: titleLensOpacity,
+              strength: titleWarp * titleLensStrengthScale * titleLegacyWeight,
+              gravity: lensGravity * (0.72 + titleLensStrengthScale * 0.28) * titleLegacyWeight,
+              collapse: collapseDepth * titleLegacyWeight,
+              crush: crushCompression * titleLegacyWeight,
+              shockStrength: lensShockStrength * titleLensStrengthScale * titleLegacyWeight,
+              shockRadius: lensShockRadiusPixels,
+              shockWidth: Math.max(12, lensShockWidthPixels * 0.72),
+              coreRadius: lensCoreRadius,
+              lensRadius: gateShortSide * (0.42 + gravityPressure * 0.2 + collapseDepth * 0.12),
+              release: titleRupture * titleLegacyWeight,
+              dissolve: titleDissolve * titleLegacyWeight,
+              sourceOpacity: titleSourceOpacity,
+              finalFlow: titleLiquidHandoff,
+              liquidPhase: postReleaseDataPhase,
+              liquidPressure: 0.2 + titleLiquidHandoff * 0.08,
+              flowDirection: -1,
+              flowFront: 0.5,
+              parallax: 0,
+              time: timestamp / 1000
+            });
+          }
         }
         gate.style.setProperty("--kisara-chromatic-shift", `${chromaticShift.toFixed(3)}px`);
         gate.style.setProperty("--kisara-impact-flash", impactFlash.toFixed(3));
         gate.style.setProperty("--kisara-impact-vignette", impactVignette.toFixed(3));
         gate.style.setProperty("--kisara-impact-scale", impactScale.toFixed(4));
-        const warningPresentationVisible = warningMonochrome > 0.001
-          || warningFocus > 0.001
-          || warningExposure > 0.001
-          || crossOpacity > 0.001;
         if (warningPresentationVisible || warningPresentationActive) {
           gate.style.setProperty("--kisara-warning-monochrome", warningMonochrome.toFixed(3));
           gate.style.setProperty("--kisara-warning-invert", warningInvert.toFixed(3));
@@ -7127,6 +7473,7 @@ const gateStyle = [
           gate.style.setProperty("--kisara-cross-shake-y", `${crossShakeY.toFixed(3)}px`);
           warningPresentationActive = warningPresentationVisible;
         }
+        crossPresentationActive = crossPresentationVisible;
       };
 
       const updateGlitchState = (timestamp) => {
@@ -9803,7 +10150,50 @@ const gateStyle = [
           clamp((reconstructionProgress - 0.18) / 0.82, 0, 1)
         );
         const fightBlur = 0.3 + 2.8 * Math.pow(1 - fightSettle, 1.35);
-        syncOpeningEdgeMix(reconstructionReveal);
+        const fightSaturation = 0.9 + fightSettle * 0.28;
+        const fightBrightness = 0.86 + fightSettle * 0.16;
+        const baseSceneOpacity = 0.98 - memoryState.baseExit * 0.78;
+        const baseSceneBlur = memoryState.baseExit * 10;
+        const baseSceneSaturation = 1 - memoryState.baseExit * 0.2;
+        const baseSceneBrightness = 1 - memoryState.baseExit * 0.12;
+        const transformationReleaseOpacity = 1 - transformationExit;
+        const silhouetteBladeBlur = (1 - silhouetteFocus) * 10.5;
+        const silhouetteBladeBrightness = 0.92 + silhouetteFocus * 0.08;
+        const nextOpeningEdgeState = {};
+        openingEdgeRecords.forEach((record) => {
+          if (record.kind === "base") {
+            nextOpeningEdgeState[record.id] = {
+              opacity: baseSceneOpacity,
+              filter: `blur(${baseSceneBlur.toFixed(3)}px) saturate(${baseSceneSaturation.toFixed(3)}) brightness(${baseSceneBrightness.toFixed(3)})`
+            };
+            return;
+          }
+          if (record.kind === "memory") {
+            nextOpeningEdgeState[record.id] = {
+              opacity: memoryState.memoryOpacities[record.index] ?? 0,
+              filter: memoryState.memoryFilters[record.index] ?? "none"
+            };
+            return;
+          }
+          if (record.kind === "transformation") {
+            const presentation = memoryState.transformationFilters[record.index];
+            const isSilhouette = record.index === transformationSceneElements.length - 1;
+            const blur = (presentation?.blur ?? 0) + (isSilhouette ? silhouetteBladeBlur : 0);
+            const bladeBrightness = isSilhouette ? silhouetteBladeBrightness : 1;
+            nextOpeningEdgeState[record.id] = {
+              opacity: (memoryState.transformationOpacities[record.index] ?? 0) * transformationReleaseOpacity,
+              filter: `blur(${blur.toFixed(3)}px) saturate(${presentation?.saturation ?? 1}) brightness(${presentation?.brightness ?? 1}) brightness(${bladeBrightness.toFixed(4)}) contrast(1.025)`
+            };
+            return;
+          }
+          nextOpeningEdgeState[record.id] = record.kind === "fight"
+            ? {
+                opacity: reconstructionReveal,
+                filter: `blur(${fightBlur.toFixed(3)}px) saturate(${fightSaturation.toFixed(3)}) brightness(${fightBrightness.toFixed(3)})`
+              }
+            : { opacity: 0, filter: "none" };
+        });
+        syncOpeningEdgeState(nextOpeningEdgeState, memoryState.flare);
         const glossPosition = 118 - glossSweep * 136;
         const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
         const crestOpacity = fill <= 0.002 || fill >= 0.998
@@ -9821,24 +10211,24 @@ const gateStyle = [
         if (transformationSilhouette instanceof HTMLElement) {
           transformationSilhouette.style.setProperty(
             "--kisara-transformation-blade-blur",
-            `${((1 - silhouetteFocus) * 10.5).toFixed(3)}px`
+            `${silhouetteBladeBlur.toFixed(3)}px`
           );
           transformationSilhouette.style.setProperty(
             "--kisara-transformation-blade-brightness",
-            (0.92 + silhouetteFocus * 0.08).toFixed(4)
+            silhouetteBladeBrightness.toFixed(4)
           );
           transformationSilhouette.style.setProperty(
             "--kisara-transformation-blade-scale",
             (1 + silhouetteFocus * 0.022).toFixed(5)
           );
         }
-        gate.style.setProperty("--kisara-bg-blur", `${(memoryState.baseExit * 10).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-bg-opacity", (0.98 - memoryState.baseExit * 0.78).toFixed(3));
-        gate.style.setProperty("--kisara-bg-saturation", (1 - memoryState.baseExit * 0.2).toFixed(3));
-        gate.style.setProperty("--kisara-bg-brightness", (1 - memoryState.baseExit * 0.12).toFixed(3));
+        gate.style.setProperty("--kisara-bg-blur", `${baseSceneBlur.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-bg-opacity", baseSceneOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-bg-saturation", baseSceneSaturation.toFixed(3));
+        gate.style.setProperty("--kisara-bg-brightness", baseSceneBrightness.toFixed(3));
         gate.style.setProperty(
           "--kisara-transformation-release-opacity",
-          (1 - transformationExit).toFixed(4)
+          transformationReleaseOpacity.toFixed(4)
         );
         gate.style.setProperty("--kisara-fight-opacity", (fightVisible * 0.985).toFixed(3));
         gate.style.setProperty("--kisara-fight-blur", `${fightBlur.toFixed(3)}px`);
@@ -9848,11 +10238,11 @@ const gateStyle = [
         );
         gate.style.setProperty(
           "--kisara-fight-saturation",
-          (0.9 + fightSettle * 0.28).toFixed(3)
+          fightSaturation.toFixed(3)
         );
         gate.style.setProperty(
           "--kisara-fight-brightness",
-          (0.86 + fightSettle * 0.16).toFixed(3)
+          fightBrightness.toFixed(3)
         );
         gate.style.setProperty("--kisara-fight-handoff-x", "0px");
         gate.style.setProperty("--kisara-fight-handoff-y", "0px");
@@ -9908,6 +10298,7 @@ const gateStyle = [
           cue.classList.toggle("is-guiding", cueGuided);
           cue.classList.toggle("is-enter-ready", burstComplete && pageMode === "gate");
         }
+        syncOpeningEdgeLiveGeometry();
       };
 
       const transitionChargeIntro = (nextTarget, timestamp) => {
@@ -9938,6 +10329,7 @@ const gateStyle = [
 
       const startChargeIntro = (timestamp) => {
         if (chargeIntroComplete || pageMode !== "gate") return;
+        scheduleWarningWarmup(true);
         progress = 1;
         targetProgress = 1;
         velocity = 0;
@@ -10266,6 +10658,9 @@ const gateStyle = [
         releaseRewindStartedAt = 0;
         releaseRewindDuration = 0;
         releaseRewindVeil = 0;
+        warningPresentationActive = false;
+        crossPresentationActive = false;
+        gate.classList.remove("is-warning-prewarm");
         chargeIntroProgress = 0;
         chargeIntroActive = false;
         chargeIntroComplete = false;
@@ -10346,7 +10741,7 @@ const gateStyle = [
         if (scrollFrame) return;
         pageMode = "snap";
         setPostReleaseActive(false);
-        lockOpeningEdgeMix();
+        lockOpeningEdgeState();
         smoothScrollTo(getNextPageTop(), () => {
           resetGateState();
           pageMode = "next";
@@ -10358,9 +10753,16 @@ const gateStyle = [
         if (scrollFrame) return;
         pageMode = "snap";
         const returnRailStart = getDocumentScrollProgress();
-        releaseOpeningEdgeMix();
-        applyOpeningEdgeMix(0);
-        renderOpeningEdgeTexture("base");
+        releaseOpeningEdgeState();
+        applyOpeningEdgeState(Object.fromEntries(
+          openingEdgeRecords.map((record) => [
+            record.id,
+            record.kind === "base"
+              ? { opacity: 0.98, filter: "blur(0px) saturate(1) brightness(1)" }
+              : { opacity: 0, filter: "none" }
+          ])
+        ), { opacity: 0, filter: "none", shift: 0 });
+        queueOpeningEdgeTexture(openingEdgeRecordById.get("base"), true);
         publishGateRailState({
           active: true,
           progress: returnRailStart,
@@ -10385,6 +10787,7 @@ const gateStyle = [
           beamHeadVelocityY = 0;
           beamMotionEnergy = 0;
           render();
+          scheduleWarningWarmup(true);
         }, (journeyProgress) => {
           publishGateRailState({
             active: true,
@@ -10641,7 +11044,7 @@ const gateStyle = [
         }
         startEnergyAnimation();
         startPostReleaseAnimation();
-        scheduleWarningWarmup();
+        scheduleWarningWarmup(true);
       }, { signal });
 
       const cleanup = () => {
@@ -10651,6 +11054,13 @@ const gateStyle = [
         spaceLensInitGeneration += 1;
         titleLensInitGeneration += 1;
         if (openingEdgeResizeFrame) window.cancelAnimationFrame(openingEdgeResizeFrame);
+        if (openingEdgeRenderHandle) {
+          if (openingEdgeRenderUsesIdleCallback && "cancelIdleCallback" in window) {
+            window.cancelIdleCallback(openingEdgeRenderHandle);
+          } else {
+            window.clearTimeout(openingEdgeRenderHandle);
+          }
+        }
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
         if (energyFrame) window.cancelAnimationFrame(energyFrame);
         if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
@@ -10664,7 +11074,10 @@ const gateStyle = [
             window.clearTimeout(warningWarmupHandle);
           }
         }
+        if (warningWarmupReleaseFrame) window.cancelAnimationFrame(warningWarmupReleaseFrame);
         openingEdgeResizeFrame = 0;
+        openingEdgeRenderHandle = 0;
+        openingEdgeRenderQueue.length = 0;
         animationFrame = 0;
         energyFrame = 0;
         scrollFrame = 0;
@@ -10672,7 +11085,10 @@ const gateStyle = [
         energyTimer = 0;
         restoreSyncTimer = 0;
         warningWarmupHandle = 0;
+        warningWarmupReleaseFrame = 0;
         warningWarmupScheduled = false;
+        warningWarmupForceRequested = false;
+        gate.classList.remove("is-warning-prewarm");
         energyLoopActive = false;
         stopPostReleaseAnimation();
         layoutResizeObserver?.disconnect();
