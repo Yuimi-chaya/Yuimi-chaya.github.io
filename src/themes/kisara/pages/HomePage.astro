@@ -26,6 +26,7 @@ const findThemeAsset = (baseName: string) => {
 };
 const activeBackgroundUrl = findThemeAsset("gate-background");
 const activeFightUrl = findThemeAsset("fight");
+const activeTransformationUrl = findThemeAsset("transformation-silhouette");
 const memoryScenes = [
   {
     id: "rescue",
@@ -63,6 +64,29 @@ const memoryScenes = [
     brightness: 1.06
   }
 ] as const;
+const transformationScenes = [
+  {
+    id: "smoke-wide",
+    image: "/themes/kisara/assets/transformation-smoke-wide.webp",
+    position: "center 50%",
+    saturation: 0.96,
+    brightness: 1.02
+  },
+  {
+    id: "detail",
+    image: "/themes/kisara/assets/transformation-detail.webp",
+    position: "center 48%",
+    saturation: 1.02,
+    brightness: 0.98
+  },
+  {
+    id: "silhouette",
+    image: "/themes/kisara/assets/transformation-silhouette.webp",
+    position: "center 50%",
+    saturation: 1.04,
+    brightness: 0.96
+  }
+] as const;
 const channelLinks = [
   { index: "01", label: "READ THE LOG", note: "开发与部署记录", href: getThemePath("kisara", "/blog/"), icon: "tabler:book-2" },
   { index: "02", label: "OPEN THE LAB", note: "项目与互动实验", href: getThemePath("kisara", "/projects/"), icon: "tabler:flask-2" },
@@ -89,20 +113,22 @@ const gateStyle = [
           style={`--kisara-memory-image: url("${scene.image}"); --kisara-memory-position: ${scene.position}; --kisara-memory-saturation: ${scene.saturation}; --kisara-memory-brightness: ${scene.brightness};`}
         ></div>
       ))}
+      {transformationScenes.map((scene, index) => (
+        <div
+          class="kisara-gate-background kisara-gate-transformation"
+          data-kisara-transformation-scene={index}
+          data-transformation-id={scene.id}
+          style={`--kisara-transformation-image: url("${scene.image}"); --kisara-transformation-position: ${scene.position}; --kisara-transformation-saturation: ${scene.saturation}; --kisara-transformation-brightness: ${scene.brightness};`}
+        ></div>
+      ))}
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
-      <div class="kisara-fight-smoke" aria-hidden="true">
-        <span class="kisara-fight-smoke-veil"></span>
-        <span class="kisara-fight-smoke-aura"></span>
-        <span class="kisara-fight-smoke-cloud kisara-fight-smoke-cloud-left"></span>
-        <span class="kisara-fight-smoke-cloud kisara-fight-smoke-cloud-right"></span>
-        <span class="kisara-fight-smoke-cloud kisara-fight-smoke-cloud-center"></span>
-      </div>
       <div class="kisara-memory-flare"></div>
       <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
       <canvas
         class="kisara-space-lens-canvas"
         data-kisara-space-lens
         data-base-src={activeBackgroundUrl ?? ""}
+        data-pre-release-src={activeTransformationUrl ?? activeBackgroundUrl ?? ""}
         data-fight-src={activeFightUrl ?? ""}
         width="1280"
         height="900"
@@ -314,6 +340,12 @@ const gateStyle = [
       const fightBackground = gate.querySelector(".kisara-gate-background-fight");
       const fightWashBackground = gate.querySelector(".kisara-gate-background-fight-wash");
       const memorySceneElements = Array.from(gate.querySelectorAll("[data-kisara-memory-scene]"));
+      const transformationSceneElements = Array.from(
+        gate.querySelectorAll("[data-kisara-transformation-scene]")
+      );
+      const transformationSilhouette = transformationSceneElements[
+        transformationSceneElements.length - 1
+      ];
       const meterShell = gate.querySelector(".kisara-contract-meter");
       const title = gate.querySelector(".kisara-title");
       const cross = gate.querySelector(".kisara-title-cross");
@@ -863,10 +895,15 @@ const gateStyle = [
         { start: 0.53, enterEnd: 0.605, leaveStart: 0.695, end: 0.785, drift: -18, lift: 2 },
         { start: 0.7, enterEnd: 0.775, leaveStart: 1, end: 1, drift: 16, lift: -1, persistent: true }
       ];
+      const transformationTimeline = [
+        { start: 0.025, enterEnd: 0.18, leaveStart: 0.34, end: 0.52, drift: -15, lift: -3 },
+        { start: 0.35, enterEnd: 0.51, leaveStart: 0.63, end: 0.79, drift: 18, lift: -2 },
+        { start: 0.66, enterEnd: 0.83, leaveStart: 1, end: 1, drift: -8, lift: -1, persistent: true }
+      ];
       const memoryTransitionCenters = [0.205, 0.375, 0.545, 0.715, 0.885];
       const syncMemorySequence = (fill) => {
         const motionBlur = clamp(Math.abs(velocity) * 96, 0, 4.4);
-        const fightHandoff = smootherstep((chargeIntroProgress - 0.46) / 0.3);
+        const transformationEntrance = smootherstep((chargeIntroProgress - 0.025) / 0.205);
         const memoryClock = reducedMotion ? 0 : performance.now() / 1000;
         const kissHold = smootherstep(clamp((fill - 0.76) / 0.16, 0, 1));
         const kissPrelude = phaseProgress(chargeIntroProgress, 0.12, 0.5);
@@ -890,16 +927,16 @@ const gateStyle = [
           if (!(element instanceof HTMLElement) || !scene) return;
           const enter = smootherstep((fill - scene.start) / Math.max(0.0001, scene.enterEnd - scene.start));
           const leave = scene.persistent
-            ? 1 - fightHandoff
+            ? 1 - transformationEntrance
             : 1 - smootherstep((fill - scene.leaveStart) / Math.max(0.0001, scene.end - scene.leaveStart));
           const opacity = clamp(enter * leave, 0, 1);
           const local = scene.persistent
             ? clamp((fill - scene.start) / Math.max(0.0001, scene.enterEnd - scene.start), 0, 1)
             : clamp((fill - scene.start) / Math.max(0.0001, scene.end - scene.start), 0, 1);
           const focus = scene.persistent ? smootherstep(local) : Math.sin(local * Math.PI);
-          const persistentMotion = scene.persistent ? 1 - fightHandoff * 0.28 : 0;
+          const persistentMotion = scene.persistent ? 1 - transformationEntrance * 0.28 : 0;
           const edgeSoftness = Math.pow(1 - Math.max(0, focus), 1.35)
-            + (scene.persistent ? Math.pow(fightHandoff, 1.35) * 0.9 : 0);
+            + (scene.persistent ? Math.pow(transformationEntrance, 1.35) * 0.9 : 0);
           const directionalTravel = (local - 0.5) * scene.drift
             + kissMotionX * persistentMotion;
           const verticalTravel = scene.lift * focus
@@ -915,18 +952,58 @@ const gateStyle = [
           element.style.setProperty("--kisara-memory-shift-y", `${verticalTravel.toFixed(3)}px`);
         });
 
+        let transformationReveal = 0;
+        transformationSceneElements.forEach((element, index) => {
+          const scene = transformationTimeline[index];
+          if (!(element instanceof HTMLElement) || !scene) return;
+          const enter = smootherstep(
+            (chargeIntroProgress - scene.start) / Math.max(0.0001, scene.enterEnd - scene.start)
+          );
+          const leave = scene.persistent
+            ? 1
+            : 1 - smootherstep(
+                (chargeIntroProgress - scene.leaveStart) / Math.max(0.0001, scene.end - scene.leaveStart)
+              );
+          const opacity = clamp(enter * leave, 0, 1);
+          const local = scene.persistent
+            ? clamp(
+                (chargeIntroProgress - scene.start) / Math.max(0.0001, scene.enterEnd - scene.start),
+                0,
+                1
+              )
+            : clamp(
+                (chargeIntroProgress - scene.start) / Math.max(0.0001, scene.end - scene.start),
+                0,
+                1
+              );
+          const focus = scene.persistent ? smootherstep(local) : Math.sin(local * Math.PI);
+          const breath = reducedMotion
+            ? 0
+            : Math.sin(memoryClock * (0.34 + index * 0.08) + index * 1.7);
+          const edgeSoftness = Math.pow(1 - Math.max(0, focus), 1.28);
+          const directionalTravel = (local - 0.5) * scene.drift + breath * (scene.persistent ? 2.2 : 1.2);
+          const verticalTravel = scene.lift * focus + breath * (scene.persistent ? 0.9 : 0.45);
+          const scale = 1.072 - focus * 0.034 + local * 0.005 + breath * 0.0015;
+
+          transformationReveal = Math.max(transformationReveal, opacity);
+          strongestScene = Math.max(strongestScene, opacity);
+          element.style.setProperty("--kisara-transformation-opacity", (opacity * 0.995).toFixed(4));
+          element.style.setProperty(
+            "--kisara-transformation-blur",
+            `${(0.35 + edgeSoftness * 7.4 + motionBlur * 0.38).toFixed(3)}px`
+          );
+          element.style.setProperty("--kisara-transformation-scale", scale.toFixed(5));
+          element.style.setProperty("--kisara-transformation-shift-x", `${directionalTravel.toFixed(3)}px`);
+          element.style.setProperty("--kisara-transformation-shift-y", `${verticalTravel.toFixed(3)}px`);
+        });
+
         const transitionProximity = memoryTransitionCenters.reduce((strongest, center) => {
           const proximity = clamp(1 - Math.abs(fill - center) / 0.034, 0, 1);
           return Math.max(strongest, smootherstep(proximity));
         }, 0);
         const transitionEnergy = clamp(Math.abs(velocity) * 34, 0, 1);
-        const memoryEnvelope = phaseProgress(fill, 0.018, 0.09) * (1 - fightHandoff);
+        const memoryEnvelope = phaseProgress(fill, 0.018, 0.09) * (1 - transformationEntrance);
         const baseExit = smootherstep((fill - 0.035) / 0.115);
-        const fightReveal = fightHandoff;
-        const smokeBuild = phaseProgress(chargeIntroProgress, 0.24, 0.44);
-        const smokeTurbulence = reducedMotion
-          ? 0
-          : Math.sin(memoryClock * 1.35) * 9 + Math.cos(memoryClock * 0.71) * 4;
 
         gate.style.setProperty(
           "--kisara-memory-flash",
@@ -943,12 +1020,7 @@ const gateStyle = [
 
         return {
           baseExit,
-          fightReveal,
-          fightCarryX: kissMotionX * (1 - smootherstep(fightHandoff)),
-          fightCarryY: kissMotionY * (1 - smootherstep(fightHandoff)),
-          smokeOpacity: smokeBuild,
-          smokeTurbulence,
-          smokeDriftY: reducedMotion ? 0 : Math.sin(memoryClock * 0.9) * 5
+          transformationReveal
         };
       };
       const pointOnQuinticCurve = (start, controlA, controlB, controlC, controlD, end, progress) => {
@@ -2916,9 +2988,16 @@ const gateStyle = [
 
       const createSpaceLensRenderer = async () => {
         if (!spaceLensCanvas || reducedMotion) return null;
-        const baseSource = spaceLensCanvas.dataset.baseSrc || spaceLensCanvas.dataset.fightSrc;
-        const fightSource = spaceLensCanvas.dataset.fightSrc || spaceLensCanvas.dataset.baseSrc;
-        if (!baseSource || !fightSource) return null;
+        const baseSource = spaceLensCanvas.dataset.baseSrc
+          || spaceLensCanvas.dataset.preReleaseSrc
+          || spaceLensCanvas.dataset.fightSrc;
+        const preReleaseSource = spaceLensCanvas.dataset.preReleaseSrc
+          || spaceLensCanvas.dataset.baseSrc
+          || spaceLensCanvas.dataset.fightSrc;
+        const fightSource = spaceLensCanvas.dataset.fightSrc
+          || spaceLensCanvas.dataset.preReleaseSrc
+          || spaceLensCanvas.dataset.baseSrc;
+        if (!baseSource || !preReleaseSource || !fightSource) return null;
 
         const gl = spaceLensCanvas.getContext("webgl2", {
           alpha: true,
@@ -2951,9 +3030,11 @@ const gateStyle = [
           out vec4 outputColor;
 
           uniform sampler2D uBaseTexture;
+          uniform sampler2D uPreReleaseTexture;
           uniform sampler2D uFightTexture;
           uniform vec2 uResolution;
           uniform vec2 uBaseSize;
+          uniform vec2 uPreReleaseSize;
           uniform vec2 uFightSize;
           uniform vec2 uCenter;
           uniform float uReveal;
@@ -3021,12 +3102,16 @@ const gateStyle = [
 
           vec3 sampleScene(vec2 uv) {
             vec2 baseUv = coverUv(uv, uBaseSize, 1.045);
-            vec2 fightUv = coverUv(uv, uFightSize, 1.0);
+            vec2 preReleaseUv = coverUv(uv, uPreReleaseSize, 1.0);
             vec3 baseColor = texture(uBaseTexture, baseUv).rgb;
-            vec3 fightColor = texture(uFightTexture, fightUv).rgb;
+            vec3 preReleaseColor = texture(uPreReleaseTexture, preReleaseUv).rgb;
             baseColor = adjustSceneColor(baseColor, 1.0 - uReveal * 0.26, 1.0 - uReveal * 0.14);
-            fightColor = adjustSceneColor(fightColor, 0.84 + uReveal * 0.36, 0.86 + uReveal * 0.22);
-            return mix(baseColor, fightColor, smoothstep(0.0, 1.0, uReveal));
+            preReleaseColor = adjustSceneColor(
+              preReleaseColor,
+              0.88 + uReveal * 0.18,
+              0.9 + uReveal * 0.1
+            );
+            return mix(baseColor, preReleaseColor, smoothstep(0.0, 1.0, uReveal));
           }
 
           vec3 sampleRestoredFight(vec2 uv) {
@@ -3055,19 +3140,15 @@ const gateStyle = [
             float outsideCore = smoothstep(core * 0.98, core * 1.22, radius);
             float reachProgress = smoothstep(core * 1.15, lensReach, radius);
             float radialReach = pow(max(0.0, 1.0 - reachProgress), 1.12);
-            float gravityField = outsideCore * radialReach;
-            float sideDistance = abs(vUv.x - 0.5);
-            float sideDepth = smoothstep(0.0, 0.5, sideDistance);
-            float sideActivation = smoothstep(0.155, 0.315, sideDistance);
-            float distortionMask = pow(sideActivation, 1.28);
-            float sideReach = max(
+            float globalActivation = smoothstep(core * 1.02, core * 1.52, radius);
+            float outerReach = 1.0 - smoothstep(lensReach * 0.78, lensReach * 1.14, radius);
+            float distortionMask = globalActivation * max(
               radialReach,
-              sideDepth * gravityStrength * (0.12 + uCollapse * 0.2 + uCrush * 0.24)
+              outerReach * gravityStrength * (0.34 + uCollapse * 0.34 + uCrush * 0.42)
             );
             float distortionField = outsideCore
               * distortionMask
-              * sideReach
-              * (0.78 + sideDepth * 0.62);
+              * (0.84 + gravityStrength * 0.48 + uCollapse * 0.24 + uCrush * 0.28);
 
             float einsteinRadius = massRadius * (
               1.0
@@ -3116,26 +3197,37 @@ const gateStyle = [
               * (0.003 + uCollapse * 0.006 + uCrush * 0.008)
               * gravityStrength
               * distortionField
-              * sign(vUv.x - 0.5);
-            float sidePolarity = sign(vUv.x - 0.5);
-            float sideTension = gravityStrength
+              * sin(direction.x * 1.6 + direction.y * 2.1 + uTime * 0.18);
+            vec2 screenDirection = vec2(direction.x / aspect, direction.y);
+            vec2 screenTangent = vec2(-screenDirection.y, screenDirection.x);
+            float fieldDepth = smoothstep(core * 1.24, lensReach, radius);
+            float fieldTension = gravityStrength
               * distortionField
-              * (0.0038 + uCollapse * 0.011 + uCrush * 0.016)
-              * (0.5 + sideDepth * 0.72);
-            vec2 sideDisplacement = vec2(
-              -sidePolarity * sideTension,
-              sin(vUv.y * 6.8 + uTime * 0.72 + sidePolarity * 1.7)
-                * sideTension
-                * (0.22 + sideDepth * 0.2)
+              * (0.0052 + uCollapse * 0.015 + uCrush * 0.022)
+              * (0.72 + radialReach * 0.46 + fieldDepth * 0.18);
+            float fieldPulse = sin(
+              radius * 24.0
+              + direction.x * 2.15
+              + direction.y * 1.35
+              - uTime * 1.18
             );
-            sideDisplacement += tangent
-              * cos(vUv.y * 5.2 - uTime * 0.46 + sidePolarity)
-              * sideTension
-              * 0.14;
-            sideDisplacement += vec2(
-              -sidePolarity * waveEnvelope * uShockStrength * (0.008 + waveWidth * 0.12),
-              cos(vUv.y * 13.0 - uTime * 1.1) * waveEnvelope * uShockStrength * 0.008
-            ) * distortionMask;
+            vec2 fieldDisplacement = -screenDirection
+              * fieldTension
+              * (0.78 + fieldPulse * 0.18);
+            fieldDisplacement += screenTangent
+              * cos(
+                radius * 18.0
+                + direction.x * 1.4
+                - direction.y * 1.15
+                - uTime * 0.82
+              )
+              * fieldTension
+              * (0.2 + uCollapse * 0.24 + uCrush * 0.22);
+            fieldDisplacement += -screenDirection
+              * waveEnvelope
+              * uShockStrength
+              * (0.009 + waveWidth * 0.14)
+              * distortionMask;
 
             float vortexScale = mix(0.58, 1.0, smoothstep(0.72, 1.2, aspect));
             float vortexDrive = gravityStrength
@@ -3143,45 +3235,46 @@ const gateStyle = [
             vec3 vortexA = localVortex(
               vUv,
               vec2(0.12, 0.24),
-              0.18 * vortexScale,
-              0.027,
+              0.25 * vortexScale,
+              0.036,
               0.4,
               aspect
             );
             vec3 vortexB = localVortex(
               vUv,
               vec2(0.17, 0.73),
-              0.2 * vortexScale,
-              -0.025,
+              0.27 * vortexScale,
+              -0.034,
               2.1,
               aspect
             );
             vec3 vortexC = localVortex(
               vUv,
               vec2(0.85, 0.22),
-              0.17 * vortexScale,
-              -0.026,
+              0.24 * vortexScale,
+              -0.035,
               3.7,
               aspect
             );
             vec3 vortexD = localVortex(
               vUv,
               vec2(0.88, 0.71),
-              0.19 * vortexScale,
-              0.028,
+              0.26 * vortexScale,
+              0.037,
               5.2,
               aspect
             );
-            float centerKeepout = smoothstep(0.145, 0.235, sideDistance);
+            float globalVortexMask = smoothstep(core * 1.08, core * 1.9, radius)
+              * (1.0 - smoothstep(0.78, 1.06, radius));
             vec2 vortexDisplacement = (
               vortexA.xy + vortexB.xy + vortexC.xy + vortexD.xy
-            ) * vortexDrive * centerKeepout;
+            ) * vortexDrive * globalVortexMask;
             float vortexLength = length(vortexDisplacement);
             vortexDisplacement *= min(1.0, 0.028 / max(vortexLength, 0.0001));
             float localVortexField = max(
               max(vortexA.z, vortexB.z),
               max(vortexC.z, vortexD.z)
-            ) * vortexDrive * centerKeepout;
+            ) * vortexDrive * globalVortexMask;
 
             float edgeFade = smoothstep(0.0, 0.11, vUv.x)
               * smoothstep(0.0, 0.11, vUv.y)
@@ -3192,7 +3285,7 @@ const gateStyle = [
             ) + tangent * sideSweep;
             vec2 displacedPoint = mix(point, lensedPoint, edgeFade);
             vec2 displacedCandidate = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
-            displacedCandidate += (sideDisplacement + vortexDisplacement) * edgeFade;
+            displacedCandidate += (fieldDisplacement + vortexDisplacement) * edgeFade;
             displacedCandidate = clamp(displacedCandidate, vec2(0.002), vec2(0.998));
             float finalField = clamp(
               max(distortionField, localVortexField * 1.22) * edgeFade,
@@ -3202,7 +3295,12 @@ const gateStyle = [
             float distortionBlend = smoothstep(0.012, 0.64, finalField);
             vec2 finalUv = mix(vUv, displacedCandidate, distortionBlend);
             vec3 color = sampleScene(finalUv);
-            float refractionSheen = sin(vUv.y * 15.0 + sideDepth * 5.2 - uTime * 1.28)
+            float refractionSheen = sin(
+              radius * 21.0
+              + direction.x * 1.8
+              + direction.y * 1.25
+              - uTime * 1.28
+            )
               * distortionBlend
               * gravityStrength
               * (0.012 + uCollapse * 0.022 + uCrush * 0.026);
@@ -3344,12 +3442,14 @@ const gateStyle = [
           image.src = source;
         });
 
-        const [baseTexture, fightTexture] = await Promise.all([
+        const [baseTexture, preReleaseTexture, fightTexture] = await Promise.all([
           loadTexture(baseSource),
+          loadTexture(preReleaseSource),
           loadTexture(fightSource)
         ]);
-        if (!baseTexture || !fightTexture) {
+        if (!baseTexture || !preReleaseTexture || !fightTexture) {
           if (baseTexture?.texture) gl.deleteTexture(baseTexture.texture);
+          if (preReleaseTexture?.texture) gl.deleteTexture(preReleaseTexture.texture);
           if (fightTexture?.texture) gl.deleteTexture(fightTexture.texture);
           gl.deleteProgram(program);
           return null;
@@ -3357,9 +3457,11 @@ const gateStyle = [
 
         const uniforms = {
           baseTexture: gl.getUniformLocation(program, "uBaseTexture"),
+          preReleaseTexture: gl.getUniformLocation(program, "uPreReleaseTexture"),
           fightTexture: gl.getUniformLocation(program, "uFightTexture"),
           resolution: gl.getUniformLocation(program, "uResolution"),
           baseSize: gl.getUniformLocation(program, "uBaseSize"),
+          preReleaseSize: gl.getUniformLocation(program, "uPreReleaseSize"),
           fightSize: gl.getUniformLocation(program, "uFightSize"),
           center: gl.getUniformLocation(program, "uCenter"),
           reveal: gl.getUniformLocation(program, "uReveal"),
@@ -3422,10 +3524,14 @@ const gateStyle = [
           gl.bindTexture(gl.TEXTURE_2D, baseTexture.texture);
           gl.uniform1i(uniforms.baseTexture, 0);
           gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, preReleaseTexture.texture);
+          gl.uniform1i(uniforms.preReleaseTexture, 1);
+          gl.activeTexture(gl.TEXTURE2);
           gl.bindTexture(gl.TEXTURE_2D, fightTexture.texture);
-          gl.uniform1i(uniforms.fightTexture, 1);
+          gl.uniform1i(uniforms.fightTexture, 2);
           gl.uniform2f(uniforms.resolution, cssWidth, cssHeight);
           gl.uniform2f(uniforms.baseSize, baseTexture.width, baseTexture.height);
+          gl.uniform2f(uniforms.preReleaseSize, preReleaseTexture.width, preReleaseTexture.height);
           gl.uniform2f(uniforms.fightSize, fightTexture.width, fightTexture.height);
           gl.uniform2f(uniforms.center, parameters.centerX, parameters.centerY);
           gl.uniform1f(uniforms.reveal, parameters.reveal);
@@ -3448,6 +3554,7 @@ const gateStyle = [
 
         const destroy = () => {
           gl.deleteTexture(baseTexture.texture);
+          gl.deleteTexture(preReleaseTexture.texture);
           gl.deleteTexture(fightTexture.texture);
           gl.deleteVertexArray(vertexArray);
           gl.deleteProgram(program);
@@ -9490,41 +9597,27 @@ const gateStyle = [
         const tideVisible = fill > 0.0005;
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
         const memoryState = syncMemorySequence(fill);
-        const bladeRevealClock = clamp((burstProgress - 0.01) / 0.29, 0, 1);
         const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
-        const fightSmokeClear = smootherstep(
-          clamp((bladeRevealClock - 0.45) / 0.55, 0, 1)
+        const silhouetteFocus = smootherstep(
+          clamp((burstProgress - 0.015) / 0.285, 0, 1)
         );
-        const smokeVeilClear = smootherstep(clamp((bladeRevealClock - 0.48) / 0.52, 0, 1));
-        const smokeRightClear = smootherstep(clamp((bladeRevealClock - 0.5) / 0.27, 0, 1));
-        const smokeCenterClear = smootherstep(clamp((bladeRevealClock - 0.58) / 0.3, 0, 1));
-        const smokeLeftClear = smootherstep(clamp((bladeRevealClock - 0.67) / 0.33, 0, 1));
-        const fightHandoffVisible = smootherstep(memoryState.fightReveal);
-        const fightVisible = fightHandoffVisible
-          * (0.008 + fightSmokeClear * 0.992);
-        const smokeOpacity = memoryState.smokeOpacity
-          * (1 - smootherstep(clamp((bladeRevealClock - 0.94) / 0.06, 0, 1)))
-          * 0.99;
-        const smokeDispersal = clamp(
-          (smokeRightClear + smokeCenterClear + smokeLeftClear) / 3,
+        const reconstructionProgress = clamp(
+          (burstProgress - detonationEnd) / Math.max(0.0001, 1 - detonationEnd),
           0,
           1
         );
-        const auraSurge = Math.sin(
-          clamp((bladeRevealClock - 0.44) / 0.46, 0, 1) * Math.PI
+        const reconstructionReveal = smootherstep(reconstructionProgress);
+        const transformationExit = smootherstep(
+          clamp((reconstructionProgress - 0.12) / 0.8, 0, 1)
         );
-        const fightAuraOpacity = fightHandoffVisible
-          * memoryState.smokeOpacity
-          * (0.64 + auraSurge * 0.16)
-          * (1 - smootherstep(clamp((bladeRevealClock - 0.78) / 0.22, 0, 1)));
-        syncOpeningEdgeMix(
-          memoryState.fightReveal * (0.12 + fightSmokeClear * 0.88)
+        const fightVisible = smootherstep(
+          clamp((reconstructionProgress - 0.72) / 0.28, 0, 1)
         );
-        const fightSettle = phaseProgress(burstProgress, 0.01, 0.28);
-        const fightBlur = 0.55
-          + 31 * Math.pow(1 - fightSmokeClear, 1.45)
-          + 7 * Math.pow(1 - fightHandoffVisible, 2)
-          - fightSettle * 0.35;
+        const fightSettle = smootherstep(
+          clamp((reconstructionProgress - 0.18) / 0.82, 0, 1)
+        );
+        const fightBlur = 0.3 + 2.8 * Math.pow(1 - fightSettle, 1.35);
+        syncOpeningEdgeMix(reconstructionReveal);
         const glossPosition = 118 - glossSweep * 136;
         const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
         const crestOpacity = fill <= 0.002 || fill >= 0.998
@@ -9539,65 +9632,40 @@ const gateStyle = [
         gate.style.setProperty("--kisara-tide-opacity", tideVisible ? "1" : "0");
         gate.style.setProperty("--kisara-crest-opacity", crestOpacity.toFixed(3));
         gate.style.setProperty("--kisara-crest-drift", `${crestDrift.toFixed(3)}px`);
+        if (transformationSilhouette instanceof HTMLElement) {
+          transformationSilhouette.style.setProperty(
+            "--kisara-transformation-blade-blur",
+            `${((1 - silhouetteFocus) * 10.5).toFixed(3)}px`
+          );
+          transformationSilhouette.style.setProperty(
+            "--kisara-transformation-blade-brightness",
+            (0.92 + silhouetteFocus * 0.08).toFixed(4)
+          );
+        }
         gate.style.setProperty("--kisara-bg-blur", `${(memoryState.baseExit * 10).toFixed(3)}px`);
         gate.style.setProperty("--kisara-bg-opacity", (0.98 - memoryState.baseExit * 0.78).toFixed(3));
         gate.style.setProperty("--kisara-bg-saturation", (1 - memoryState.baseExit * 0.2).toFixed(3));
         gate.style.setProperty("--kisara-bg-brightness", (1 - memoryState.baseExit * 0.12).toFixed(3));
+        gate.style.setProperty(
+          "--kisara-transformation-release-opacity",
+          (1 - transformationExit).toFixed(4)
+        );
         gate.style.setProperty("--kisara-fight-opacity", (fightVisible * 0.985).toFixed(3));
         gate.style.setProperty("--kisara-fight-blur", `${fightBlur.toFixed(3)}px`);
         gate.style.setProperty(
           "--kisara-fight-scale",
-          (1 + 0.095 * Math.pow(1 - fightSmokeClear, 1.35)).toFixed(4)
+          (1.012 - fightSettle * 0.012).toFixed(4)
         );
         gate.style.setProperty(
           "--kisara-fight-saturation",
-          (0.62 + fightSmokeClear * 0.38 + fightSettle * 0.18).toFixed(3)
+          (0.9 + fightSettle * 0.28).toFixed(3)
         );
         gate.style.setProperty(
           "--kisara-fight-brightness",
-          (0.58 + fightSmokeClear * 0.4 + fightSettle * 0.14).toFixed(3)
+          (0.86 + fightSettle * 0.16).toFixed(3)
         );
-        gate.style.setProperty("--kisara-fight-handoff-x", `${memoryState.fightCarryX.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-fight-handoff-y", `${memoryState.fightCarryY.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-fight-smoke-opacity", smokeOpacity.toFixed(4));
-        gate.style.setProperty(
-          "--kisara-fight-smoke-veil-opacity",
-          (memoryState.smokeOpacity * (1 - smokeVeilClear) * 0.96).toFixed(4)
-        );
-        gate.style.setProperty(
-          "--kisara-fight-smoke-right-opacity",
-          (memoryState.smokeOpacity * (1 - smokeRightClear) * 0.9).toFixed(4)
-        );
-        gate.style.setProperty(
-          "--kisara-fight-smoke-center-opacity",
-          (memoryState.smokeOpacity * (1 - smokeCenterClear) * 0.86).toFixed(4)
-        );
-        gate.style.setProperty(
-          "--kisara-fight-smoke-left-opacity",
-          (memoryState.smokeOpacity * (1 - smokeLeftClear) * 0.92).toFixed(4)
-        );
-        gate.style.setProperty("--kisara-fight-aura-opacity", fightAuraOpacity.toFixed(4));
-        gate.style.setProperty(
-          "--kisara-fight-aura-scale",
-          (0.98 + smokeDispersal * 0.12).toFixed(4)
-        );
-        gate.style.setProperty("--kisara-fight-smoke-scale", (0.96 + smokeDispersal * 0.12).toFixed(4));
-        gate.style.setProperty(
-          "--kisara-fight-smoke-left-x",
-          `${(-18 - smokeLeftClear * 238 + memoryState.smokeTurbulence * (1 - smokeLeftClear)).toFixed(3)}px`
-        );
-        gate.style.setProperty(
-          "--kisara-fight-smoke-right-x",
-          `${(18 + smokeRightClear * 252 - memoryState.smokeTurbulence * 0.78 * (1 - smokeRightClear)).toFixed(3)}px`
-        );
-        gate.style.setProperty(
-          "--kisara-fight-smoke-rise-y",
-          `${(-4 - smokeDispersal * 126 + memoryState.smokeDriftY * (1 - smokeDispersal)).toFixed(3)}px`
-        );
-        gate.style.setProperty(
-          "--kisara-fight-smoke-center-y",
-          `${(12 - smokeCenterClear * 142).toFixed(3)}px`
-        );
+        gate.style.setProperty("--kisara-fight-handoff-x", "0px");
+        gate.style.setProperty("--kisara-fight-handoff-y", "0px");
         energyProgress = fill;
         if (!energyLoopActive || reducedMotion) {
           updateBurstPresentation(performance.now(), false);

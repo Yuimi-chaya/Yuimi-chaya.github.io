@@ -733,18 +733,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   --kisara-fight-brightness: 0.9;
   --kisara-fight-handoff-x: 0px;
   --kisara-fight-handoff-y: 0px;
-  --kisara-fight-smoke-opacity: 0;
-  --kisara-fight-smoke-scale: 0.78;
-  --kisara-fight-smoke-veil-opacity: 0;
-  --kisara-fight-smoke-left-opacity: 0;
-  --kisara-fight-smoke-center-opacity: 0;
-  --kisara-fight-smoke-right-opacity: 0;
-  --kisara-fight-aura-opacity: 0;
-  --kisara-fight-aura-scale: 0.96;
-  --kisara-fight-smoke-left-x: -22px;
-  --kisara-fight-smoke-right-x: 22px;
-  --kisara-fight-smoke-rise-y: -10px;
-  --kisara-fight-smoke-center-y: 18px;
+  --kisara-transformation-release-opacity: 1;
   --kisara-reconstruction-center-x: 50%;
   --kisara-reconstruction-center-y: 50%;
   --kisara-reconstruction-inner-radius: 0px;
@@ -1198,6 +1187,45 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   transform-origin: center;
 }
 
+.kisara-gate-transformation {
+  --kisara-transformation-image: none;
+  --kisara-transformation-position: center;
+  --kisara-transformation-opacity: 0;
+  --kisara-transformation-blur: 8px;
+  --kisara-transformation-scale: 1.055;
+  --kisara-transformation-shift-x: 0px;
+  --kisara-transformation-shift-y: 0px;
+  --kisara-transformation-saturation: 1;
+  --kisara-transformation-brightness: 1;
+  --kisara-transformation-blade-blur: 0px;
+  --kisara-transformation-blade-brightness: 1;
+  background-image: var(--kisara-transformation-image);
+  background-position: var(--kisara-transformation-position);
+  opacity: calc(
+    var(--kisara-transformation-opacity)
+    * var(--kisara-transformation-release-opacity)
+  );
+  filter:
+    blur(calc(
+      var(--kisara-transformation-blur)
+      + var(--kisara-transformation-blade-blur)
+      + var(--kisara-performance-blur)
+    ))
+    saturate(var(--kisara-transformation-saturation))
+    brightness(var(--kisara-transformation-brightness))
+    brightness(var(--kisara-transformation-blade-brightness))
+    contrast(1.025);
+  transform:
+    translate3d(
+      calc(var(--kisara-transformation-shift-x) + var(--kisara-base-shift-x)),
+      calc(var(--kisara-transformation-shift-y) + var(--kisara-base-shift-y)),
+      0
+    )
+    scale(var(--kisara-transformation-scale))
+    scale(var(--kisara-gravity-scale));
+  transform-origin: center;
+}
+
 .kisara-gate-background-fight {
   background-image: var(--kisara-fight-background-image);
   opacity: var(--kisara-fight-opacity);
@@ -1209,161 +1237,6 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
     )
     scale(var(--kisara-fight-scale))
     scale(var(--kisara-gravity-scale));
-}
-
-.kisara-fight-smoke {
-  position: absolute;
-  z-index: 1;
-  inset: -16%;
-  opacity: var(--kisara-fight-smoke-opacity);
-  pointer-events: none;
-  overflow: hidden;
-  isolation: isolate;
-  transform: translateZ(0) scale(var(--kisara-fight-smoke-scale));
-  transform-origin: center;
-  will-change: opacity, transform;
-}
-
-.kisara-fight-smoke-veil {
-  position: absolute;
-  z-index: 0;
-  inset: -12%;
-  display: block;
-  border-radius: 47% 53% 45% 55%;
-  opacity: var(--kisara-fight-smoke-veil-opacity);
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 72% 70% at 50% 46%, rgba(31, 33, 54, 0.99) 0 34%, rgba(55, 54, 76, 0.96) 56%, rgba(89, 78, 96, 0.76) 76%, transparent 100%),
-    radial-gradient(ellipse 54% 52% at 24% 42%, rgba(199, 202, 220, 0.62) 0 18%, rgba(91, 96, 124, 0.42) 58%, transparent 100%),
-    radial-gradient(ellipse 56% 50% at 79% 48%, rgba(235, 197, 216, 0.54) 0 16%, rgba(111, 93, 119, 0.4) 57%, transparent 100%);
-  filter: blur(24px);
-  transform: translate3d(0, -1.5%, 0) scale(1.055, 1.04);
-  will-change: opacity;
-}
-
-.kisara-fight-smoke-aura {
-  position: absolute;
-  z-index: 1;
-  top: 3%;
-  left: 18%;
-  display: block;
-  width: 66%;
-  height: 82%;
-  opacity: var(--kisara-fight-aura-opacity);
-  pointer-events: none;
-  transform: translateZ(0) scale(var(--kisara-fight-aura-scale));
-  transform-origin: 52% 42%;
-  mix-blend-mode: screen;
-  will-change: opacity, transform;
-}
-
-.kisara-fight-smoke-aura::before,
-.kisara-fight-smoke-aura::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-
-.kisara-fight-smoke-aura::before {
-  inset: 1% -7% -5%;
-  border-radius: 48%;
-  opacity: 0.72;
-  background:
-    radial-gradient(ellipse at 52% 34%, rgba(255, 252, 254, 0.94) 0 3%, rgba(255, 111, 172, 0.72) 12%, rgba(255, 35, 120, 0.34) 31%, transparent 66%),
-    radial-gradient(ellipse at 47% 57%, rgba(255, 207, 227, 0.5) 0 9%, rgba(239, 40, 122, 0.24) 34%, transparent 70%),
-    radial-gradient(ellipse at 65% 46%, rgba(255, 89, 157, 0.4) 0 8%, transparent 60%);
-  filter: blur(15px) saturate(1.24) drop-shadow(0 0 24px rgba(255, 43, 126, 0.34));
-  animation: kisara-fight-aura-breathe 2.85s cubic-bezier(0.45, 0, 0.28, 1) infinite;
-}
-
-.kisara-fight-smoke-aura::after {
-  inset: 12% 5% 4%;
-  border-radius: 50%;
-  opacity: 0.38;
-  background:
-    radial-gradient(ellipse 17% 54% at 38% 48%, rgba(255, 231, 242, 0.72), rgba(255, 62, 142, 0.3) 35%, transparent 72%),
-    radial-gradient(ellipse 14% 48% at 61% 39%, rgba(255, 244, 249, 0.66), rgba(255, 46, 132, 0.28) 38%, transparent 74%),
-    radial-gradient(ellipse 34% 20% at 53% 69%, rgba(255, 72, 146, 0.36), transparent 76%);
-  filter: blur(9px) saturate(1.28);
-  animation: kisara-fight-aura-leak 1.95s ease-in-out -0.7s infinite;
-}
-
-.kisara-fight-smoke-cloud {
-  position: absolute;
-  z-index: 2;
-  display: block;
-  width: 72%;
-  height: 68%;
-  border-radius: 48% 52% 45% 55%;
-  background:
-    radial-gradient(circle at 27% 48%, rgba(246, 248, 255, 0.72) 0 8%, rgba(217, 222, 240, 0.34) 24%, transparent 51%),
-    radial-gradient(circle at 58% 35%, rgba(255, 226, 238, 0.5) 0 7%, rgba(187, 192, 221, 0.3) 29%, transparent 56%),
-    radial-gradient(circle at 72% 67%, rgba(222, 226, 241, 0.58) 0 8%, rgba(130, 136, 173, 0.2) 32%, transparent 61%),
-    radial-gradient(ellipse at 50% 52%, rgba(47, 49, 69, 0.92) 0 18%, rgba(88, 88, 112, 0.68) 44%, transparent 73%);
-  filter: blur(18px);
-  will-change: transform, opacity;
-}
-
-@keyframes kisara-fight-aura-breathe {
-  0%, 100% {
-    opacity: 0.58;
-    transform: translate3d(-0.4%, 0.5%, 0) scale(0.97, 0.95);
-  }
-  34% {
-    opacity: 0.86;
-    transform: translate3d(0.45%, -0.35%, 0) scale(1.015, 1.025);
-  }
-  57% {
-    opacity: 0.68;
-    transform: translate3d(-0.15%, 0.1%, 0) scale(0.992, 1.005);
-  }
-  78% {
-    opacity: 0.94;
-    transform: translate3d(0.3%, -0.2%, 0) scale(1.025, 1.015);
-  }
-}
-
-@keyframes kisara-fight-aura-leak {
-  0%, 100% {
-    opacity: 0.26;
-    transform: translate3d(-1.2%, 1%, 0) scale(0.96, 1.02);
-  }
-  42% {
-    opacity: 0.48;
-    transform: translate3d(0.8%, -1.4%, 0) scale(1.04, 0.98);
-  }
-  68% {
-    opacity: 0.34;
-    transform: translate3d(0.2%, -0.4%, 0) scale(1, 1.04);
-  }
-}
-
-.kisara-fight-smoke-cloud-left {
-  top: 14%;
-  left: -8%;
-  opacity: var(--kisara-fight-smoke-left-opacity);
-  transform: translate3d(var(--kisara-fight-smoke-left-x), var(--kisara-fight-smoke-rise-y), 0)
-    rotate(-8deg) scale(1.06, 0.88);
-}
-
-.kisara-fight-smoke-cloud-right {
-  top: 20%;
-  right: -9%;
-  opacity: var(--kisara-fight-smoke-right-opacity);
-  transform: translate3d(var(--kisara-fight-smoke-right-x), var(--kisara-fight-smoke-rise-y), 0)
-    rotate(11deg) scale(1.02, 0.84);
-}
-
-.kisara-fight-smoke-cloud-center {
-  bottom: 1%;
-  left: 18%;
-  width: 66%;
-  height: 56%;
-  opacity: var(--kisara-fight-smoke-center-opacity);
-  transform: translate3d(0, var(--kisara-fight-smoke-center-y), 0) scale(1.12, 0.74);
-  background:
-    radial-gradient(ellipse at 48% 54%, rgba(248, 245, 252, 0.7) 0 9%, rgba(210, 211, 230, 0.36) 28%, transparent 58%),
-    radial-gradient(ellipse at 30% 62%, rgba(255, 207, 227, 0.34) 0 6%, rgba(140, 146, 180, 0.16) 34%, transparent 64%);
 }
 
 .kisara-memory-flare {
