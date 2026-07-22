@@ -6453,12 +6453,33 @@ const gateStyle = [
         const cameraBeatTwo = Math.sin(
           phaseProgress(burst, collapseEnd, detonationStart) * Math.PI
         );
-        const sceneCameraX = cameraBeatOne * -6.5 + cameraBeatTwo * 8.5;
-        const sceneCameraY = cameraBeatOne * -3.2 + cameraBeatTwo * 2.4;
-        const sceneCameraScale = 1
+        const sceneBreathFade = 1 - smootherstep(clamp(
+          (burst - detonationEnd) / Math.max(0.0001, 1 - detonationEnd),
+          0,
+          1
+        ));
+        const sceneClock = timestamp / 1000;
+        const sceneBreathX = (
+          Math.sin(sceneClock * 0.47) * 1.9
+          + Math.sin(sceneClock * 0.19 + 1.35) * 1.05
+          + Math.sin(sceneClock * 1.43 + 0.4) * 0.24
+        ) * sceneBreathFade;
+        const sceneBreathY = (
+          Math.cos(sceneClock * 0.39 + 0.6) * 1.35
+          + Math.sin(sceneClock * 0.16 + 2.1) * 0.78
+          + Math.cos(sceneClock * 1.27 + 0.9) * 0.18
+        ) * sceneBreathFade;
+        const sceneBreathScale = 1 + (
+          Math.sin(sceneClock * 0.31 + 0.2) * 0.0025
+          + Math.sin(sceneClock * 0.13 + 1.8) * 0.00135
+        ) * sceneBreathFade;
+        const sceneCameraX = cameraBeatOne * -6.5 + cameraBeatTwo * 8.5 + sceneBreathX;
+        const sceneCameraY = cameraBeatOne * -3.2 + cameraBeatTwo * 2.4 + sceneBreathY;
+        const sceneCameraScale = (1
           + cameraBeatOne * 0.008
           + cameraBeatTwo * 0.013
-          + releaseVisualPressure * 0.003;
+          + releaseVisualPressure * 0.003)
+          * sceneBreathScale;
         const collapseZoom = collapseDepth * (1 - shockwave * 0.72);
         const gravityScale = 1
           + gravityScreen * 0.012
@@ -6806,6 +6827,9 @@ const gateStyle = [
         meterShell?.style.setProperty("--kisara-beam-scale-y", beamScaleY.toFixed(4));
         meterShell?.style.setProperty("--kisara-beam-angle", `${beamAngle.toFixed(3)}deg`);
         gate.style.setProperty("--kisara-title-vivid", titleVivid.toFixed(4));
+        gate.style.setProperty("--kisara-scene-camera-x", `${sceneCameraX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-scene-camera-y", `${sceneCameraY.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-scene-camera-scale", sceneCameraScale.toFixed(5));
         if (normalChargeFrame) return;
         meterShell?.style.setProperty("--kisara-beam-opacity", beamOpacity.toFixed(3));
         meterShell?.style.setProperty("--kisara-beam-glow", `${(pressure * 12 + detonationRush * 45).toFixed(3)}px`);
@@ -6821,9 +6845,6 @@ const gateStyle = [
         gate.style.setProperty("--kisara-release-pressure", releaseVisualPressure.toFixed(4));
         gate.style.setProperty("--kisara-screen-shake-x", `${screenShakeX.toFixed(3)}px`);
         gate.style.setProperty("--kisara-screen-shake-y", `${screenShakeY.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-scene-camera-x", `${sceneCameraX.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-scene-camera-y", `${sceneCameraY.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-scene-camera-scale", sceneCameraScale.toFixed(5));
         gate.style.setProperty("--kisara-base-shift-x", `${(-gravityDriftX).toFixed(3)}px`);
         gate.style.setProperty("--kisara-base-shift-y", `${(-gravityDriftY).toFixed(3)}px`);
         gate.style.setProperty("--kisara-fight-shift-x", `${(gravityDriftX * 1.65).toFixed(3)}px`);
@@ -9640,6 +9661,10 @@ const gateStyle = [
           transformationSilhouette.style.setProperty(
             "--kisara-transformation-blade-brightness",
             (0.92 + silhouetteFocus * 0.08).toFixed(4)
+          );
+          transformationSilhouette.style.setProperty(
+            "--kisara-transformation-blade-scale",
+            (1 + silhouetteFocus * 0.022).toFixed(5)
           );
         }
         gate.style.setProperty("--kisara-bg-blur", `${(memoryState.baseExit * 10).toFixed(3)}px`);
