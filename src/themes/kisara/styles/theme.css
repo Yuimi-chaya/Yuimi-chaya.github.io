@@ -1082,6 +1082,28 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.14); box-shadow: 0 0 12px #fff, 0 0 28px var(--kisara-scroll-soft); }
 }
 
+.kisara-opening-bridge-portal {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  background: #111636;
+  isolation: isolate;
+}
+
+.kisara-opening-bridge-portal.is-active {
+  visibility: visible;
+  opacity: 1;
+}
+
+.kisara-opening-bridge-portal > .kisara-gate-visual {
+  z-index: 0;
+  inset: 0;
+}
+
 .kisara-gate {
   --kisara-fill: 0%;
   --kisara-burst-progress: 0%;
@@ -1178,6 +1200,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   --kisara-warning-center-x: 50%;
   --kisara-warning-center-y: 50%;
   position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
   align-content: center;
@@ -1186,6 +1209,10 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   overflow: hidden;
   isolation: isolate;
   background-color: #111636;
+}
+
+.kisara-gate.is-opening-bridge-live {
+  background-color: transparent;
 }
 
 .kisara-screen-impact,
@@ -2690,6 +2717,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 
 .kisara-opening {
   position: relative;
+  z-index: 1;
   isolation: isolate;
   overflow: hidden;
   width: 100%;
@@ -2697,6 +2725,22 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   padding: 132px 0 150px;
   color: #161a3b;
   background: #f7f3fb;
+}
+
+.kisara-opening.is-opening-bridge-live {
+  background: linear-gradient(
+    180deg,
+    transparent 0,
+    rgba(247, 243, 251, 0.025) 18px,
+    rgba(247, 243, 251, 0.13) 54px,
+    rgba(247, 243, 251, 0.52) 116px,
+    rgba(247, 243, 251, 0.88) 158px,
+    #f7f3fb 180px
+  );
+}
+
+.kisara-opening.is-opening-bridge-live .kisara-opening-edge {
+  opacity: 0;
 }
 
 .kisara-opening-edge {

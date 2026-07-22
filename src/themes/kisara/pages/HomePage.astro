@@ -144,6 +144,11 @@ const gateStyle = [
 ---
 
 <KisaraLayout title="Kisara | Yuimi Lab" description="Yuimi Lab 的 Kisara 视觉交互主题。">
+  <div
+    class="kisara-opening-bridge-portal"
+    data-kisara-opening-bridge-portal
+    aria-hidden="true"
+  ></div>
   <section class="kisara-gate" data-kisara-gate style={gateStyle}>
     <div class="kisara-gate-visual" aria-hidden="true">
       <div class="kisara-gate-background kisara-gate-background-base"></div>
@@ -427,6 +432,7 @@ const gateStyle = [
       const titleDataContext = titleDataCanvas?.getContext("2d", { alpha: true });
       const postReleaseCanvas = gate.querySelector("[data-kisara-post-release-canvas]");
       const postReleaseContext = postReleaseCanvas?.getContext("2d", { alpha: true });
+      const gateVisual = gate.querySelector(".kisara-gate-visual");
       const baseBackground = gate.querySelector(".kisara-gate-background-base");
       const fightBackground = gate.querySelector(".kisara-gate-background-fight");
       const fightWashBackground = gate.querySelector(".kisara-gate-background-fight-wash");
@@ -442,6 +448,7 @@ const gateStyle = [
       const title = gate.querySelector(".kisara-title");
       const cross = gate.querySelector(".kisara-title-cross");
       const opening = document.querySelector("#kisara-opening");
+      const openingBridgePortal = document.querySelector("[data-kisara-opening-bridge-portal]");
       const openingEdge = opening instanceof HTMLElement
         ? opening.querySelector(".kisara-opening-edge")
         : null;
@@ -499,6 +506,9 @@ const gateStyle = [
       let openingEdgeState = {};
       let openingEdgeFlareState = { opacity: 0, filter: "none", shift: 0 };
       let lockedOpeningEdgeState = null;
+      let openingBridgePortalActive = false;
+      let openingBridgeAnchor = null;
+      const openingBridgeCopiedProperties = new Set();
       let renderedOpeningEdgeFlareOpacity = -1;
       let renderedOpeningEdgeFlareFilter = "";
       let renderedOpeningEdgeFlareShift = Number.NaN;
@@ -509,6 +519,68 @@ const gateStyle = [
       let openingEdgeRenderHandle = 0;
       let openingEdgeRenderUsesIdleCallback = false;
       const openingEdgeRenderQueue = [];
+      const copyOpeningBridgeVisualState = () => {
+        if (!(gateVisual instanceof HTMLElement)) return;
+        openingBridgeCopiedProperties.forEach((property) => {
+          gateVisual.style.removeProperty(property);
+        });
+        openingBridgeCopiedProperties.clear();
+
+        const sourceStyle = getComputedStyle(gate);
+        const propertyNames = new Set();
+        for (let index = 0; index < sourceStyle.length; index += 1) {
+          const property = sourceStyle.item(index);
+          if (property.startsWith("--kisara-")) propertyNames.add(property);
+        }
+        for (let index = 0; index < gate.style.length; index += 1) {
+          const property = gate.style.item(index);
+          if (property.startsWith("--kisara-")) propertyNames.add(property);
+        }
+        propertyNames.forEach((property) => {
+          const value = sourceStyle.getPropertyValue(property);
+          if (!value) return;
+          gateVisual.style.setProperty(property, value);
+          openingBridgeCopiedProperties.add(property);
+        });
+      };
+      const activateOpeningBridgePortal = () => {
+        if (
+          openingBridgePortalActive
+          || !(gateVisual instanceof HTMLElement)
+          || !(openingBridgePortal instanceof HTMLElement)
+          || !(opening instanceof HTMLElement)
+          || !gateVisual.parentNode
+        ) return false;
+
+        copyOpeningBridgeVisualState();
+        openingBridgeAnchor = document.createComment("kisara-opening-bridge-anchor");
+        gateVisual.parentNode.insertBefore(openingBridgeAnchor, gateVisual);
+        openingBridgePortal.appendChild(gateVisual);
+        openingBridgePortal.classList.add("is-active");
+        gate.classList.add("is-opening-bridge-live");
+        opening.classList.add("is-opening-bridge-live");
+        openingBridgePortalActive = true;
+        return true;
+      };
+      const deactivateOpeningBridgePortal = () => {
+        if (!openingBridgePortalActive || !(gateVisual instanceof HTMLElement)) return;
+        openingBridgePortal?.classList.remove("is-active");
+        if (openingBridgeAnchor?.parentNode) {
+          openingBridgeAnchor.parentNode.insertBefore(gateVisual, openingBridgeAnchor.nextSibling);
+          openingBridgeAnchor.remove();
+        } else {
+          gate.prepend(gateVisual);
+        }
+        gate.classList.remove("is-opening-bridge-live");
+        opening?.classList.remove("is-opening-bridge-live");
+        openingBridgeCopiedProperties.forEach((property) => {
+          gateVisual.style.removeProperty(property);
+        });
+        openingBridgeCopiedProperties.clear();
+        openingBridgeAnchor = null;
+        openingBridgePortalActive = false;
+        openingEdgeLiveSyncTimestamp = 0;
+      };
       const renderLegacyChargeBeam = false;
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
@@ -853,6 +925,7 @@ const gateStyle = [
       };
       const syncOpeningEdgeLiveGeometry = (force = false) => {
         if (!(openingEdge instanceof HTMLElement)) return;
+        if (openingBridgePortalActive) return;
         if (!force && lockedOpeningEdgeState !== null) return;
         const timestamp = performance.now();
         if (!force && timestamp - openingEdgeLiveSyncTimestamp < 28) return;
@@ -10741,6 +10814,7 @@ const gateStyle = [
       const finalizeGateResetForNextPage = () => {
         if (!gateVisualResetPending) return;
         gateVisualResetPending = false;
+        deactivateOpeningBridgePortal();
         releaseOpeningEdgeState();
         resetGateState();
         lockOpeningEdgeState();
@@ -10752,6 +10826,7 @@ const gateStyle = [
         setPostReleaseActive(false);
         releaseOpeningEdgeState();
         syncOpeningEdgeLiveGeometry(true);
+        activateOpeningBridgePortal();
         smoothScrollTo(getNextPageTop(), () => {
           pageMode = "next";
           render();
@@ -10778,6 +10853,7 @@ const gateStyle = [
           ])
         ), { opacity: 0, filter: "none", shift: 0 });
         queueOpeningEdgeTexture(openingEdgeRecordById.get("base"), true);
+        activateOpeningBridgePortal();
         publishGateRailState({
           active: true,
           progress: returnRailStart,
@@ -10786,6 +10862,7 @@ const gateStyle = [
           transitioning: true
         });
         smoothScrollTo(0, () => {
+          deactivateOpeningBridgePortal();
           pageMode = "gate";
           poseTimestamp = 0;
           poseClock = 0;
@@ -11065,6 +11142,7 @@ const gateStyle = [
       const cleanup = () => {
         if (disposed) return;
         disposed = true;
+        deactivateOpeningBridgePortal();
         lifecycle.abort();
         spaceLensInitGeneration += 1;
         titleLensInitGeneration += 1;
