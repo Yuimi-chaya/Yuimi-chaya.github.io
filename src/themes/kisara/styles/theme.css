@@ -264,135 +264,147 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 .kisara-audio-control {
   position: fixed;
   z-index: 45;
-  bottom: 22px;
-  left: 22px;
+  bottom: 24px;
+  left: 24px;
   isolation: isolate;
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  width: min(194px, calc(100vw - 44px));
-  min-height: 54px;
-  padding: 7px 11px 7px 7px;
-  overflow: hidden;
-  border: 1px solid rgba(145, 177, 255, 0.42);
-  border-radius: 7px;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 48px);
+  min-height: 42px;
+  padding: 5px 8px 5px 2px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
   color: #f8f5ff;
   text-align: left;
-  background: linear-gradient(135deg, rgba(9, 13, 39, 0.96), rgba(24, 29, 67, 0.94));
-  box-shadow: 0 12px 32px rgba(2, 4, 19, 0.36), inset 0 0 20px rgba(107, 145, 255, 0.05);
+  background: transparent;
+  box-shadow: none;
+  filter: drop-shadow(0 3px 8px rgba(3, 6, 22, 0.72));
   cursor: pointer;
   transform: translateZ(0);
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease, opacity 180ms ease;
+  transition: filter 180ms ease, transform 180ms ease, opacity 180ms ease;
 }
 
 .kisara-audio-control::before {
   content: "";
   position: absolute;
-  z-index: 0;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: #91b1ff;
-  box-shadow: 0 0 12px rgba(145, 177, 255, 0.68);
-  transition: background 180ms ease, box-shadow 180ms ease;
+  z-index: -1;
+  inset: -7px -14px -7px -10px;
+  opacity: 0;
+  background: radial-gradient(ellipse at 28% 50%, rgba(12, 17, 48, 0.66), rgba(12, 17, 48, 0.2) 48%, transparent 76%);
+  filter: blur(6px);
+  pointer-events: none;
+  transition: opacity 180ms ease;
 }
 
 .kisara-audio-control::after {
   content: "";
   position: absolute;
-  z-index: 0;
-  inset: 0;
-  opacity: 0;
-  background: linear-gradient(105deg, transparent 18%, rgba(255, 109, 137, 0.16) 48%, transparent 76%);
-  transform: translateX(-125%);
+  z-index: -1;
+  left: 7px;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  opacity: 0.28;
+  background: radial-gradient(circle, rgba(145, 177, 255, 0.24), transparent 68%);
+  filter: blur(5px);
+  transform: translate(-50%, -50%) scale(0.82);
   pointer-events: none;
+  transition: background 180ms ease, opacity 180ms ease, transform 180ms ease;
 }
 
 .kisara-audio-control:hover,
 .kisara-audio-control:focus-visible {
-  border-color: rgba(255, 120, 145, 0.76);
   outline: none;
-  box-shadow: 0 14px 36px rgba(2, 4, 19, 0.42), 0 0 18px rgba(255, 73, 105, 0.15);
-  transform: translateY(-1px);
+  filter: drop-shadow(0 4px 11px rgba(3, 6, 22, 0.82));
+  transform: translateX(2px);
+}
+
+.kisara-audio-control:hover::before,
+.kisara-audio-control:focus-visible::before {
+  opacity: 0.9;
 }
 
 .kisara-audio-control:active {
-  transform: translateY(0);
+  transform: translateX(1px) scale(0.98);
 }
 
 .kisara-audio-control[data-state="playing"] {
-  border-color: rgba(255, 120, 145, 0.62);
-  box-shadow: 0 12px 32px rgba(2, 4, 19, 0.38), 0 0 22px rgba(255, 73, 105, 0.14);
-}
-
-.kisara-audio-control[data-state="playing"]::before {
-  background: #ff4969;
-  box-shadow: 0 0 14px rgba(255, 73, 105, 0.86);
+  filter: drop-shadow(0 3px 9px rgba(3, 6, 22, 0.72)) drop-shadow(0 0 7px rgba(255, 73, 105, 0.2));
 }
 
 .kisara-audio-control[data-state="playing"]::after {
-  animation: kisara-audio-scan 3.4s ease-in-out infinite;
+  opacity: 0.62;
+  background: radial-gradient(circle, rgba(255, 73, 105, 0.36), transparent 68%);
+  transform: translate(-50%, -50%) scale(1.08);
+  animation: kisara-audio-core 1.8s ease-in-out infinite;
 }
 
 .kisara-audio-control[data-state="blocked"],
 .kisara-audio-control[data-state="paused"] {
-  opacity: 0.88;
+  opacity: 0.72;
 }
 
 .kisara-audio-emblem {
   position: relative;
   z-index: 1;
   display: grid;
-  width: 40px;
-  height: 40px;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 32px;
   place-items: center;
-  border: 1px solid rgba(145, 177, 255, 0.46);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(145, 177, 255, 0.16), rgba(12, 17, 48, 0.92) 68%);
-  box-shadow: inset 0 0 12px rgba(145, 177, 255, 0.08), 0 0 12px rgba(145, 177, 255, 0.08);
+  border: 0;
+  background: transparent;
 }
 
 .kisara-audio-emblem::before {
   content: "";
   position: absolute;
-  inset: 2px;
-  border-radius: 50%;
-  background: conic-gradient(from 22deg, transparent 0 13%, #91b1ff 17% 29%, transparent 34% 63%, #ff7891 68% 78%, transparent 84%);
-  -webkit-mask: radial-gradient(circle, transparent 58%, #000 61%);
-  mask: radial-gradient(circle, transparent 58%, #000 61%);
-  opacity: 0.48;
+  top: 3px;
+  left: 0;
+  width: 1px;
+  height: 21px;
+  background: linear-gradient(to bottom, transparent, rgba(145, 177, 255, 0.92) 24% 76%, transparent);
+  box-shadow: 0 0 7px rgba(145, 177, 255, 0.5);
+  transform: rotate(12deg);
+  transform-origin: center;
+  transition: background 180ms ease, box-shadow 180ms ease;
 }
 
 .kisara-audio-emblem::after {
   content: "";
   position: absolute;
-  inset: 10px;
+  top: 7px;
+  left: 7px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: rgba(145, 177, 255, 0.12);
-  box-shadow: 0 0 0 rgba(255, 73, 105, 0);
-  transition: background 180ms ease, box-shadow 180ms ease;
-}
-
-.kisara-audio-control[data-state="playing"] .kisara-audio-emblem {
-  border-color: rgba(255, 120, 145, 0.72);
+  opacity: 0.26;
+  background: rgba(145, 177, 255, 0.2);
+  filter: blur(5px);
+  transition: background 180ms ease, opacity 180ms ease;
 }
 
 .kisara-audio-control[data-state="playing"] .kisara-audio-emblem::before {
-  opacity: 0.96;
-  animation: kisara-audio-orbit 2.6s linear infinite;
+  background: linear-gradient(to bottom, transparent, rgba(255, 120, 145, 0.96) 24% 76%, transparent);
+  box-shadow: 0 0 8px rgba(255, 73, 105, 0.68);
 }
 
 .kisara-audio-control[data-state="playing"] .kisara-audio-emblem::after {
-  background: rgba(255, 73, 105, 0.2);
-  box-shadow: 0 0 14px rgba(255, 73, 105, 0.36);
-  animation: kisara-audio-core 1.4s ease-in-out infinite;
+  opacity: 0.54;
+  background: rgba(255, 73, 105, 0.34);
 }
 
 .kisara-audio-icon {
   position: absolute;
   z-index: 2;
-  width: 14px;
-  height: 14px;
+  top: 6px;
+  left: 7px;
+  width: 15px;
+  height: 15px;
   color: #dfe8ff;
   transition: opacity 120ms ease, color 180ms ease, transform 180ms ease;
 }
@@ -416,21 +428,23 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 .kisara-audio-bars {
   position: absolute;
   z-index: 3;
-  right: -2px;
-  bottom: 3px;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: flex-end;
-  gap: 2px;
-  width: 12px;
-  height: 11px;
+  gap: 1px;
+  width: 20px;
+  height: 6px;
 }
 
 .kisara-audio-bars i {
-  width: 2px;
+  flex: 1 1 0;
+  min-width: 1px;
   height: 100%;
-  border-radius: 2px;
+  border-radius: 1px;
   background: #91b1ff;
-  transform: scaleY(0.2);
+  opacity: 0.72;
+  transform: scaleY(0.24);
   transform-origin: bottom;
 }
 
@@ -449,12 +463,24 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   animation-duration: 860ms;
 }
 
+.kisara-audio-control[data-state="playing"] .kisara-audio-bars i:nth-child(4) {
+  animation-delay: -620ms;
+  animation-duration: 660ms;
+}
+
+.kisara-audio-control[data-state="playing"] .kisara-audio-bars i:nth-child(5) {
+  animation-delay: -80ms;
+  animation-duration: 940ms;
+}
+
 .kisara-audio-copy {
   position: relative;
   z-index: 1;
   display: grid;
   min-width: 0;
-  gap: 3px;
+  width: 126px;
+  gap: 2px;
+  padding: 0 0 7px;
 }
 
 .kisara-audio-copy strong,
@@ -466,29 +492,89 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 }
 
 .kisara-audio-copy strong {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+  font-weight: 700;
   line-height: 1.1;
+  text-shadow: 0 1px 5px rgba(4, 7, 25, 0.86);
 }
 
 .kisara-audio-copy small {
   color: #91b1ff;
-  font-size: 0.54rem;
-  font-weight: 800;
+  font-size: 0.47rem;
+  font-weight: 700;
   line-height: 1.2;
-  transition: color 180ms ease;
+  opacity: 0.72;
+  text-shadow: 0 1px 5px rgba(4, 7, 25, 0.9);
+  transition: color 180ms ease, opacity 180ms ease;
 }
 
 .kisara-audio-control[data-state="playing"] .kisara-audio-copy small {
   color: #ff8ea3;
+  opacity: 0.9;
 }
 
-@keyframes kisara-audio-orbit {
-  to { transform: rotate(360deg); }
+.kisara-audio-trace {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  left: 0;
+  height: 1px;
+  overflow: visible;
+  background: linear-gradient(90deg, rgba(145, 177, 255, 0.88), rgba(145, 177, 255, 0.3) 48%, transparent);
+  box-shadow: 0 0 5px rgba(145, 177, 255, 0.22);
+  transform-origin: left;
+  transition: background 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.kisara-audio-trace::before,
+.kisara-audio-trace::after,
+.kisara-audio-trace i {
+  content: "";
+  position: absolute;
+  top: 50%;
+  height: 3px;
+  border-radius: 50%;
+  background: #91b1ff;
+  box-shadow: 0 0 6px rgba(145, 177, 255, 0.58);
+  transform: translateY(-50%);
+}
+
+.kisara-audio-trace::before {
+  left: 0;
+  width: 3px;
+}
+
+.kisara-audio-trace::after {
+  right: 24%;
+  width: 2px;
+  opacity: 0.42;
+}
+
+.kisara-audio-trace i {
+  left: 0;
+  width: 18px;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, #ff7891 58%, transparent);
+}
+
+.kisara-audio-control[data-state="playing"] .kisara-audio-trace {
+  background: linear-gradient(90deg, rgba(255, 73, 105, 0.96), rgba(255, 120, 145, 0.38) 54%, transparent);
+  box-shadow: 0 0 7px rgba(255, 73, 105, 0.34);
+}
+
+.kisara-audio-control[data-state="playing"] .kisara-audio-trace::before,
+.kisara-audio-control[data-state="playing"] .kisara-audio-trace::after {
+  background: #ff7891;
+  box-shadow: 0 0 7px rgba(255, 73, 105, 0.68);
+}
+
+.kisara-audio-control[data-state="playing"] .kisara-audio-trace i {
+  animation: kisara-audio-trace 2.2s ease-in-out infinite;
 }
 
 @keyframes kisara-audio-core {
-  0%, 100% { transform: scale(0.88); opacity: 0.72; }
-  50% { transform: scale(1.08); opacity: 1; }
+  0%, 100% { opacity: 0.42; transform: translate(-50%, -50%) scale(0.9); }
+  50% { opacity: 0.72; transform: translate(-50%, -50%) scale(1.14); }
 }
 
 @keyframes kisara-audio-bar {
@@ -497,10 +583,10 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   100% { transform: scaleY(0.46); }
 }
 
-@keyframes kisara-audio-scan {
-  0%, 18% { opacity: 0; transform: translateX(-125%); }
-  38% { opacity: 0.9; }
-  62%, 100% { opacity: 0; transform: translateX(125%); }
+@keyframes kisara-audio-trace {
+  0%, 12% { opacity: 0; transform: translateX(0) scaleX(0.45); }
+  32% { opacity: 0.9; }
+  72%, 100% { opacity: 0; transform: translateX(108px) scaleX(1); }
 }
 
 .kisara-main {
@@ -4191,25 +4277,32 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 @media (max-width: 600px) {
   .kisara-audio-control {
     bottom: 70px;
-    left: 10px;
-    grid-template-columns: 34px minmax(0, 1fr);
+    left: 14px;
     gap: 8px;
-    width: min(168px, calc(100vw - 34px));
-    min-height: 48px;
-    padding: 6px 9px 6px 6px;
+    max-width: calc(100vw - 36px);
+    min-height: 40px;
+    padding: 4px 6px 4px 2px;
   }
 
   .kisara-audio-emblem {
-    width: 34px;
-    height: 34px;
+    width: 24px;
+    height: 30px;
+  }
+
+  .kisara-audio-icon {
+    left: 6px;
   }
 
   .kisara-audio-copy strong {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
   }
 
   .kisara-audio-copy small {
-    font-size: 0.5rem;
+    font-size: 0.44rem;
+  }
+
+  .kisara-audio-copy {
+    width: 116px;
   }
 
   .kisara-scrollbar {
