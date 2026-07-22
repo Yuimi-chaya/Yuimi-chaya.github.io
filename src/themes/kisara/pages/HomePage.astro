@@ -700,6 +700,22 @@ const gateStyle = [
       const singularityFieldContext = singularityFieldCanvas.getContext("2d", { alpha: true });
       let singularityFieldImageData = null;
       let singularityFieldLastPaintTimestamp = 0;
+      const ensureSingularityFieldBuffer = (targetSize) => {
+        if (!singularityFieldContext) return false;
+        const size = Math.max(1, Math.round(targetSize));
+        if (
+          singularityFieldCanvas.width !== size
+          || singularityFieldCanvas.height !== size
+          || !singularityFieldImageData
+        ) {
+          singularityFieldCanvas.width = size;
+          singularityFieldCanvas.height = size;
+          singularityFieldImageData = singularityFieldContext.createImageData(size, size);
+          singularityFieldContext.putImageData(singularityFieldImageData, 0, 0);
+          singularityFieldLastPaintTimestamp = 0;
+        }
+        return true;
+      };
       const titleDataMaskCanvas = document.createElement("canvas");
       const titleDataMaskContext = titleDataMaskCanvas.getContext("2d", { alpha: true });
       let spaceLensRenderer = null;
@@ -3481,6 +3497,7 @@ const gateStyle = [
         let cssWidth = 0;
         let cssHeight = 0;
         let sizeDirty = true;
+        let warmed = false;
 
         const resize = (force = false) => {
           if (!force && !sizeDirty) return;
@@ -3552,6 +3569,30 @@ const gateStyle = [
           spaceLensCanvas.dataset.active = "true";
         };
 
+        const warm = () => {
+          if (warmed) return;
+          warmed = true;
+          draw({
+            centerX: 0.5,
+            centerY: 0.5,
+            reveal: 0,
+            opacity: 0,
+            gravity: 0,
+            collapse: 0,
+            crush: 0,
+            shockStrength: 0,
+            shockRadius: 0,
+            shockWidth: 0.01,
+            coreRadius: 0.01,
+            lensRadius: 0.01,
+            reconstruction: 0,
+            reconstructionOpacity: 0,
+            time: 0
+          });
+          gl.flush();
+          clear();
+        };
+
         const destroy = () => {
           gl.deleteTexture(baseTexture.texture);
           gl.deleteTexture(preReleaseTexture.texture);
@@ -3563,7 +3604,7 @@ const gateStyle = [
 
         resize(true);
         clear();
-        return { clear, destroy, draw, resize: requestResize };
+        return { clear, destroy, draw, resize: requestResize, warm };
       };
 
       const createTitleLensRenderer = () => {
@@ -3940,6 +3981,7 @@ const gateStyle = [
         let cssHeight = 0;
         let renderScale = 1;
         let sizeDirty = true;
+        let warmed = false;
 
         const resize = (force = false) => {
           if (!force && !sizeDirty) return;
@@ -4069,6 +4111,36 @@ const gateStyle = [
           titleLensCanvas.dataset.active = "true";
         };
 
+        const warm = () => {
+          if (warmed) return;
+          warmed = true;
+          draw({
+            centerX: cssWidth * 0.5,
+            centerY: cssHeight * 0.5,
+            opacity: 0,
+            strength: 0,
+            gravity: 0,
+            collapse: 0,
+            crush: 0,
+            shockStrength: 0,
+            shockRadius: 1,
+            shockWidth: 1,
+            coreRadius: 1,
+            lensRadius: 1,
+            release: 0,
+            dissolve: 0,
+            time: 0,
+            finalFlow: 0,
+            liquidPhase: 0,
+            liquidPressure: 0,
+            flowDirection: 1,
+            flowFront: 0.5,
+            parallax: 0
+          });
+          gl.flush();
+          clear();
+        };
+
         const destroy = () => {
           gl.deleteTexture(titleTexture);
           gl.deleteVertexArray(vertexArray);
@@ -4082,12 +4154,41 @@ const gateStyle = [
           clear,
           destroy,
           draw,
+          warm,
           refresh: () => {
             sizeDirty = true;
             resize(true);
           },
           resize: requestResize
         };
+      };
+
+      let warningWarmupScheduled = false;
+      let warningCssWarmupComplete = false;
+      const runWarningWarmup = () => {
+        warningWarmupScheduled = false;
+        if (reducedMotion || pageMode !== "gate" || document.visibilityState !== "visible") return;
+
+        ensureSingularityFieldBuffer(gate.clientWidth < 640 ? 80 : 108);
+        spaceLensRenderer?.warm?.();
+        titleLensRenderer?.warm?.();
+
+        if (warningCssWarmupComplete) return;
+        warningCssWarmupComplete = true;
+        gate.classList.add("is-warning-prewarm");
+        gate.getBoundingClientRect();
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => gate.classList.remove("is-warning-prewarm"));
+        });
+      };
+      const scheduleWarningWarmup = () => {
+        if (warningWarmupScheduled || reducedMotion || pageMode !== "gate") return;
+        warningWarmupScheduled = true;
+        if ("requestIdleCallback" in window) {
+          window.requestIdleCallback(runWarningWarmup, { timeout: 900 });
+        } else {
+          window.setTimeout(runWarningWarmup, 180);
+        }
       };
 
       const startSpaceLens = () => {
@@ -4101,6 +4202,7 @@ const gateStyle = [
           }
           spaceLensRenderer = renderer;
           spaceLensCanvas.dataset.state = renderer ? "ready" : "fallback";
+          scheduleWarningWarmup();
         });
       };
 
@@ -4127,6 +4229,7 @@ const gateStyle = [
         }
         titleLensRenderer = renderer;
         titleLensCanvas.dataset.state = renderer ? "ready" : "fallback";
+        scheduleWarningWarmup();
       };
 
       titleLensCanvas?.addEventListener("webglcontextlost", (event) => {
@@ -4332,15 +4435,7 @@ const gateStyle = [
           ? (quality < 0.8 ? 68 : 80)
           : (quality < 0.8 ? 88 : 108);
 
-        if (singularityFieldCanvas.width !== fieldTargetSize) {
-          singularityFieldCanvas.width = fieldTargetSize;
-          singularityFieldCanvas.height = fieldTargetSize;
-          singularityFieldImageData = singularityFieldContext.createImageData(
-            fieldTargetSize,
-            fieldTargetSize
-          );
-          singularityFieldLastPaintTimestamp = 0;
-        }
+        ensureSingularityFieldBuffer(fieldTargetSize);
 
         const minimumInterval = parameters.mobile
           ? 1000 / 30
@@ -6259,6 +6354,8 @@ const gateStyle = [
         const fill = clamp(energyProgress, 0, 1);
         const burst = clamp(burstProgress, 0, 1);
         const intro = clamp(chargeIntroProgress, 0, 1);
+        const gateWidth = Math.max(1, gate.clientWidth);
+        const gateHeight = Math.max(1, gate.clientHeight);
         const introImpactLinear = clamp((intro - 0.72) / 0.16, 0, 1);
         const introImpactPulse = Math.sin(introImpactLinear * Math.PI);
         const introEnchant = phaseProgress(intro, 0.75, 1);
@@ -6386,8 +6483,8 @@ const gateStyle = [
         const anchorProgress = phaseProgress(burst, crossFlashEnd, crossEnd);
         let beamAnchorX = 0;
         let beamAnchorY = 0;
-        let warpOriginX = gate.clientWidth * 0.5;
-        let warpOriginY = gate.clientHeight * 0.5;
+        let warpOriginX = gateWidth * 0.5;
+        let warpOriginY = gateHeight * 0.5;
         let gateRect = null;
         if (title && burst >= glossFadeEnd - 0.03) {
           gateRect = gate.getBoundingClientRect();
@@ -6486,9 +6583,9 @@ const gateStyle = [
         const sceneOverscanScale = 1
           + Math.max(
               (Math.abs(sceneCameraX) + sceneOverscanGuard) * 2
-                / Math.max(1, gate.clientWidth),
+                / gateWidth,
               (Math.abs(sceneCameraY) + sceneOverscanGuard) * 2
-                / Math.max(1, gate.clientHeight)
+                / gateHeight
             );
         const sceneCameraScale = Math.max(rawSceneCameraScale, sceneOverscanScale);
         const collapseZoom = collapseDepth * (1 - shockwave * 0.72);
@@ -6502,9 +6599,8 @@ const gateStyle = [
         const chromaticShift = gravityScreen * (1.2 + gravityPressure * 4.2) + impactFlash * 5.6;
         const impactVignette = clamp(gravityScreen * (0.22 + gravityPressure * 0.36) + impactTail * 0.16, 0, 0.74);
         const impactScale = 1 + shockwavePulse * 0.004 + impactFlash * 0.007;
-        const gateDiagonal = Math.hypot(gate.clientWidth, gate.clientHeight);
-        const gateShortSide = Math.min(gate.clientWidth, gate.clientHeight);
-        const gateHeight = Math.max(1, gate.clientHeight);
+        const gateDiagonal = Math.hypot(gateWidth, gateHeight);
+        const gateShortSide = Math.min(gateWidth, gateHeight);
         const lensBuild = phaseProgress(burst, blackHoleIngressStart, collapseStart - 0.006);
         const lensBaseCoreRadius = clamp(gateShortSide * 0.09, 28, 82);
         const lensCoreRadius = lensBaseCoreRadius
@@ -6581,14 +6677,14 @@ const gateStyle = [
               1 - titleLiquidHandoff
             )
           : 1;
-        const titleLensStrengthScale = gate.clientWidth < 640
+        const titleLensStrengthScale = gateWidth < 640
           ? 0.58
-          : gate.clientWidth < 900
+          : gateWidth < 900
             ? 0.72
             : 0.82;
-        const spaceLensStrengthScale = gate.clientWidth < 640
+        const spaceLensStrengthScale = gateWidth < 640
           ? 0.58
-          : gate.clientWidth < 900
+          : gateWidth < 900
             ? 0.78
             : 1;
         const chargeTitleBlur = 8.8 - lensReveal * 6.8;
@@ -6603,9 +6699,9 @@ const gateStyle = [
         const reconstructionFeather = clamp(gateShortSide * 0.135, 74, 148);
         const reconstructionFarthest = Math.max(
           Math.hypot(warpOriginX, warpOriginY),
-          Math.hypot(gate.clientWidth - warpOriginX, warpOriginY),
+          Math.hypot(gateWidth - warpOriginX, warpOriginY),
           Math.hypot(warpOriginX, gateHeight - warpOriginY),
-          Math.hypot(gate.clientWidth - warpOriginX, gateHeight - warpOriginY)
+          Math.hypot(gateWidth - warpOriginX, gateHeight - warpOriginY)
         );
         const reconstructionSeal = phaseProgress(reconstructionLinear, 0.82, 1)
           * reconstructionFeather * 1.08;
@@ -6722,7 +6818,7 @@ const gateStyle = [
           0,
           1
         ) * crossWaveExit;
-        const crossSparkDistance = crossSparkProgress * Math.min(156, gate.clientWidth * 0.13);
+        const crossSparkDistance = crossSparkProgress * Math.min(156, gateWidth * 0.13);
         const crossCoreOpacity = clamp(
           (crossBeatEnvelope * (0.58 + crossHoldPulse * 0.16)
             + crossExposurePulse * 0.56
@@ -6877,7 +6973,7 @@ const gateStyle = [
           reconstructionWashOpacity.toFixed(3)
         );
         drawSpaceLens(timestamp, {
-          centerX: clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1),
+          centerX: clamp(warpOriginX / gateWidth, 0, 1),
           centerY: clamp(1 - warpOriginY / gateHeight, 0, 1),
           reveal: lensReveal,
           opacity: lensOpacity,
@@ -6929,7 +7025,6 @@ const gateStyle = [
           || warningExposure > 0.001
           || crossOpacity > 0.001;
         if (warningPresentationVisible || warningPresentationActive) {
-          gate.classList.toggle("is-warning-active", warningPresentationVisible);
           gate.style.setProperty("--kisara-warning-monochrome", warningMonochrome.toFixed(3));
           gate.style.setProperty("--kisara-warning-invert", warningInvert.toFixed(3));
           gate.style.setProperty("--kisara-warning-focus", warningFocus.toFixed(3));
@@ -6954,7 +7049,7 @@ const gateStyle = [
               + warningInvert * 0.06
               + warningPulse * 0.01).toFixed(3)
           );
-          gate.style.setProperty("--kisara-warning-center-x", `${(clamp(warpOriginX / Math.max(1, gate.clientWidth), 0, 1) * 100).toFixed(2)}%`);
+          gate.style.setProperty("--kisara-warning-center-x", `${(clamp(warpOriginX / gateWidth, 0, 1) * 100).toFixed(2)}%`);
           gate.style.setProperty("--kisara-warning-center-y", `${(clamp(warpOriginY / Math.max(1, gateHeight), 0, 1) * 100).toFixed(2)}%`);
           gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
           gate.style.setProperty("--kisara-cross-ray-progress", crossRayProgress.toFixed(4));
@@ -10485,9 +10580,11 @@ const gateStyle = [
         }
         startEnergyAnimation();
         startPostReleaseAnimation();
+        scheduleWarningWarmup();
       });
 
       render();
+      scheduleWarningWarmup();
       const syncRestoredPosition = () => {
         if (!restoreWindowOpen || scrollFrame || pageMode !== "gate" || window.scrollY <= 2) return;
         pageMode = "next";

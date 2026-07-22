@@ -675,3 +675,10 @@
 - Added restrained previous/next controls, automatic advancement at track end, live `NN / 08` status text, and track-aware accessible labels without restoring the rejected framed-card presentation.
 - Replaced per-tab playback memory with `localStorage` key `yuimi-kisara-playlist-v2`, preserving the enabled/paused state, active track, and playback position across reloads and later visits. Existing `sessionStorage` state under `yuimi-kisara-audio-v1` is migrated once when no new state exists.
 - Runtime verification switched to `愛の力`, paused near `23.28s`, reloaded, restored the same track and timestamp, and resumed forward from that point. Final inspection left `合鍵` paused near `59.70s`; browser warning/error logs were empty. `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind) passed.
+
+### 2026-07-22 Kisara warning cold-start prewarm
+
+- Rollback point before this pass: `21f7848 Add persistent Kisara playlist`. Traced the first-run-only hitch around the black/white cross to cold compositor/filter activation plus the first WebGL and singularity-buffer work; the same sequence was already smooth after those resources had been cached once.
+- Kept the cross in the render tree at zero opacity instead of revealing it through a first-use `visibility` switch. During the first idle window, the page now briefly prewarms the warning filter layers, executes transparent draws through both WebGL lens pipelines, and allocates the singularity field buffer before the automatic release reaches that stage.
+- Cached the gate width and height once per presentation frame so later warning-variable writes no longer interleave with repeated root layout reads. The animation timing and visible parameters remain unchanged.
+- A cold reload confirmed both WebGL renderers reached `ready`, returned to an inactive transparent state after warming, and produced no browser warnings/errors. The user then confirmed the refreshed first trigger no longer felt stuck. `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind) passed.

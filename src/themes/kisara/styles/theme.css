@@ -1200,6 +1200,25 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   z-index: 7;
   overflow: hidden;
   isolation: isolate;
+  contain: layout paint style;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: opacity, transform;
+}
+
+.kisara-gate.is-warning-prewarm {
+  --kisara-warning-monochrome: 0.001;
+  --kisara-warning-focus: 0.001;
+  --kisara-warning-exposure: 0.001;
+  --kisara-warning-core-exposure: 0.001;
+  --kisara-warning-saturation: 0.999;
+  --kisara-warning-contrast: 1.001;
+  --kisara-warning-brightness: 1.001;
+  --kisara-cross-opacity: 0.001;
+  --kisara-cross-core-opacity: 0.001;
+  --kisara-cross-ray-progress: 0.001;
+  --kisara-impact-flash: 0.001;
+  --kisara-impact-vignette: 0.001;
 }
 
 .kisara-screen-impact::before,
@@ -1214,6 +1233,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   display: block;
   pointer-events: none;
   opacity: 0;
+  backface-visibility: hidden;
   will-change: opacity, transform;
 }
 
@@ -1221,6 +1241,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   inset: 0;
   z-index: 0;
   opacity: var(--kisara-warning-monochrome);
+  transform: translateZ(0);
   background: rgba(2, 3, 12, 0.22);
 }
 
@@ -1292,6 +1313,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   height: 1px;
   opacity: clamp(0, var(--kisara-warning-exposure), 1);
   transform: translate3d(-50%, -50%, 0);
+  backface-visibility: hidden;
   mix-blend-mode: screen;
   will-change: opacity;
 }
@@ -2061,7 +2083,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   aspect-ratio: 1;
   display: block;
   pointer-events: none;
-  visibility: hidden;
+  visibility: visible;
   opacity: var(--kisara-cross-opacity);
   transform: translate3d(
       calc(-50% + var(--kisara-cross-shake-x)),
@@ -2077,10 +2099,6 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   backface-visibility: hidden;
   contain: layout style;
   will-change: opacity, transform;
-}
-
-.kisara-gate.is-warning-active .kisara-title-cross {
-  visibility: visible;
 }
 
 .kisara-title-cross::before,
