@@ -3,6 +3,7 @@ import "../styles/theme.css";
 import { Icon } from "astro-icon/components";
 import { ClientRouter } from "astro:transitions";
 import ThemePreferenceGate from "@/core/themes/ThemePreferenceGate.astro";
+import { profileIdentity } from "@/core/data/profile";
 import { getCanonicalPath, getThemePath, themes } from "@/core/themes/registry";
 import { site } from "@/lib/site";
 import KisaraAudioControl from "../components/KisaraAudioControl.astro";
@@ -48,6 +49,7 @@ const audioConfig = {
     <meta name="description" content={description} />
     <meta name="theme-color" content="#111636" />
     <meta name="robots" content="noindex,follow" />
+    <link rel="icon" type="image/x-icon" href="/themes/kisara/favicon.ico" />
     <link rel="canonical" href={canonical} />
     <ThemePreferenceGate currentTheme="kisara" />
     <ClientRouter fallback="swap" />
@@ -196,11 +198,31 @@ const audioConfig = {
     </main>
 
     <footer class="kisara-footer">
-      <span class="kisara-footer-signal"><i aria-hidden="true"></i>CONTRACT CHANNEL 03 / ONLINE</span>
-      <nav aria-label="Kisara footer navigation">
-        {navItems.slice(1).map((item) => <a href={item.href} data-astro-prefetch="load">{item.label}</a>)}
-      </nav>
-      <span>© 2026 喝益胃 / YUIMI LAB</span>
+      <div class="kisara-footer-stage">
+        <div class="kisara-footer-wordmark">
+          <span>END OF TRANSMISSION / CHANNEL 03</span>
+          <strong>YUIMI LAB</strong>
+          <p>Kisara visual channel. Technical notes, interactive experiments and a little contract noise.</p>
+        </div>
+        <nav class="kisara-footer-directory" aria-label="Kisara footer navigation">
+          {navItems.map((item, index) => (
+            <a href={item.href} data-astro-prefetch="load" aria-current={item.active ? "page" : undefined}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <strong>{item.label}</strong>
+              <small>{item.hint}</small>
+            </a>
+          ))}
+        </nav>
+      </div>
+      <div class="kisara-footer-wave" aria-hidden="true"><span></span><i></i><i></i><i></i><i></i><i></i><span></span></div>
+      <div class="kisara-footer-meta">
+        <span class="kisara-footer-signal"><i aria-hidden="true"></i>CONTRACT CHANNEL 03 / ONLINE</span>
+        <div>
+          <a href={profileIdentity.github} target="_blank" rel="noreferrer"><Icon name="tabler:brand-github" aria-hidden="true" />GITHUB</a>
+          <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer"><Icon name="tabler:brand-bilibili" aria-hidden="true" />BILIBILI</a>
+        </div>
+        <span>© 2026 喝益胃 / YUIMI LAB</span>
+      </div>
     </footer>
 
     <div

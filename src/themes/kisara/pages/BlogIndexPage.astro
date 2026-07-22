@@ -23,10 +23,12 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month:
         decoding="async"
         fetchpriority="high"
       />
-      <img class="kisara-blog-character is-sharon" src="/themes/kisara/assets/blog/sharon-back.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
-      <img class="kisara-blog-character is-ayano" src="/themes/kisara/assets/blog/ayano-middle.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
-      <img class="kisara-blog-character is-shu" src="/themes/kisara/assets/blog/shu-middle.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
-      <img class="kisara-blog-character is-kisara" src="/themes/kisara/assets/blog/kisara-front.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
+      <div class="kisara-blog-character-stage">
+        <img class="kisara-blog-character is-sharon" src="/themes/kisara/assets/blog/sharon-back.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
+        <img class="kisara-blog-character is-ayano" src="/themes/kisara/assets/blog/ayano-middle.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
+        <img class="kisara-blog-character is-shu" src="/themes/kisara/assets/blog/shu-middle.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
+        <img class="kisara-blog-character is-kisara" src="/themes/kisara/assets/blog/kisara-front.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
+      </div>
       <div class="kisara-blog-scene-veil"></div>
       <div class="kisara-blog-scanline"></div>
     </div>
@@ -86,14 +88,15 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month:
           data-kisara-record
           data-category={post.data.category}
           data-search={[post.data.title, post.data.description, ...post.data.tags].join(" ").toLowerCase()}
-          style={`--archive-order: ${index};`}
+          style={`--archive-order: ${index}; --archive-cover: ${post.data.cover ? `url("${post.data.cover}")` : "none"};`}
         >
           <figure>
             {post.data.cover ? (
-              <img src={post.data.cover} alt="" width="520" height="320" loading={index < 2 ? "eager" : "lazy"} decoding="async" />
+              <img src={post.data.cover} alt="" width="700" height="990" loading={index < 3 ? "eager" : "lazy"} decoding="async" />
             ) : (
               <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
             )}
+            <figcaption><span>{String(index + 1).padStart(2, "0")}</span><small>PORTRAIT LOG</small></figcaption>
           </figure>
           <div class="kisara-blog-record-body">
             <div class="kisara-blog-record-meta">
@@ -104,8 +107,8 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month:
             <h3>{post.data.title}</h3>
             <p>{post.data.description}</p>
             <div class="kisara-blog-record-tags">{post.data.tags.slice(0, 4).map((tag) => <em>#{tag}</em>)}</div>
+            <span class="kisara-blog-record-action">READ TRANSMISSION <i aria-hidden="true">↗</i></span>
           </div>
-          <span class="kisara-blog-record-arrow" aria-hidden="true">↗</span>
         </a>
       ))}
     </div>

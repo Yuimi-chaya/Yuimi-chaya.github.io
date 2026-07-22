@@ -93,6 +93,18 @@ const channelLinks = [
   { index: "03", label: "ENTER PLAY", note: "短暂切进小游戏", href: getThemePath("kisara", "/games/"), icon: "tabler:device-gamepad-2" },
   { index: "04", label: "TRACE YUIMI", note: "读取契约者资料", href: getThemePath("kisara", "/about/"), icon: "tabler:user-scan" }
 ] as const;
+const signalPresentation = [
+  { code: "LEARN", icon: "tabler:sparkles", accent: "blue" },
+  { code: "BUILD", icon: "tabler:flask-2", accent: "pink" },
+  { code: "TUNE", icon: "tabler:activity-heartbeat", accent: "violet" }
+] as const;
+const projectPresentation: Record<string, { icon: string; code: string }> = {
+  astrbot: { icon: "tabler:terminal-2", code: "BOT" },
+  unity: { icon: "tabler:device-gamepad-2", code: "PLAY" },
+  blender: { icon: "tabler:sparkles", code: "FORM" },
+  ue5: { icon: "tabler:flask-2", code: "SCENE" },
+  mmd: { icon: "tabler:movie", code: "MOTION" }
+};
 const gateStyle = [
   "--kisara-fill: 0%",
   "--kisara-burst-progress: 0%",
@@ -249,68 +261,92 @@ const gateStyle = [
 
   <section class="kisara-signal-deck" aria-labelledby="kisara-signal-title">
     <div class="kisara-content-shell">
-      <div class="kisara-section-heading">
+      <header class="kisara-home-band-heading">
         <div>
           <p class="kisara-section-index">LIVE SIGNALS / 002</p>
           <h2 id="kisara-signal-title">Current pulse.</h2>
         </div>
         <p>不用仪表盘汇报人生，只留三条现在确实还在发热的信号。</p>
-      </div>
-      <div class="kisara-signal-grid">
+        <div class="kisara-home-frequency" aria-hidden="true"><span>CH.03</span><i></i><i></i><i></i><i></i></div>
+      </header>
+      <div class="kisara-signal-stage">
+        <div class="kisara-signal-axis" aria-hidden="true">
+          <span>LIVE</span>
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <strong>NOW</strong>
+        </div>
+        <div class="kisara-signal-stream">
         {currentSignals.map((signal, index) => (
-          <article>
-            <span>0{index + 1}</span>
-            <small>{signal.label}</small>
-            <h3>{signal.text}</h3>
+          <article class={`is-${signalPresentation[index]?.accent ?? "blue"}`} style={`--signal-order: ${index};`}>
+            <div class="kisara-signal-pulse" aria-hidden="true">
+              <span><Icon name={signalPresentation[index]?.icon ?? "tabler:activity-heartbeat"} /></span>
+              <i></i>
+            </div>
+            <div>
+              <small>0{index + 1} / {signalPresentation[index]?.code ?? "LIVE"} / {signal.label}</small>
+              <h3>{signal.text}</h3>
+            </div>
           </article>
         ))}
+        </div>
       </div>
     </div>
   </section>
 
   <section class="kisara-home-projects" aria-labelledby="kisara-project-title">
     <div class="kisara-content-shell">
-      <div class="kisara-section-heading">
+      <header class="kisara-home-band-heading is-lab-heading">
         <div>
           <p class="kisara-section-index">ACTIVE LAB / 003</p>
           <h2 id="kisara-project-title">Work in motion.</h2>
         </div>
         <a class="kisara-section-link" href={getThemePath("kisara", "/projects/")}>VIEW ALL WORKS <span>↗</span></a>
-      </div>
-      <div class="kisara-project-tracks">
+      </header>
+      <div class="kisara-lab-runway">
+        <div class="kisara-lab-index" aria-hidden="true"><span>ACTIVE</span><strong>03</strong><small>LAB CHANNELS</small></div>
+        <div class="kisara-project-tracks">
         {featuredProjects.map((project, index) => (
-          <article>
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            <div>
+          <a href={getThemePath("kisara", "/projects/")} style={`--track-order: ${index};`}>
+            <span class="kisara-project-track-icon" aria-hidden="true">
+              <Icon name={projectPresentation[project.line]?.icon ?? "tabler:flask-2"} />
+            </span>
+            <div class="kisara-project-track-copy">
               <small>{project.type} / {project.status}</small>
               <h3>{project.title}</h3>
               <p>{project.summary}</p>
             </div>
-            <strong>{project.line.toUpperCase()}</strong>
-          </article>
+            <div class="kisara-project-track-signal">
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <i aria-hidden="true"></i>
+              <strong>{projectPresentation[project.line]?.code ?? project.line.toUpperCase()}</strong>
+            </div>
+          </a>
         ))}
+        </div>
       </div>
     </div>
   </section>
 
   <section class="kisara-latest" aria-labelledby="kisara-latest-title">
-    <div class="kisara-section-heading">
+    <header class="kisara-home-band-heading is-transmission-heading">
       <div>
         <p class="kisara-section-index">RECENT TRANSMISSIONS / 004</p>
         <h2 id="kisara-latest-title">Latest notes.</h2>
       </div>
       <a class="kisara-section-link" href={getThemePath("kisara", "/blog/")}>OPEN ARCHIVE <span>↗</span></a>
-    </div>
-    <div class="kisara-transmission-list">
+    </header>
+    <div class="kisara-transmission-shelf">
       {posts.map((post, index) => (
-        <a href={getThemePath("kisara", `/blog/${post.id}/`)}>
-          <span>{String(index + 1).padStart(2, "0")}</span>
-          <div>
+        <a href={getThemePath("kisara", `/blog/${post.id}/`)} style={`--transmission-order: ${index}; --transmission-cover: ${post.data.cover ? `url("${post.data.cover}")` : "none"};`}>
+          <figure>
+            {post.data.cover ? <img src={post.data.cover} alt="" width="700" height="990" loading="lazy" decoding="async" /> : <span>{String(index + 1).padStart(2, "0")}</span>}
+          </figure>
+          <div class="kisara-transmission-copy">
             <small>{categoryLabel[post.data.category]} / <time datetime={post.data.pubDate.toISOString()}>{dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}</time></small>
             <h3>{post.data.title}</h3>
             <p>{post.data.description}</p>
+            <span>READ SIGNAL <i aria-hidden="true">↗</i></span>
           </div>
-          <i aria-hidden="true">↗</i>
         </a>
       ))}
     </div>
