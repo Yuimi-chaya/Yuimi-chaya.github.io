@@ -6460,26 +6460,37 @@ const gateStyle = [
         ));
         const sceneClock = timestamp / 1000;
         const sceneBreathX = (
-          Math.sin(sceneClock * 0.47) * 1.9
-          + Math.sin(sceneClock * 0.19 + 1.35) * 1.05
-          + Math.sin(sceneClock * 1.43 + 0.4) * 0.24
+          Math.sin(sceneClock * 0.44) * 3.5
+          + Math.sin(sceneClock * 0.17 + 1.35) * 1.8
+          + Math.sin(sceneClock * 0.83 + 0.4) * 0.45
         ) * sceneBreathFade;
         const sceneBreathY = (
-          Math.cos(sceneClock * 0.39 + 0.6) * 1.35
-          + Math.sin(sceneClock * 0.16 + 2.1) * 0.78
-          + Math.cos(sceneClock * 1.27 + 0.9) * 0.18
+          Math.cos(sceneClock * 0.36 + 0.6) * 2.5
+          + Math.sin(sceneClock * 0.14 + 2.1) * 1.25
+          + Math.cos(sceneClock * 0.71 + 0.9) * 0.35
         ) * sceneBreathFade;
         const sceneBreathScale = 1 + (
-          Math.sin(sceneClock * 0.31 + 0.2) * 0.0025
-          + Math.sin(sceneClock * 0.13 + 1.8) * 0.00135
+          0.008
+          + Math.sin(sceneClock * 0.28 + 0.2) * 0.005
+          + Math.sin(sceneClock * 0.1 + 1.8) * 0.0025
         ) * sceneBreathFade;
         const sceneCameraX = cameraBeatOne * -6.5 + cameraBeatTwo * 8.5 + sceneBreathX;
         const sceneCameraY = cameraBeatOne * -3.2 + cameraBeatTwo * 2.4 + sceneBreathY;
-        const sceneCameraScale = (1
+        const rawSceneCameraScale = (1
           + cameraBeatOne * 0.008
           + cameraBeatTwo * 0.013
           + releaseVisualPressure * 0.003)
           * sceneBreathScale;
+        const sceneMotionMagnitude = Math.abs(sceneCameraX) + Math.abs(sceneCameraY);
+        const sceneOverscanGuard = sceneMotionMagnitude > 0.01 ? 3 : 0;
+        const sceneOverscanScale = 1
+          + Math.max(
+              (Math.abs(sceneCameraX) + sceneOverscanGuard) * 2
+                / Math.max(1, gate.clientWidth),
+              (Math.abs(sceneCameraY) + sceneOverscanGuard) * 2
+                / Math.max(1, gate.clientHeight)
+            );
+        const sceneCameraScale = Math.max(rawSceneCameraScale, sceneOverscanScale);
         const collapseZoom = collapseDepth * (1 - shockwave * 0.72);
         const gravityScale = 1
           + gravityScreen * 0.012
