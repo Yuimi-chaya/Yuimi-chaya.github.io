@@ -1082,28 +1082,6 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.14); box-shadow: 0 0 12px #fff, 0 0 28px var(--kisara-scroll-soft); }
 }
 
-.kisara-opening-bridge-portal {
-  position: fixed;
-  z-index: 0;
-  inset: 0;
-  overflow: hidden;
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-  background: #111636;
-  isolation: isolate;
-}
-
-.kisara-opening-bridge-portal.is-active {
-  visibility: visible;
-  opacity: 1;
-}
-
-.kisara-opening-bridge-portal > .kisara-gate-visual {
-  z-index: 0;
-  inset: 0;
-}
-
 .kisara-gate {
   --kisara-fill: 0%;
   --kisara-burst-progress: 0%;
@@ -1212,7 +1190,13 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 }
 
 .kisara-gate.is-opening-bridge-live {
+  overflow: visible;
   background-color: transparent;
+}
+
+.kisara-gate.is-opening-bridge-live .kisara-gate-visual-shell {
+  position: fixed;
+  inset: 0;
 }
 
 .kisara-screen-impact,
@@ -1577,6 +1561,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
     radial-gradient(circle at 50% 50%, transparent 0 16%, rgba(11, 8, 29, 0.08) 34%, rgba(2, 3, 14, 0.72) 100%);
 }
 
+.kisara-gate-visual-shell,
 .kisara-gate-visual,
 .kisara-gate-background,
 .kisara-memory-flare,
@@ -1588,7 +1573,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   pointer-events: none;
 }
 
-.kisara-gate-visual {
+.kisara-gate-visual-shell {
   z-index: -2;
   overflow: hidden;
   background: #111636;
@@ -1601,12 +1586,21 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
       0
     )
     scale(var(--kisara-scene-camera-scale));
+  will-change: transform;
+}
+
+.kisara-gate-visual {
+  z-index: 0;
+  overflow: hidden;
+  background: #111636;
+  isolation: isolate;
+  backface-visibility: hidden;
   filter:
     grayscale(var(--kisara-warning-monochrome))
     saturate(var(--kisara-warning-saturation))
     contrast(var(--kisara-warning-contrast))
     brightness(var(--kisara-warning-brightness));
-  will-change: filter, transform;
+  will-change: filter;
 }
 
 .kisara-gate-background {

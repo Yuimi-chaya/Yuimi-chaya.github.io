@@ -702,3 +702,17 @@
 - Superseded diagnosis: the visible line was not primarily the lower live-copy/texture feather. The boundary itself changed rasterization context: copied background properties and post-transform rectangles repainted each layer independently, so the first row below the hero could not share the composed hero pixels even when DOM geometry differed by less than `0.01px`.
 - The accepted fix temporarily moves the real `.kisara-gate-visual` node, including its live Canvas layers, into a fixed bridge portal while the gate scrolls into the opening section. The gate and the transparent top of the opening section therefore reveal the same rendered frame on both sides of the moving boundary; a section-owned gradient then settles that frame into the pale content background. Generated scene continuations remain only as restoration/fallback coverage after the live bridge leaves view.
 - The user visually accepted the boundary continuity on the local display. `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind) pass for this implementation.
+
+### 2026-07-22 Kisara Blog layered-focus entrance
+
+- Replaced the raw four-cutout reveal with depth-aware signal focusing. Kisara appears first as a softened chromatic silhouette; Shu enters before Kisara becomes sharp, preventing the incomplete overlapping upper-body cut from being shown clearly. Ayano and Sharon retain progressively stronger final depth blur.
+- A localized blue/pink reconstruction veil hides the front-pair assembly boundary without globally blurring the full cast. The stable rollback points are `8bf0693 Refine layered Blog hero entrance` and `582f510 Delay Blog foreground focus until pair assembly`.
+- `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind) passed. Final human review of the pair-synchronized focus timing remains pending.
+
+### 2026-07-22 Kisara GPU compositing stabilization
+
+- User reported intermittent full-screen flicker and large black rectangles during the homepage interaction. The highest-risk combination was a dynamically filtered full-screen ancestor containing two active WebGL canvases, followed by reparenting that live visual subtree into a fixed bridge portal.
+- Superseded and forbidden approach: distributing the warning grayscale/contrast/brightness filter to every background layer. That multiplied full-screen filter work, caused a severe performance leak on page load, and was immediately restored to rollback point `582f510`. Do not retry this strategy.
+- Current implementation keeps exactly one filtered image composite in `.kisara-gate-visual`, moves the WebGL/post-release canvases into an unfiltered sibling layer inside `.kisara-gate-visual-shell`, and keeps that shell under a stable parent. Opening transitions switch the shell to fixed positioning instead of moving live Canvas nodes between parents.
+- Added `gl.isContextLost()` draw guards and staggered the two renderer warmups by one animation frame. This avoids drawing a lost context and reduces same-frame GPU allocation pressure without lowering render resolution or duplicating filters.
+- `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind) pass. Browser was intentionally not opened after the earlier performance incident; human validation of visual continuity, black-block recurrence, and long-run GPU stability is still required.
