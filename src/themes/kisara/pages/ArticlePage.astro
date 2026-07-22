@@ -38,11 +38,23 @@ const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit
     )}
   </div>
 
-  <script is:inline>
+  <script is:inline data-astro-rerun>
     (() => {
+      window.__yuimiKisaraInnerCleanup?.();
+      const lifecycle = new AbortController();
+      const signal = lifecycle.signal;
       const progress = document.querySelector("[data-kisara-reading-progress] span");
       const copyButton = document.querySelector("[data-kisara-copy-link]");
       let scrollFrame = 0;
+      let resetTimer = 0;
+      const cleanup = () => {
+        lifecycle.abort();
+        if (scrollFrame) cancelAnimationFrame(scrollFrame);
+        window.clearTimeout(resetTimer);
+        if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
+      };
+      window.__yuimiKisaraInnerCleanup = cleanup;
+      document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
       const updateProgress = () => {
         scrollFrame = 0;
         const distance = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
@@ -50,7 +62,7 @@ const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit
       };
       window.addEventListener("scroll", () => {
         if (!scrollFrame) scrollFrame = window.requestAnimationFrame(updateProgress);
-      }, { passive: true });
+      }, { passive: true, signal });
       updateProgress();
 
       copyButton?.addEventListener("click", async () => {
@@ -62,11 +74,12 @@ const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit
         } catch {
           if (label) label.textContent = "COPY FAILED";
         }
-        window.setTimeout(() => {
+        if (signal.aborted) return;
+        resetTimer = window.setTimeout(() => {
           if (label) label.textContent = "COPY LINK";
           copyButton.classList.remove("is-copied");
         }, 1800);
-      });
+      }, { signal });
     })();
   </script>
 </KisaraLayout>

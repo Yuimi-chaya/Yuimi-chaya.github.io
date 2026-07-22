@@ -142,8 +142,17 @@ const interestGroups = [
     </div>
   </section>
 
-  <script is:inline>
+  <script is:inline data-astro-rerun>
     (() => {
+      window.__yuimiKisaraInnerCleanup?.();
+      const lifecycle = new AbortController();
+      const signal = lifecycle.signal;
+      const cleanup = () => {
+        lifecycle.abort();
+        if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
+      };
+      window.__yuimiKisaraInnerCleanup = cleanup;
+      document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
       const root = document.querySelector("[data-kisara-me]");
       if (!root) return;
       const tabs = Array.from(root.querySelectorAll("[data-interest-tab]"));
@@ -156,7 +165,7 @@ const interestGroups = [
         panels.forEach((panel) => {
           if (panel instanceof HTMLElement) panel.hidden = panel.dataset.interestPanel !== key;
         });
-      }));
+      }, { signal }));
     })();
   </script>
 </KisaraLayout>

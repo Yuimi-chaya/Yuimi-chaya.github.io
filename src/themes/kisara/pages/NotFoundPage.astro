@@ -21,10 +21,21 @@ const from = Astro.url.searchParams.get("from");
     </div>
   </section>
 
-  <script is:inline>
+  <script is:inline data-astro-rerun>
+    window.__yuimiKisaraInnerCleanup?.();
+    const lifecycle = new AbortController();
+    const cleanup = () => {
+      lifecycle.abort();
+      if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
+    };
+    window.__yuimiKisaraInnerCleanup = cleanup;
+    document.addEventListener("astro:before-swap", cleanup, { once: true, signal: lifecycle.signal });
     document.querySelector("[data-kisara-back]")?.addEventListener("click", () => {
       if (history.length > 1) history.back();
-      else window.location.href = "/themes/kisara/";
-    });
+      else {
+        const homeLink = document.querySelector("a.kisara-brand[href]");
+        if (homeLink instanceof HTMLAnchorElement) homeLink.click();
+      }
+    }, { signal: lifecycle.signal });
   </script>
 </KisaraLayout>

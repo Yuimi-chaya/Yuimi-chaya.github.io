@@ -112,11 +112,22 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month:
     <p class="kisara-blog-empty" data-kisara-empty hidden>NO MATCHED SIGNAL / 换一个关键词试试。</p>
   </section>
 
-  <script is:inline>
+  <script is:inline data-astro-rerun>
     (() => {
+      window.__yuimiKisaraInnerCleanup?.();
+      const lifecycle = new AbortController();
+      const signal = lifecycle.signal;
       const hero = document.querySelector("[data-kisara-blog-hero]");
       const archive = document.querySelector("[data-kisara-archive]");
       let introTimer = 0;
+
+      const cleanup = () => {
+        lifecycle.abort();
+        window.clearTimeout(introTimer);
+        if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
+      };
+      window.__yuimiKisaraInnerCleanup = cleanup;
+      document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
 
       const finishIntro = () => {
         if (!(hero instanceof HTMLElement)) return;
@@ -138,18 +149,20 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month:
           if (!(image instanceof HTMLImageElement) || image.complete) return Promise.resolve();
           return image.decode().catch(() => undefined);
         }));
+        if (signal.aborted) return;
         void hero.offsetWidth;
         requestAnimationFrame(() => {
+          if (signal.aborted) return;
           hero.dataset.introState = "playing";
           introTimer = window.setTimeout(finishIntro, 1900);
         });
       };
 
-      hero?.querySelector("[data-blog-replay]")?.addEventListener("click", playIntro);
-      hero?.querySelector("[data-blog-skip]")?.addEventListener("click", finishIntro);
+      hero?.querySelector("[data-blog-replay]")?.addEventListener("click", playIntro, { signal });
+      hero?.querySelector("[data-blog-skip]")?.addEventListener("click", finishIntro, { signal });
       window.addEventListener("pageshow", (event) => {
         if (event.persisted) playIntro();
-      });
+      }, { signal });
       playIntro();
 
       if (!archive) return;
@@ -175,13 +188,13 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month:
         if (empty instanceof HTMLElement) empty.hidden = visibleCount !== 0;
       };
 
-      input?.addEventListener("input", refresh);
+      input?.addEventListener("input", refresh, { signal });
       buttons.forEach((button) => button.addEventListener("click", () => {
         if (!(button instanceof HTMLElement)) return;
         activeFilter = button.dataset.kisaraFilter ?? "all";
         buttons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
         refresh();
-      }));
+      }, { signal }));
     })();
   </script>
 </KisaraLayout>

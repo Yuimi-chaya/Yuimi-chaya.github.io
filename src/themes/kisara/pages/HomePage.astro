@@ -317,11 +317,19 @@ const gateStyle = [
   </section>
 
   <script>
-    window.setTimeout(() => {
+    const scheduleKisaraHome = () => {
+      window.clearTimeout(window.__yuimiKisaraHomeInitTimer);
+      if (!document.querySelector("[data-kisara-gate]")) return;
+      window.__yuimiKisaraHomeInitTimer = window.setTimeout(() => {
+        window.__yuimiKisaraHomeInitTimer = 0;
+        window.__yuimiKisaraHomeCleanup?.();
       (() => {
       const gate = document.querySelector("[data-kisara-gate]");
       if (!gate || gate.dataset.bound === "true") return;
       gate.dataset.bound = "true";
+      const lifecycle = new AbortController();
+      const signal = lifecycle.signal;
+      let disposed = false;
 
       const energyCanvas = gate.querySelector("[data-kisara-energy]");
       const energyContext = energyCanvas?.getContext("2d");
@@ -495,8 +503,8 @@ const gateStyle = [
           } catch {
             resolveSampler(null);
           }
-        }, { once: true });
-        image.addEventListener("error", () => resolveSampler(null), { once: true });
+        }, { once: true, signal });
+        image.addEventListener("error", () => resolveSampler(null), { once: true, signal });
         image.src = new URL(source, document.baseURI).href;
       });
       const renderOpeningEdgeTexture = (mode) => {
@@ -605,12 +613,13 @@ const gateStyle = [
         loadOpeningEdgeSampler(openingBaseEdgeSource),
         loadOpeningEdgeSampler(openingFightEdgeSource)
       ]).then(([baseSampler, fightSampler]) => {
+        if (disposed) return;
         openingBaseEdgeSampler = baseSampler;
         openingFightEdgeSampler = fightSampler;
         renderOpeningEdgeTexture("base");
         if (openingEdgeMix > 0.5) renderOpeningEdgeTexture("fight");
       });
-      window.addEventListener("resize", scheduleOpeningEdgeTextureRefresh, { passive: true });
+      window.addEventListener("resize", scheduleOpeningEdgeTextureRefresh, { passive: true, signal });
       const releaseSessionKey = "yuimi-kisara-release-viewed-v1";
       let releaseCompletedInTab = false;
       try {
@@ -728,6 +737,7 @@ const gateStyle = [
       let pageMode = restoredBelowGate ? "next" : "gate";
       let scrollFrame = 0;
       let layoutResizeFrame = 0;
+      let restoreSyncTimer = 0;
       let restoreWindowOpen = true;
       let poseTimestamp = 0;
       let poseClock = 0;
@@ -2786,6 +2796,7 @@ const gateStyle = [
 
       const drawPostRelease = (timestamp) => {
         postReleaseFrame = 0;
+        if (disposed || !gate.isConnected) return;
         if (
           !postReleaseActive
           || pageMode !== "gate"
@@ -2999,7 +3010,7 @@ const gateStyle = [
           fightImageHeight = Math.max(1, fightImage.naturalHeight || fightImageHeight);
           refreshPostReleaseLayout();
           if (postReleaseActive) startPostReleaseAnimation();
-        }, { once: true });
+        }, { once: true, signal });
         fightImage.src = fightSource;
       }
 
@@ -4166,8 +4177,12 @@ const gateStyle = [
 
       let warningWarmupScheduled = false;
       let warningCssWarmupComplete = false;
+      let warningWarmupHandle = 0;
+      let warningWarmupUsesIdleCallback = false;
       const runWarningWarmup = () => {
+        warningWarmupHandle = 0;
         warningWarmupScheduled = false;
+        if (disposed || !gate.isConnected) return;
         if (reducedMotion || pageMode !== "gate" || document.visibilityState !== "visible") return;
 
         ensureSingularityFieldBuffer(gate.clientWidth < 640 ? 80 : 108);
@@ -4179,25 +4194,30 @@ const gateStyle = [
         gate.classList.add("is-warning-prewarm");
         gate.getBoundingClientRect();
         window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => gate.classList.remove("is-warning-prewarm"));
+          if (disposed) return;
+          window.requestAnimationFrame(() => {
+            if (!disposed) gate.classList.remove("is-warning-prewarm");
+          });
         });
       };
       const scheduleWarningWarmup = () => {
-        if (warningWarmupScheduled || reducedMotion || pageMode !== "gate") return;
+        if (disposed || warningWarmupScheduled || reducedMotion || pageMode !== "gate") return;
         warningWarmupScheduled = true;
         if ("requestIdleCallback" in window) {
-          window.requestIdleCallback(runWarningWarmup, { timeout: 900 });
+          warningWarmupUsesIdleCallback = true;
+          warningWarmupHandle = window.requestIdleCallback(runWarningWarmup, { timeout: 900 });
         } else {
-          window.setTimeout(runWarningWarmup, 180);
+          warningWarmupUsesIdleCallback = false;
+          warningWarmupHandle = window.setTimeout(runWarningWarmup, 180);
         }
       };
 
       const startSpaceLens = () => {
-        if (!spaceLensCanvas || reducedMotion) return;
+        if (disposed || !spaceLensCanvas || reducedMotion) return;
         const generation = ++spaceLensInitGeneration;
         spaceLensCanvas.dataset.state = "loading";
         createSpaceLensRenderer().then((renderer) => {
-          if (generation !== spaceLensInitGeneration) {
+          if (disposed || generation !== spaceLensInitGeneration) {
             renderer?.destroy();
             return;
           }
@@ -4213,14 +4233,14 @@ const gateStyle = [
         spaceLensRenderer = null;
         spaceLensCanvas.style.opacity = "0";
         spaceLensCanvas.dataset.state = "lost";
-      }, { passive: false });
+      }, { passive: false, signal });
       spaceLensCanvas?.addEventListener("webglcontextrestored", () => {
         startSpaceLens();
-      }, { passive: true });
+      }, { passive: true, signal });
       startSpaceLens();
 
       const startTitleLens = () => {
-        if (!titleLensCanvas || reducedMotion) return;
+        if (disposed || !titleLensCanvas || reducedMotion) return;
         const generation = ++titleLensInitGeneration;
         titleLensCanvas.dataset.state = "loading";
         const renderer = createTitleLensRenderer();
@@ -4240,12 +4260,13 @@ const gateStyle = [
         titleLensCanvas.style.opacity = "0";
         titleLensCanvas.dataset.state = "lost";
         gate.style.setProperty("--kisara-title-source-opacity", "1");
-      }, { passive: false });
+      }, { passive: false, signal });
       titleLensCanvas?.addEventListener("webglcontextrestored", () => {
         startTitleLens();
-      }, { passive: true });
+      }, { passive: true, signal });
       startTitleLens();
       document.fonts?.ready.then(() => {
+        if (disposed) return;
         titleLensRenderer?.refresh();
         resizeTitleChains(true);
         resizeTitleDataCanvas(true);
@@ -9092,6 +9113,7 @@ const gateStyle = [
 
       const drawEnergy = (timestamp) => {
         energyFrame = 0;
+        if (disposed || !gate.isConnected) return;
         if (!energyLoopActive || !energyCanvas || !energyContext) return;
         const releaseSettled = releaseMode === "complete"
           && burstProgress >= 0.999
@@ -9987,6 +10009,7 @@ const gateStyle = [
 
       const animate = (timestamp) => {
         animationFrame = 0;
+        if (disposed || !gate.isConnected) return;
         const frameRatio = lastFrameTime
           ? clamp((timestamp - lastFrameTime) / 16.667, 0.5, 3)
           : 1;
@@ -10448,7 +10471,7 @@ const gateStyle = [
         if (event.ctrlKey || event.metaKey) return;
         const delta = normalizeWheel(event);
         handleDirectionalInput(delta, event);
-      }, { passive: false });
+      }, { passive: false, signal });
 
       window.addEventListener("keydown", (event) => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -10461,7 +10484,7 @@ const gateStyle = [
         if (event.key === " ") amount = event.shiftKey ? -300 : 300;
         if (!amount) return;
         handleDirectionalInput(amount, event);
-      });
+      }, { signal });
 
       window.addEventListener("touchstart", (event) => {
         if (event.touches.length !== 1) {
@@ -10471,7 +10494,7 @@ const gateStyle = [
         }
         touchId = event.touches[0]?.identifier ?? null;
         touchY = event.touches[0]?.clientY ?? null;
-      }, { passive: true });
+      }, { passive: true, signal });
 
       window.addEventListener("touchmove", (event) => {
         if (event.touches.length !== 1 || touchId === null) return;
@@ -10482,25 +10505,25 @@ const gateStyle = [
         touchY = nextY;
         const touchDelta = delta * 2.25;
         handleDirectionalInput(touchDelta, event);
-      }, { passive: false });
+      }, { passive: false, signal });
 
       window.addEventListener("touchend", () => {
         touchY = null;
         touchId = null;
-      }, { passive: true });
+      }, { passive: true, signal });
 
       window.addEventListener("touchcancel", () => {
         touchY = null;
         touchId = null;
-      }, { passive: true });
+      }, { passive: true, signal });
 
-      window.addEventListener("pointermove", handlePostReleasePointer, { passive: true });
+      window.addEventListener("pointermove", handlePostReleasePointer, { passive: true, signal });
       document.addEventListener("pointerleave", () => {
         postReleasePointerX = null;
         postReleasePointerAccumulator = 0;
         postReleaseTargetX = 0;
         postReleaseTargetY = 0;
-      }, { passive: true });
+      }, { passive: true, signal });
 
       skip?.addEventListener("click", (event) => {
         event.preventDefault();
@@ -10519,7 +10542,7 @@ const gateStyle = [
         chargeIntroActive = false;
         chargeIntroStartedAt = 0;
         enterNextPage();
-      });
+      }, { signal });
 
       const refreshLayoutSize = () => {
         lastEnergyPaintTimestamp = 0;
@@ -10539,10 +10562,11 @@ const gateStyle = [
         if (layoutResizeFrame) return;
         layoutResizeFrame = window.requestAnimationFrame(() => {
           layoutResizeFrame = 0;
+          if (disposed) return;
           refreshLayoutSize();
         });
       };
-      window.addEventListener("resize", scheduleLayoutSizeRefresh, { passive: true });
+      window.addEventListener("resize", scheduleLayoutSizeRefresh, { passive: true, signal });
       const layoutResizeObserver = typeof ResizeObserver === "function"
         ? new ResizeObserver(scheduleLayoutSizeRefresh)
         : null;
@@ -10582,7 +10606,49 @@ const gateStyle = [
         startEnergyAnimation();
         startPostReleaseAnimation();
         scheduleWarningWarmup();
-      });
+      }, { signal });
+
+      const cleanup = () => {
+        if (disposed) return;
+        disposed = true;
+        lifecycle.abort();
+        spaceLensInitGeneration += 1;
+        titleLensInitGeneration += 1;
+        if (openingEdgeResizeFrame) window.cancelAnimationFrame(openingEdgeResizeFrame);
+        if (animationFrame) window.cancelAnimationFrame(animationFrame);
+        if (energyFrame) window.cancelAnimationFrame(energyFrame);
+        if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
+        if (layoutResizeFrame) window.cancelAnimationFrame(layoutResizeFrame);
+        if (energyTimer) window.clearTimeout(energyTimer);
+        if (restoreSyncTimer) window.clearTimeout(restoreSyncTimer);
+        if (warningWarmupHandle) {
+          if (warningWarmupUsesIdleCallback && "cancelIdleCallback" in window) {
+            window.cancelIdleCallback(warningWarmupHandle);
+          } else {
+            window.clearTimeout(warningWarmupHandle);
+          }
+        }
+        openingEdgeResizeFrame = 0;
+        animationFrame = 0;
+        energyFrame = 0;
+        scrollFrame = 0;
+        layoutResizeFrame = 0;
+        energyTimer = 0;
+        restoreSyncTimer = 0;
+        warningWarmupHandle = 0;
+        warningWarmupScheduled = false;
+        energyLoopActive = false;
+        stopPostReleaseAnimation();
+        layoutResizeObserver?.disconnect();
+        spaceLensRenderer?.destroy();
+        titleLensRenderer?.destroy();
+        spaceLensRenderer = null;
+        titleLensRenderer = null;
+        if (window.__yuimiKisaraHomeCleanup === cleanup) {
+          window.__yuimiKisaraHomeCleanup = null;
+        }
+      };
+      window.__yuimiKisaraHomeCleanup = cleanup;
 
       render();
       scheduleWarningWarmup();
@@ -10591,17 +10657,35 @@ const gateStyle = [
         pageMode = "next";
         resetGateState();
       };
-      window.addEventListener("pageshow", syncRestoredPosition);
-      window.addEventListener("scroll", syncRestoredPosition, { passive: true });
+      window.addEventListener("pageshow", syncRestoredPosition, { signal });
+      window.addEventListener("scroll", syncRestoredPosition, { passive: true, signal });
       window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        if (disposed) return;
         syncRestoredPosition();
-        window.setTimeout(() => {
+        restoreSyncTimer = window.setTimeout(() => {
+          restoreSyncTimer = 0;
+          if (disposed) return;
           syncRestoredPosition();
           restoreWindowOpen = false;
           window.removeEventListener("scroll", syncRestoredPosition);
         }, 420);
       }));
-      })();
-    }, 64);
+        })();
+      }, 64);
+    };
+
+    window.__yuimiKisaraHomeSchedule = scheduleKisaraHome;
+    if (!window.__yuimiKisaraHomeLifecycleBound) {
+      document.addEventListener("astro:before-swap", () => {
+        window.clearTimeout(window.__yuimiKisaraHomeInitTimer);
+        window.__yuimiKisaraHomeInitTimer = 0;
+        window.__yuimiKisaraHomeCleanup?.();
+      });
+      document.addEventListener("astro:page-load", () => {
+        window.__yuimiKisaraHomeSchedule?.();
+      });
+      window.__yuimiKisaraHomeLifecycleBound = true;
+    }
+    scheduleKisaraHome();
   </script>
 </KisaraLayout>

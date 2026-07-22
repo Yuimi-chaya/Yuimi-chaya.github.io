@@ -83,8 +83,17 @@ const gamePresentation = {
     </div>
   </section>
 
-  <script is:inline>
+  <script is:inline data-astro-rerun>
     (() => {
+      window.__yuimiKisaraInnerCleanup?.();
+      const lifecycle = new AbortController();
+      const signal = lifecycle.signal;
+      const cleanup = () => {
+        lifecycle.abort();
+        if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
+      };
+      window.__yuimiKisaraInnerCleanup = cleanup;
+      document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
       const root = document.querySelector("[data-kisara-arcade]");
       if (!(root instanceof HTMLElement)) return;
       const selectors = Array.from(root.querySelectorAll("[data-game-select]"));
@@ -109,15 +118,15 @@ const gamePresentation = {
         if (counter) counter.textContent = `${String(activeIndex + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`;
       };
 
-      selectors.forEach((selector, index) => selector.addEventListener("click", () => activate(index)));
-      root.querySelector("[data-game-previous]")?.addEventListener("click", () => activate(activeIndex - 1));
-      root.querySelector("[data-game-next]")?.addEventListener("click", () => activate(activeIndex + 1));
+      selectors.forEach((selector, index) => selector.addEventListener("click", () => activate(index), { signal }));
+      root.querySelector("[data-game-previous]")?.addEventListener("click", () => activate(activeIndex - 1), { signal });
+      root.querySelector("[data-game-next]")?.addEventListener("click", () => activate(activeIndex + 1), { signal });
       window.addEventListener("keydown", (event) => {
         const target = event.target;
         if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
         if (event.key === "ArrowLeft") activate(activeIndex - 1);
         if (event.key === "ArrowRight") activate(activeIndex + 1);
-      });
+      }, { signal });
     })();
   </script>
 </KisaraLayout>
