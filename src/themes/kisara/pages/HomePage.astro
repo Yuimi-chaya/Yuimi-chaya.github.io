@@ -63,11 +63,6 @@ const memoryScenes = [
     brightness: 1.06
   }
 ] as const;
-const fightProtectionMaskUrl = existsSync(
-  resolve("public/themes/kisara/assets/fight-distortion-protect.svg")
-)
-  ? "/themes/kisara/assets/fight-distortion-protect.svg"
-  : null;
 const channelLinks = [
   { index: "01", label: "READ THE LOG", note: "开发与部署记录", href: getThemePath("kisara", "/blog/"), icon: "tabler:book-2" },
   { index: "02", label: "OPEN THE LAB", note: "项目与互动实验", href: getThemePath("kisara", "/projects/"), icon: "tabler:flask-2" },
@@ -78,8 +73,7 @@ const gateStyle = [
   "--kisara-fill: 0%",
   "--kisara-burst-progress: 0%",
   `--kisara-gate-background-image: ${activeBackgroundUrl ? `url("${activeBackgroundUrl}")` : "none"}`,
-  `--kisara-fight-background-image: ${activeFightUrl ? `url("${activeFightUrl}")` : "none"}`,
-  `--kisara-fight-protection-image: ${fightProtectionMaskUrl ? `url("${fightProtectionMaskUrl}")` : "none"}`
+  `--kisara-fight-background-image: ${activeFightUrl ? `url("${activeFightUrl}")` : "none"}`
 ].join("; ");
 ---
 
@@ -97,14 +91,12 @@ const gateStyle = [
       ))}
       <div class="kisara-gate-background kisara-gate-background-fight"></div>
       <div class="kisara-memory-flare"></div>
-      <div class="kisara-gate-background kisara-gate-background-fight-protection"></div>
       <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
       <canvas
         class="kisara-space-lens-canvas"
         data-kisara-space-lens
         data-base-src={activeBackgroundUrl ?? ""}
         data-fight-src={activeFightUrl ?? ""}
-        data-protection-src={fightProtectionMaskUrl ?? ""}
         width="1280"
         height="900"
       ></canvas>
@@ -842,22 +834,28 @@ const gateStyle = [
         { start: 0.19, enterEnd: 0.265, leaveStart: 0.35, end: 0.445, drift: -26, lift: 3 },
         { start: 0.36, enterEnd: 0.435, leaveStart: 0.525, end: 0.615, drift: 18, lift: -2 },
         { start: 0.53, enterEnd: 0.605, leaveStart: 0.695, end: 0.785, drift: -18, lift: 2 },
-        { start: 0.7, enterEnd: 0.775, leaveStart: 0.865, end: 0.955, drift: 16, lift: -1 }
+        { start: 0.7, enterEnd: 0.775, leaveStart: 1, end: 1, drift: 16, lift: -1, persistent: true }
       ];
       const memoryTransitionCenters = [0.205, 0.375, 0.545, 0.715, 0.885];
       const syncMemorySequence = (fill) => {
         const motionBlur = clamp(Math.abs(velocity) * 96, 0, 4.4);
+        const fightHandoff = smootherstep((chargeIntroProgress - 0.46) / 0.3);
         let strongestScene = 0;
 
         memorySceneElements.forEach((element, index) => {
           const scene = memoryTimeline[index];
           if (!(element instanceof HTMLElement) || !scene) return;
           const enter = smootherstep((fill - scene.start) / Math.max(0.0001, scene.enterEnd - scene.start));
-          const leave = 1 - smootherstep((fill - scene.leaveStart) / Math.max(0.0001, scene.end - scene.leaveStart));
+          const leave = scene.persistent
+            ? 1 - fightHandoff
+            : 1 - smootherstep((fill - scene.leaveStart) / Math.max(0.0001, scene.end - scene.leaveStart));
           const opacity = clamp(enter * leave, 0, 1);
-          const local = clamp((fill - scene.start) / Math.max(0.0001, scene.end - scene.start), 0, 1);
-          const focus = Math.sin(local * Math.PI);
-          const edgeSoftness = Math.pow(1 - Math.max(0, focus), 1.35);
+          const local = scene.persistent
+            ? clamp((fill - scene.start) / Math.max(0.0001, scene.enterEnd - scene.start), 0, 1)
+            : clamp((fill - scene.start) / Math.max(0.0001, scene.end - scene.start), 0, 1);
+          const focus = scene.persistent ? smootherstep(local) : Math.sin(local * Math.PI);
+          const edgeSoftness = Math.pow(1 - Math.max(0, focus), 1.35)
+            + (scene.persistent ? fightHandoff * 1.2 : 0);
           const directionalTravel = (local - 0.5) * scene.drift;
           const scale = 1.065 - focus * 0.032 + local * 0.006;
 
@@ -874,10 +872,9 @@ const gateStyle = [
           return Math.max(strongest, smootherstep(proximity));
         }, 0);
         const transitionEnergy = clamp(Math.abs(velocity) * 34, 0, 1);
-        const memoryEnvelope = phaseProgress(fill, 0.018, 0.09)
-          * (1 - phaseProgress(fill, 0.93, 0.985));
+        const memoryEnvelope = phaseProgress(fill, 0.018, 0.09) * (1 - fightHandoff);
         const baseExit = smootherstep((fill - 0.035) / 0.115);
-        const fightReveal = smootherstep((fill - 0.855) / 0.13);
+        const fightReveal = fightHandoff;
 
         gate.style.setProperty(
           "--kisara-memory-flash",
@@ -2861,7 +2858,6 @@ const gateStyle = [
         if (!spaceLensCanvas || reducedMotion) return null;
         const baseSource = spaceLensCanvas.dataset.baseSrc || spaceLensCanvas.dataset.fightSrc;
         const fightSource = spaceLensCanvas.dataset.fightSrc || spaceLensCanvas.dataset.baseSrc;
-        const protectionSource = spaceLensCanvas.dataset.protectionSrc;
         if (!baseSource || !fightSource) return null;
 
         const gl = spaceLensCanvas.getContext("webgl2", {
@@ -2896,7 +2892,6 @@ const gateStyle = [
 
           uniform sampler2D uBaseTexture;
           uniform sampler2D uFightTexture;
-          uniform sampler2D uProtectionTexture;
           uniform vec2 uResolution;
           uniform vec2 uBaseSize;
           uniform vec2 uFightSize;
@@ -2948,39 +2943,12 @@ const gateStyle = [
             vec3 fightColor = texture(uFightTexture, fightUv).rgb;
             baseColor = adjustSceneColor(baseColor, 1.0 - uReveal * 0.26, 1.0 - uReveal * 0.14);
             fightColor = adjustSceneColor(fightColor, 0.84 + uReveal * 0.36, 0.86 + uReveal * 0.22);
-            vec3 sceneColor = mix(baseColor, fightColor, smoothstep(0.0, 1.0, uReveal));
-            float atmosphere = mix(0.58, 0.34, clamp(uv.y, 0.0, 1.0));
-            return mix(sceneColor, vec3(0.027, 0.039, 0.122), atmosphere);
+            return mix(baseColor, fightColor, smoothstep(0.0, 1.0, uReveal));
           }
 
           vec3 sampleRestoredFight(vec2 uv) {
             vec2 fightUv = coverUv(uv, uFightSize, 1.0);
             return texture(uFightTexture, fightUv).rgb;
-          }
-
-          float sampleProtectionRaw(vec2 uv) {
-            vec2 fightUv = coverUv(clamp(uv, vec2(0.0), vec2(1.0)), uFightSize, 1.0);
-            return texture(uProtectionTexture, fightUv).a;
-          }
-
-          float sampleProtection(vec2 uv) {
-            vec2 pixel = 1.0 / max(uResolution, vec2(1.0));
-            vec2 featherOffset = pixel * 3.0;
-            float center = sampleProtectionRaw(uv);
-            float feather = max(
-              max(
-                sampleProtectionRaw(uv + vec2(featherOffset.x, 0.0)),
-                sampleProtectionRaw(uv - vec2(featherOffset.x, 0.0))
-              ),
-              max(
-                sampleProtectionRaw(uv + vec2(0.0, featherOffset.y)),
-                sampleProtectionRaw(uv - vec2(0.0, featherOffset.y))
-              )
-            );
-            float expanded = max(center, feather * 0.34);
-            float protectedCore = smoothstep(0.58, 0.94, center);
-            float protectedFeather = smoothstep(0.07, 0.74, expanded) * 0.76;
-            return max(protectedCore, protectedFeather);
           }
 
           void main() {
@@ -3005,10 +2973,10 @@ const gateStyle = [
             float reachProgress = smoothstep(core * 1.15, lensReach, radius);
             float radialReach = pow(max(0.0, 1.0 - reachProgress), 1.12);
             float gravityField = outsideCore * radialReach;
-            float sourceProtection = sampleProtection(vUv);
-            float distortionMask = pow(max(0.0, 1.0 - sourceProtection), 1.75);
             float sideDistance = abs(vUv.x - 0.5);
             float sideDepth = smoothstep(0.0, 0.5, sideDistance);
+            float sideActivation = smoothstep(0.155, 0.315, sideDistance);
+            float distortionMask = pow(sideActivation, 1.28);
             float sideReach = max(
               radialReach,
               sideDepth * gravityStrength * (0.12 + uCollapse * 0.2 + uCrush * 0.24)
@@ -3016,7 +2984,7 @@ const gateStyle = [
             float distortionField = outsideCore
               * distortionMask
               * sideReach
-              * (0.86 + sideDepth * 0.86);
+              * (0.78 + sideDepth * 0.62);
 
             float einsteinRadius = massRadius * (
               1.0
@@ -3062,65 +3030,45 @@ const gateStyle = [
               direction.x * dragSin + direction.y * dragCos
             );
             float sideSweep = sin(vUv.y * 5.4 - uTime * 0.34)
-              * (0.006 + uCollapse * 0.012 + uCrush * 0.018)
+              * (0.003 + uCollapse * 0.006 + uCrush * 0.008)
               * gravityStrength
-              * sideReach
-              * distortionMask
+              * distortionField
               * sign(vUv.x - 0.5);
             float sidePolarity = sign(vUv.x - 0.5);
             float sideTension = gravityStrength
-              * distortionMask
-              * (0.0045 + uCollapse * 0.015 + uCrush * 0.022)
+              * distortionField
+              * (0.0038 + uCollapse * 0.011 + uCrush * 0.016)
               * (0.5 + sideDepth * 0.72);
             vec2 sideDisplacement = vec2(
               -sidePolarity * sideTension,
-              sin(vUv.y * 10.5 + uTime * 0.86 + sidePolarity * 1.7)
+              sin(vUv.y * 6.8 + uTime * 0.72 + sidePolarity * 1.7)
                 * sideTension
-                * (0.38 + sideDepth * 0.34)
+                * (0.22 + sideDepth * 0.2)
             );
-            float sideFold = sin(vUv.y * 8.6 + sideDepth * 4.2 - uTime * 1.05)
-              * gravityStrength
-              * distortionMask
-              * (0.006 + uCollapse * 0.016 + uCrush * 0.021)
-              * (0.48 + sideDepth * 0.52);
-            float sideTorsion = cos(sideDepth * 8.0 - vUv.y * 3.2 + uTime * 0.72)
-              * gravityStrength
-              * distortionMask
-              * (0.003 + uCollapse * 0.009 + uCrush * 0.012);
-            sideDisplacement += vec2(sidePolarity * sideFold, sideTorsion);
+            sideDisplacement += tangent
+              * cos(vUv.y * 5.2 - uTime * 0.46 + sidePolarity)
+              * sideTension
+              * 0.14;
             sideDisplacement += vec2(
               -sidePolarity * waveEnvelope * uShockStrength * (0.008 + waveWidth * 0.12),
               cos(vUv.y * 13.0 - uTime * 1.1) * waveEnvelope * uShockStrength * 0.008
             ) * distortionMask;
 
-            float edgeFade = smoothstep(0.0, 0.055, vUv.x)
-              * smoothstep(0.0, 0.055, vUv.y)
-              * smoothstep(0.0, 0.055, 1.0 - vUv.x)
-              * smoothstep(0.0, 0.055, 1.0 - vUv.y);
+            float edgeFade = smoothstep(0.0, 0.11, vUv.x)
+              * smoothstep(0.0, 0.11, vUv.y)
+              * smoothstep(0.0, 0.11, 1.0 - vUv.x)
+              * smoothstep(0.0, 0.11, 1.0 - vUv.y);
             vec2 lensedPoint = lensedDirection * (
               primaryRadius + waveDisplacement + fieldBreath
             ) + tangent * sideSweep;
             vec2 displacedPoint = mix(point, lensedPoint, edgeFade);
             vec2 displacedCandidate = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
             displacedCandidate += sideDisplacement * edgeFade;
-            float destinationProtection = sampleProtection(displacedCandidate);
-            float destinationFreedom = pow(
-              max(0.0, 1.0 - destinationProtection),
-              1.45
-            );
-            float finalDistortionMask = distortionMask * destinationFreedom;
-            float distortionBlend = smoothstep(0.01, 0.96, finalDistortionMask);
-            vec3 color;
-            if (distortionBlend <= 0.002) {
-              color = sampleScene(vUv);
-            } else if (distortionBlend >= 0.998) {
-              color = sampleScene(displacedCandidate);
-            } else {
-              vec2 softenedUv = mix(vUv, displacedCandidate, distortionBlend);
-              vec3 stableColor = sampleScene(vUv);
-              vec3 distortedColor = sampleScene(softenedUv);
-              color = mix(stableColor, distortedColor, distortionBlend);
-            }
+            displacedCandidate = clamp(displacedCandidate, vec2(0.002), vec2(0.998));
+            float finalField = clamp(distortionField * edgeFade, 0.0, 1.0);
+            float distortionBlend = smoothstep(0.015, 0.72, finalField);
+            vec2 finalUv = mix(vUv, displacedCandidate, distortionBlend);
+            vec3 color = sampleScene(finalUv);
             float refractionSheen = sin(vUv.y * 15.0 + sideDepth * 5.2 - uTime * 1.28)
               * distortionBlend
               * gravityStrength
@@ -3132,16 +3080,7 @@ const gateStyle = [
 
             float horizon = 1.0 - smoothstep(core * 0.98, core * 1.04, radius);
             color = mix(color, vec3(0.0), horizon * distortionBlend);
-            float lensAlpha = max(
-              clamp(uOpacity, 0.0, 1.0) * smoothstep(0.025, 0.92, distortionBlend),
-              horizon * distortionBlend * smoothstep(0.05, 0.15, gravityStrength)
-            );
-            float protectionCutout = smoothstep(
-              0.68,
-              0.96,
-              sampleProtectionRaw(vUv)
-            );
-            lensAlpha *= 1.0 - protectionCutout;
+            float sceneAlpha = clamp(uOpacity, 0.0, 1.0);
 
             vec2 pixel = vUv * uResolution;
             vec2 dataCell = floor(pixel / 9.0);
@@ -3209,7 +3148,7 @@ const gateStyle = [
             color = mix(color, reconstructedColor, reconstructionMix);
             float reconstructionAlpha = reconstructionMix
               * (0.72 + dataFront * 0.28);
-            float alpha = max(lensAlpha, reconstructionAlpha);
+            float alpha = max(sceneAlpha, reconstructionAlpha);
             outputColor = vec4(color * alpha, alpha);
           }
         `;
@@ -3271,44 +3210,13 @@ const gateStyle = [
           image.src = source;
         });
 
-        const createTransparentTexture = () => {
-          const texture = gl.createTexture();
-          if (!texture) return null;
-          gl.bindTexture(gl.TEXTURE_2D, texture);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-          gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.RGBA,
-            1,
-            1,
-            0,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            new Uint8Array([0, 0, 0, 0])
-          );
-          return { texture, width: 1, height: 1 };
-        };
-
-        const [baseTexture, fightTexture, loadedProtectionTexture] = await Promise.all([
+        const [baseTexture, fightTexture] = await Promise.all([
           loadTexture(baseSource),
-          loadTexture(fightSource),
-          protectionSource ? loadTexture(protectionSource) : Promise.resolve(null)
+          loadTexture(fightSource)
         ]);
         if (!baseTexture || !fightTexture) {
           if (baseTexture?.texture) gl.deleteTexture(baseTexture.texture);
           if (fightTexture?.texture) gl.deleteTexture(fightTexture.texture);
-          if (loadedProtectionTexture?.texture) gl.deleteTexture(loadedProtectionTexture.texture);
-          gl.deleteProgram(program);
-          return null;
-        }
-        const protectionTexture = loadedProtectionTexture ?? createTransparentTexture();
-        if (!protectionTexture) {
-          gl.deleteTexture(baseTexture.texture);
-          gl.deleteTexture(fightTexture.texture);
           gl.deleteProgram(program);
           return null;
         }
@@ -3316,7 +3224,6 @@ const gateStyle = [
         const uniforms = {
           baseTexture: gl.getUniformLocation(program, "uBaseTexture"),
           fightTexture: gl.getUniformLocation(program, "uFightTexture"),
-          protectionTexture: gl.getUniformLocation(program, "uProtectionTexture"),
           resolution: gl.getUniformLocation(program, "uResolution"),
           baseSize: gl.getUniformLocation(program, "uBaseSize"),
           fightSize: gl.getUniformLocation(program, "uFightSize"),
@@ -3383,9 +3290,6 @@ const gateStyle = [
           gl.activeTexture(gl.TEXTURE1);
           gl.bindTexture(gl.TEXTURE_2D, fightTexture.texture);
           gl.uniform1i(uniforms.fightTexture, 1);
-          gl.activeTexture(gl.TEXTURE2);
-          gl.bindTexture(gl.TEXTURE_2D, protectionTexture.texture);
-          gl.uniform1i(uniforms.protectionTexture, 2);
           gl.uniform2f(uniforms.resolution, cssWidth, cssHeight);
           gl.uniform2f(uniforms.baseSize, baseTexture.width, baseTexture.height);
           gl.uniform2f(uniforms.fightSize, fightTexture.width, fightTexture.height);
@@ -3411,7 +3315,6 @@ const gateStyle = [
         const destroy = () => {
           gl.deleteTexture(baseTexture.texture);
           gl.deleteTexture(fightTexture.texture);
-          gl.deleteTexture(protectionTexture.texture);
           gl.deleteVertexArray(vertexArray);
           gl.deleteProgram(program);
           clear();
@@ -6340,11 +6243,6 @@ const gateStyle = [
         );
         const lensShockStrength = Math.pow(Math.max(0, shockwavePulse), 0.82) * lensRecovery;
         const lensReveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
-        const protectionClarity = phaseProgress(
-          burst,
-          glossFadeEnd,
-          crossStart
-        ) * (1 - blurRecovery) * lensReveal;
         const lensRadius = gateShortSide
           * (0.36 + gravityPressure * 0.24 + collapseDepth * 0.14)
           / gateHeight;
@@ -6722,7 +6620,6 @@ const gateStyle = [
         gate.style.setProperty("--kisara-impact-flash", impactFlash.toFixed(3));
         gate.style.setProperty("--kisara-impact-vignette", impactVignette.toFixed(3));
         gate.style.setProperty("--kisara-impact-scale", impactScale.toFixed(4));
-        gate.style.setProperty("--kisara-protection-opacity", protectionClarity.toFixed(3));
         const warningPresentationVisible = warningMonochrome > 0.001
           || warningFocus > 0.001
           || warningExposure > 0.001
@@ -9403,6 +9300,9 @@ const gateStyle = [
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
         const memoryState = syncMemorySequence(fill);
         syncOpeningEdgeMix(memoryState.fightReveal);
+        const fightSettle = phaseProgress(burstProgress, 0.01, 0.28);
+        const fightBlur = (1 - memoryState.fightReveal) * 18
+          + memoryState.fightReveal * 3.4 * (1 - fightSettle);
         const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
         const glossPosition = -18 + glossSweep * 136;
         const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
@@ -9423,10 +9323,19 @@ const gateStyle = [
         gate.style.setProperty("--kisara-bg-saturation", (1 - memoryState.baseExit * 0.2).toFixed(3));
         gate.style.setProperty("--kisara-bg-brightness", (1 - memoryState.baseExit * 0.12).toFixed(3));
         gate.style.setProperty("--kisara-fight-opacity", (memoryState.fightReveal * 0.98).toFixed(3));
-        gate.style.setProperty("--kisara-fight-blur", `${((1 - memoryState.fightReveal) * 15).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-fight-scale", (1.06 - memoryState.fightReveal * 0.06).toFixed(4));
-        gate.style.setProperty("--kisara-fight-saturation", (0.84 + memoryState.fightReveal * 0.36).toFixed(3));
-        gate.style.setProperty("--kisara-fight-brightness", (0.86 + memoryState.fightReveal * 0.22).toFixed(3));
+        gate.style.setProperty("--kisara-fight-blur", `${fightBlur.toFixed(3)}px`);
+        gate.style.setProperty(
+          "--kisara-fight-scale",
+          (1.075 - memoryState.fightReveal * 0.055 - fightSettle * 0.02).toFixed(4)
+        );
+        gate.style.setProperty(
+          "--kisara-fight-saturation",
+          (0.82 + memoryState.fightReveal * 0.18 + fightSettle * 0.2).toFixed(3)
+        );
+        gate.style.setProperty(
+          "--kisara-fight-brightness",
+          (0.84 + memoryState.fightReveal * 0.12 + fightSettle * 0.12).toFixed(3)
+        );
         energyProgress = fill;
         if (!energyLoopActive || reducedMotion) {
           updateBurstPresentation(performance.now(), false);
