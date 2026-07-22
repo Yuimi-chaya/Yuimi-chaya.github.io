@@ -87,6 +87,22 @@ const transformationScenes = [
     brightness: 0.96
   }
 ] as const;
+const gateSceneManifest = [
+  ...memoryScenes.map((scene, index) => ({
+    ...scene,
+    id: `memory-${scene.id}`,
+    kind: "memory",
+    index,
+    order: index
+  })),
+  ...transformationScenes.map((scene, index) => ({
+    ...scene,
+    id: `transformation-${scene.id}`,
+    kind: "transformation",
+    index,
+    order: memoryScenes.length + index
+  }))
+] as const;
 const openingEdgeScenes = [
   {
     id: "base",
@@ -95,17 +111,10 @@ const openingEdgeScenes = [
     image: activeBackgroundUrl ?? "",
     position: "center 50%"
   },
-  ...memoryScenes.map((scene, index) => ({
-    id: `memory-${scene.id}`,
-    kind: "memory",
-    index,
-    image: scene.image,
-    position: scene.position
-  })),
-  ...transformationScenes.map((scene, index) => ({
-    id: `transformation-${scene.id}`,
-    kind: "transformation",
-    index,
+  ...gateSceneManifest.map((scene) => ({
+    id: scene.id,
+    kind: scene.kind,
+    index: scene.index,
     image: scene.image,
     position: scene.position
   })),
@@ -145,25 +154,12 @@ const gateStyle = [
 
 <KisaraLayout title="Kisara | Yuimi Lab" description="Yuimi Lab 的 Kisara 视觉交互主题。">
   <section class="kisara-gate" data-kisara-gate style={gateStyle}>
+    <script type="application/json" data-kisara-scene-manifest set:html={JSON.stringify(gateSceneManifest)}></script>
     <div class="kisara-gate-visual-shell" aria-hidden="true">
       <div class="kisara-gate-visual">
         <div class="kisara-gate-background kisara-gate-background-base"></div>
-        {memoryScenes.map((scene, index) => (
-          <div
-            class="kisara-gate-background kisara-gate-memory"
-            data-kisara-memory-scene={index}
-            data-memory-id={scene.id}
-            style={`--kisara-memory-image: url("${scene.image}"); --kisara-memory-position: ${scene.position}; --kisara-memory-saturation: ${scene.saturation}; --kisara-memory-brightness: ${scene.brightness};`}
-          ></div>
-        ))}
-        {transformationScenes.map((scene, index) => (
-          <div
-            class="kisara-gate-background kisara-gate-transformation"
-            data-kisara-transformation-scene={index}
-            data-transformation-id={scene.id}
-            style={`--kisara-transformation-image: url("${scene.image}"); --kisara-transformation-position: ${scene.position}; --kisara-transformation-saturation: ${scene.saturation}; --kisara-transformation-brightness: ${scene.brightness};`}
-          ></div>
-        ))}
+        <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="0"></div>
+        <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="1"></div>
         <div class="kisara-gate-background kisara-gate-background-fight"></div>
         <div class="kisara-memory-flare"></div>
         <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
@@ -435,13 +431,34 @@ const gateStyle = [
       const fightBackground = gate.querySelector(".kisara-gate-background-fight");
       const fightWashBackground = gate.querySelector(".kisara-gate-background-fight-wash");
       const memoryFlare = gate.querySelector(".kisara-memory-flare");
-      const memorySceneElements = Array.from(gate.querySelectorAll("[data-kisara-memory-scene]"));
-      const transformationSceneElements = Array.from(
-        gate.querySelectorAll("[data-kisara-transformation-scene]")
+      const sceneManifestElement = gate.querySelector("[data-kisara-scene-manifest]");
+      let sceneManifest = [];
+      try {
+        const parsedManifest = JSON.parse(sceneManifestElement?.textContent ?? "[]");
+        sceneManifest = Array.isArray(parsedManifest) ? parsedManifest : [];
+      } catch {
+        sceneManifest = [];
+      }
+      const memorySceneRecords = sceneManifest.filter((scene) => scene?.kind === "memory");
+      const transformationSceneRecords = sceneManifest.filter(
+        (scene) => scene?.kind === "transformation"
       );
-      const transformationSilhouette = transformationSceneElements[
-        transformationSceneElements.length - 1
-      ];
+      const sceneSlotRecords = Array.from(
+        gate.querySelectorAll("[data-kisara-scene-slot]")
+      ).map((element, index) => ({
+        element,
+        index,
+        sceneId: "",
+        rendered: Object.create(null)
+      }));
+      const sceneImageWarmers = sceneManifest.map((scene) => {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = scene.image;
+        image.decode?.().catch(() => {});
+        return image;
+      });
+      let sceneSlotOverflowWarned = false;
       const meterShell = gate.querySelector(".kisara-contract-meter");
       const title = gate.querySelector(".kisara-title");
       const cross = gate.querySelector(".kisara-title-cross");
@@ -465,13 +482,9 @@ const gateStyle = [
           : -1;
         const layer = kind === "base"
           ? baseBackground
-          : kind === "memory"
-            ? memorySceneElements[index]
-            : kind === "transformation"
-              ? transformationSceneElements[index]
-              : kind === "fight"
-                ? fightBackground
-                : null;
+          : kind === "fight"
+            ? fightBackground
+            : null;
         return {
           id: element instanceof HTMLElement ? element.dataset.kisaraOpeningEdgeScene ?? "" : "",
           kind,
@@ -496,6 +509,12 @@ const gateStyle = [
         };
       });
       const openingEdgeRecordById = new Map(openingEdgeRecords.map((record) => [record.id, record]));
+      const resolveOpeningEdgeLayer = (record) => {
+        if (record.kind === "memory" || record.kind === "transformation") {
+          return sceneSlotRecords.find((slot) => slot.sceneId === record.id)?.element ?? null;
+        }
+        return record.layer;
+      };
       const state = gate.querySelector("[data-kisara-state]");
       const cue = gate.querySelector("[data-kisara-cue]");
       const skip = gate.querySelector("[data-kisara-skip]");
@@ -884,12 +903,14 @@ const gateStyle = [
         openingEdgeLiveSyncTimestamp = timestamp;
         openingEdgeRecords.forEach((record) => {
           const opacity = openingEdgeState[record.id]?.opacity ?? 0;
+          const liveLayer = resolveOpeningEdgeLayer(record);
           if (
             (!force && opacity <= 0.001)
+            || !(liveLayer instanceof HTMLElement)
             || !(record.element instanceof HTMLElement)
           ) return;
           syncOpeningEdgeLiveSurface(
-            record.layer,
+            liveLayer,
             record.liveSurface,
             record,
             "renderedLiveBackground",
@@ -1297,6 +1318,114 @@ const gateStyle = [
         { start: 0.66, enterEnd: 0.83, leaveStart: 1, end: 1, drift: -8, lift: -1, persistent: true }
       ];
       const memoryTransitionCenters = [0.205, 0.375, 0.545, 0.715, 0.885];
+      const setSceneSlotStyle = (slot, property, value) => {
+        if (!(slot?.element instanceof HTMLElement) || slot.rendered[property] === value) return;
+        slot.element.style.setProperty(property, value);
+        slot.rendered[property] = value;
+      };
+      const bindSceneSlot = (slot, presentation) => {
+        if (!(slot?.element instanceof HTMLElement) || slot.sceneId === presentation.id) return;
+        slot.element.style.opacity = "0";
+        slot.sceneId = presentation.id;
+        slot.rendered = Object.create(null);
+        slot.element.dataset.sceneId = presentation.id;
+        slot.element.dataset.sceneKind = presentation.kind;
+        setSceneSlotStyle(
+          slot,
+          "--kisara-scene-image",
+          `url(${JSON.stringify(presentation.image)})`
+        );
+        setSceneSlotStyle(slot, "--kisara-scene-position", presentation.position || "center 50%");
+      };
+      const syncSceneSlots = (presentations) => {
+        let activePresentations = presentations.filter((presentation) => presentation.opacity > 0.00005);
+        if (activePresentations.length > sceneSlotRecords.length) {
+          if (!sceneSlotOverflowWarned) {
+            sceneSlotOverflowWarned = true;
+            console.warn("Kisara scene timeline exceeded the two-slot compositor capacity.");
+          }
+          activePresentations = activePresentations
+            .sort((left, right) => right.opacity - left.opacity || right.order - left.order)
+            .slice(0, sceneSlotRecords.length);
+        }
+        activePresentations.sort((left, right) => left.order - right.order);
+
+        const assignments = new Map();
+        const usedSlots = new Set();
+        activePresentations.forEach((presentation) => {
+          const existingSlot = sceneSlotRecords.find(
+            (slot) => slot.sceneId === presentation.id && !usedSlots.has(slot)
+          );
+          if (!existingSlot) return;
+          assignments.set(presentation.id, existingSlot);
+          usedSlots.add(existingSlot);
+        });
+        activePresentations.forEach((presentation) => {
+          if (assignments.has(presentation.id)) return;
+          const availableSlot = sceneSlotRecords.find((slot) => !usedSlots.has(slot));
+          if (!availableSlot) return;
+          bindSceneSlot(availableSlot, presentation);
+          assignments.set(presentation.id, availableSlot);
+          usedSlots.add(availableSlot);
+        });
+
+        sceneSlotRecords.forEach((slot) => {
+          const presentation = activePresentations.find(
+            (candidate) => assignments.get(candidate.id) === slot
+          );
+          if (!presentation) {
+            setSceneSlotStyle(slot, "opacity", "0");
+            return;
+          }
+          const bladeBlur = presentation.bladeBlur ?? 0;
+          const bladeBrightness = presentation.bladeBrightness ?? 1;
+          const bladeScale = presentation.bladeScale ?? 1;
+          const filter = presentation.kind === "memory"
+            ? `blur(calc(${presentation.blur.toFixed(3)}px + var(--kisara-performance-blur))) saturate(${presentation.saturation}) brightness(${presentation.brightness}) contrast(1.035)`
+            : `blur(calc(${(presentation.blur + bladeBlur).toFixed(3)}px + var(--kisara-performance-blur))) saturate(${presentation.saturation}) brightness(${presentation.brightness}) brightness(${bladeBrightness.toFixed(4)}) contrast(1.025)`;
+          const transform = presentation.kind === "memory"
+            ? `translate3d(${presentation.shiftX.toFixed(3)}px, ${presentation.shiftY.toFixed(3)}px, 0) scale(${presentation.scale.toFixed(5)}) scale(var(--kisara-gravity-scale))`
+            : `translate3d(calc(${presentation.shiftX.toFixed(3)}px + var(--kisara-base-shift-x)), calc(${presentation.shiftY.toFixed(3)}px + var(--kisara-base-shift-y)), 0) scale(${presentation.scale.toFixed(5)}) scale(${bladeScale.toFixed(5)}) scale(var(--kisara-gravity-scale))`;
+          setSceneSlotStyle(slot, "z-index", String(presentation.order + 1));
+          setSceneSlotStyle(slot, "opacity", presentation.opacity.toFixed(4));
+          setSceneSlotStyle(slot, "filter", filter);
+          setSceneSlotStyle(slot, "transform", transform);
+        });
+      };
+      const computeSceneHandoff = () => {
+        const silhouetteFocus = smootherstep(
+          clamp((burstProgress - 0.015) / 0.285, 0, 1)
+        );
+        const reconstructionProgress = clamp(
+          (burstProgress - detonationEnd) / Math.max(0.0001, 1 - detonationEnd),
+          0,
+          1
+        );
+        const reconstructionReveal = smootherstep(reconstructionProgress);
+        const transformationExit = smootherstep(
+          clamp((reconstructionProgress - 0.12) / 0.8, 0, 1)
+        );
+        const fightVisible = smootherstep(
+          clamp((reconstructionProgress - 0.72) / 0.28, 0, 1)
+        );
+        const fightSettle = smootherstep(
+          clamp((reconstructionProgress - 0.18) / 0.82, 0, 1)
+        );
+        return {
+          silhouetteFocus,
+          reconstructionProgress,
+          reconstructionReveal,
+          transformationReleaseOpacity: 1 - transformationExit,
+          silhouetteBladeBlur: (1 - silhouetteFocus) * 10.5,
+          silhouetteBladeBrightness: 0.92 + silhouetteFocus * 0.08,
+          silhouetteBladeScale: 1 + silhouetteFocus * 0.022,
+          fightVisible,
+          fightSettle,
+          fightBlur: 0.3 + 2.8 * Math.pow(1 - fightSettle, 1.35),
+          fightSaturation: 0.9 + fightSettle * 0.28,
+          fightBrightness: 0.86 + fightSettle * 0.16
+        };
+      };
       const syncMemorySequence = (fill) => {
         const motionBlur = clamp(Math.abs(velocity) * 96, 0, 4.4);
         const transformationEntrance = smootherstep((chargeIntroProgress - 0.025) / 0.205);
@@ -1317,12 +1446,13 @@ const gateStyle = [
           0.0032 + Math.sin(memoryClock * 0.88) * 0.0018 + kissPrelude * 0.013
         ) * kissHold;
         let strongestScene = 0;
-        const memoryOpacities = new Array(memorySceneElements.length).fill(0);
-        const memoryFilters = new Array(memorySceneElements.length).fill("none");
+        const memoryOpacities = new Array(memorySceneRecords.length).fill(0);
+        const memoryFilters = new Array(memorySceneRecords.length).fill("none");
+        const scenePresentations = [];
 
-        memorySceneElements.forEach((element, index) => {
+        memorySceneRecords.forEach((record, index) => {
           const scene = memoryTimeline[index];
-          if (!(element instanceof HTMLElement) || !scene) return;
+          if (!record || !scene) return;
           const enter = smootherstep((fill - scene.start) / Math.max(0.0001, scene.enterEnd - scene.start));
           const leave = scene.persistent
             ? 1 - transformationEntrance
@@ -1342,25 +1472,34 @@ const gateStyle = [
           const scale = 1.065 - focus * 0.032 + local * 0.006
             + (scene.persistent ? kissBreath : 0);
           const memoryBlur = 0.45 + edgeSoftness * 8.6 + motionBlur;
-          const memorySaturation = element.style.getPropertyValue("--kisara-memory-saturation").trim() || "0.92";
-          const memoryBrightness = element.style.getPropertyValue("--kisara-memory-brightness").trim() || "1";
+          const memorySaturation = Number.isFinite(Number(record.saturation))
+            ? Number(record.saturation)
+            : 0.92;
+          const memoryBrightness = Number.isFinite(Number(record.brightness))
+            ? Number(record.brightness)
+            : 1;
 
           strongestScene = Math.max(strongestScene, opacity);
           memoryOpacities[index] = opacity * 0.985;
           memoryFilters[index] = `blur(${memoryBlur.toFixed(3)}px) saturate(${memorySaturation}) brightness(${memoryBrightness}) contrast(1.035)`;
-          element.style.setProperty("--kisara-memory-opacity", (opacity * 0.985).toFixed(4));
-          element.style.setProperty("--kisara-memory-blur", `${memoryBlur.toFixed(3)}px`);
-          element.style.setProperty("--kisara-memory-scale", scale.toFixed(5));
-          element.style.setProperty("--kisara-memory-shift-x", `${directionalTravel.toFixed(3)}px`);
-          element.style.setProperty("--kisara-memory-shift-y", `${verticalTravel.toFixed(3)}px`);
+          scenePresentations.push({
+            ...record,
+            opacity: opacity * 0.985,
+            blur: memoryBlur,
+            saturation: memorySaturation,
+            brightness: memoryBrightness,
+            scale,
+            shiftX: directionalTravel,
+            shiftY: verticalTravel
+          });
         });
 
         let transformationReveal = 0;
-        const transformationOpacities = new Array(transformationSceneElements.length).fill(0);
-        const transformationFilters = new Array(transformationSceneElements.length).fill(null);
-        transformationSceneElements.forEach((element, index) => {
+        const transformationOpacities = new Array(transformationSceneRecords.length).fill(0);
+        const transformationFilters = new Array(transformationSceneRecords.length).fill(null);
+        transformationSceneRecords.forEach((record, index) => {
           const scene = transformationTimeline[index];
-          if (!(element instanceof HTMLElement) || !scene) return;
+          if (!record || !scene) return;
           const enter = smootherstep(
             (chargeIntroProgress - scene.start) / Math.max(0.0001, scene.enterEnd - scene.start)
           );
@@ -1390,8 +1529,12 @@ const gateStyle = [
           const verticalTravel = scene.lift * focus + breath * (scene.persistent ? 0.9 : 0.45);
           const scale = 1.072 - focus * 0.034 + local * 0.005 + breath * 0.0015;
           const transformationBlur = 0.35 + edgeSoftness * 7.4 + motionBlur * 0.38;
-          const transformationSaturation = element.style.getPropertyValue("--kisara-transformation-saturation").trim() || "1";
-          const transformationBrightness = element.style.getPropertyValue("--kisara-transformation-brightness").trim() || "1";
+          const transformationSaturation = Number.isFinite(Number(record.saturation))
+            ? Number(record.saturation)
+            : 1;
+          const transformationBrightness = Number.isFinite(Number(record.brightness))
+            ? Number(record.brightness)
+            : 1;
 
           transformationReveal = Math.max(transformationReveal, opacity);
           strongestScene = Math.max(strongestScene, opacity);
@@ -1401,14 +1544,16 @@ const gateStyle = [
             saturation: transformationSaturation,
             brightness: transformationBrightness
           };
-          element.style.setProperty("--kisara-transformation-opacity", (opacity * 0.995).toFixed(4));
-          element.style.setProperty(
-            "--kisara-transformation-blur",
-            `${transformationBlur.toFixed(3)}px`
-          );
-          element.style.setProperty("--kisara-transformation-scale", scale.toFixed(5));
-          element.style.setProperty("--kisara-transformation-shift-x", `${directionalTravel.toFixed(3)}px`);
-          element.style.setProperty("--kisara-transformation-shift-y", `${verticalTravel.toFixed(3)}px`);
+          scenePresentations.push({
+            ...record,
+            opacity: opacity * 0.995,
+            blur: transformationBlur,
+            saturation: transformationSaturation,
+            brightness: transformationBrightness,
+            scale,
+            shiftX: directionalTravel,
+            shiftY: verticalTravel
+          });
         });
 
         const transitionProximity = memoryTransitionCenters.reduce((strongest, center) => {
@@ -1426,9 +1571,24 @@ const gateStyle = [
         gate.style.setProperty("--kisara-memory-haze", memoryHaze.toFixed(4));
         gate.style.setProperty("--kisara-memory-flare-shift", `${memoryFlareShift.toFixed(3)}px`);
 
+        const handoff = computeSceneHandoff();
+        const finalScenePresentations = scenePresentations.map((presentation) => {
+          if (presentation.kind !== "transformation") return presentation;
+          const isSilhouette = presentation.index === transformationSceneRecords.length - 1;
+          return {
+            ...presentation,
+            opacity: presentation.opacity * handoff.transformationReleaseOpacity,
+            bladeBlur: isSilhouette ? handoff.silhouetteBladeBlur : 0,
+            bladeBrightness: isSilhouette ? handoff.silhouetteBladeBrightness : 1,
+            bladeScale: isSilhouette ? handoff.silhouetteBladeScale : 1
+          };
+        });
+        syncSceneSlots(finalScenePresentations);
+
         return {
           baseExit,
           transformationReveal,
+          handoff,
           memoryOpacities,
           memoryFilters,
           transformationOpacities,
@@ -10172,35 +10332,24 @@ const gateStyle = [
         const tideVisible = fill > 0.0005;
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
         const memoryState = syncMemorySequence(fill);
+        const {
+          silhouetteFocus,
+          reconstructionProgress,
+          reconstructionReveal,
+          transformationReleaseOpacity,
+          silhouetteBladeBlur,
+          silhouetteBladeBrightness,
+          fightVisible,
+          fightSettle,
+          fightBlur,
+          fightSaturation,
+          fightBrightness
+        } = memoryState.handoff;
         const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
-        const silhouetteFocus = smootherstep(
-          clamp((burstProgress - 0.015) / 0.285, 0, 1)
-        );
-        const reconstructionProgress = clamp(
-          (burstProgress - detonationEnd) / Math.max(0.0001, 1 - detonationEnd),
-          0,
-          1
-        );
-        const reconstructionReveal = smootherstep(reconstructionProgress);
-        const transformationExit = smootherstep(
-          clamp((reconstructionProgress - 0.12) / 0.8, 0, 1)
-        );
-        const fightVisible = smootherstep(
-          clamp((reconstructionProgress - 0.72) / 0.28, 0, 1)
-        );
-        const fightSettle = smootherstep(
-          clamp((reconstructionProgress - 0.18) / 0.82, 0, 1)
-        );
-        const fightBlur = 0.3 + 2.8 * Math.pow(1 - fightSettle, 1.35);
-        const fightSaturation = 0.9 + fightSettle * 0.28;
-        const fightBrightness = 0.86 + fightSettle * 0.16;
         const baseSceneOpacity = 0.98 - memoryState.baseExit * 0.78;
         const baseSceneBlur = memoryState.baseExit * 10;
         const baseSceneSaturation = 1 - memoryState.baseExit * 0.2;
         const baseSceneBrightness = 1 - memoryState.baseExit * 0.12;
-        const transformationReleaseOpacity = 1 - transformationExit;
-        const silhouetteBladeBlur = (1 - silhouetteFocus) * 10.5;
-        const silhouetteBladeBrightness = 0.92 + silhouetteFocus * 0.08;
         const nextOpeningEdgeState = {};
         openingEdgeRecords.forEach((record) => {
           if (record.kind === "base") {
@@ -10219,7 +10368,7 @@ const gateStyle = [
           }
           if (record.kind === "transformation") {
             const presentation = memoryState.transformationFilters[record.index];
-            const isSilhouette = record.index === transformationSceneElements.length - 1;
+            const isSilhouette = record.index === transformationSceneRecords.length - 1;
             const blur = (presentation?.blur ?? 0) + (isSilhouette ? silhouetteBladeBlur : 0);
             const bladeBrightness = isSilhouette ? silhouetteBladeBrightness : 1;
             nextOpeningEdgeState[record.id] = {
@@ -10250,28 +10399,10 @@ const gateStyle = [
         gate.style.setProperty("--kisara-tide-opacity", tideVisible ? "1" : "0");
         gate.style.setProperty("--kisara-crest-opacity", crestOpacity.toFixed(3));
         gate.style.setProperty("--kisara-crest-drift", `${crestDrift.toFixed(3)}px`);
-        if (transformationSilhouette instanceof HTMLElement) {
-          transformationSilhouette.style.setProperty(
-            "--kisara-transformation-blade-blur",
-            `${silhouetteBladeBlur.toFixed(3)}px`
-          );
-          transformationSilhouette.style.setProperty(
-            "--kisara-transformation-blade-brightness",
-            silhouetteBladeBrightness.toFixed(4)
-          );
-          transformationSilhouette.style.setProperty(
-            "--kisara-transformation-blade-scale",
-            (1 + silhouetteFocus * 0.022).toFixed(5)
-          );
-        }
         gate.style.setProperty("--kisara-bg-blur", `${baseSceneBlur.toFixed(3)}px`);
         gate.style.setProperty("--kisara-bg-opacity", baseSceneOpacity.toFixed(3));
         gate.style.setProperty("--kisara-bg-saturation", baseSceneSaturation.toFixed(3));
         gate.style.setProperty("--kisara-bg-brightness", baseSceneBrightness.toFixed(3));
-        gate.style.setProperty(
-          "--kisara-transformation-release-opacity",
-          transformationReleaseOpacity.toFixed(4)
-        );
         gate.style.setProperty("--kisara-fight-opacity", (fightVisible * 0.985).toFixed(3));
         gate.style.setProperty("--kisara-fight-blur", `${fightBlur.toFixed(3)}px`);
         gate.style.setProperty(
