@@ -2,92 +2,164 @@
 import { Icon } from "astro-icon/components";
 ---
 
-<audio
-  data-kisara-theme-audio
-  src="/themes/kisara/audio/taisaku-kanryo.mp3"
-  preload="auto"
-  loop
-  playsinline
-></audio>
+<div class="kisara-audio-player" data-kisara-audio-player>
+  <audio data-kisara-theme-audio preload="auto" playsinline></audio>
 
-<button
-  class="kisara-audio-control"
-  type="button"
-  data-kisara-audio-control
-  data-state="loading"
-  aria-label="播放主题音乐《対策完了》"
-  aria-pressed="false"
-  title="播放主题音乐《対策完了》"
->
-  <span class="kisara-audio-emblem" aria-hidden="true">
-    <Icon class="kisara-audio-icon kisara-audio-icon-play" name="tabler:player-play" />
-    <Icon class="kisara-audio-icon kisara-audio-icon-pause" name="tabler:player-pause" />
-    <span class="kisara-audio-bars"><i></i><i></i><i></i><i></i><i></i></span>
-  </span>
-  <span class="kisara-audio-copy">
-    <strong>対策完了</strong>
-    <small data-kisara-audio-status aria-live="polite">LINKING / SIGNAL</small>
-    <span class="kisara-audio-trace" aria-hidden="true"><i></i></span>
-  </span>
-</button>
+  <button
+    class="kisara-audio-control"
+    type="button"
+    data-kisara-audio-control
+    data-state="loading"
+    aria-label="播放主题音乐《対策完了》"
+    aria-pressed="false"
+    title="播放主题音乐《対策完了》"
+  >
+    <span class="kisara-audio-emblem" aria-hidden="true">
+      <Icon class="kisara-audio-icon kisara-audio-icon-play" name="tabler:player-play" />
+      <Icon class="kisara-audio-icon kisara-audio-icon-pause" name="tabler:player-pause" />
+      <span class="kisara-audio-bars"><i></i><i></i><i></i><i></i><i></i></span>
+    </span>
+    <span class="kisara-audio-copy">
+      <strong data-kisara-audio-title>対策完了</strong>
+      <small data-kisara-audio-status aria-live="polite">01 / 08 · LINKING</small>
+      <span class="kisara-audio-trace" aria-hidden="true"><i></i></span>
+    </span>
+  </button>
+
+  <div class="kisara-audio-nav" role="group" aria-label="切换歌单曲目">
+    <button type="button" data-kisara-audio-prev aria-label="上一首" title="上一首">
+      <Icon name="tabler:chevron-left" />
+    </button>
+    <button type="button" data-kisara-audio-next aria-label="下一首" title="下一首">
+      <Icon name="tabler:chevron-right" />
+    </button>
+  </div>
+</div>
 
 <script is:inline>
   (() => {
-    const audio = document.querySelector("[data-kisara-theme-audio]");
-    const control = document.querySelector("[data-kisara-audio-control]");
-    const status = document.querySelector("[data-kisara-audio-status]");
+    const player = document.querySelector("[data-kisara-audio-player]");
+    const audio = player?.querySelector("[data-kisara-theme-audio]");
+    const control = player?.querySelector("[data-kisara-audio-control]");
+    const title = player?.querySelector("[data-kisara-audio-title]");
+    const status = player?.querySelector("[data-kisara-audio-status]");
+    const previous = player?.querySelector("[data-kisara-audio-prev]");
+    const next = player?.querySelector("[data-kisara-audio-next]");
     if (!(audio instanceof HTMLAudioElement) || !(control instanceof HTMLButtonElement)) return;
 
-    const storageKey = "yuimi-kisara-audio-v1";
+    const tracks = [
+      { id: "taisaku-kanryo", title: "対策完了", src: "/themes/kisara/audio/taisaku-kanryo.mp3" },
+      { id: "bayron-city", title: "ベイロンシティ", src: "/themes/kisara/audio/bayron-city.mp3" },
+      { id: "ai-no-chikara", title: "愛の力", src: "/themes/kisara/audio/ai-no-chikara.mp3" },
+      { id: "aikagi", title: "合鍵", src: "/themes/kisara/audio/aikagi.mp3" },
+      { id: "kokoro-no-oku", title: "心の奥", src: "/themes/kisara/audio/kokoro-no-oku.mp3" },
+      { id: "mitakunai-kako", title: "見たくない過去", src: "/themes/kisara/audio/mitakunai-kako.mp3" },
+      { id: "chanto-tabeteru", title: "ちゃんと食べてる？", src: "/themes/kisara/audio/chanto-tabeteru.mp3" },
+      { id: "ichaicha-mousou", title: "イチャイチャ（妄想）", src: "/themes/kisara/audio/ichaicha-mousou.mp3" }
+    ];
+    const storageKey = "yuimi-kisara-playlist-v2";
+    const legacyStorageKey = "yuimi-kisara-audio-v1";
     const stateLabels = {
-      loading: "LINKING / SIGNAL",
-      playing: "PLAYING / CHANNEL 03",
-      paused: "PAUSED / RESUME",
+      loading: "LINKING",
+      playing: "PLAYING",
+      paused: "PAUSED",
       blocked: "READY / PLAY",
-      error: "OFFLINE / SIGNAL"
+      error: "OFFLINE"
     };
     let enabled = true;
+    let trackIndex = 0;
     let restoreTime = 0;
     let lastStoredTime = -1;
     let autoplayBlocked = false;
     let playbackPromise = null;
+    let currentUiState = "loading";
+    let loadToken = 0;
+    let playbackToken = 0;
+    let switchingTrack = false;
 
+    let restoredFromStorage = false;
     try {
-      const stored = JSON.parse(sessionStorage.getItem(storageKey) ?? "null");
+      const stored = JSON.parse(localStorage.getItem(storageKey) ?? "null");
       if (stored && typeof stored === "object") {
         if (typeof stored.enabled === "boolean") enabled = stored.enabled;
+        if (typeof stored.trackId === "string") {
+          const storedIndex = tracks.findIndex((track) => track.id === stored.trackId);
+          if (storedIndex >= 0) trackIndex = storedIndex;
+        }
         if (Number.isFinite(stored.currentTime)) restoreTime = Math.max(0, stored.currentTime);
+        restoredFromStorage = true;
       }
     } catch {}
 
+    if (!restoredFromStorage) {
+      try {
+        const legacy = JSON.parse(sessionStorage.getItem(legacyStorageKey) ?? "null");
+        if (legacy && typeof legacy === "object") {
+          if (typeof legacy.enabled === "boolean") enabled = legacy.enabled;
+          if (Number.isFinite(legacy.currentTime)) restoreTime = Math.max(0, legacy.currentTime);
+        }
+      } catch {}
+    }
+
     audio.volume = 0.48;
+
+    const activeTrack = () => tracks[trackIndex];
 
     const setUiState = (state) => {
       const playing = state === "playing";
+      const track = activeTrack();
+      currentUiState = state;
       control.dataset.state = state;
       control.setAttribute("aria-pressed", String(playing));
       control.setAttribute(
         "aria-label",
-        playing ? "暂停主题音乐《対策完了》" : "播放主题音乐《対策完了》"
+        playing ? `暂停主题音乐《${track.title}》` : `播放主题音乐《${track.title}》`
       );
-      control.title = playing ? "暂停主题音乐《対策完了》" : "播放主题音乐《対策完了》";
-      if (status) status.textContent = stateLabels[state] ?? stateLabels.paused;
+      control.title = playing ? `暂停主题音乐《${track.title}》` : `播放主题音乐《${track.title}》`;
+      if (status) {
+        const position = String(trackIndex + 1).padStart(2, "0");
+        const total = String(tracks.length).padStart(2, "0");
+        status.textContent = `${position} / ${total} · ${stateLabels[state] ?? stateLabels.paused}`;
+      }
+    };
+
+    const updateTrackUi = () => {
+      const track = activeTrack();
+      const previousTrack = tracks[(trackIndex - 1 + tracks.length) % tracks.length];
+      const nextTrack = tracks[(trackIndex + 1) % tracks.length];
+      if (title) title.textContent = track.title;
+      if (previous instanceof HTMLButtonElement) {
+        previous.title = `上一首：${previousTrack.title}`;
+        previous.setAttribute("aria-label", `上一首：${previousTrack.title}`);
+      }
+      if (next instanceof HTMLButtonElement) {
+        next.title = `下一首：${nextTrack.title}`;
+        next.setAttribute("aria-label", `下一首：${nextTrack.title}`);
+      }
+      setUiState(currentUiState);
     };
 
     const persistState = () => {
       const currentTime = Number.isFinite(audio.currentTime) ? audio.currentTime : restoreTime;
       try {
-        sessionStorage.setItem(storageKey, JSON.stringify({ enabled, currentTime }));
+        localStorage.setItem(storageKey, JSON.stringify({
+          enabled,
+          trackId: activeTrack().id,
+          currentTime
+        }));
+        sessionStorage.removeItem(legacyStorageKey);
         lastStoredTime = currentTime;
       } catch {}
     };
 
-    const restorePosition = () => {
-      if (restoreTime <= 0) return;
+    const restorePosition = (time) => {
+      if (time <= 0) return;
       try {
-        audio.currentTime = Number.isFinite(audio.duration) && audio.duration > 0
-          ? restoreTime % audio.duration
-          : restoreTime;
+        if (Number.isFinite(audio.duration) && audio.duration > 0) {
+          audio.currentTime = time >= audio.duration - 0.5 ? 0 : Math.min(time, audio.duration - 0.25);
+        } else {
+          audio.currentTime = time;
+        }
       } catch {}
     };
 
@@ -104,28 +176,64 @@ import { Icon } from "astro-icon/components";
       }
       if (playbackPromise) return playbackPromise;
 
+      const token = ++playbackToken;
       setUiState("loading");
-      playbackPromise = audio.play()
+      playbackPromise = Promise.resolve(audio.play())
         .then(() => {
+          if (token !== playbackToken) return false;
           autoplayBlocked = false;
           setUiState("playing");
           return true;
         })
         .catch(() => {
+          if (token !== playbackToken) return false;
           autoplayBlocked = !audio.error;
           setUiState(audio.error ? "error" : "blocked");
           return false;
         })
         .finally(() => {
-          playbackPromise = null;
+          if (token === playbackToken) playbackPromise = null;
         });
       return playbackPromise;
     };
 
-    const initializePlayback = () => {
-      restorePosition();
-      if (enabled) requestPlayback();
-      else setUiState("paused");
+    const selectTrack = (nextIndex, options = {}) => {
+      const normalizedIndex = (nextIndex + tracks.length) % tracks.length;
+      const requestedTime = Number.isFinite(options.time) ? Math.max(0, options.time) : 0;
+      const shouldPlay = typeof options.autoplay === "boolean" ? options.autoplay : enabled;
+      const shouldPersist = options.persist !== false;
+      const token = ++loadToken;
+
+      playbackToken += 1;
+      playbackPromise = null;
+      switchingTrack = true;
+      audio.pause();
+      trackIndex = normalizedIndex;
+      restoreTime = requestedTime;
+      audio.src = activeTrack().src;
+      audio.load();
+      updateTrackUi();
+      setUiState(shouldPlay ? "loading" : "paused");
+      if (shouldPersist) persistState();
+
+      const finishLoading = () => {
+        if (token !== loadToken) return;
+        restorePosition(requestedTime);
+        switchingTrack = false;
+        if (shouldPlay) requestPlayback();
+        else {
+          setUiState("paused");
+          persistState();
+        }
+      };
+
+      if (audio.readyState >= 1) queueMicrotask(finishLoading);
+      else audio.addEventListener("loadedmetadata", finishLoading, { once: true });
+    };
+
+    const stepTrack = (direction) => {
+      autoplayBlocked = false;
+      selectTrack(trackIndex + direction, { time: 0, autoplay: enabled });
     };
 
     control.addEventListener("click", () => {
@@ -143,6 +251,9 @@ import { Icon } from "astro-icon/components";
       setUiState("paused");
       persistState();
     });
+
+    previous?.addEventListener("click", () => stepTrack(-1));
+    next?.addEventListener("click", () => stepTrack(1));
 
     const unlockPlayback = (event) => {
       if (!enabled || !autoplayBlocked || !audio.paused) return;
@@ -170,20 +281,22 @@ import { Icon } from "astro-icon/components";
       autoplayBlocked = false;
       setUiState("playing");
     });
-    audio.addEventListener("pause", () => setUiState("paused"));
+    audio.addEventListener("pause", () => {
+      if (!switchingTrack) setUiState(enabled ? "loading" : "paused");
+    });
     audio.addEventListener("waiting", () => {
       if (enabled) setUiState("loading");
     });
     audio.addEventListener("error", () => setUiState("error"));
+    audio.addEventListener("ended", () => {
+      restoreTime = 0;
+      selectTrack(trackIndex + 1, { time: 0, autoplay: true });
+    });
     audio.addEventListener("timeupdate", () => {
+      restoreTime = audio.currentTime;
       if (Math.abs(audio.currentTime - lastStoredTime) >= 3) persistState();
     });
 
-    if (audio.readyState >= 1) initializePlayback();
-    else {
-      if (restoreTime <= 0 && enabled) requestPlayback();
-      else if (!enabled) setUiState("paused");
-      audio.addEventListener("loadedmetadata", initializePlayback, { once: true });
-    }
+    selectTrack(trackIndex, { time: restoreTime, autoplay: enabled, persist: false });
   })();
 </script>

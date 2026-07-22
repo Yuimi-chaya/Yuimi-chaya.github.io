@@ -261,7 +261,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   border-top: 1px solid rgba(145, 177, 255, 0.26);
 }
 
-.kisara-audio-control {
+.kisara-audio-player {
   position: fixed;
   z-index: 45;
   bottom: 24px;
@@ -269,9 +269,22 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   isolation: isolate;
   display: inline-flex;
   align-items: center;
+  gap: 4px;
+  max-width: calc(100vw - 48px);
+}
+
+.kisara-audio-player > audio {
+  display: none;
+}
+
+.kisara-audio-control {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
   width: max-content;
-  max-width: calc(100vw - 48px);
   min-height: 42px;
   padding: 5px 8px 5px 2px;
   overflow: visible;
@@ -346,6 +359,74 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 .kisara-audio-control[data-state="blocked"],
 .kisara-audio-control[data-state="paused"] {
   opacity: 0.72;
+}
+
+.kisara-audio-nav {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  opacity: 0.38;
+  transform: translateX(-4px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.kisara-audio-player:hover .kisara-audio-nav,
+.kisara-audio-player:focus-within .kisara-audio-nav {
+  opacity: 0.92;
+  transform: translateX(0);
+}
+
+.kisara-audio-nav button {
+  position: relative;
+  display: grid;
+  width: 22px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  color: rgba(211, 224, 255, 0.82);
+  background: transparent;
+  cursor: pointer;
+  transition: color 160ms ease, filter 160ms ease, transform 160ms ease;
+}
+
+.kisara-audio-nav button::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  left: 4px;
+  height: 1px;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, #ff7891, transparent);
+  box-shadow: 0 0 5px rgba(255, 73, 105, 0.5);
+  transform: scaleX(0.35);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.kisara-audio-nav button:hover,
+.kisara-audio-nav button:focus-visible {
+  color: #fff5f8;
+  filter: drop-shadow(0 0 5px rgba(255, 73, 105, 0.68));
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.kisara-audio-nav button:hover::after,
+.kisara-audio-nav button:focus-visible::after {
+  opacity: 0.9;
+  transform: scaleX(1);
+}
+
+.kisara-audio-nav button:active {
+  transform: translateY(0) scale(0.9);
+}
+
+.kisara-audio-nav svg {
+  width: 15px;
+  height: 15px;
 }
 
 .kisara-audio-emblem {
@@ -4157,7 +4238,7 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
     padding-bottom: 58px;
   }
 
-  .kisara-audio-control {
+  .kisara-audio-player {
     bottom: 72px;
   }
 
@@ -4275,11 +4356,15 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 }
 
 @media (max-width: 600px) {
-  .kisara-audio-control {
+  .kisara-audio-player {
     bottom: 70px;
     left: 14px;
-    gap: 8px;
+    gap: 2px;
     max-width: calc(100vw - 36px);
+  }
+
+  .kisara-audio-control {
+    gap: 8px;
     min-height: 40px;
     padding: 4px 6px 4px 2px;
   }
@@ -4303,6 +4388,16 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 
   .kisara-audio-copy {
     width: 116px;
+  }
+
+  .kisara-audio-nav {
+    opacity: 0.68;
+    transform: none;
+  }
+
+  .kisara-audio-nav button {
+    width: 20px;
+    height: 28px;
   }
 
   .kisara-scrollbar {
@@ -4629,7 +4724,11 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
   .kisara-audio-control::after,
   .kisara-audio-emblem::before,
   .kisara-audio-emblem::after,
-  .kisara-audio-bars i {
+  .kisara-audio-bars i,
+  .kisara-audio-trace i,
+  .kisara-audio-nav,
+  .kisara-audio-nav button,
+  .kisara-audio-nav button::after {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }
@@ -4644,6 +4743,14 @@ html[data-theme="kisara"] :where(img, picture, canvas, video, svg) {
 
   .kisara-audio-control[data-state="playing"] .kisara-audio-bars i:nth-child(3) {
     transform: scaleY(0.68);
+  }
+
+  .kisara-audio-control[data-state="playing"] .kisara-audio-bars i:nth-child(4) {
+    transform: scaleY(0.82);
+  }
+
+  .kisara-audio-control[data-state="playing"] .kisara-audio-bars i:nth-child(5) {
+    transform: scaleY(0.42);
   }
 }
 
