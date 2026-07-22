@@ -1,0 +1,188 @@
+---
+import { Icon } from "astro-icon/components";
+---
+
+<audio
+  data-kisara-theme-audio
+  src="/themes/kisara/audio/taisaku-kanryo.mp3"
+  preload="auto"
+  loop
+  playsinline
+></audio>
+
+<button
+  class="kisara-audio-control"
+  type="button"
+  data-kisara-audio-control
+  data-state="loading"
+  aria-label="播放主题音乐《対策完了》"
+  aria-pressed="false"
+  title="播放主题音乐《対策完了》"
+>
+  <span class="kisara-audio-emblem" aria-hidden="true">
+    <Icon class="kisara-audio-icon kisara-audio-icon-play" name="tabler:player-play" />
+    <Icon class="kisara-audio-icon kisara-audio-icon-pause" name="tabler:player-pause" />
+    <span class="kisara-audio-bars"><i></i><i></i><i></i></span>
+  </span>
+  <span class="kisara-audio-copy">
+    <strong>対策完了</strong>
+    <small data-kisara-audio-status aria-live="polite">LINKING / SIGNAL</small>
+  </span>
+</button>
+
+<script is:inline>
+  (() => {
+    const audio = document.querySelector("[data-kisara-theme-audio]");
+    const control = document.querySelector("[data-kisara-audio-control]");
+    const status = document.querySelector("[data-kisara-audio-status]");
+    if (!(audio instanceof HTMLAudioElement) || !(control instanceof HTMLButtonElement)) return;
+
+    const storageKey = "yuimi-kisara-audio-v1";
+    const stateLabels = {
+      loading: "LINKING / SIGNAL",
+      playing: "PLAYING / CHANNEL 03",
+      paused: "PAUSED / RESUME",
+      blocked: "READY / PLAY",
+      error: "OFFLINE / SIGNAL"
+    };
+    let enabled = true;
+    let restoreTime = 0;
+    let lastStoredTime = -1;
+    let autoplayBlocked = false;
+    let playbackPromise = null;
+
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(storageKey) ?? "null");
+      if (stored && typeof stored === "object") {
+        if (typeof stored.enabled === "boolean") enabled = stored.enabled;
+        if (Number.isFinite(stored.currentTime)) restoreTime = Math.max(0, stored.currentTime);
+      }
+    } catch {}
+
+    audio.volume = 0.48;
+
+    const setUiState = (state) => {
+      const playing = state === "playing";
+      control.dataset.state = state;
+      control.setAttribute("aria-pressed", String(playing));
+      control.setAttribute(
+        "aria-label",
+        playing ? "暂停主题音乐《対策完了》" : "播放主题音乐《対策完了》"
+      );
+      control.title = playing ? "暂停主题音乐《対策完了》" : "播放主题音乐《対策完了》";
+      if (status) status.textContent = stateLabels[state] ?? stateLabels.paused;
+    };
+
+    const persistState = () => {
+      const currentTime = Number.isFinite(audio.currentTime) ? audio.currentTime : restoreTime;
+      try {
+        sessionStorage.setItem(storageKey, JSON.stringify({ enabled, currentTime }));
+        lastStoredTime = currentTime;
+      } catch {}
+    };
+
+    const restorePosition = () => {
+      if (restoreTime <= 0) return;
+      try {
+        audio.currentTime = Number.isFinite(audio.duration) && audio.duration > 0
+          ? restoreTime % audio.duration
+          : restoreTime;
+      } catch {}
+    };
+
+    const requestPlayback = () => {
+      if (!enabled) {
+        audio.pause();
+        setUiState("paused");
+        return Promise.resolve(false);
+      }
+      if (!audio.paused) {
+        autoplayBlocked = false;
+        setUiState("playing");
+        return Promise.resolve(true);
+      }
+      if (playbackPromise) return playbackPromise;
+
+      setUiState("loading");
+      playbackPromise = audio.play()
+        .then(() => {
+          autoplayBlocked = false;
+          setUiState("playing");
+          return true;
+        })
+        .catch(() => {
+          autoplayBlocked = !audio.error;
+          setUiState(audio.error ? "error" : "blocked");
+          return false;
+        })
+        .finally(() => {
+          playbackPromise = null;
+        });
+      return playbackPromise;
+    };
+
+    const initializePlayback = () => {
+      restorePosition();
+      if (enabled) requestPlayback();
+      else setUiState("paused");
+    };
+
+    control.addEventListener("click", () => {
+      if (audio.paused) {
+        enabled = true;
+        autoplayBlocked = false;
+        persistState();
+        requestPlayback();
+        return;
+      }
+
+      enabled = false;
+      autoplayBlocked = false;
+      audio.pause();
+      setUiState("paused");
+      persistState();
+    });
+
+    const unlockPlayback = (event) => {
+      if (!enabled || !autoplayBlocked || !audio.paused) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("[data-kisara-audio-control]")) return;
+      requestPlayback();
+    };
+
+    window.addEventListener("pointerdown", unlockPlayback, { passive: true });
+    window.addEventListener("mousedown", unlockPlayback, { passive: true });
+    window.addEventListener("touchend", unlockPlayback, { passive: true });
+    window.addEventListener("click", unlockPlayback, { passive: true });
+    window.addEventListener("keydown", unlockPlayback);
+    window.addEventListener("pageshow", () => {
+      if (enabled && audio.paused && !autoplayBlocked) requestPlayback();
+    });
+    window.addEventListener("pagehide", persistState);
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") persistState();
+      else if (enabled && audio.paused && !autoplayBlocked) requestPlayback();
+    });
+
+    audio.addEventListener("playing", () => {
+      autoplayBlocked = false;
+      setUiState("playing");
+    });
+    audio.addEventListener("pause", () => setUiState("paused"));
+    audio.addEventListener("waiting", () => {
+      if (enabled) setUiState("loading");
+    });
+    audio.addEventListener("error", () => setUiState("error"));
+    audio.addEventListener("timeupdate", () => {
+      if (Math.abs(audio.currentTime - lastStoredTime) >= 3) persistState();
+    });
+
+    if (audio.readyState >= 1) initializePlayback();
+    else {
+      if (restoreTime <= 0 && enabled) requestPlayback();
+      else if (!enabled) setUiState("paused");
+      audio.addEventListener("loadedmetadata", initializePlayback, { once: true });
+    }
+  })();
+</script>

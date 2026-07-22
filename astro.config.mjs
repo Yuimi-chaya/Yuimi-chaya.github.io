@@ -119,6 +119,7 @@ export default defineConfig({
           "arrow-left",
           "link",
           "player-play",
+          "player-pause",
           "flask-2",
           "user-scan",
           "arrow-back-up",
