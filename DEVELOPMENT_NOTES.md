@@ -762,3 +762,10 @@
 - The player's initial server-rendered count now derives from `kisaraAudioTracks.length`, preventing a brief stale `01 / 08` label before the runtime updates it to the current total.
 - Moved the homepage `SKIP` cue slightly left on desktop and mobile. A restrained opacity/glow breath plus a short underline scan makes it easier to notice without adding another framed control; both animations are disabled under `prefers-reduced-motion`.
 - `ffprobe` read all three deployed MP3 files successfully at approximately `141.97s`, `178.92s`, and `176.00s`. `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind) passed; the built player begins at `01 / 11` and contains all three new assets.
+
+### 2026-07-23 Kisara context-menu redesign
+
+- Replaced the minimal theme list with a complete Kisara quick menu: back, forward, refresh, theme home, scroll to top, copy link, copy title, and all three theme routes. Copy actions keep their icons and report success through the menu status instead of replacing the entire button.
+- Removed the rejected large dark slab. The menu now uses staggered translucent contract modules with a pink/blue header, live backdrop blur over only the small visible modules, and a transparent outer surface. This keeps the scene visible behind the menu without adding a full-screen filter layer.
+- Menu placement now measures `offsetWidth` and `offsetHeight`, so its entry animation cannot underestimate the final size and push the expanded menu beyond the bottom viewport edge. Desktop right-click, keyboard opening, and the shared mobile long-press event continue to use the same lifecycle-safe handler.
+- `git diff --check`, `npm test` (3/3), and `npm run build` (36 pages, sitemap, Pagefind) passed.

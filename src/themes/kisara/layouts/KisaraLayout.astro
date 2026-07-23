@@ -317,16 +317,77 @@ const audioConfig = {
     </div>
 
     <nav class="kisara-context-menu" data-kisara-context-menu hidden aria-label="Kisara 主题快捷菜单">
-      <span>THEME CHANNEL</span>
-      {themeOptions.map((theme) => (
-        <button type="button" data-theme-select={theme.id} aria-pressed={theme.id === "kisara" ? "true" : "false"}>
+      <header class="kisara-context-head">
+        <span class="kisara-context-emblem" aria-hidden="true"><Icon name="tabler:heart" /></span>
+        <span class="kisara-context-identity">
+          <small>CONTRACT CHANNEL 03</small>
+          <strong>KISARA ACCESS</strong>
+        </span>
+        <span class="kisara-context-status" data-kisara-context-status aria-live="polite">
           <i aria-hidden="true"></i>
-          {theme.label}
-        </button>
-      ))}
-      <hr />
-      <button type="button" data-kisara-action="top"><Icon name="tabler:arrow-up" aria-hidden="true" /><span>回到顶部</span></button>
-      <button type="button" data-kisara-action="home"><Icon name="tabler:home" aria-hidden="true" /><span>Kisara 首页</span></button>
+          <span>READY</span>
+        </span>
+      </header>
+
+      <section class="kisara-context-group" aria-labelledby="kisara-context-navigation">
+        <span class="kisara-context-label" id="kisara-context-navigation">NAVIGATION / 01</span>
+        <div class="kisara-context-command-grid">
+          <button type="button" data-kisara-action="back">
+            <Icon name="tabler:arrow-left" aria-hidden="true" />
+            <span><strong>后退</strong><small>BACK</small></span>
+          </button>
+          <button type="button" data-kisara-action="forward">
+            <Icon name="tabler:arrow-right" aria-hidden="true" />
+            <span><strong>前进</strong><small>FORWARD</small></span>
+          </button>
+          <button type="button" data-kisara-action="refresh">
+            <Icon name="tabler:refresh" aria-hidden="true" />
+            <span><strong>刷新</strong><small>RELOAD</small></span>
+          </button>
+          <button type="button" data-kisara-action="home">
+            <Icon name="tabler:home" aria-hidden="true" />
+            <span><strong>主题首页</strong><small>HOME</small></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="kisara-context-group" aria-labelledby="kisara-context-tools">
+        <span class="kisara-context-label" id="kisara-context-tools">PAGE TOOLS / 02</span>
+        <div class="kisara-context-tool-grid">
+          <button type="button" data-kisara-action="top" data-kisara-default-label="回到顶部">
+            <Icon name="tabler:arrow-up" aria-hidden="true" />
+            <span>回到顶部</span>
+          </button>
+          <button type="button" data-kisara-action="copy" data-kisara-default-label="复制链接">
+            <Icon name="tabler:copy" aria-hidden="true" />
+            <span>复制链接</span>
+          </button>
+          <button type="button" data-kisara-action="title" data-kisara-default-label="复制标题">
+            <Icon name="tabler:file-text" aria-hidden="true" />
+            <span>复制标题</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="kisara-context-group kisara-context-theme-group" aria-labelledby="kisara-context-themes">
+        <span class="kisara-context-label" id="kisara-context-themes">THEME ROUTE / 03</span>
+        <div class="kisara-context-theme-list">
+          {themeOptions.map((theme, index) => (
+            <button
+              type="button"
+              data-theme-select={theme.id}
+              aria-pressed={theme.id === "kisara" ? "true" : "false"}
+            >
+              <span class="kisara-context-theme-index">{String(index + 1).padStart(2, "0")}</span>
+              <span class="kisara-context-theme-name">
+                <strong>{theme.label}</strong>
+                <small>{theme.id === "kisara" ? "ACTIVE" : "SWITCH"}</small>
+              </span>
+              <i aria-hidden="true"></i>
+            </button>
+          ))}
+        </div>
+      </section>
     </nav>
 
     <ThemeLongPressMenu />
@@ -340,6 +401,7 @@ const audioConfig = {
         const panelButton = document.querySelector("[data-kisara-theme-button]");
         const panelClose = document.querySelector("[data-kisara-panel-close]");
         const menu = document.querySelector("[data-kisara-context-menu]");
+        const menuStatus = menu?.querySelector("[data-kisara-context-status]");
         const scrollbar = document.querySelector("[data-kisara-scrollbar]");
         let returnFocus = null;
         let scrollbarFrame = 0;
@@ -506,10 +568,56 @@ const audioConfig = {
           panelButton?.setAttribute("aria-expanded", "false");
         };
 
+        const setMenuStatus = (label = "READY", tone = "") => {
+          if (!(menuStatus instanceof HTMLElement)) return;
+          const text = menuStatus.querySelector("span");
+          if (text) text.textContent = label;
+          menuStatus.dataset.tone = tone;
+        };
+
+        const copyText = async (value) => {
+          try {
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(value);
+              return true;
+            }
+          } catch {}
+
+          try {
+            const field = document.createElement("textarea");
+            field.value = value;
+            field.setAttribute("readonly", "");
+            field.style.position = "fixed";
+            field.style.opacity = "0";
+            document.body.append(field);
+            field.select();
+            const copied = document.execCommand("copy");
+            field.remove();
+            return copied;
+          } catch {
+            return false;
+          }
+        };
+
+        const showActionFeedback = (button, label, success) => {
+          if (!(button instanceof HTMLButtonElement)) return;
+          const text = button.querySelector(":scope > span");
+          const defaultLabel = button.dataset.kisaraDefaultLabel ?? text?.textContent ?? "";
+          if (text) text.textContent = label;
+          button.classList.toggle("is-success", success);
+          setMenuStatus(success ? "COPIED" : "BLOCKED", success ? "success" : "error");
+          window.setTimeout(() => {
+            if (text) text.textContent = defaultLabel;
+            button.classList.remove("is-success");
+            setMenuStatus();
+          }, 1100);
+        };
+
         const closeMenu = () => {
           if (!menu || menu.hidden) return;
           const restore = menu.contains(document.activeElement);
           menu.hidden = true;
+          setMenuStatus();
           if (restore && returnFocus instanceof HTMLElement) returnFocus.focus({ preventScroll: true });
         };
 
@@ -519,9 +627,11 @@ const audioConfig = {
           menu.hidden = false;
           menu.style.left = "0px";
           menu.style.top = "0px";
-          const rect = menu.getBoundingClientRect();
-          menu.style.left = `${Math.max(12, Math.min(x, window.innerWidth - rect.width - 12))}px`;
-          menu.style.top = `${Math.max(12, Math.min(y, window.innerHeight - rect.height - 12))}px`;
+          const menuWidth = menu.offsetWidth;
+          const menuHeight = menu.offsetHeight;
+          menu.style.left = `${Math.max(12, Math.min(x, window.innerWidth - menuWidth - 12))}px`;
+          menu.style.top = `${Math.max(12, Math.min(y, window.innerHeight - menuHeight - 12))}px`;
+          setMenuStatus();
           if (focusFirst) menu.querySelector("button")?.focus({ preventScroll: true });
         };
 
@@ -561,7 +671,7 @@ const audioConfig = {
           }
         }, { signal });
 
-        document.addEventListener("click", (event) => {
+        document.addEventListener("click", async (event) => {
           const target = event.target instanceof Element ? event.target : null;
           const themeButton = target?.closest("[data-theme-select]");
           if (themeButton) {
@@ -571,11 +681,25 @@ const audioConfig = {
             return;
           }
 
-          const action = target?.closest("[data-kisara-action]")?.dataset.kisaraAction;
+          const actionButton = target?.closest("[data-kisara-action]");
+          const action = actionButton?.dataset.kisaraAction;
           if (action === "top") window.scrollTo({ top: 0, behavior: "smooth" });
+          if (action === "refresh") window.location.reload();
           if (action === "home") {
             const homeLink = document.querySelector("a.kisara-brand[href]");
             if (homeLink instanceof HTMLAnchorElement) homeLink.click();
+          }
+          if (action === "back") history.back();
+          if (action === "forward") history.forward();
+          if (action === "copy") {
+            const copied = await copyText(window.location.href);
+            showActionFeedback(actionButton, copied ? "链接已复制" : "复制失败", copied);
+            return;
+          }
+          if (action === "title") {
+            const copied = await copyText(document.title);
+            showActionFeedback(actionButton, copied ? "标题已复制" : "复制失败", copied);
+            return;
           }
           if (action) closeMenu();
 

@@ -199,13 +199,7 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 .kisara-context-menu {
   position: fixed;
   z-index: 60;
-  display: grid;
-  width: min(250px, calc(100vw - 24px));
-  padding: 12px;
   color: #f8f5ff;
-  border: 1px solid rgba(145, 177, 255, 0.35);
-  background: #171c40;
-  box-shadow: 0 18px 50px rgba(3, 5, 20, 0.42);
   max-height: calc(100svh - 24px);
   overflow-y: auto;
 }
@@ -218,18 +212,22 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 .kisara-theme-panel {
   top: 68px;
   right: 28px;
+  display: grid;
+  width: min(250px, calc(100vw - 24px));
+  padding: 12px;
+  border: 1px solid rgba(145, 177, 255, 0.35);
+  background: #171c40;
+  box-shadow: 0 18px 50px rgba(3, 5, 20, 0.42);
 }
 
-.kisara-theme-panel > span,
-.kisara-context-menu > span {
+.kisara-theme-panel > span {
   padding: 8px 10px 12px;
   color: #91b1ff;
   font-size: 0.66rem;
   font-weight: 800;
 }
 
-.kisara-theme-panel button,
-.kisara-context-menu button {
+.kisara-theme-panel button {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -243,31 +241,451 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 }
 
 .kisara-theme-panel button:hover,
-.kisara-theme-panel button:focus-visible,
-.kisara-context-menu button:hover,
-.kisara-context-menu button:focus-visible {
+.kisara-theme-panel button:focus-visible {
   color: #111636;
   outline: none;
   background: #f8f5ff;
 }
 
-.kisara-theme-panel i,
-.kisara-context-menu i {
+.kisara-theme-panel i {
   width: 7px;
   height: 7px;
   border: 1px solid currentColor;
   border-radius: 50%;
 }
 
-.kisara-theme-panel button[aria-pressed="true"] i,
-.kisara-context-menu button[aria-pressed="true"] i {
+.kisara-theme-panel button[aria-pressed="true"] i {
   background: #ff4969;
 }
 
-.kisara-context-menu hr {
+.kisara-context-menu {
+  z-index: 120;
+  display: block;
+  width: min(318px, calc(100vw - 24px));
+  padding: 6px;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 91, 123, 0.72) transparent;
+  animation: kisara-context-arrive 170ms cubic-bezier(0.2, 0.82, 0.26, 1) both;
+}
+
+.kisara-context-menu::before {
+  content: none;
+}
+
+.kisara-context-menu::-webkit-scrollbar {
+  width: 5px;
+}
+
+.kisara-context-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kisara-context-menu::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(#8daaff, #ff5878);
+}
+
+.kisara-context-head {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 16px);
+  min-height: 58px;
+  margin-left: 16px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 7px;
+  background: linear-gradient(112deg, rgba(255, 67, 108, 0.72), rgba(255, 117, 148, 0.64) 46%, rgba(105, 139, 255, 0.7));
+  box-shadow:
+    0 12px 28px rgba(38, 28, 78, 0.24),
+    0 0 20px rgba(255, 82, 116, 0.16);
+  -webkit-backdrop-filter: blur(12px) saturate(1.28);
+  backdrop-filter: blur(12px) saturate(1.28);
+}
+
+.kisara-context-emblem {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  color: #fff;
+}
+
+.kisara-context-emblem::before,
+.kisara-context-emblem::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  transform: rotate(45deg);
+}
+
+.kisara-context-emblem::after {
+  inset: 9px;
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: rotate(-45deg);
+}
+
+.kisara-context-emblem svg {
+  position: relative;
+  z-index: 1;
+  width: 17px;
+  height: 17px;
+  fill: rgba(255, 255, 255, 0.24);
+  filter: drop-shadow(0 0 7px rgba(255, 255, 255, 0.44));
+}
+
+.kisara-context-identity {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.kisara-context-identity small,
+.kisara-context-identity strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kisara-context-identity small {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.kisara-context-identity strong {
+  color: #fff;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.kisara-context-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 58px;
+  padding: 5px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 0.54rem;
+  font-weight: 900;
+}
+
+.kisara-context-status > i {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.86);
+  animation: kisara-context-status-pulse 1.8s ease-in-out infinite;
+}
+
+.kisara-context-status[data-tone="success"] {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.78);
+  background: rgba(42, 21, 74, 0.2);
+}
+
+.kisara-context-status[data-tone="success"] > i {
+  background: #fff;
+  box-shadow: 0 0 9px rgba(255, 255, 255, 0.92);
+}
+
+.kisara-context-status[data-tone="error"] {
+  color: #ffd8df;
+  border-color: rgba(255, 216, 223, 0.34);
+}
+
+.kisara-context-group {
+  margin-top: 7px;
+  padding: 8px;
+  color: #171d45;
+  border: 1px solid rgba(171, 187, 244, 0.72);
+  border-radius: 7px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(233, 239, 255, 0.42)),
+    rgba(239, 243, 255, 0.34);
+  box-shadow: 0 10px 26px rgba(32, 38, 82, 0.2);
+  -webkit-backdrop-filter: blur(13px) saturate(1.22) brightness(1.05);
+  backdrop-filter: blur(13px) saturate(1.22) brightness(1.05);
+}
+
+.kisara-context-group:nth-of-type(2) {
+  width: calc(100% - 14px);
+  margin-left: 14px;
+}
+
+.kisara-context-group:nth-of-type(3) {
+  width: calc(100% - 6px);
+}
+
+.kisara-context-label {
+  display: block;
+  padding: 0 5px 6px;
+  color: #6977aa;
+  font-size: 0.56rem;
+  font-weight: 900;
+}
+
+.kisara-context-menu button {
   width: 100%;
   border: 0;
-  border-top: 1px solid rgba(145, 177, 255, 0.26);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kisara-context-menu button:focus-visible {
+  outline: 2px solid rgba(255, 100, 130, 0.86);
+  outline-offset: 1px;
+}
+
+.kisara-context-command-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.kisara-context-command-grid button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 54px;
+  padding: 8px 9px;
+  overflow: hidden;
+  border: 1px solid rgba(139, 158, 224, 0.28);
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(236, 241, 255, 0.28));
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.kisara-context-command-grid button::after {
+  content: "";
+  position: absolute;
+  inset: auto 10px 0;
+  height: 1px;
+  background: linear-gradient(90deg, #85a3ff, #ff5e7e);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms ease;
+}
+
+.kisara-context-command-grid button:hover,
+.kisara-context-command-grid button:focus-visible {
+  color: #171d45;
+  border-color: rgba(255, 89, 122, 0.5);
+  background: linear-gradient(110deg, rgba(255, 228, 236, 0.72), rgba(224, 233, 255, 0.66));
+  transform: translateY(-1px);
+}
+
+.kisara-context-command-grid button:hover::after,
+.kisara-context-command-grid button:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.kisara-context-command-grid button > svg {
+  width: 20px;
+  height: 20px;
+  margin-inline: auto;
+  color: #6f8cf0;
+  filter: drop-shadow(0 0 7px rgba(123, 153, 255, 0.28));
+  transition: color 150ms ease, transform 180ms ease;
+}
+
+.kisara-context-command-grid button:hover > svg,
+.kisara-context-command-grid button:focus-visible > svg {
+  color: #ff6d88;
+  transform: scale(1.08);
+}
+
+.kisara-context-command-grid button > span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.kisara-context-command-grid strong {
+  color: #171d45;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.kisara-context-command-grid small {
+  color: #8795c4;
+  font-size: 0.5rem;
+  font-weight: 800;
+}
+
+.kisara-context-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid rgba(139, 158, 224, 0.26);
+}
+
+.kisara-context-tool-grid button {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  min-height: 58px;
+  padding: 7px 4px;
+  background: transparent;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.kisara-context-tool-grid button + button {
+  border-left: 1px solid rgba(139, 158, 224, 0.26);
+}
+
+.kisara-context-tool-grid button:hover,
+.kisara-context-tool-grid button:focus-visible,
+.kisara-context-tool-grid button.is-success {
+  color: #171d45;
+  background: linear-gradient(180deg, rgba(255, 229, 237, 0.68), rgba(226, 234, 255, 0.6));
+}
+
+.kisara-context-tool-grid svg {
+  width: 17px;
+  height: 17px;
+  color: #6f8cf0;
+  transition: color 150ms ease, transform 180ms ease;
+}
+
+.kisara-context-tool-grid button:hover svg,
+.kisara-context-tool-grid button:focus-visible svg,
+.kisara-context-tool-grid button.is-success svg {
+  color: #ff6683;
+  transform: translateY(-1px);
+}
+
+.kisara-context-tool-grid span {
+  color: currentColor;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.kisara-context-theme-group {
+  padding-bottom: 1px;
+}
+
+.kisara-context-theme-list {
+  border-top: 1px solid rgba(139, 158, 224, 0.26);
+}
+
+.kisara-context-theme-list button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 10px;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 6px 8px;
+  background: transparent;
+  transition: color 150ms ease, background 150ms ease, padding 150ms ease;
+}
+
+.kisara-context-theme-list button + button {
+  border-top: 1px solid rgba(139, 158, 224, 0.2);
+}
+
+.kisara-context-theme-list button:hover,
+.kisara-context-theme-list button:focus-visible {
+  color: #171d45;
+  padding-left: 12px;
+  background: linear-gradient(90deg, rgba(224, 233, 255, 0.62), rgba(255, 228, 236, 0.66));
+}
+
+.kisara-context-theme-list button[aria-pressed="true"] {
+  background: linear-gradient(90deg, rgba(255, 91, 124, 0.24), rgba(112, 143, 239, 0.2));
+  box-shadow: 2px 0 0 #ff5f7d inset;
+}
+
+.kisara-context-theme-index {
+  color: #8090c1;
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+.kisara-context-theme-name {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.kisara-context-theme-name strong {
+  overflow: hidden;
+  color: #171d45;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kisara-context-theme-name small {
+  flex: 0 0 auto;
+  color: #8c99c4;
+  font-size: 0.48rem;
+  font-weight: 900;
+}
+
+.kisara-context-theme-list button[aria-pressed="true"] .kisara-context-theme-name small {
+  color: #ff7890;
+}
+
+.kisara-context-theme-list button > i {
+  width: 7px;
+  height: 7px;
+  border: 1px solid #819fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(129, 159, 255, 0.08);
+}
+
+.kisara-context-theme-list button[aria-pressed="true"] > i {
+  border-color: #ff6683;
+  background: #ff6683;
+  box-shadow: 0 0 8px rgba(255, 73, 105, 0.72);
+}
+
+@keyframes kisara-context-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes kisara-context-status-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
 }
 
 .kisara-audio-player {
@@ -3360,8 +3778,7 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   background: rgba(255, 73, 105, 0.1);
 }
 
-.kisara-theme-panel,
-.kisara-context-menu {
+.kisara-theme-panel {
   border-radius: 4px;
   background:
     linear-gradient(135deg, rgba(255, 73, 105, 0.06), transparent 38%),
@@ -3398,12 +3815,6 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 .kisara-panel-heading button:hover svg,
 .kisara-panel-heading button:focus-visible svg {
   transform: rotate(90deg);
-}
-
-.kisara-context-menu button svg {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
 }
 
 .kisara-content-shell,
