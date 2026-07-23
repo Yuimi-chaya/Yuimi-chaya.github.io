@@ -1519,7 +1519,9 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-enchant-pulse: 0;
   --kisara-enchant-flow: 0%;
   --kisara-title-vivid: 0;
-  --kisara-tide-charge: 0;
+  --kisara-tide-energy-opacity: 0.025;
+  --kisara-tide-brightness: 0.76;
+  --kisara-tide-saturation: 0.68;
   --kisara-boundary-opacity: 0;
   --kisara-boundary-offset: 0%;
   --kisara-boundary-shift: 0px;
@@ -2355,8 +2357,12 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   background-position: 8% 0, 58% 22%, 0 0, 0 0, 0 0, 0 0;
   background-blend-mode: screen, multiply, soft-light, overlay, multiply, normal;
   -webkit-text-stroke-color: transparent;
-  filter: none;
-  -webkit-filter: none;
+  filter:
+    brightness(var(--kisara-tide-brightness))
+    saturate(var(--kisara-tide-saturation));
+  -webkit-filter:
+    brightness(var(--kisara-tide-brightness))
+    saturate(var(--kisara-tide-saturation));
   text-shadow: none;
   -webkit-mask-image: linear-gradient(
     45deg,
@@ -2413,11 +2419,7 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   background-size: 122% 112%, 100% 100%, 17px 100%, 100% 100%;
   background-position: 10% 0, 0 0, 0 0, 0 0;
   background-blend-mode: screen, soft-light, soft-light, normal;
-  opacity: calc(
-    0.025
-    + var(--kisara-tide-charge, 0) * 0.3
-    + var(--kisara-title-vivid, 0) * 0.45
-  );
+  opacity: var(--kisara-tide-energy-opacity);
   filter: none;
   -webkit-filter: none;
   text-shadow: none;
@@ -2426,25 +2428,35 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 
 .kisara-title-tide::after {
   background-image:
-    radial-gradient(circle at 2px 2px, rgba(198, 76, 98, 0.72) 0 1px, transparent 1.65px),
-    radial-gradient(circle at 2px 2px, rgba(55, 54, 82, 0.58) 0 0.9px, transparent 1.55px),
-    linear-gradient(90deg, rgba(161, 48, 76, 0.54) 0 38%, transparent 40% 100%),
-    linear-gradient(90deg, rgba(109, 92, 126, 0.42) 0 24%, transparent 27% 100%),
+    conic-gradient(
+      from 18deg at 34% 44%,
+      transparent 0 69%,
+      rgba(151, 45, 71, 0.66) 71% 77%,
+      transparent 80% 100%
+    ),
+    conic-gradient(
+      from 208deg at 67% 58%,
+      transparent 0 72%,
+      rgba(69, 57, 88, 0.5) 74% 81%,
+      transparent 84% 100%
+    ),
+    linear-gradient(108deg, transparent 0 32%, rgba(164, 52, 76, 0.52) 35% 48%, transparent 51% 100%),
+    linear-gradient(28deg, transparent 0 56%, rgba(89, 69, 101, 0.4) 59% 70%, transparent 73% 100%),
     repeating-linear-gradient(
       117deg,
-      rgba(208, 104, 119, 0.34) 0 1px,
-      transparent 1px 7px,
-      rgba(38, 31, 55, 0.31) 7px 8px,
-      transparent 8px 15px
+      rgba(176, 63, 85, 0.3) 0 1px,
+      transparent 1px 9px,
+      rgba(39, 32, 55, 0.28) 9px 10px,
+      transparent 10px 19px
     );
-  background-size: 13px 17px, 19px 23px, 17px 5px, 11px 4px, 100% 100%;
+  background-size: 37px 23px, 53px 31px, 29px 9px, 41px 11px, 100% 100%;
   background-position:
     var(--kisara-boundary-shift) 0,
-    calc(5px + var(--kisara-boundary-shift)) 7px,
-    calc(0px - var(--kisara-boundary-shift)) 1px,
-    var(--kisara-boundary-shift) 8px,
+    calc(11px + var(--kisara-boundary-shift)) 9px,
+    calc(0px - var(--kisara-boundary-shift)) 2px,
+    calc(7px + var(--kisara-boundary-shift)) 12px,
     0 0;
-  background-blend-mode: screen, multiply, normal, normal, soft-light;
+  background-blend-mode: normal, multiply, normal, multiply, soft-light;
   opacity: var(--kisara-boundary-opacity);
   mix-blend-mode: normal;
   filter: none;
@@ -2453,25 +2465,25 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   -webkit-mask-image: linear-gradient(
     45deg,
     transparent 0%,
-    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 11%),
-    rgba(0, 0, 0, 0.16) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 9%),
-    rgba(0, 0, 0, 0.72) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 6%),
-    #000 calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 2%),
-    rgba(0, 0, 0, 0.72) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 2.2%),
-    rgba(0, 0, 0, 0.24) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 6.2%),
-    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 10%),
+    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 10%),
+    rgba(0, 0, 0, 0.24) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 8%),
+    rgba(0, 0, 0, 0.88) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 5.4%),
+    #000 calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 2.2%),
+    rgba(0, 0, 0, 0.7) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 0.8%),
+    rgba(0, 0, 0, 0.18) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 3.6%),
+    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 6.2%),
     transparent 100%
   );
   mask-image: linear-gradient(
     45deg,
     transparent 0%,
-    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 11%),
-    rgba(0, 0, 0, 0.16) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 9%),
-    rgba(0, 0, 0, 0.72) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 6%),
-    #000 calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 2%),
-    rgba(0, 0, 0, 0.72) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 2.2%),
-    rgba(0, 0, 0, 0.24) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 6.2%),
-    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 10%),
+    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 10%),
+    rgba(0, 0, 0, 0.24) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 8%),
+    rgba(0, 0, 0, 0.88) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 5.4%),
+    #000 calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 2.2%),
+    rgba(0, 0, 0, 0.7) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 0.8%),
+    rgba(0, 0, 0, 0.18) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 3.6%),
+    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 6.2%),
     transparent 100%
   );
 }

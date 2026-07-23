@@ -7137,6 +7137,10 @@ const gateStyle = [
         const introEnchant = phaseProgress(intro, 0.75, 1);
         const introEnchantHold = introEnchant * (1 - phaseProgress(burst, 0.035, 0.34));
         const titleVivid = smootherstep(clamp((intro - 0.11) / 0.34, 0, 1));
+        const tideCharge = smootherstep(fill);
+        const tideEnergyOpacity = clamp(0.025 + tideCharge * 0.34 + titleVivid * 0.42, 0, 0.8);
+        const tideBrightness = 0.76 + tideCharge * 0.24 + titleVivid * 0.08;
+        const tideSaturation = 0.68 + tideCharge * 0.32 + titleVivid * 0.2;
         const introDetach = phaseProgress(intro, chargeHandoffStart, chargeHandoffEnd);
         const crossBuildLinear = clamp((burst - crossStart) / (crossBuildEnd - crossStart), 0, 1);
         const crossFlashLinear = clamp((burst - crossBuildEnd) / (crossFlashEnd - crossBuildEnd), 0, 1);
@@ -7713,6 +7717,9 @@ const gateStyle = [
         meterShell?.style.setProperty("--kisara-beam-scale-y", beamScaleY.toFixed(4));
         meterShell?.style.setProperty("--kisara-beam-angle", `${beamAngle.toFixed(3)}deg`);
         gate.style.setProperty("--kisara-title-vivid", titleVivid.toFixed(4));
+        gate.style.setProperty("--kisara-tide-energy-opacity", tideEnergyOpacity.toFixed(4));
+        gate.style.setProperty("--kisara-tide-brightness", tideBrightness.toFixed(4));
+        gate.style.setProperty("--kisara-tide-saturation", tideSaturation.toFixed(4));
         gate.style.setProperty("--kisara-scene-camera-x", `${sceneCameraX.toFixed(3)}px`);
         gate.style.setProperty("--kisara-scene-camera-y", `${sceneCameraY.toFixed(3)}px`);
         gate.style.setProperty("--kisara-scene-camera-scale", sceneCameraScale.toFixed(5));
@@ -10558,7 +10565,6 @@ const gateStyle = [
         syncOpeningEdgeState(nextOpeningEdgeState, memoryState.flare);
         const glossPosition = 118 - glossSweep * 136;
         const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
-        const tideCharge = smootherstep(fill);
         const boundaryOpacity = fill <= 0.002 || fill >= 0.998
           ? 0
           : Math.min(0.74, 0.38 + Math.sin(fill * Math.PI) * 0.1 + Math.abs(velocity) * 24);
@@ -10570,7 +10576,6 @@ const gateStyle = [
         gate.style.setProperty("--kisara-gloss-position", `${glossPosition.toFixed(3)}%`);
         gate.style.setProperty("--kisara-gloss-opacity", glossOpacity.toFixed(3));
         gate.style.setProperty("--kisara-tide-opacity", tideVisible ? "1" : "0");
-        gate.style.setProperty("--kisara-tide-charge", tideCharge.toFixed(4));
         gate.style.setProperty("--kisara-boundary-opacity", boundaryOpacity.toFixed(3));
         gate.style.setProperty("--kisara-boundary-offset", `${boundaryOffset.toFixed(3)}%`);
         gate.style.setProperty("--kisara-boundary-shift", `${boundaryShift.toFixed(3)}px`);
