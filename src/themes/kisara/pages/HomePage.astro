@@ -11184,6 +11184,15 @@ const gateStyle = [
         return event.deltaY;
       };
 
+      const finalizeGateResetBeforeForwardScroll = (delta) => {
+        if (delta <= 0 || !gateVisualResetPending || pageMode !== "next" || scrollFrame) return;
+        const edgeRect = openingEdge instanceof HTMLElement
+          ? openingEdge.getBoundingClientRect()
+          : null;
+        if (edgeRect && edgeRect.bottom - delta >= -24) return;
+        finalizeGateResetForNextPage();
+      };
+
       const handleDirectionalInput = (delta, event) => {
         if (delta === 0) return;
         if (scrollFrame) {
@@ -11208,6 +11217,9 @@ const gateStyle = [
           event.preventDefault();
           addProgress(delta);
           return;
+        }
+        if (pageMode === "next" && delta > 0) {
+          finalizeGateResetBeforeForwardScroll(delta);
         }
         if (pageMode === "next" && delta < 0 && window.scrollY <= getNextPageTop() + Math.max(28, window.innerHeight * 0.08)) {
           event.preventDefault();
