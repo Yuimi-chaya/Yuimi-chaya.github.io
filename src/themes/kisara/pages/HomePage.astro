@@ -214,7 +214,6 @@ const gateStyle = [
       ></canvas>
       <span class="kisara-title-base" aria-hidden="true">Kisara</span>
       <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
-      <span class="kisara-title-crest" aria-hidden="true">Kisara</span>
       <canvas
         class="kisara-title-chain-canvas kisara-title-chain-canvas-front"
         data-kisara-chain-front
@@ -7464,10 +7463,7 @@ const gateStyle = [
           : gateWidth < 900
             ? 0.78
             : 1;
-        const chargeTitleBlur = 8.8 - lensReveal * 6.8;
-        const titleBlur = titleSourceOpacity > 0.001
-          ? performanceBlur * 0.34 + chargeTitleBlur * (1 - titleRestore)
-          : performanceBlur * 0.28;
+        const titleBlur = performanceBlur * (titleSourceOpacity > 0.001 ? 0.34 : 0.28);
         const reconstructionOpacity = phaseProgress(reconstructionLinear, 0.015, 0.16)
           * (1 - phaseProgress(reconstructionLinear, 0.88, 1))
           * 0.92;
@@ -10562,18 +10558,12 @@ const gateStyle = [
         syncOpeningEdgeState(nextOpeningEdgeState, memoryState.flare);
         const glossPosition = 118 - glossSweep * 136;
         const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
-        const crestOpacity = fill <= 0.002 || fill >= 0.998
-          ? 0
-          : Math.min(0.92, 0.54 + Math.abs(velocity) * 42);
-        const crestDrift = clamp(velocity * 820, -4.5, 4.5);
 
         gate.style.setProperty("--kisara-fill", `${(fill * 100).toFixed(3)}%`);
         gate.style.setProperty("--kisara-burst-progress", `${(burstProgress * 100).toFixed(3)}%`);
         gate.style.setProperty("--kisara-gloss-position", `${glossPosition.toFixed(3)}%`);
         gate.style.setProperty("--kisara-gloss-opacity", glossOpacity.toFixed(3));
         gate.style.setProperty("--kisara-tide-opacity", tideVisible ? "1" : "0");
-        gate.style.setProperty("--kisara-crest-opacity", crestOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-crest-drift", `${crestDrift.toFixed(3)}px`);
         gate.style.setProperty("--kisara-bg-blur", `${baseSceneBlur.toFixed(3)}px`);
         gate.style.setProperty("--kisara-bg-opacity", baseSceneOpacity.toFixed(3));
         gate.style.setProperty("--kisara-bg-saturation", baseSceneSaturation.toFixed(3));

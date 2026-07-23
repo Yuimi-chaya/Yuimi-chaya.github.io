@@ -1554,7 +1554,7 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-cross-shake-y: 0px;
   --kisara-cross-blur: 0px;
   --kisara-title-source-opacity: 1;
-  --kisara-title-blur: 8.8px;
+  --kisara-title-blur: 0px;
   --kisara-bg-blur: 0px;
   --kisara-bg-opacity: 1;
   --kisara-bg-saturation: 1;
@@ -2250,8 +2250,7 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   background: linear-gradient(180deg, #96b9ff 0%, #6f9dff 58%, #547fe2 100%);
 }
 
-.kisara-title-tide,
-.kisara-title-crest {
+.kisara-title-tide {
   pointer-events: none;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
@@ -2267,21 +2266,30 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   position: relative;
   opacity: min(var(--kisara-tide-opacity, 0), var(--kisara-title-source-opacity));
   background-image:
-    radial-gradient(circle at 24% 26%, rgba(238, 193, 184, 0.16) 0 1.4%, transparent 4.2%),
+    radial-gradient(ellipse at 18% 19%, rgba(255, 218, 207, 0.22) 0 0.9%, transparent 4.6%),
+    radial-gradient(ellipse at 72% 68%, rgba(42, 3, 18, 0.24) 0 1.2%, transparent 5.4%),
     repeating-linear-gradient(
-      104deg,
-      rgba(255, 225, 218, 0.035) 0 1px,
-      rgba(24, 3, 14, 0.07) 1px 2px,
-      transparent 2px 7px
+      106deg,
+      rgba(255, 229, 220, 0.045) 0 1px,
+      rgba(35, 4, 18, 0.08) 1px 2px,
+      transparent 2px 8px
+    ),
+    repeating-linear-gradient(
+      1deg,
+      rgba(255, 202, 197, 0.025) 0 1px,
+      rgba(43, 5, 21, 0.055) 1px 2px,
+      transparent 2px 9px
     ),
     linear-gradient(
       180deg,
-      rgba(183, 132, 139, 0.88) 0%,
-      rgba(137, 48, 67, 0.94) 52%,
-      rgba(82, 19, 39, 0.96) 100%
+      rgba(188, 116, 127, 0.98) 0%,
+      rgba(145, 48, 70, 0.99) 44%,
+      rgba(99, 24, 48, 1) 75%,
+      rgba(57, 9, 29, 1) 100%
     );
-  background-size: 100% 100%, 11px 100%, 100% 100%;
-  background-blend-mode: screen, multiply, normal;
+  background-size: 126% 116%, 118% 124%, 13px 100%, 100% 9px, 100% 100%;
+  background-position: 8% 0, 58% 22%, 0 0, 0 0, 0 0;
+  background-blend-mode: screen, multiply, soft-light, multiply, normal;
   -webkit-text-stroke-color: transparent;
   filter: none;
   -webkit-filter: none;
@@ -2289,24 +2297,29 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   -webkit-mask-image: linear-gradient(
     45deg,
     #000 0%,
-    #000 calc(var(--kisara-fill) - 4%),
-    rgba(0, 0, 0, 0.9) calc(var(--kisara-fill) - 1.4%),
-    rgba(0, 0, 0, 0.48) calc(var(--kisara-fill) + 1.6%),
-    transparent calc(var(--kisara-fill) + 5.5%),
+    #000 calc(var(--kisara-fill) - 6.5%),
+    rgba(0, 0, 0, 0.96) calc(var(--kisara-fill) - 3.8%),
+    rgba(0, 0, 0, 0.8) calc(var(--kisara-fill) - 1.1%),
+    rgba(0, 0, 0, 0.52) calc(var(--kisara-fill) + 1.5%),
+    rgba(0, 0, 0, 0.2) calc(var(--kisara-fill) + 4.1%),
+    transparent calc(var(--kisara-fill) + 6.8%),
     transparent 100%
   );
   mask-image: linear-gradient(
     45deg,
     #000 0%,
-    #000 calc(var(--kisara-fill) - 4%),
-    rgba(0, 0, 0, 0.9) calc(var(--kisara-fill) - 1.4%),
-    rgba(0, 0, 0, 0.48) calc(var(--kisara-fill) + 1.6%),
-    transparent calc(var(--kisara-fill) + 5.5%),
+    #000 calc(var(--kisara-fill) - 6.5%),
+    rgba(0, 0, 0, 0.96) calc(var(--kisara-fill) - 3.8%),
+    rgba(0, 0, 0, 0.8) calc(var(--kisara-fill) - 1.1%),
+    rgba(0, 0, 0, 0.52) calc(var(--kisara-fill) + 1.5%),
+    rgba(0, 0, 0, 0.2) calc(var(--kisara-fill) + 4.1%),
+    transparent calc(var(--kisara-fill) + 6.8%),
     transparent 100%
   );
 }
 
-.kisara-title-tide::before {
+.kisara-title-tide::before,
+.kisara-title-tide::after {
   content: "Kisara";
   position: absolute;
   inset: 0;
@@ -2319,14 +2332,38 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 }
 
 .kisara-title-tide::before {
-  background-image: linear-gradient(180deg, #ff8da1 0%, #ff365f 52%, #d91f4c 100%);
-  opacity: calc(0.055 + var(--kisara-title-vivid, 0) * 0.805);
-  filter: blur(var(--kisara-title-blur));
-  -webkit-filter: blur(var(--kisara-title-blur));
-  text-shadow:
-    0 12px 30px rgba(5, 8, 28, 0.4),
-    0 0 calc(var(--kisara-title-vivid, 0) * 18px) rgba(255, 58, 112, 0.34);
-  will-change: filter, opacity;
+  background-image:
+    repeating-linear-gradient(
+      112deg,
+      rgba(255, 238, 232, 0.08) 0 1px,
+      transparent 1px 12px
+    ),
+    linear-gradient(180deg, #ff9aaa 0%, #f63b61 54%, #bd173f 100%);
+  background-blend-mode: soft-light, normal;
+  opacity: calc(0.04 + var(--kisara-title-vivid, 0) * 0.76);
+  filter: none;
+  -webkit-filter: none;
+  text-shadow: none;
+  will-change: opacity;
+}
+
+.kisara-title-tide::after {
+  background-image: linear-gradient(
+    45deg,
+    transparent 0%,
+    transparent calc(var(--kisara-fill) - 10%),
+    rgba(35, 4, 18, 0.24) calc(var(--kisara-fill) - 6.8%),
+    rgba(187, 83, 104, 0.2) calc(var(--kisara-fill) - 4.1%),
+    rgba(107, 79, 143, 0.18) calc(var(--kisara-fill) - 1.2%),
+    rgba(94, 116, 186, 0.12) calc(var(--kisara-fill) + 1.9%),
+    transparent calc(var(--kisara-fill) + 6.4%),
+    transparent 100%
+  );
+  opacity: 0.72;
+  mix-blend-mode: soft-light;
+  filter: none;
+  -webkit-filter: none;
+  text-shadow: none;
 }
 
 .kisara-title > .kisara-title-enchant {
@@ -2941,35 +2978,6 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
     0 0 19px rgba(255, 53, 117, 0.9);
 }
 
-.kisara-title-crest {
-  opacity: min(var(--kisara-crest-opacity, 0), var(--kisara-title-source-opacity));
-  background: linear-gradient(180deg, #ffe3e9 0%, #ffadc0 100%);
-  transform: translateX(var(--kisara-crest-drift, 0px));
-  filter: none;
-  -webkit-filter: none;
-  text-shadow: 0 0 3px rgba(255, 119, 148, 0.34);
-  -webkit-mask-image: linear-gradient(
-    45deg,
-    transparent 0%,
-    transparent calc(var(--kisara-fill) - 2.5%),
-    rgba(0, 0, 0, 0.38) calc(var(--kisara-fill) - 1.1%),
-    #000 var(--kisara-fill),
-    rgba(0, 0, 0, 0.38) calc(var(--kisara-fill) + 1.1%),
-    transparent calc(var(--kisara-fill) + 2.5%),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    45deg,
-    transparent 0%,
-    transparent calc(var(--kisara-fill) - 2.5%),
-    rgba(0, 0, 0, 0.38) calc(var(--kisara-fill) - 1.1%),
-    #000 var(--kisara-fill),
-    rgba(0, 0, 0, 0.38) calc(var(--kisara-fill) + 1.1%),
-    transparent calc(var(--kisara-fill) + 2.5%),
-    transparent 100%
-  );
-}
-
 .kisara-gate.is-complete .kisara-title > span {
   transform: translateY(-3px);
   text-shadow: 0 14px 34px rgba(255, 54, 95, 0.2);
@@ -2979,10 +2987,6 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   opacity: var(--kisara-title-source-opacity);
   -webkit-mask-image: none;
   mask-image: none;
-}
-
-.kisara-gate.is-complete .kisara-title-crest {
-  opacity: 0;
 }
 
 .kisara-contract-meter {
