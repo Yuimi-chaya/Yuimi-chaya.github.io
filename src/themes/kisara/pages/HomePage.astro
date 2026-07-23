@@ -1468,7 +1468,7 @@ const gateStyle = [
           transformationReleaseOpacity: 1 - transformationExit,
           silhouetteBladeBlur: (1 - silhouetteFocus) * 10.5,
           silhouetteBladeBrightness: 0.92 + silhouetteFocus * 0.08,
-          silhouetteBladeScale: 1 + silhouetteFocus * 0.022,
+          silhouetteBladeScale: 1 + silhouetteFocus * 0.052,
           fightVisible,
           fightSettle,
           fightBlur: 0.3 + 2.8 * Math.pow(1 - fightSettle, 1.35),
@@ -3829,29 +3829,6 @@ const gateStyle = [
             return fract(point.x * point.y);
           }
 
-          vec3 localVortex(
-            vec2 uv,
-            vec2 center,
-            float radius,
-            float spin,
-            float phase,
-            float aspect
-          ) {
-            vec2 delta = uv - center;
-            delta.x *= aspect;
-            float distanceToCenter = length(delta);
-            vec2 direction = delta / max(distanceToCenter, 0.0001);
-            vec2 tangent = vec2(-direction.y, direction.x);
-            float innerFade = smoothstep(radius * 0.08, radius * 0.27, distanceToCenter);
-            float outerFade = 1.0 - smoothstep(radius * 0.58, radius, distanceToCenter);
-            float envelope = innerFade * outerFade;
-            float pulse = 0.78 + sin(uTime * 1.18 + phase + distanceToCenter * 31.0) * 0.22;
-            vec2 offset = tangent * spin * envelope * pulse
-              - direction * abs(spin) * envelope * (0.12 + pulse * 0.08);
-            offset.x /= aspect;
-            return vec3(offset, envelope);
-          }
-
           vec3 sampleScene(vec2 uv) {
             vec2 baseUv = coverUv(uv, uBaseSize, 1.045);
             vec2 preReleaseUv = coverUv(uv, uPreReleaseSize, 1.0);
@@ -3877,7 +3854,6 @@ const gateStyle = [
             point.x *= aspect;
             float radius = length(point);
             vec2 direction = point / max(radius, 0.0001);
-            vec2 tangent = vec2(-direction.y, direction.x);
             float core = max(uCoreRadius, 0.004);
             float gravityStrength = clamp(
               uGravity * (0.68 + uCollapse * 0.2 + uCrush * 0.12),
@@ -3890,17 +3866,17 @@ const gateStyle = [
             );
             float lensReach = min(max(uLensRadius, massRadius * 4.0), 0.94);
             float outsideCore = smoothstep(core * 0.98, core * 1.22, radius);
-            float reachProgress = smoothstep(core * 1.15, lensReach, radius);
-            float radialReach = pow(max(0.0, 1.0 - reachProgress), 1.12);
-            float globalActivation = smoothstep(core * 1.02, core * 1.52, radius);
-            float outerReach = 1.0 - smoothstep(lensReach * 0.78, lensReach * 1.14, radius);
-            float distortionMask = globalActivation * max(
-              radialReach,
-              outerReach * gravityStrength * (0.34 + uCollapse * 0.34 + uCrush * 0.42)
+            float radialUnit = clamp(
+              (radius - core) / max(lensReach - core, 0.001),
+              0.0,
+              1.0
             );
-            float distortionField = outsideCore
-              * distortionMask
-              * (0.84 + gravityStrength * 0.48 + uCollapse * 0.24 + uCrush * 0.28);
+            float distortionMask = outsideCore
+              * smoothstep(0.0, 0.075, radialUnit)
+              * (1.0 - smoothstep(0.82, 1.0, radialUnit));
+            float gravityResponse = 1.0 - exp(-max(gravityStrength, 0.0) * 1.05);
+            float distortionField = distortionMask
+              * (0.78 + gravityResponse * 0.4 + uCollapse * 0.2 + uCrush * 0.24);
 
             float einsteinRadius = massRadius * (
               1.0
@@ -3908,12 +3884,6 @@ const gateStyle = [
               + uCollapse * 0.1
               + uCrush * 0.08
             );
-            float inverseRadius = max(radius, massRadius * 0.54);
-            float lensPull = (einsteinRadius * einsteinRadius)
-              / (radius * radius + core * core * 2.15)
-              * gravityStrength;
-            lensPull = min(lensPull, 0.82);
-            float primaryRadius = radius / (1.0 + lensPull * distortionField * 1.18);
 
             float criticalRadius = einsteinRadius * sqrt(max(gravityStrength, 0.02));
             float ringWidth = max(massRadius * 0.2, 0.007);
@@ -3933,118 +3903,54 @@ const gateStyle = [
             float fieldBreath = sin(
               (radius - core) / max(lensReach - core, 0.01) * 9.0 - uTime * 0.56
             ) * distortionField * uCollapse * 0.0032;
+            float cos2Angle = direction.x * direction.x - direction.y * direction.y;
+            float cos3Angle = direction.x
+              * (direction.x * direction.x - 3.0 * direction.y * direction.y);
+            float radialPull = clamp(
+              gravityResponse * (0.34 + uCollapse * 0.18 + uCrush * 0.12),
+              0.0,
+              0.68
+            ) * (1.0 + cos2Angle * 0.12 + cos3Angle * 0.06);
+            float mappedRadialUnit = radialUnit
+              + radialPull * radialUnit * (1.0 - radialUnit);
+            float shellCoordinate = (radialUnit - 0.32) / 0.16;
+            mappedRadialUnit += gravityResponse
+              * (0.012 + uCrush * 0.008)
+              * shellCoordinate
+              * exp(-shellCoordinate * shellCoordinate);
+            float mappedRadius = core
+              + (lensReach - core) * clamp(mappedRadialUnit, 0.0, 1.0);
+            mappedRadius += waveDisplacement + fieldBreath;
+            mappedRadius = mix(radius, mappedRadius, distortionMask);
 
-            float frameDrag = massRadius / inverseRadius
-              * distortionField
-              * uCollapse
-              * gravityStrength
-              * (0.078 + uCrush * 0.052);
-            float dragCos = cos(frameDrag);
-            float dragSin = sin(frameDrag);
-            vec2 lensedDirection = vec2(
-              direction.x * dragCos - direction.y * dragSin,
-              direction.x * dragSin + direction.y * dragCos
-            );
-            float sideSweep = sin(vUv.y * 5.4 - uTime * 0.34)
-              * (0.003 + uCollapse * 0.006 + uCrush * 0.008)
-              * gravityStrength
-              * distortionField
-              * sin(direction.x * 1.6 + direction.y * 2.1 + uTime * 0.18);
             vec2 screenDirection = vec2(direction.x / aspect, direction.y);
+            screenDirection /= max(length(screenDirection), 0.0001);
             vec2 screenTangent = vec2(-screenDirection.y, screenDirection.x);
-            float fieldDepth = smoothstep(core * 1.24, lensReach, radius);
-            float fieldTension = gravityStrength
-              * distortionField
-              * (0.0052 + uCollapse * 0.015 + uCrush * 0.022)
-              * (0.72 + radialReach * 0.46 + fieldDepth * 0.18);
-            float fieldPulse = sin(
-              radius * 24.0
-              + direction.x * 2.15
-              + direction.y * 1.35
-              - uTime * 1.18
+            float transverseFlow = sin(
+              radius * 21.0 - uTime * 0.8 + cos2Angle * 2.8
+            ) + 0.45 * sin(
+              radius * 11.0 + uTime * 0.37 + cos3Angle * 2.4
             );
-            vec2 fieldDisplacement = -screenDirection
-              * fieldTension
-              * (0.78 + fieldPulse * 0.18);
-            fieldDisplacement += screenTangent
-              * cos(
-                radius * 18.0
-                + direction.x * 1.4
-                - direction.y * 1.15
-                - uTime * 0.82
-              )
-              * fieldTension
-              * (0.2 + uCollapse * 0.24 + uCrush * 0.22);
-            fieldDisplacement += -screenDirection
-              * waveEnvelope
-              * uShockStrength
-              * (0.009 + waveWidth * 0.14)
-              * distortionMask;
-
-            float vortexScale = mix(0.58, 1.0, smoothstep(0.72, 1.2, aspect));
-            float vortexDrive = gravityStrength
-              * (0.48 + uCollapse * 0.42 + uCrush * 0.34);
-            vec3 vortexA = localVortex(
-              vUv,
-              vec2(0.12, 0.24),
-              0.25 * vortexScale,
-              0.036,
-              0.4,
-              aspect
-            );
-            vec3 vortexB = localVortex(
-              vUv,
-              vec2(0.17, 0.73),
-              0.27 * vortexScale,
-              -0.034,
-              2.1,
-              aspect
-            );
-            vec3 vortexC = localVortex(
-              vUv,
-              vec2(0.85, 0.22),
-              0.24 * vortexScale,
-              -0.035,
-              3.7,
-              aspect
-            );
-            vec3 vortexD = localVortex(
-              vUv,
-              vec2(0.88, 0.71),
-              0.26 * vortexScale,
-              0.037,
-              5.2,
-              aspect
-            );
-            float globalVortexMask = smoothstep(core * 1.08, core * 1.9, radius)
-              * (1.0 - smoothstep(0.78, 1.06, radius));
-            vec2 vortexDisplacement = (
-              vortexA.xy + vortexB.xy + vortexC.xy + vortexD.xy
-            ) * vortexDrive * globalVortexMask;
-            float vortexLength = length(vortexDisplacement);
-            vortexDisplacement *= min(1.0, 0.028 / max(vortexLength, 0.0001));
-            float localVortexField = max(
-              max(vortexA.z, vortexB.z),
-              max(vortexC.z, vortexD.z)
-            ) * vortexDrive * globalVortexMask;
+            float flowStrength = distortionMask
+              * gravityResponse
+              * (0.0018 + uCollapse * 0.0035 + uCrush * 0.002);
+            vec2 fieldDisplacement = screenTangent * transverseFlow * flowStrength;
 
             float edgeFade = smoothstep(0.0, 0.11, vUv.x)
               * smoothstep(0.0, 0.11, vUv.y)
               * smoothstep(0.0, 0.11, 1.0 - vUv.x)
               * smoothstep(0.0, 0.11, 1.0 - vUv.y);
-            vec2 lensedPoint = lensedDirection * (
-              primaryRadius + waveDisplacement + fieldBreath
-            ) + tangent * sideSweep;
+            vec2 lensedPoint = direction * mappedRadius;
             vec2 displacedPoint = mix(point, lensedPoint, edgeFade);
             vec2 displacedCandidate = uCenter + vec2(displacedPoint.x / aspect, displacedPoint.y);
-            displacedCandidate += (fieldDisplacement + vortexDisplacement) * edgeFade;
+            displacedCandidate += fieldDisplacement * edgeFade;
             displacedCandidate = clamp(displacedCandidate, vec2(0.002), vec2(0.998));
             float finalField = clamp(
-              max(distortionField, localVortexField * 1.22) * edgeFade,
+              distortionField * edgeFade,
               0.0,
               1.0
             );
-            float distortionBlend = smoothstep(0.012, 0.64, finalField);
+            float distortionBlend = smoothstep(0.035, 0.88, finalField);
             vec2 finalUv = mix(vUv, displacedCandidate, distortionBlend);
             vec3 color = sampleScene(finalUv);
             float refractionSheen = sin(
@@ -4060,7 +3966,7 @@ const gateStyle = [
               + caustic * distortionBlend * 0.065
               + waveEnvelope * uShockStrength * distortionBlend * 0.028
               + refractionSheen
-              + localVortexField * (0.028 + gravityStrength * 0.028);
+              + abs(transverseFlow) * flowStrength * 0.9;
 
             float horizon = 1.0 - smoothstep(core * 0.98, core * 1.04, radius);
             color = mix(color, vec3(0.0), horizon * distortionBlend);
@@ -7337,19 +7243,19 @@ const gateStyle = [
         ));
         const sceneClock = timestamp / 1000;
         const sceneBreathX = (
-          Math.sin(sceneClock * 0.44) * 3.5
-          + Math.sin(sceneClock * 0.17 + 1.35) * 1.8
-          + Math.sin(sceneClock * 0.83 + 0.4) * 0.45
+          Math.sin(sceneClock * 0.44) * 4.8
+          + Math.sin(sceneClock * 0.17 + 1.35) * 2.45
+          + Math.sin(sceneClock * 0.83 + 0.4) * 0.62
         ) * sceneBreathFade;
         const sceneBreathY = (
-          Math.cos(sceneClock * 0.36 + 0.6) * 2.5
-          + Math.sin(sceneClock * 0.14 + 2.1) * 1.25
-          + Math.cos(sceneClock * 0.71 + 0.9) * 0.35
+          Math.cos(sceneClock * 0.36 + 0.6) * 3.35
+          + Math.sin(sceneClock * 0.14 + 2.1) * 1.65
+          + Math.cos(sceneClock * 0.71 + 0.9) * 0.48
         ) * sceneBreathFade;
         const sceneBreathScale = 1 + (
-          0.008
-          + Math.sin(sceneClock * 0.28 + 0.2) * 0.005
-          + Math.sin(sceneClock * 0.1 + 1.8) * 0.0025
+          0.011
+          + Math.sin(sceneClock * 0.28 + 0.2) * 0.0065
+          + Math.sin(sceneClock * 0.1 + 1.8) * 0.0032
         ) * sceneBreathFade;
         const sceneCameraX = cameraBeatOne * -6.5 + cameraBeatTwo * 8.5 + sceneBreathX;
         const sceneCameraY = cameraBeatOne * -3.2 + cameraBeatTwo * 2.4 + sceneBreathY;
@@ -8762,32 +8668,33 @@ const gateStyle = [
         context.translate(sample.x, sample.y);
         context.rotate(sample.angle + (forward < 0 ? Math.PI : 0));
         context.globalCompositeOperation = "screen";
-        const trail = context.createLinearGradient(-dimensions.width * 2.5, 0, dimensions.width * 0.4, 0);
+        context.lineCap = "round";
+        const trail = context.createLinearGradient(-dimensions.width * 1.9, 0, -dimensions.width * 0.08, 0);
         trail.addColorStop(0, "rgba(117,161,255,0)");
-        trail.addColorStop(0.62, "rgba(255,255,255,0.1)");
-        trail.addColorStop(1, "rgba(255,248,252,0.88)");
-        context.globalAlpha = alpha * (0.46 + heat * 0.3);
+        trail.addColorStop(0.68, "rgba(255,255,255,0.08)");
+        trail.addColorStop(1, "rgba(255,248,252,0.5)");
+        context.globalAlpha = alpha * (0.34 + heat * 0.2);
         context.strokeStyle = trail;
-        context.lineWidth = 1.4 + Math.abs(velocity) * 24;
+        context.lineWidth = 1.05 + Math.abs(velocity) * 15;
         context.beginPath();
-        context.moveTo(-dimensions.width * 2.5, 0);
-        context.lineTo(dimensions.width * 0.38, 0);
+        context.moveTo(-dimensions.width * 1.9, 0);
+        context.lineTo(-dimensions.width * 0.08, 0);
         context.stroke();
-        context.lineWidth = 1.1;
+        context.lineWidth = 0.95;
         if (heat < 0.995) {
-          context.globalAlpha = alpha * 0.72 * (1 - heat);
+          context.globalAlpha = alpha * 0.46 * (1 - heat);
           context.strokeStyle = "rgba(151,188,255,0.9)";
           context.beginPath();
-          context.moveTo(dimensions.width * 0.12, 0);
-          context.lineTo(dimensions.width * 0.46, 0);
+          context.moveTo(-dimensions.width * 0.34, 0);
+          context.lineTo(-dimensions.width * 0.07, 0);
           context.stroke();
         }
         if (heat > 0.005) {
-          context.globalAlpha = alpha * 0.72 * heat;
+          context.globalAlpha = alpha * 0.46 * heat;
           context.strokeStyle = "rgba(255,92,151,0.92)";
           context.beginPath();
-          context.moveTo(dimensions.width * 0.12, 0);
-          context.lineTo(dimensions.width * 0.46, 0);
+          context.moveTo(-dimensions.width * 0.34, 0);
+          context.lineTo(-dimensions.width * 0.07, 0);
           context.stroke();
         }
         context.restore();
