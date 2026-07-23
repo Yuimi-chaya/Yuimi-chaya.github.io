@@ -594,8 +594,7 @@ const gateStyle = [
       const openingEdgeRenderQueue = [];
       const activateOpeningBridgePortal = () => {
         if (
-          openingBridgePortalActive
-          || !(gateVisualShell instanceof HTMLElement)
+          !(gateVisualShell instanceof HTMLElement)
           || !(opening instanceof HTMLElement)
         ) return false;
 
@@ -605,7 +604,7 @@ const gateStyle = [
         return true;
       };
       const deactivateOpeningBridgePortal = () => {
-        if (!openingBridgePortalActive || !(gateVisualShell instanceof HTMLElement)) return;
+        if (!(gateVisualShell instanceof HTMLElement)) return;
         gate.classList.remove("is-opening-bridge-live");
         opening?.classList.remove("is-opening-bridge-live");
         openingBridgePortalActive = false;
@@ -11060,6 +11059,7 @@ const gateStyle = [
         finalizeGateResetForNextPage();
         pageMode = "snap";
         const returnRailStart = getDocumentScrollProgress();
+        opening?.classList.add("is-returning-to-gate");
         releaseOpeningEdgeState();
         applyOpeningEdgeState(Object.fromEntries(
           openingEdgeRecords.map((record) => [
@@ -11080,6 +11080,7 @@ const gateStyle = [
         });
         smoothScrollTo(0, () => {
           deactivateOpeningBridgePortal();
+          opening?.classList.remove("is-returning-to-gate");
           pageMode = "gate";
           poseTimestamp = 0;
           poseClock = 0;
