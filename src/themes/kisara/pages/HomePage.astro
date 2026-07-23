@@ -172,31 +172,33 @@ const gateStyle = [
   <section class="kisara-gate" data-kisara-gate style={gateStyle}>
     <script type="application/json" data-kisara-scene-manifest set:html={JSON.stringify(gateSceneManifest)}></script>
     <div class="kisara-gate-visual-shell" aria-hidden="true">
-      <div class="kisara-gate-visual">
-        <div class="kisara-gate-background kisara-gate-background-base"></div>
-        <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="0"></div>
-        <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="1"></div>
-        <div class="kisara-gate-background kisara-gate-background-fight"></div>
-        <div class="kisara-memory-flare"></div>
-        <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
-        <div class="kisara-gate-atmosphere"></div>
+      <div class="kisara-gate-visual-camera">
+        <div class="kisara-gate-visual">
+          <div class="kisara-gate-background kisara-gate-background-base"></div>
+          <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="0"></div>
+          <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="1"></div>
+          <div class="kisara-gate-background kisara-gate-background-fight"></div>
+          <div class="kisara-memory-flare"></div>
+          <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
+          <div class="kisara-gate-atmosphere"></div>
+        </div>
+        <canvas
+          class="kisara-space-lens-canvas"
+          data-kisara-space-lens
+          data-base-src={activeBackgroundUrl ?? ""}
+          data-pre-release-src={activeTransformationUrl ?? activeBackgroundUrl ?? ""}
+          data-fight-src={activeFightUrl ?? ""}
+          width="1280"
+          height="900"
+        ></canvas>
+        <canvas
+          class="kisara-post-release-canvas"
+          data-kisara-post-release-canvas
+          data-fight-src={activeFightUrl ?? ""}
+          width="1280"
+          height="900"
+        ></canvas>
       </div>
-      <canvas
-        class="kisara-space-lens-canvas"
-        data-kisara-space-lens
-        data-base-src={activeBackgroundUrl ?? ""}
-        data-pre-release-src={activeTransformationUrl ?? activeBackgroundUrl ?? ""}
-        data-fight-src={activeFightUrl ?? ""}
-        width="1280"
-        height="900"
-      ></canvas>
-      <canvas
-        class="kisara-post-release-canvas"
-        data-kisara-post-release-canvas
-        data-fight-src={activeFightUrl ?? ""}
-        width="1280"
-        height="900"
-      ></canvas>
     </div>
     <div class="kisara-ambient-particles" aria-hidden="true">
       {ambientParticles.map((particle) => (
@@ -10862,6 +10864,13 @@ const gateStyle = [
         return Math.max(1, Math.round((openingRect?.top ?? gate.getBoundingClientRect().height) + window.scrollY));
       };
 
+      const getReturnToGateThreshold = () => {
+        const edgeHeight = openingEdge instanceof HTMLElement
+          ? openingEdge.offsetHeight
+          : 180;
+        return getNextPageTop() + edgeHeight + Math.max(24, window.innerHeight * 0.04);
+      };
+
       const getDocumentScrollProgress = () => {
         const root = document.scrollingElement ?? document.documentElement;
         const scrollRange = Math.max(1, root.scrollHeight - window.innerHeight);
@@ -11056,20 +11065,9 @@ const gateStyle = [
 
       const returnToGate = () => {
         if (scrollFrame) return;
-        finalizeGateResetForNextPage();
         pageMode = "snap";
         const returnRailStart = getDocumentScrollProgress();
-        opening?.classList.add("is-returning-to-gate");
-        releaseOpeningEdgeState();
-        applyOpeningEdgeState(Object.fromEntries(
-          openingEdgeRecords.map((record) => [
-            record.id,
-            record.kind === "base"
-              ? { opacity: 0.98, filter: "blur(0px) saturate(1) brightness(1)" }
-              : { opacity: 0, filter: "none" }
-          ])
-        ), { opacity: 0, filter: "none", shift: 0 });
-        ensureOpeningEdgeSampler(openingEdgeRecordById.get("base"), true);
+        gateVisualResetPending = false;
         activateOpeningBridgePortal();
         publishGateRailState({
           active: true,
@@ -11080,23 +11078,10 @@ const gateStyle = [
         });
         smoothScrollTo(0, () => {
           deactivateOpeningBridgePortal();
-          opening?.classList.remove("is-returning-to-gate");
+          releaseOpeningEdgeState();
           pageMode = "gate";
-          poseTimestamp = 0;
-          poseClock = 0;
-          poseAtRest = true;
-          chargeInstability = 0;
-          motionPhases = makeMotionPhases();
-          screenParticleTimestamp = 0;
-          lastEnergyPaintTimestamp = 0;
-          renderCostEma = 0;
-          singularityFieldLastPaintTimestamp = 0;
-          energyFlowTimestamp = 0;
-          beamHeadTimestamp = 0;
-          beamHeadVelocityX = 0;
-          beamHeadVelocityY = 0;
-          beamMotionEnergy = 0;
-          render();
+          resetGateState();
+          lockOpeningEdgeState();
           scheduleWarningWarmup(true);
         }, (journeyProgress) => {
           publishGateRailState({
@@ -11185,15 +11170,6 @@ const gateStyle = [
         return event.deltaY;
       };
 
-      const finalizeGateResetBeforeForwardScroll = (delta) => {
-        if (delta <= 0 || !gateVisualResetPending || pageMode !== "next" || scrollFrame) return;
-        const edgeRect = openingEdge instanceof HTMLElement
-          ? openingEdge.getBoundingClientRect()
-          : null;
-        if (edgeRect && edgeRect.bottom - delta >= -24) return;
-        finalizeGateResetForNextPage();
-      };
-
       const handleDirectionalInput = (delta, event) => {
         if (delta === 0) return;
         if (scrollFrame) {
@@ -11219,10 +11195,11 @@ const gateStyle = [
           addProgress(delta);
           return;
         }
-        if (pageMode === "next" && delta > 0) {
-          finalizeGateResetBeforeForwardScroll(delta);
-        }
-        if (pageMode === "next" && delta < 0 && window.scrollY <= getNextPageTop() + Math.max(28, window.innerHeight * 0.08)) {
+        if (
+          pageMode === "next"
+          && delta < 0
+          && window.scrollY + delta <= getReturnToGateThreshold()
+        ) {
           event.preventDefault();
           returnToGate();
         }
