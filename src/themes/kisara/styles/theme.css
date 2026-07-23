@@ -1519,8 +1519,10 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-enchant-pulse: 0;
   --kisara-enchant-flow: 0%;
   --kisara-title-vivid: 0;
+  --kisara-tide-charge: 0;
   --kisara-boundary-opacity: 0;
   --kisara-boundary-offset: 0%;
+  --kisara-boundary-shift: 0px;
   --kisara-title-impact-x: 0px;
   --kisara-title-impact-y: 0px;
   --kisara-beam-shake-x: 0px;
@@ -2250,34 +2252,56 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 
 .kisara-title-base {
   background-image:
-    radial-gradient(ellipse at 17% 18%, rgba(238, 248, 255, 0.3) 0 1%, transparent 5.2%),
-    radial-gradient(ellipse at 74% 72%, rgba(29, 55, 132, 0.26) 0 1.4%, transparent 6%),
+    linear-gradient(
+      45deg,
+      transparent 0%,
+      transparent calc(var(--kisara-fill) - 2%),
+      rgba(15, 20, 35, 0.1) calc(var(--kisara-fill) + 1.5%),
+      rgba(11, 16, 30, 0.34) calc(var(--kisara-fill) + 5.5%),
+      rgba(36, 42, 57, 0.16) calc(var(--kisara-fill) + 9%),
+      transparent calc(var(--kisara-fill) + 13%),
+      transparent 100%
+    ),
+    radial-gradient(ellipse at 17% 18%, rgba(207, 218, 228, 0.12) 0 1%, transparent 5.8%),
+    radial-gradient(ellipse at 74% 72%, rgba(18, 27, 48, 0.31) 0 1.8%, transparent 7%),
     linear-gradient(
       121deg,
-      transparent 0 17%,
-      rgba(235, 247, 255, 0.15) 17.4% 18%,
-      transparent 18.5% 43%,
-      rgba(33, 71, 157, 0.17) 43.5% 44.2%,
-      transparent 44.8% 71%,
-      rgba(218, 237, 255, 0.11) 71.5% 72.1%,
-      transparent 72.7% 100%
+      transparent 0 13%,
+      rgba(13, 20, 35, 0.25) 13.4% 15.1%,
+      transparent 15.7% 37%,
+      rgba(192, 203, 216, 0.055) 37.5% 38%,
+      transparent 38.6% 61%,
+      rgba(25, 34, 52, 0.22) 61.5% 62.8%,
+      transparent 63.4% 78%,
+      rgba(178, 190, 207, 0.045) 78.4% 79%,
+      transparent 79.6% 100%
     ),
     repeating-linear-gradient(
-      104deg,
-      rgba(255, 255, 255, 0.05) 0 1px,
-      rgba(32, 68, 150, 0.065) 1px 2px,
-      transparent 2px 10px
+      103deg,
+      rgba(216, 226, 236, 0.025) 0 1px,
+      rgba(19, 27, 46, 0.105) 1px 2px,
+      transparent 2px 11px
     ),
     repeating-linear-gradient(
       1deg,
-      rgba(239, 248, 255, 0.025) 0 1px,
-      rgba(42, 76, 151, 0.045) 1px 2px,
-      transparent 2px 9px
+      rgba(218, 226, 235, 0.015) 0 1px,
+      rgba(20, 29, 47, 0.07) 1px 2px,
+      transparent 2px 10px
     ),
-    linear-gradient(180deg, #b5d2ff 0%, #83aaf2 39%, #5b82da 72%, #3859ae 100%);
-  background-size: 125% 114%, 116% 122%, 100% 100%, 14px 100%, 100% 10px, 100% 100%;
-  background-position: 6% 0, 62% 18%, 0 0, 0 0, 0 0, 0 0;
-  background-blend-mode: screen, multiply, soft-light, soft-light, multiply, normal;
+    linear-gradient(
+      180deg,
+      rgba(166, 177, 191, 0.82) 0%,
+      rgba(109, 123, 145, 0.84) 38%,
+      rgba(68, 81, 107, 0.87) 72%,
+      rgba(43, 52, 73, 0.91) 100%
+    );
+  background-size: 100% 100%, 128% 118%, 118% 126%, 100% 100%, 15px 100%, 100% 11px, 100% 100%;
+  background-position: 0 0, 6% 0, 62% 18%, 0 0, 0 0, 0 0, 0 0;
+  background-blend-mode: multiply, screen, multiply, multiply, soft-light, multiply, normal;
+  -webkit-text-stroke-color: rgba(176, 188, 207, 0.12);
+  filter: blur(var(--kisara-title-blur)) saturate(0.52) brightness(0.8) contrast(0.94);
+  -webkit-filter: blur(var(--kisara-title-blur)) saturate(0.52) brightness(0.8) contrast(0.94);
+  text-shadow: 0 10px 24px rgba(4, 7, 18, 0.3);
 }
 
 .kisara-title-tide {
@@ -2322,10 +2346,10 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
     ),
     linear-gradient(
       180deg,
-      rgba(194, 126, 135, 0.99) 0%,
-      rgba(151, 54, 76, 1) 39%,
-      rgba(104, 25, 50, 1) 72%,
-      rgba(57, 8, 29, 1) 100%
+      rgba(143, 83, 94, 0.99) 0%,
+      rgba(119, 43, 63, 1) 39%,
+      rgba(82, 20, 42, 1) 72%,
+      rgba(47, 7, 25, 1) 100%
     );
   background-size: 126% 116%, 118% 124%, 100% 100%, 14px 100%, 100% 10px, 100% 100%;
   background-position: 8% 0, 58% 22%, 0 0, 0 0, 0 0, 0 0;
@@ -2385,11 +2409,15 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
       rgba(255, 238, 232, 0.08) 0 1px,
       transparent 1px 12px
     ),
-    linear-gradient(180deg, #ff9aaa 0%, #f63b61 54%, #bd173f 100%);
+    linear-gradient(180deg, #d9909b 0%, #bd3f5e 54%, #831d3d 100%);
   background-size: 122% 112%, 100% 100%, 17px 100%, 100% 100%;
   background-position: 10% 0, 0 0, 0 0, 0 0;
   background-blend-mode: screen, soft-light, soft-light, normal;
-  opacity: calc(0.035 + var(--kisara-title-vivid, 0) * 0.72);
+  opacity: calc(
+    0.025
+    + var(--kisara-tide-charge, 0) * 0.3
+    + var(--kisara-title-vivid, 0) * 0.45
+  );
   filter: none;
   -webkit-filter: none;
   text-shadow: none;
@@ -2398,19 +2426,25 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 
 .kisara-title-tide::after {
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(255, 206, 212, 0.72) 0 0.8px, transparent 1.35px),
-    radial-gradient(circle at 1px 1px, rgba(38, 12, 49, 0.68) 0 0.9px, transparent 1.5px),
+    radial-gradient(circle at 2px 2px, rgba(198, 76, 98, 0.72) 0 1px, transparent 1.65px),
+    radial-gradient(circle at 2px 2px, rgba(55, 54, 82, 0.58) 0 0.9px, transparent 1.55px),
+    linear-gradient(90deg, rgba(161, 48, 76, 0.54) 0 38%, transparent 40% 100%),
+    linear-gradient(90deg, rgba(109, 92, 126, 0.42) 0 24%, transparent 27% 100%),
     repeating-linear-gradient(
-      118deg,
-      rgba(255, 214, 218, 0.48) 0 1px,
-      transparent 1px 5px,
-      rgba(42, 11, 48, 0.42) 5px 6px,
-      transparent 6px 12px
-    ),
-    linear-gradient(45deg, #481126 0%, #a94c61 34%, #806495 62%, #526fa9 100%);
-  background-size: 11px 13px, 17px 19px, 100% 100%, 100% 100%;
-  background-position: 0 0, 5px 7px, 0 0, 0 0;
-  background-blend-mode: screen, multiply, soft-light, normal;
+      117deg,
+      rgba(208, 104, 119, 0.34) 0 1px,
+      transparent 1px 7px,
+      rgba(38, 31, 55, 0.31) 7px 8px,
+      transparent 8px 15px
+    );
+  background-size: 13px 17px, 19px 23px, 17px 5px, 11px 4px, 100% 100%;
+  background-position:
+    var(--kisara-boundary-shift) 0,
+    calc(5px + var(--kisara-boundary-shift)) 7px,
+    calc(0px - var(--kisara-boundary-shift)) 1px,
+    var(--kisara-boundary-shift) 8px,
+    0 0;
+  background-blend-mode: screen, multiply, normal, normal, soft-light;
   opacity: var(--kisara-boundary-opacity);
   mix-blend-mode: normal;
   filter: none;
@@ -2419,25 +2453,25 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   -webkit-mask-image: linear-gradient(
     45deg,
     transparent 0%,
-    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 8.5%),
-    rgba(0, 0, 0, 0.28) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 6.8%),
-    rgba(0, 0, 0, 0.86) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 4.4%),
-    #000 calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 1.3%),
-    rgba(0, 0, 0, 0.82) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 1.7%),
-    rgba(0, 0, 0, 0.34) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 4.7%),
-    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 7.6%),
+    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 11%),
+    rgba(0, 0, 0, 0.16) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 9%),
+    rgba(0, 0, 0, 0.72) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 6%),
+    #000 calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 2%),
+    rgba(0, 0, 0, 0.72) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 2.2%),
+    rgba(0, 0, 0, 0.24) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 6.2%),
+    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 10%),
     transparent 100%
   );
   mask-image: linear-gradient(
     45deg,
     transparent 0%,
-    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 8.5%),
-    rgba(0, 0, 0, 0.28) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 6.8%),
-    rgba(0, 0, 0, 0.86) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 4.4%),
-    #000 calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 1.3%),
-    rgba(0, 0, 0, 0.82) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 1.7%),
-    rgba(0, 0, 0, 0.34) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 4.7%),
-    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 7.6%),
+    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 11%),
+    rgba(0, 0, 0, 0.16) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 9%),
+    rgba(0, 0, 0, 0.72) calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 6%),
+    #000 calc(var(--kisara-fill) + var(--kisara-boundary-offset) - 2%),
+    rgba(0, 0, 0, 0.72) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 2.2%),
+    rgba(0, 0, 0, 0.24) calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 6.2%),
+    transparent calc(var(--kisara-fill) + var(--kisara-boundary-offset) + 10%),
     transparent 100%
   );
 }
