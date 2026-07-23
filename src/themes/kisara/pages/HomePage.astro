@@ -402,19 +402,35 @@ const gateStyle = [
 
   <script>
     const scheduleKisaraHome = () => {
+      window.__yuimiKisaraHomeSchedule = scheduleKisaraHome;
       window.clearTimeout(window.__yuimiKisaraHomeInitTimer);
-      if (!document.querySelector("[data-kisara-gate]")) return;
+      const scheduledGate = document.querySelector("[data-kisara-gate]");
+      if (!(scheduledGate instanceof HTMLElement)) return;
+      if (scheduledGate.dataset.bound === "true") {
+        window.__yuimiKisaraHomeBootController?.markReady?.();
+        return;
+      }
+      if (scheduledGate.dataset.binding === "true") return;
       window.__yuimiKisaraHomeInitTimer = window.setTimeout(() => {
         window.__yuimiKisaraHomeInitTimer = 0;
+        const pendingGate = document.querySelector("[data-kisara-gate]");
+        if (!(pendingGate instanceof HTMLElement)) return;
+        if (pendingGate.dataset.bound === "true") {
+          window.__yuimiKisaraHomeBootController?.markReady?.();
+          return;
+        }
+        if (pendingGate.dataset.binding === "true") return;
         window.__yuimiKisaraHomeCleanup?.();
-      (() => {
+      try {
+        (() => {
       const gate = document.querySelector("[data-kisara-gate]");
       if (!gate) return;
       if (gate.dataset.bound === "true") {
         window.__yuimiKisaraHomeBootController?.markReady?.();
         return;
       }
-      gate.dataset.bound = "true";
+      if (gate.dataset.binding === "true") return;
+      gate.dataset.binding = "true";
       const lifecycle = new AbortController();
       const signal = lifecycle.signal;
       let disposed = false;
@@ -11401,6 +11417,8 @@ const gateStyle = [
       const cleanup = () => {
         if (disposed) return;
         disposed = true;
+        gate.removeAttribute("data-bound");
+        gate.removeAttribute("data-binding");
         deactivateOpeningBridgePortal();
         lifecycle.abort();
         spaceLensInitGeneration += 1;
@@ -11463,6 +11481,9 @@ const gateStyle = [
       window.__yuimiKisaraHomeCleanup = cleanup;
 
       render();
+      gate.dataset.bound = "true";
+      gate.removeAttribute("data-binding");
+      gate.removeAttribute("data-kisara-runtime-retries");
       window.__yuimiKisaraHomeBootController?.markReady?.();
       scheduleWarningWarmup();
       const syncRestoredPosition = () => {
@@ -11494,6 +11515,26 @@ const gateStyle = [
         }, 420);
       }));
         })();
+      } catch (error) {
+        const failedGate = document.querySelector("[data-kisara-gate]");
+        if (failedGate instanceof HTMLElement) {
+          failedGate.removeAttribute("data-bound");
+          failedGate.removeAttribute("data-binding");
+          window.__yuimiKisaraHomeCleanup?.();
+          const retryCount = Number.parseInt(failedGate.dataset.kisaraRuntimeRetries ?? "0", 10);
+          if (retryCount < 2) {
+            failedGate.dataset.kisaraRuntimeRetries = String(retryCount + 1);
+            window.setTimeout(() => {
+              if (document.querySelector("[data-kisara-gate]") === failedGate) {
+                window.__yuimiKisaraHomeSchedule?.();
+              }
+            }, 160 * (retryCount + 1));
+            return;
+          }
+        }
+        console.error("[Kisara] homepage runtime initialization failed", error);
+        window.__yuimiKisaraHomeBootController?.markReady?.();
+      }
       }, 0);
     };
 
@@ -11510,5 +11551,73 @@ const gateStyle = [
       window.__yuimiKisaraHomeLifecycleBound = true;
     }
     scheduleKisaraHome();
+  </script>
+  <script is:inline data-astro-rerun>
+    (() => {
+      window.__yuimiKisaraRuntimeGuardCleanup?.();
+      const gate = document.querySelector("[data-kisara-gate]");
+      if (!(gate instanceof HTMLElement)) return;
+      const sourceScript = Array.from(document.scripts).find((script) => (
+        script.type === "module"
+        && script.src.includes("HomePage.astro_astro_type_script")
+      ));
+      if (!(sourceScript instanceof HTMLScriptElement)) return;
+      sourceScript.setAttribute("fetchpriority", "high");
+
+      let retryTimer = 0;
+      let retryAttempt = 0;
+      let retryScript = null;
+      const hasBoundRuntime = () => gate.dataset.bound === "true";
+
+      const cleanup = () => {
+        if (retryTimer) window.clearTimeout(retryTimer);
+        retryTimer = 0;
+        sourceScript.removeEventListener("error", retryRuntime);
+        if (retryScript instanceof HTMLScriptElement) {
+          retryScript.onload = null;
+          retryScript.onerror = null;
+        }
+        if (window.__yuimiKisaraRuntimeGuardCleanup === cleanup) {
+          window.__yuimiKisaraRuntimeGuardCleanup = null;
+        }
+      };
+
+      const scheduleRetry = (delay) => {
+        if (retryTimer || hasBoundRuntime()) return;
+        retryTimer = window.setTimeout(() => {
+          retryTimer = 0;
+          retryRuntime();
+        }, delay);
+      };
+
+      function retryRuntime() {
+        if (hasBoundRuntime()) {
+          cleanup();
+          return;
+        }
+        if (retryAttempt >= 2) {
+          window.__yuimiKisaraHomeBootController?.markReady?.();
+          cleanup();
+          return;
+        }
+        retryAttempt += 1;
+        window.__yuimiKisaraHomeBootController?.arm?.();
+        const script = document.createElement("script");
+        const separator = sourceScript.src.includes("?") ? "&" : "?";
+        script.type = "module";
+        script.src = `${sourceScript.src}${separator}kisara-runtime-retry=${retryAttempt}`;
+        script.setAttribute("fetchpriority", "high");
+        script.dataset.kisaraRuntimeRetry = String(retryAttempt);
+        script.onload = () => scheduleRetry(900);
+        script.onerror = () => scheduleRetry(360);
+        retryScript = script;
+        document.head.appendChild(script);
+      }
+
+      sourceScript.addEventListener("error", retryRuntime, { once: true });
+      window.__yuimiKisaraRuntimeGuardCleanup = cleanup;
+      document.addEventListener("astro:before-swap", cleanup, { once: true });
+      scheduleRetry(3200);
+    })();
   </script>
 </KisaraLayout>
