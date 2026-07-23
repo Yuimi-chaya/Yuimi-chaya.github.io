@@ -1,41 +1,62 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import "../styles/article.css";
 import { Icon } from "astro-icon/components";
 import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
 
 const { frontmatter } = Astro.props;
-const headings = (Astro.props.headings ?? []).filter((heading) => heading.depth >= 2 && heading.depth <= 3);
+const headings = (Astro.props.headings ?? [])
+  .filter((heading) => heading.depth >= 2 && heading.depth <= 3)
+  .map((heading) => ({ ...heading, text: heading.text.replace(/\s*#\s*$/, "").trim() }));
 const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" })
   .format(frontmatter.updatedDate ?? frontmatter.pubDate);
 ---
 
 <KisaraLayout title={`${frontmatter.title} | Kisara`} description={frontmatter.description} isArticlePage>
   <div class="kisara-reading-progress" data-kisara-reading-progress aria-hidden="true"><span></span></div>
-  <div class="kisara-article-shell">
-    <article>
-      <header class="kisara-article-header">
+  <div class="kisara-article-shell" data-kisara-article>
+    <header class="kisara-article-header">
+      <div class="kisara-article-header-top">
         <a class="kisara-back-link" href={getThemePath("kisara", "/blog/")}><Icon name="tabler:arrow-left" aria-hidden="true" />BACK TO ARCHIVE</a>
+        <span>TRANSMISSION / READING MODE</span>
+      </div>
         <p class="kisara-section-index">{categoryLabel[frontmatter.category]} / {date}</p>
         <h1>{frontmatter.title}</h1>
         <p>{frontmatter.description}</p>
         <div class="kisara-article-tags">{frontmatter.tags.map((tag: string) => <span>#{tag}</span>)}</div>
-      </header>
-      <div class="kisara-prose"><slot /></div>
-      <footer class="kisara-article-end">
-        <div><span>END OF TRANSMISSION</span><strong>YUIMI LAB / KISARA CHANNEL</strong></div>
-        <nav aria-label="文章操作">
-          <button type="button" data-kisara-copy-link><Icon name="tabler:link" aria-hidden="true" /><span>COPY LINK</span></button>
-          <a href={getThemePath("kisara", "/blog/")}><Icon name="tabler:archive" aria-hidden="true" />MORE LOGS</a>
-        </nav>
-      </footer>
-    </article>
-    {headings.length > 0 && (
-      <aside class="kisara-toc" aria-label="文章目录">
-        <strong>ON THIS PAGE</strong>
-        {headings.map((heading) => <a class={`depth-${heading.depth}`} href={`#${heading.slug}`}>{heading.text}</a>)}
-      </aside>
-    )}
+    </header>
+
+    <div class="kisara-article-reading-layout">
+      {headings.length > 0 && (
+        <aside class="kisara-toc" data-kisara-toc aria-label="文章目录">
+          <div class="kisara-toc-heading"><span>READING MAP</span><strong>ON THIS PAGE</strong></div>
+          <nav data-kisara-toc-nav>
+            {headings.map((heading, index) => (
+              <a
+                class={`depth-${heading.depth}`}
+                href={`#${heading.slug}`}
+                data-kisara-toc-link
+                data-target-id={heading.slug}
+              >
+                <span>{String(index + 1).padStart(2, "0")}</span><em>{heading.text}</em>
+              </a>
+            ))}
+          </nav>
+        </aside>
+      )}
+
+      <article class="kisara-article-content" data-kisara-article-content>
+        <div class="kisara-prose"><slot /></div>
+        <footer class="kisara-article-end">
+          <div><span>END OF TRANSMISSION</span><strong>YUIMI LAB / KISARA CHANNEL</strong></div>
+          <nav aria-label="文章操作">
+            <button type="button" data-kisara-copy-link><Icon name="tabler:link" aria-hidden="true" /><span>COPY LINK</span></button>
+            <a href={getThemePath("kisara", "/blog/")}><Icon name="tabler:archive" aria-hidden="true" />MORE LOGS</a>
+          </nav>
+        </footer>
+      </article>
+    </div>
   </div>
 
   <script is:inline data-astro-rerun>
@@ -45,8 +66,19 @@ const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit
       const signal = lifecycle.signal;
       const progress = document.querySelector("[data-kisara-reading-progress] span");
       const copyButton = document.querySelector("[data-kisara-copy-link]");
+      const articleContent = document.querySelector("[data-kisara-article-content]");
+      const header = document.querySelector(".kisara-header");
+      const tocNav = document.querySelector("[data-kisara-toc-nav]");
+      const tocLinks = Array.from(document.querySelectorAll("[data-kisara-toc-link]"));
+      const tocEntries = tocLinks.map((link) => {
+        if (!(link instanceof HTMLAnchorElement)) return null;
+        const targetId = link.dataset.targetId;
+        const target = targetId ? document.getElementById(targetId) : null;
+        return target instanceof HTMLElement ? { link, target, targetId } : null;
+      }).filter(Boolean);
       let scrollFrame = 0;
       let resetTimer = 0;
+      let activeTargetId = "";
       const cleanup = () => {
         lifecycle.abort();
         if (scrollFrame) cancelAnimationFrame(scrollFrame);
@@ -55,15 +87,67 @@ const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit
       };
       window.__yuimiKisaraInnerCleanup = cleanup;
       document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
-      const updateProgress = () => {
-        scrollFrame = 0;
-        const distance = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-        progress?.style.setProperty("transform", `scaleX(${Math.min(1, Math.max(0, window.scrollY / distance))})`);
+      const setActiveToc = (targetId) => {
+        if (!targetId || targetId === activeTargetId) return;
+        activeTargetId = targetId;
+        let activeLink = null;
+        tocEntries.forEach((entry) => {
+          const active = entry.targetId === targetId;
+          entry.link.classList.toggle("is-active", active);
+          if (active) {
+            entry.link.setAttribute("aria-current", "location");
+            activeLink = entry.link;
+          }
+          else entry.link.removeAttribute("aria-current");
+        });
+        if (tocNav instanceof HTMLElement && activeLink instanceof HTMLElement) {
+          const linkTop = activeLink.offsetTop;
+          const linkBottom = linkTop + activeLink.offsetHeight;
+          const visibleTop = tocNav.scrollTop + 12;
+          const visibleBottom = tocNav.scrollTop + tocNav.clientHeight - 12;
+          if (linkTop < visibleTop || linkBottom > visibleBottom) {
+            tocNav.scrollTo({
+              top: Math.max(0, linkTop - tocNav.clientHeight * 0.38),
+              behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
+            });
+          }
+        }
       };
-      window.addEventListener("scroll", () => {
-        if (!scrollFrame) scrollFrame = window.requestAnimationFrame(updateProgress);
-      }, { passive: true, signal });
-      updateProgress();
+
+      const updateReadingState = () => {
+        scrollFrame = 0;
+        if (articleContent instanceof HTMLElement) {
+          const rect = articleContent.getBoundingClientRect();
+          const articleTop = window.scrollY + rect.top;
+          const articleEnd = articleTop + rect.height - window.innerHeight + 120;
+          const distance = Math.max(1, articleEnd - articleTop);
+          const readingProgress = Math.min(1, Math.max(0, (window.scrollY - articleTop + 100) / distance));
+          progress?.style.setProperty("transform", `scaleX(${readingProgress})`);
+        }
+
+        if (tocEntries.length === 0) return;
+        const headerBottom = header instanceof HTMLElement ? header.getBoundingClientRect().bottom : 70;
+        const threshold = Math.max(108, headerBottom + 42);
+        let activeEntry = tocEntries[0];
+        tocEntries.forEach((entry) => {
+          if (entry.target.getBoundingClientRect().top <= threshold) activeEntry = entry;
+        });
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+          activeEntry = tocEntries[tocEntries.length - 1];
+        }
+        setActiveToc(activeEntry.targetId);
+      };
+
+      const scheduleReadingState = () => {
+        if (!scrollFrame) scrollFrame = window.requestAnimationFrame(updateReadingState);
+      };
+      window.addEventListener("scroll", scheduleReadingState, { passive: true, signal });
+      window.addEventListener("resize", scheduleReadingState, { passive: true, signal });
+      window.addEventListener("hashchange", scheduleReadingState, { signal });
+      tocLinks.forEach((link) => link.addEventListener("click", () => {
+        if (link instanceof HTMLElement && link.dataset.targetId) setActiveToc(link.dataset.targetId);
+      }, { signal }));
+      updateReadingState();
 
       copyButton?.addEventListener("click", async () => {
         const label = copyButton.querySelector("span");

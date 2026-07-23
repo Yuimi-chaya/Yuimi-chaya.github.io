@@ -5,10 +5,45 @@ import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
 import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import sharp from "sharp";
 
 const posts = await getPublishedPosts();
 const categories = Array.from(new Set(posts.map((post) => post.data.category)));
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" });
+
+const coverFocus: Record<string, string> = {
+  "/blog-covers/cover-08.webp": "50% 30%"
+};
+
+const coverPresentation = new Map(await Promise.all(posts.map(async (post) => {
+  const cover = post.data.cover;
+  const fallback = {
+    fit: "portrait" as const,
+    width: 700,
+    height: 990,
+    position: coverFocus[cover ?? ""] ?? "50% 32%"
+  };
+  if (!cover?.startsWith("/")) return [post.id, fallback] as const;
+
+  const sourcePath = path.join(process.cwd(), "public", cover.replace(/^\/+/, ""));
+  if (!existsSync(sourcePath)) return [post.id, fallback] as const;
+
+  try {
+    const metadata = await sharp(sourcePath).metadata();
+    const width = metadata.width ?? fallback.width;
+    const height = metadata.height ?? fallback.height;
+    return [post.id, {
+      fit: width / Math.max(1, height) >= 0.85 ? "crop" as const : "portrait" as const,
+      width,
+      height,
+      position: coverFocus[cover] ?? "50% 32%"
+    }] as const;
+  } catch {
+    return [post.id, fallback] as const;
+  }
+})));
 ---
 
 <KisaraLayout title="Blog | Kisara" description="Yuimi Lab 的文章记录。">
@@ -82,22 +117,31 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month:
     </div>
 
     <div class="kisara-blog-stream" data-kisara-archive-list>
-      {posts.map((post, index) => (
+      {posts.map((post, index) => {
+        const cover = coverPresentation.get(post.id);
+        return (
         <a
           class="kisara-blog-record"
           href={getThemePath("kisara", `/blog/${post.id}/`)}
           data-kisara-record
           data-category={post.data.category}
           data-search={[post.data.title, post.data.description, ...post.data.tags].join(" ").toLowerCase()}
-          style={`--archive-order: ${index}; --archive-cover: ${post.data.cover ? `url("${post.data.cover}")` : "none"};`}
+          style={`--archive-order: ${index}; --archive-cover: ${post.data.cover ? `url("${post.data.cover}")` : "none"}; --archive-cover-position: ${cover?.position ?? "50% 32%"};`}
         >
-          <figure>
+          <figure data-cover-fit={cover?.fit ?? "portrait"}>
             {post.data.cover ? (
-              <img src={post.data.cover} alt="" width="700" height="990" loading={index < 3 ? "eager" : "lazy"} decoding="async" />
+              <img
+                src={post.data.cover}
+                alt=""
+                width={cover?.width ?? 700}
+                height={cover?.height ?? 990}
+                loading={index < 3 ? "eager" : "lazy"}
+                decoding="async"
+              />
             ) : (
               <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
             )}
-            <figcaption><span>{String(index + 1).padStart(2, "0")}</span><small>PORTRAIT LOG</small></figcaption>
+            <figcaption><span>{String(index + 1).padStart(2, "0")}</span><small>{cover?.fit === "crop" ? "CROPPED LOG" : "PORTRAIT LOG"}</small></figcaption>
           </figure>
           <div class="kisara-blog-record-body">
             <div class="kisara-blog-record-meta">
@@ -111,7 +155,8 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month:
             <span class="kisara-blog-record-action">READ TRANSMISSION <i aria-hidden="true">↗</i></span>
           </div>
         </a>
-      ))}
+        );
+      })}
     </div>
     <p class="kisara-blog-empty" data-kisara-empty hidden>NO MATCHED SIGNAL / 换一个关键词试试。</p>
   </section>
