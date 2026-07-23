@@ -10558,12 +10558,18 @@ const gateStyle = [
         syncOpeningEdgeState(nextOpeningEdgeState, memoryState.flare);
         const glossPosition = 118 - glossSweep * 136;
         const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
+        const boundaryOpacity = fill <= 0.002 || fill >= 0.998
+          ? 0
+          : Math.min(0.9, 0.54 + Math.abs(velocity) * 34);
+        const boundaryOffset = clamp(velocity * 360, -1.7, 1.7);
 
         gate.style.setProperty("--kisara-fill", `${(fill * 100).toFixed(3)}%`);
         gate.style.setProperty("--kisara-burst-progress", `${(burstProgress * 100).toFixed(3)}%`);
         gate.style.setProperty("--kisara-gloss-position", `${glossPosition.toFixed(3)}%`);
         gate.style.setProperty("--kisara-gloss-opacity", glossOpacity.toFixed(3));
         gate.style.setProperty("--kisara-tide-opacity", tideVisible ? "1" : "0");
+        gate.style.setProperty("--kisara-boundary-opacity", boundaryOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-boundary-offset", `${boundaryOffset.toFixed(3)}%`);
         gate.style.setProperty("--kisara-bg-blur", `${baseSceneBlur.toFixed(3)}px`);
         gate.style.setProperty("--kisara-bg-opacity", baseSceneOpacity.toFixed(3));
         gate.style.setProperty("--kisara-bg-saturation", baseSceneSaturation.toFixed(3));
