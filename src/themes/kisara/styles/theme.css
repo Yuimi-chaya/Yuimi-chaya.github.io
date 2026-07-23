@@ -2626,18 +2626,67 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 
 .kisara-gate-skip {
   position: absolute;
-  right: 30px;
+  right: 48px;
   bottom: 28px;
   padding: 5px 0;
   color: rgba(170, 190, 242, 0.62);
-  border-bottom: 1px solid currentColor;
+  border-bottom: 1px solid rgba(170, 190, 242, 0.48);
   font-size: 0.66rem;
   font-weight: 800;
+  opacity: 0.72;
+  isolation: isolate;
+  transition: color 180ms ease, border-color 180ms ease, opacity 180ms ease, filter 180ms ease;
+  animation: kisara-skip-breathe 2.8s ease-in-out infinite;
+}
+
+.kisara-gate-skip::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -4px;
+  bottom: -1px;
+  left: -4px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 120, 145, 0.95), transparent);
+  opacity: 0;
+  transform: translateX(-24%) scaleX(0.22);
+  transform-origin: center;
+  animation: kisara-skip-scan 2.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .kisara-gate-skip:hover,
 .kisara-gate-skip:focus-visible {
   color: #ff7891;
+  border-bottom-color: rgba(255, 120, 145, 0.82);
+  opacity: 1;
+  filter: drop-shadow(0 0 8px rgba(255, 120, 145, 0.48));
+  animation-play-state: paused;
+}
+
+@keyframes kisara-skip-breathe {
+  0%, 100% {
+    opacity: 0.62;
+    filter: drop-shadow(0 0 0 rgba(255, 120, 145, 0));
+  }
+  50% {
+    opacity: 0.94;
+    filter: drop-shadow(0 0 7px rgba(255, 120, 145, 0.34));
+  }
+}
+
+@keyframes kisara-skip-scan {
+  0%, 18% {
+    opacity: 0;
+    transform: translateX(-24%) scaleX(0.22);
+  }
+  42% {
+    opacity: 0.82;
+  }
+  72%, 100% {
+    opacity: 0;
+    transform: translateX(24%) scaleX(0.72);
+  }
 }
 
 .kisara-scroll-cue::before {
@@ -5100,7 +5149,7 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   }
 
   .kisara-gate-skip {
-    right: 18px;
+    right: 30px;
     bottom: 82px;
   }
 
@@ -5387,7 +5436,9 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   .kisara-audio-trace i,
   .kisara-audio-nav,
   .kisara-audio-nav button,
-  .kisara-audio-nav button::after {
+  .kisara-audio-nav button::after,
+  .kisara-gate-skip,
+  .kisara-gate-skip::after {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }

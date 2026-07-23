@@ -10,5 +10,8 @@ export const kisaraAudioTracks = [
   { id: "kokoro-no-oku", title: "心の奥", src: "/themes/kisara/audio/kokoro-no-oku.mp3" },
   { id: "mitakunai-kako", title: "見たくない過去", src: "/themes/kisara/audio/mitakunai-kako.mp3" },
   { id: "chanto-tabeteru", title: "ちゃんと食べてる？", src: "/themes/kisara/audio/chanto-tabeteru.mp3" },
-  { id: "ichaicha-mousou", title: "イチャイチャ（妄想）", src: "/themes/kisara/audio/ichaicha-mousou.mp3" }
+  { id: "ichaicha-mousou", title: "イチャイチャ（妄想）", src: "/themes/kisara/audio/ichaicha-mousou.mp3" },
+  { id: "kanashii-kako", title: "悲しい過去", src: "/themes/kisara/audio/kanashii-kako.mp3" },
+  { id: "honki-mode", title: "本気モード", src: "/themes/kisara/audio/honki-mode.mp3" },
+  { id: "kioku-no-yukue", title: "記憶の行方", src: "/themes/kisara/audio/kioku-no-yukue.mp3" }
 ] as const;
