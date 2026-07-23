@@ -94,9 +94,96 @@
 }
 
 .kisara-game-hero-copy,
+.kisara-game-hero-whisper,
 .kisara-game-hero-index {
   position: relative;
   z-index: 1;
+}
+
+.kisara-game-hero-whisper {
+  position: absolute;
+  left: clamp(30px, 7vw, 112px);
+  top: clamp(174px, 30vh, 300px);
+  display: grid;
+  box-sizing: border-box;
+  gap: 2px;
+  width: clamp(184px, 16vw, 214px);
+  margin: 0;
+  padding: 23px 20px 21px;
+  color: rgba(242, 239, 255, 0.88);
+  font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  font-size: clamp(0.72rem, 0.76vw, 0.84rem);
+  line-height: 1.45;
+  text-align: center;
+  text-shadow: 0 1px 7px rgba(2, 4, 17, 0.72), 0 0 14px rgba(188, 196, 255, 0.18);
+  isolation: isolate;
+  opacity: 0.88;
+}
+
+.kisara-game-hero-whisper::before,
+.kisara-game-hero-whisper-tail,
+.kisara-game-hero-whisper-tail b {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.kisara-game-hero-whisper::before {
+  z-index: -1;
+  inset: -8px -10px;
+  background:
+    radial-gradient(ellipse at 40% 30%, rgba(207, 215, 255, 0.12), transparent 48%),
+    linear-gradient(145deg, rgba(8, 11, 28, 0.28), rgba(92, 103, 148, 0.075));
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20300%20140'%3E%3Cpath%20fill='black'%20d='M46,120C19,120,4,100,4,75C4,47,23,28,49,28C62,28,72,31,81,37C86,14,102,3,123,3C143,3,158,14,165,31C178,20,192,17,208,20C224,23,236,33,243,46C250,38,260,35,272,38C288,43,297,58,296,75C295,99,280,114,258,114C249,114,240,111,233,106C225,121,210,128,194,128C181,128,169,124,160,116C149,127,135,133,120,132C103,131,90,124,82,113C72,119,60,120,46,120Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20300%20140'%3E%3Cpath%20fill='black'%20d='M46,120C19,120,4,100,4,75C4,47,23,28,49,28C62,28,72,31,81,37C86,14,102,3,123,3C143,3,158,14,165,31C178,20,192,17,208,20C224,23,236,33,243,46C250,38,260,35,272,38C288,43,297,58,296,75C295,99,280,114,258,114C249,114,240,111,233,106C225,121,210,128,194,128C181,128,169,124,160,116C149,127,135,133,120,132C103,131,90,124,82,113C72,119,60,120,46,120Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  box-shadow: inset 0 0 24px rgba(217, 224, 255, 0.06);
+  backdrop-filter: blur(11px) saturate(0.72) brightness(0.8);
+  -webkit-backdrop-filter: blur(11px) saturate(0.72) brightness(0.8);
+  filter: blur(0.45px) drop-shadow(0 8px 22px rgba(1, 3, 14, 0.08));
+  opacity: 0.78;
+}
+
+.kisara-game-hero-whisper-tail {
+  z-index: 0;
+  right: -20px;
+  bottom: -8px;
+  width: 36px;
+  height: 24px;
+}
+
+.kisara-game-hero-whisper-tail b {
+  display: block;
+  border-radius: 50%;
+  background: rgba(123, 132, 176, 0.38);
+  box-shadow: inset 0 0 8px rgba(226, 230, 255, 0.1), 0 4px 12px rgba(1, 3, 14, 0.08);
+  backdrop-filter: blur(8px) saturate(0.72) brightness(0.82);
+  -webkit-backdrop-filter: blur(8px) saturate(0.72) brightness(0.82);
+  filter: blur(0.45px);
+}
+
+.kisara-game-hero-whisper-tail b:first-child {
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.kisara-game-hero-whisper-tail b:last-child {
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  background: rgba(147, 157, 198, 0.42);
+}
+
+.kisara-game-hero-whisper > span {
+  position: relative;
+  z-index: 1;
+}
+
+.kisara-game-hero-whisper span:first-child {
+  color: rgba(255, 221, 234, 0.94);
+  font-size: 1.08em;
 }
 
 .kisara-game-hero[data-intro-state="idle"] .kisara-game-hero-media {
@@ -106,6 +193,7 @@
 }
 
 .kisara-game-hero[data-intro-state="idle"] .kisara-game-hero-copy > *,
+.kisara-game-hero[data-intro-state="idle"] .kisara-game-hero-whisper,
 .kisara-game-hero[data-intro-state="idle"] .kisara-game-hero-index {
   opacity: 0;
   transform: translate3d(24px, 16px, 0);
@@ -130,6 +218,10 @@
 .kisara-game-hero[data-intro-state="playing"] .kisara-game-hero-copy > *,
 .kisara-game-hero[data-intro-state="playing"] .kisara-game-hero-index {
   animation: kisara-game-hero-copy-in 620ms cubic-bezier(0.16, 0.8, 0.24, 1) both;
+}
+
+.kisara-game-hero[data-intro-state="playing"] .kisara-game-hero-whisper {
+  animation: kisara-game-hero-whisper-in 680ms cubic-bezier(0.16, 0.78, 0.2, 1) 920ms both;
 }
 
 .kisara-game-hero[data-intro-state="playing"] .kisara-game-hero-copy > :nth-child(1) { animation-delay: 620ms; }
@@ -260,6 +352,12 @@
 @keyframes kisara-game-hero-copy-in {
   0% { opacity: 0; transform: translate3d(24px, 16px, 0); filter: blur(7px); }
   100% { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+}
+
+@keyframes kisara-game-hero-whisper-in {
+  0% { opacity: 0; transform: translate3d(-17px, 9px, 0) scale(0.94); filter: blur(8px); }
+  64% { opacity: 0.72; filter: blur(1.5px); }
+  100% { opacity: 0.88; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
 }
 
 @keyframes kisara-game-hero-cue {
@@ -789,6 +887,17 @@
   }
   .kisara-game-hero-media img { object-position: 34% 50%; }
   .kisara-game-hero-intro::before { left: 70%; top: 49%; }
+  .kisara-game-hero-whisper {
+    left: 18px;
+    top: 23%;
+    width: 158px;
+    padding: 18px 14px 17px;
+    font-size: 0.7rem;
+  }
+  .kisara-game-hero-whisper::before { inset: -6px -8px; backdrop-filter: blur(8px) saturate(0.72) brightness(0.8); -webkit-backdrop-filter: blur(8px) saturate(0.72) brightness(0.8); }
+  .kisara-game-hero-whisper-tail { right: -17px; bottom: -7px; width: 30px; height: 21px; }
+  .kisara-game-hero-whisper-tail b:first-child { width: 12px; height: 12px; }
+  .kisara-game-hero-whisper-tail b:last-child { width: 8px; height: 8px; }
   .kisara-game-hero-copy { justify-self: stretch; width: 100%; padding-bottom: 18px; }
   .kisara-game-hero h1 { font-size: clamp(3.6rem, 17vw, 5rem); }
   .kisara-game-hero-copy > p:nth-of-type(2) { max-width: 34rem; font-size: 0.9rem; line-height: 1.72; }
@@ -818,6 +927,7 @@
   .kisara-game-hero-media img,
   .kisara-game-hero-intro,
   .kisara-game-hero-copy > *,
+  .kisara-game-hero-whisper,
   .kisara-game-hero-index,
   .kisara-game-hero-copy > a svg { animation: none; }
   .kisara-game-hero[data-intro-state] .kisara-game-hero-media {
@@ -826,6 +936,7 @@
     opacity: 1;
   }
   .kisara-game-hero[data-intro-state] .kisara-game-hero-copy > *,
+  .kisara-game-hero[data-intro-state] .kisara-game-hero-whisper,
   .kisara-game-hero[data-intro-state] .kisara-game-hero-index {
     opacity: 1;
     transform: none;
