@@ -1215,6 +1215,8 @@ const gateStyle = [
       let scrollTransitionRoot = null;
       let scrollTransitionPreviousBehavior = "";
       let lastObservedScrollY = window.scrollY;
+      let gateReturnGuardUntil = 0;
+      let gateReturnResetFrame = 0;
       let layoutResizeFrame = 0;
       let restoreSyncTimer = 0;
       let restoreWindowOpen = true;
@@ -11077,14 +11079,16 @@ const gateStyle = [
       };
 
       const enterNextPage = () => {
-        if (scrollFrame) return;
+        if (scrollTransitionDirection === "forward") return;
+        if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
         pageMode = "snap";
+        gateReturnGuardUntil = 0;
         setPostReleaseActive(false);
         releaseOpeningEdgeState();
         syncOpeningEdgeLiveGeometry(true);
         primeCurrentOpeningEdgeTextures();
         activateOpeningBridgePortal();
-        smoothScrollTo(getNextPageTop(), () => {
+        const started = smoothScrollTo(getNextPageTop(), () => {
           pageMode = "next";
           lastObservedScrollY = window.scrollY;
           render();
@@ -11094,10 +11098,37 @@ const gateStyle = [
         }, () => {
           syncOpeningEdgeLiveGeometry(true);
         }, "forward");
+        if (!started) {
+          pageMode = "gate";
+          deactivateOpeningBridgePortal();
+        }
+      };
+
+      const completeGateReturn = () => {
+        gateVisualResetPending = false;
+        deactivateOpeningBridgePortal();
+        releaseOpeningEdgeState();
+        pageMode = "gate";
+        lastObservedScrollY = 0;
+        setScrollPosition(0);
+        resetGateState();
+        // Paint the blue bridge state once, then keep it live for the next run.
+        lockOpeningEdgeState();
+        releaseOpeningEdgeState();
+        gateReturnGuardUntil = performance.now() + 120;
+        scheduleWarningWarmup(true);
+        if (gateReturnResetFrame) window.cancelAnimationFrame(gateReturnResetFrame);
+        gateReturnResetFrame = window.requestAnimationFrame(() => {
+          gateReturnResetFrame = 0;
+          if (disposed || pageMode !== "gate" || scrollFrame) return;
+          if (window.scrollY > 2) setScrollPosition(0);
+          lastObservedScrollY = 0;
+        });
       };
 
       const returnToGate = () => {
-        if (scrollFrame) return;
+        if (scrollTransitionDirection === "return") return;
+        if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
         pageMode = "snap";
         const returnRailStart = getDocumentScrollProgress();
         gateVisualResetPending = false;
@@ -11109,14 +11140,8 @@ const gateStyle = [
           guided: false,
           transitioning: true
         });
-        smoothScrollTo(0, () => {
-          deactivateOpeningBridgePortal();
-          releaseOpeningEdgeState();
-          pageMode = "gate";
-          lastObservedScrollY = 0;
-          resetGateState();
-          lockOpeningEdgeState();
-          scheduleWarningWarmup(true);
+        const started = smoothScrollTo(0, () => {
+          completeGateReturn();
         }, (journeyProgress) => {
           publishGateRailState({
             active: true,
@@ -11126,6 +11151,7 @@ const gateStyle = [
             transitioning: true
           });
         }, "return");
+        if (!started) completeGateReturn();
       };
 
       const addProgress = (delta) => {
@@ -11206,7 +11232,7 @@ const gateStyle = [
 
       const handleDirectionalInput = (delta, event) => {
         if (delta === 0) return;
-        if (scrollFrame) {
+        if (scrollFrame || scrollTransitionDirection !== "idle") {
           event.preventDefault();
           if (
             pageMode === "snap"
@@ -11218,8 +11244,22 @@ const gateStyle = [
           }
           return;
         }
+        if (performance.now() < gateReturnGuardUntil) {
+          event.preventDefault();
+          return;
+        }
+        if (pageMode === "snap") {
+          event.preventDefault();
+          if (window.scrollY <= 2) completeGateReturn();
+          else returnToGate();
+          return;
+        }
         if (pageMode === "gate") {
-          if (window.scrollY > 2) return;
+          if (window.scrollY > 2) {
+            event.preventDefault();
+            returnToGate();
+            return;
+          }
           if (delta > 0 && isComplete()) {
             event.preventDefault();
             enterNextPage();
@@ -11409,6 +11449,7 @@ const gateStyle = [
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
         if (energyFrame) window.cancelAnimationFrame(energyFrame);
         cancelSmoothScroll();
+        if (gateReturnResetFrame) window.cancelAnimationFrame(gateReturnResetFrame);
         if (layoutResizeFrame) window.cancelAnimationFrame(layoutResizeFrame);
         if (energyTimer) window.clearTimeout(energyTimer);
         if (restoreSyncTimer) window.clearTimeout(restoreSyncTimer);
@@ -11432,6 +11473,7 @@ const gateStyle = [
         animationFrame = 0;
         energyFrame = 0;
         scrollFrame = 0;
+        gateReturnResetFrame = 0;
         layoutResizeFrame = 0;
         energyTimer = 0;
         restoreSyncTimer = 0;
@@ -11479,6 +11521,15 @@ const gateStyle = [
         const currentScrollY = window.scrollY;
         const movedTowardGate = currentScrollY < lastObservedScrollY - 0.5;
         lastObservedScrollY = currentScrollY;
+        if (!scrollFrame && pageMode === "gate" && currentScrollY > 2) {
+          setScrollPosition(0);
+          lastObservedScrollY = 0;
+          return;
+        }
+        if (!scrollFrame && pageMode === "snap" && currentScrollY <= 2) {
+          completeGateReturn();
+          return;
+        }
         if (!movedTowardGate || scrollFrame || pageMode !== "next") return;
         if (currentScrollY > getReturnToGateThreshold()) return;
         returnToGate();
