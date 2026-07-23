@@ -148,11 +148,12 @@ const kitchenRecipes = [
 ] as const;
 
 const kitchenCatalog = {
-  ingredients: kitchenIngredients.map(({ id, code, name, english, color, soft, project }) => ({
+  ingredients: kitchenIngredients.map(({ id, code, name, english, shape, color, soft, project }) => ({
     id,
     code,
     name,
     english,
+    shape,
     color,
     soft,
     project: project.title
@@ -367,8 +368,11 @@ const kitchenCatalog = {
       let blendTimer = 0;
       let chopTimer = 0;
       let statusTimer = 0;
+      let kitchenScrollFrame = 0;
+      let kitchenScrollToken = 0;
       let dragGhost = null;
       let dragState = null;
+      const settlingGhosts = new Set();
 
       const cleanup = () => {
         lifecycle.abort();
@@ -377,7 +381,10 @@ const kitchenCatalog = {
         if (blendTimer) window.clearTimeout(blendTimer);
         if (chopTimer) window.clearTimeout(chopTimer);
         if (statusTimer) window.clearTimeout(statusTimer);
+        if (kitchenScrollFrame) cancelAnimationFrame(kitchenScrollFrame);
         dragGhost?.remove();
+        settlingGhosts.forEach((ghost) => ghost.remove());
+        settlingGhosts.clear();
         if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
       };
 
@@ -404,6 +411,7 @@ const kitchenCatalog = {
           .map((button) => [button.dataset.kitchenIngredient, button])
       );
       const boardItemsRoot = root.querySelector("[data-board-items]");
+      const cuttingBoard = root.querySelector("[data-cutting-board]");
       const boardEmpty = root.querySelector("[data-board-empty]");
       const boardCount = root.querySelector("[data-board-count]");
       const cutLevel = root.querySelector("[data-cut-level]");
@@ -433,6 +441,7 @@ const kitchenCatalog = {
       let mixNumber = 0;
       let suppressClickUntil = 0;
       let pendingPointer = null;
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
       const announce = (message, sticky = false) => {
         if (statusOutput) statusOutput.textContent = message;
@@ -453,37 +462,67 @@ const kitchenCatalog = {
       const getMeta = (id) => ingredientMap.get(id);
       const ingredientCodes = (ids) => ids.map((id) => getMeta(id)?.code || id.toUpperCase()).join(" + ");
 
-      const createBoardItem = (id, cuts) => {
+      const updateBoardItem = (button, id, cuts, index) => {
+        const meta = getMeta(id);
+        if (!meta) return;
+        button.dataset.cut = String(cuts);
+        button.dataset.shape = meta.shape || "cube";
+        button.style.setProperty("--ingredient", meta.color);
+        button.style.setProperty("--ingredient-soft", meta.soft);
+        button.style.setProperty("--board-order", String(index));
+        button.setAttribute("aria-label", `${meta.name}，切配等级 ${cuts}，点击继续切`);
+        const strong = button.querySelector("strong");
+        const small = button.querySelector("small");
+        if (strong) strong.textContent = meta.code;
+        if (small) small.textContent = cuts >= 2 ? "PREPPED" : cuts === 1 ? "HALF CUT" : "RAW";
+      };
+
+      const createBoardItem = (id, cuts, index) => {
         const meta = getMeta(id);
         if (!meta) return null;
         const button = document.createElement("button");
         button.type = "button";
         button.className = "kisara-board-item";
         button.dataset.boardItem = id;
-        button.dataset.cut = String(cuts);
-        button.style.setProperty("--ingredient", meta.color);
-        button.style.setProperty("--ingredient-soft", meta.soft);
-        button.setAttribute("aria-label", `${meta.name}，切配等级 ${cuts}，点击继续切`);
 
         const food = document.createElement("span");
         food.className = "kisara-board-food";
         for (let index = 0; index < 5; index += 1) food.append(document.createElement("i"));
+        const cutMarks = document.createElement("span");
+        cutMarks.className = "kisara-board-cut-marks";
+        cutMarks.setAttribute("aria-hidden", "true");
+        for (let mark = 0; mark < 3; mark += 1) cutMarks.append(document.createElement("b"));
+        food.append(cutMarks);
 
         const copy = document.createElement("span");
+        copy.className = "kisara-board-item-copy";
         const strong = document.createElement("strong");
         const small = document.createElement("small");
-        strong.textContent = meta.code;
-        small.textContent = cuts >= 2 ? "PREPPED" : cuts === 1 ? "HALF CUT" : "RAW";
         copy.append(strong, small);
         button.append(food, copy);
+        updateBoardItem(button, id, cuts, index);
         return button;
       };
 
       const renderBoard = () => {
-        boardItemsRoot.replaceChildren();
-        Array.from(boardState.entries()).forEach(([id, item]) => {
-          const element = createBoardItem(id, item.cuts);
-          if (element) boardItemsRoot.append(element);
+        const existing = new Map(
+          Array.from(boardItemsRoot.querySelectorAll("[data-board-item]"))
+            .filter((element) => element instanceof HTMLButtonElement)
+            .map((element) => [element.dataset.boardItem, element])
+        );
+        const liveIds = new Set();
+        Array.from(boardState.entries()).forEach(([id, item], index) => {
+          let element = existing.get(id);
+          if (!element) {
+            element = createBoardItem(id, item.cuts, index);
+            if (element) boardItemsRoot.append(element);
+          } else {
+            updateBoardItem(element, id, item.cuts, index);
+          }
+          liveIds.add(id);
+        });
+        existing.forEach((element, id) => {
+          if (!liveIds.has(id)) element.remove();
         });
         const total = boardState.size;
         const prepared = Array.from(boardState.values()).filter((item) => item.cuts >= 2).length;
@@ -538,15 +577,16 @@ const kitchenCatalog = {
         const meta = getMeta(id);
         if (!meta || boardState.has(id) || blenderState.includes(id)) {
           announce("这份食材已经在料理台上了，再放会变成依赖重复。", true);
-          return;
+          return false;
         }
         if (boardState.size >= maxIngredients) {
           announce("整套技术栈都在砧板上了，再堆就只能把依赖文件也切进去。", true);
-          return;
+          return false;
         }
         boardState.set(id, { cuts: 0 });
         renderAll();
         announce(`${meta.name} 已经上砧板。`);
+        return true;
       };
 
       const chopItem = (id) => {
@@ -619,12 +659,66 @@ const kitchenCatalog = {
 
       const removeBoardItem = (id) => {
         const meta = getMeta(id);
-        if (!boardState.delete(id)) return;
+        if (!boardState.delete(id)) return false;
         renderAll();
         announce(`${meta?.name || "这份食材"} 被丢进了回收站。`);
+        return true;
       };
 
+      const cancelKitchenScroll = () => {
+        kitchenScrollToken += 1;
+        if (kitchenScrollFrame) cancelAnimationFrame(kitchenScrollFrame);
+        kitchenScrollFrame = 0;
+        delete root.dataset.scrollingResult;
+        delete root.dataset.scrollTarget;
+      };
+
+      const scrollToKitchenTarget = (target, targetName) => {
+        if (!(target instanceof HTMLElement)) return;
+        cancelKitchenScroll();
+        const startY = window.scrollY;
+        const targetTop = startY + target.getBoundingClientRect().top;
+        const topInset = targetName === "board"
+          ? (window.innerWidth <= 680 ? 18 : Math.min(82, Math.max(58, window.innerHeight * 0.09)))
+          : (window.innerWidth <= 680 ? 18 : Math.min(88, Math.max(52, window.innerHeight * 0.08)));
+        const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        const targetY = Math.min(maxY, Math.max(0, targetTop - topInset));
+        const distance = targetY - startY;
+        if (Math.abs(distance) < 4) return;
+        if (reduceMotion) {
+          window.scrollTo(0, targetY);
+          return;
+        }
+
+        const token = ++kitchenScrollToken;
+        const duration = Math.min(1080, Math.max(720, 620 + Math.abs(distance) * 0.12));
+        let startTime = 0;
+        root.dataset.scrollTarget = targetName;
+        if (targetName === "result") root.dataset.scrollingResult = "true";
+        const step = (timestamp) => {
+          if (token !== kitchenScrollToken) return;
+          if (!startTime) startTime = timestamp;
+          const progress = Math.min(1, (timestamp - startTime) / duration);
+          const rawEase = 1 - Math.exp(-5.8 * progress);
+          const ease = rawEase / (1 - Math.exp(-5.8));
+          window.scrollTo(0, startY + distance * ease);
+          if (progress < 1) {
+            kitchenScrollFrame = requestAnimationFrame(step);
+          } else {
+            kitchenScrollFrame = 0;
+            window.scrollTo(0, targetY);
+            delete root.dataset.scrollingResult;
+            delete root.dataset.scrollTarget;
+          }
+        };
+        kitchenScrollFrame = requestAnimationFrame(step);
+      };
+
+      const scrollToResult = () => scrollToKitchenTarget(result, "result");
+      const scrollToBoard = () => scrollToKitchenTarget(cuttingBoard, "board");
+
       const resetKitchen = (announceReset = true) => {
+        cancelKitchenScroll();
         if (blendTimer) {
           window.clearTimeout(blendTimer);
           blendTimer = 0;
@@ -692,6 +786,10 @@ const kitchenCatalog = {
         if (blendButton instanceof HTMLButtonElement) blendButton.disabled = true;
         root.dataset.hasResult = "true";
         announce(`${recipe.title} 已经出杯。建议先拍照，再决定要不要喝。`, true);
+        kitchenScrollFrame = requestAnimationFrame(() => {
+          kitchenScrollFrame = 0;
+          if (root.dataset.hasResult === "true") scrollToResult();
+        });
       };
 
       const blend = () => {
@@ -712,25 +810,61 @@ const kitchenCatalog = {
         }, 1320);
       };
 
-      const createDragGhost = (source) => {
+      const createDragGhost = (source, width) => {
         const ghost = source.cloneNode(true);
         ghost.removeAttribute("id");
         ghost.removeAttribute("data-kitchen-ingredient");
         ghost.removeAttribute("data-board-item");
         ghost.classList.add("kisara-kitchen-drag-ghost");
         ghost.setAttribute("aria-hidden", "true");
+        ghost.style.setProperty("--drag-width", `${width}px`);
         document.body.append(ghost);
         return ghost;
       };
 
-      const updateDragPosition = () => {
-        dragFrame = 0;
+      const updateDragPosition = (timestamp) => {
         if (!dragState || !dragGhost) return;
-        dragGhost.style.transform = `translate3d(${dragState.x}px, ${dragState.y}px, 0) rotate(${dragState.rotation}deg)`;
+        const elapsed = dragState.lastFrame ? timestamp - dragState.lastFrame : 16.67;
+        const frameScale = Math.min(2.1, Math.max(0.45, elapsed / 16.67));
+        dragState.lastFrame = timestamp;
+        const spring = dragState.pointerType === "touch" ? 0.36 : 0.3;
+        const damping = Math.pow(dragState.pointerType === "touch" ? 0.58 : 0.62, frameScale);
+        dragState.velocityX = (dragState.velocityX + (dragState.targetX - dragState.renderX) * spring * frameScale) * damping;
+        dragState.velocityY = (dragState.velocityY + (dragState.targetY - dragState.renderY) * spring * frameScale) * damping;
+        dragState.renderX += dragState.velocityX * frameScale;
+        dragState.renderY += dragState.velocityY * frameScale;
+        const rotationEase = 1 - Math.pow(0.68, frameScale);
+        dragState.rotation += (dragState.targetRotation - dragState.rotation) * rotationEase;
+        const lift = Math.min(1.055, 1.018 + Math.hypot(dragState.pointerVelocityX, dragState.pointerVelocityY) * 0.0022);
+        dragGhost.style.transform = `translate3d(${dragState.renderX}px, ${dragState.renderY}px, 0) rotate(${dragState.rotation}deg) scale(${lift})`;
+        dragGhost.style.setProperty("--drag-speed", String(Math.min(1, Math.hypot(dragState.pointerVelocityX, dragState.pointerVelocityY) / 32)));
+        dragFrame = requestAnimationFrame(updateDragPosition);
       };
 
       const queueDragPosition = () => {
         if (!dragFrame) dragFrame = requestAnimationFrame(updateDragPosition);
+      };
+
+      const settleDragGhost = (state, accepted) => {
+        const ghost = dragGhost;
+        dragGhost = null;
+        if (!(ghost instanceof HTMLElement)) return;
+        settlingGhosts.add(ghost);
+        const startTransform = `translate3d(${state.renderX}px, ${state.renderY}px, 0) rotate(${state.rotation}deg) scale(1.03)`;
+        const endTransform = accepted
+          ? `translate3d(${state.renderX + state.velocityX * 0.7}px, ${state.renderY + state.velocityY * 0.7 + 7}px, 0) rotate(${state.rotation * 0.55}deg) scale(0.76)`
+          : `translate3d(${state.originGhostX}px, ${state.originGhostY}px, 0) rotate(${state.baseRotation}deg) scale(0.94)`;
+        const animation = ghost.animate(
+          [
+            { transform: startTransform, opacity: 0.94, filter: "saturate(1.08) blur(0px)" },
+            { transform: endTransform, opacity: accepted ? 0 : 0.2, filter: accepted ? "saturate(1.12) blur(1.4px)" : "saturate(0.8) blur(0.4px)" }
+          ],
+          { duration: accepted ? 190 : 280, easing: accepted ? "cubic-bezier(0.2, 0.8, 0.2, 1)" : "cubic-bezier(0.18, 0.78, 0.2, 1)", fill: "forwards" }
+        );
+        animation.finished.catch(() => {}).finally(() => {
+          settlingGhosts.delete(ghost);
+          ghost.remove();
+        });
       };
 
       const finishDrag = (event, cancelled = false) => {
@@ -740,13 +874,14 @@ const kitchenCatalog = {
         const target = !cancelled && moved ? document.elementFromPoint(event.clientX, event.clientY) : null;
         const zone = target instanceof Element ? target.closest("[data-drop-zone]") : null;
 
+        let accepted = false;
         if (moved) {
           suppressClickUntil = performance.now() + 360;
           if (zone instanceof HTMLElement) {
             const kind = zone.dataset.dropZone;
-            if (kind === "board" && state.source === "pantry") addToBoard(state.id);
-            else if (kind === "blender" && state.source === "board") transferItem(state.id);
-            else if (kind === "trash" && state.source === "board") removeBoardItem(state.id);
+            if (kind === "board" && state.source === "pantry") accepted = addToBoard(state.id);
+            else if (kind === "blender" && state.source === "board") accepted = transferItem(state.id);
+            else if (kind === "trash" && state.source === "board") accepted = removeBoardItem(state.id);
             else if (kind === "blender") announce("未经切配的食材被榨汁机礼貌退回。", true);
             else if (kind === "trash") announce("还没开封就丢掉有点浪费，先做点东西吧。", true);
           } else {
@@ -755,8 +890,13 @@ const kitchenCatalog = {
         }
 
         state.element.classList.remove("is-drag-source");
-        dragGhost?.remove();
-        dragGhost = null;
+        if (dragFrame) cancelAnimationFrame(dragFrame);
+        dragFrame = 0;
+        if (moved) settleDragGhost(state, accepted);
+        else {
+          dragGhost?.remove();
+          dragGhost = null;
+        }
         dragState = null;
         delete root.dataset.dragging;
         setDropActive(null);
@@ -774,9 +914,27 @@ const kitchenCatalog = {
           pointerId: event.pointerId,
           startX: event.clientX,
           startY: event.clientY,
-          x: event.clientX - rect.width / 2,
-          y: event.clientY - rect.height / 2,
-          rotation: source === "pantry" ? -3 : 2,
+          anchorX: Math.min(1, Math.max(0, (event.clientX - rect.left) / Math.max(1, rect.width))),
+          anchorY: Math.min(1, Math.max(0, (event.clientY - rect.top) / Math.max(1, rect.height))),
+          originRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+          originGhostX: rect.left,
+          originGhostY: rect.top,
+          targetX: rect.left,
+          targetY: rect.top,
+          renderX: rect.left,
+          renderY: rect.top,
+          velocityX: 0,
+          velocityY: 0,
+          pointerVelocityX: 0,
+          pointerVelocityY: 0,
+          lastPointerX: event.clientX,
+          lastPointerY: event.clientY,
+          lastPointerTime: event.timeStamp,
+          lastFrame: 0,
+          baseRotation: source === "pantry" ? -2.5 : 1.5,
+          rotation: source === "pantry" ? -2.5 : 1.5,
+          targetRotation: source === "pantry" ? -2.5 : 1.5,
+          pointerType: event.pointerType,
           moved: false
         };
         element.setPointerCapture?.(event.pointerId);
@@ -813,18 +971,34 @@ const kitchenCatalog = {
         const distance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
         if (!dragState.moved && distance >= 7) {
           dragState.moved = true;
-          dragGhost = createDragGhost(dragState.element);
+          const ghostWidth = dragState.source === "pantry"
+            ? Math.min(230, Math.max(184, dragState.originRect.width * 0.82))
+            : Math.min(178, Math.max(142, dragState.originRect.width));
+          dragGhost = createDragGhost(dragState.element, ghostWidth);
           const ghostRect = dragGhost.getBoundingClientRect();
-          dragState.x = event.clientX - ghostRect.width / 2;
-          dragState.y = event.clientY - ghostRect.height / 2;
+          dragState.ghostWidth = ghostRect.width;
+          dragState.ghostHeight = ghostRect.height;
+          dragState.originGhostX = dragState.startX - ghostRect.width * dragState.anchorX;
+          dragState.originGhostY = dragState.startY - ghostRect.height * dragState.anchorY;
+          dragState.renderX = dragState.originGhostX;
+          dragState.renderY = dragState.originGhostY;
+          dragState.targetX = event.clientX - ghostRect.width * dragState.anchorX;
+          dragState.targetY = event.clientY - ghostRect.height * dragState.anchorY;
           dragState.element.classList.add("is-drag-source");
           root.dataset.dragging = "true";
+          queueDragPosition();
         }
         if (!dragState.moved) return;
         event.preventDefault();
-        dragState.x = event.clientX - (dragGhost?.offsetWidth || 82) / 2;
-        dragState.y = event.clientY - (dragGhost?.offsetHeight || 82) / 2;
-        queueDragPosition();
+        const pointerElapsed = Math.max(8, event.timeStamp - dragState.lastPointerTime);
+        dragState.pointerVelocityX = (event.clientX - dragState.lastPointerX) / pointerElapsed * 16.67;
+        dragState.pointerVelocityY = (event.clientY - dragState.lastPointerY) / pointerElapsed * 16.67;
+        dragState.lastPointerX = event.clientX;
+        dragState.lastPointerY = event.clientY;
+        dragState.lastPointerTime = event.timeStamp;
+        dragState.targetX = event.clientX - (dragState.ghostWidth || 82) * dragState.anchorX;
+        dragState.targetY = event.clientY - (dragState.ghostHeight || 82) * dragState.anchorY;
+        dragState.targetRotation = dragState.baseRotation + Math.max(-8, Math.min(8, dragState.pointerVelocityX * 0.22));
         const underPointer = document.elementFromPoint(event.clientX, event.clientY);
         const zone = underPointer instanceof Element ? underPointer.closest("[data-drop-zone]") : null;
         setDropActive(zone instanceof HTMLElement ? zone : null);
@@ -838,6 +1012,11 @@ const kitchenCatalog = {
       root.addEventListener("pointerleave", () => {
         if (customPointer instanceof HTMLElement && !dragState) customPointer.dataset.visible = "false";
       }, { signal });
+
+      window.addEventListener("wheel", cancelKitchenScroll, { passive: true, signal });
+      window.addEventListener("touchstart", cancelKitchenScroll, { passive: true, signal });
+      window.addEventListener("pointerdown", cancelKitchenScroll, { passive: true, signal });
+      window.addEventListener("keydown", cancelKitchenScroll, { signal });
 
       root.addEventListener("click", (event) => {
         if (performance.now() < suppressClickUntil) {
@@ -861,7 +1040,13 @@ const kitchenCatalog = {
         else if (target?.closest("[data-load-blender]")) loadPreparedItems();
         else if (target?.closest("[data-blend]")) blend();
         else if (target?.closest("[data-trash-button]")) resetKitchen();
-        else if (target?.closest("[data-remix]")) resetKitchen();
+        else if (target?.closest("[data-remix]")) {
+          resetKitchen();
+          kitchenScrollFrame = requestAnimationFrame(() => {
+            kitchenScrollFrame = 0;
+            scrollToBoard();
+          });
+        }
       }, { signal });
 
       root.dataset.kitchenReady = "true";

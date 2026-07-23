@@ -874,99 +874,262 @@ body[data-kisara-page="projects"] .kisara-theme-button {
 
 .kisara-board-items {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px 32px;
-  width: min(100%, 470px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
+  align-items: center;
+  width: min(100%, 540px);
   margin-inline: auto;
 }
 
 .kisara-board-item {
   --ingredient: #d85f9a;
   --ingredient-soft: #f3d7e5;
+  --board-x: 0px;
+  --board-y: 0px;
+  --board-rotate: 0deg;
+  --board-tag-rotate: 0deg;
   position: relative;
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
+  grid-template-rows: 112px auto;
+  justify-items: center;
+  gap: 5px;
   min-width: 0;
-  min-height: 110px;
-  padding: 10px 12px;
-  border: 1px solid rgba(96, 55, 41, 0.16);
-  border-radius: 8px;
+  min-height: 154px;
+  padding: 3px 4px 7px;
+  border: 0;
+  border-radius: 0;
   color: #4c3a39;
-  background: rgba(255, 245, 217, 0.44);
-  box-shadow: 0 10px 20px rgba(101, 58, 39, 0.1);
-  text-align: left;
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
   cursor: grab;
   touch-action: none;
-  transition: transform 170ms ease, background 170ms ease, opacity 170ms ease;
-  animation: kisara-board-item-in 360ms cubic-bezier(0.18, 0.8, 0.2, 1) both;
+  transform: translate3d(var(--board-x), var(--board-y), 0) rotate(var(--board-rotate));
+  transition: transform 220ms cubic-bezier(0.18, 0.82, 0.2, 1), opacity 170ms ease, filter 170ms ease;
+  animation: kisara-board-item-in 360ms cubic-bezier(0.18, 0.8, 0.2, 1);
 }
+
+.kisara-board-item:nth-child(1) { --board-x: -7px; --board-y: -5px; --board-rotate: -3.2deg; --board-tag-rotate: 2deg; }
+.kisara-board-item:nth-child(2) { --board-x: 2px; --board-y: 6px; --board-rotate: 2.4deg; --board-tag-rotate: -1.6deg; }
+.kisara-board-item:nth-child(3) { --board-x: 7px; --board-y: -1px; --board-rotate: -1.4deg; --board-tag-rotate: 1deg; }
+.kisara-board-item:nth-child(4) { --board-x: -2px; --board-y: 5px; --board-rotate: 2.8deg; --board-tag-rotate: -1.8deg; }
+.kisara-board-item:nth-child(5) { --board-x: 5px; --board-y: -4px; --board-rotate: -2.2deg; --board-tag-rotate: 1.4deg; }
+.kisara-board-item:nth-child(6) { --board-x: -4px; --board-y: 4px; --board-rotate: 1.6deg; --board-tag-rotate: -1deg; }
 
 .kisara-board-item:hover,
 .kisara-board-item:focus-visible {
   outline: none;
-  background: rgba(255, 250, 233, 0.66);
-  transform: translateY(-3px) rotate(-1deg);
+  filter: saturate(1.08);
+  transform: translate3d(var(--board-x), calc(var(--board-y) - 6px), 0) rotate(0deg) scale(1.035);
+}
+
+.kisara-board-item:focus-visible .kisara-board-item-copy {
+  outline: 2px solid color-mix(in srgb, var(--ingredient) 66%, white);
+  outline-offset: 3px;
 }
 
 .kisara-board-item.is-drag-source {
-  opacity: 0.16;
+  opacity: 0.12;
+  filter: saturate(0.55);
 }
 
 .kisara-board-food {
   position: relative;
   display: block;
-  width: 78px;
-  height: 78px;
+  width: 108px;
+  height: 106px;
+  filter: drop-shadow(0 10px 8px rgba(85, 47, 48, 0.16));
+}
+
+.kisara-board-food::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: 12px;
+  bottom: 8px;
+  left: 12px;
+  height: 19px;
+  border-radius: 50%;
+  background: rgba(92, 51, 40, 0.2);
+  filter: blur(8px);
+  transform: scaleX(0.88);
+}
+
+.kisara-board-food::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  top: 68px;
+  left: 20px;
+  width: 5px;
+  height: 4px;
+  border-radius: 48% 52% 42% 58%;
+  opacity: 0;
+  background: var(--ingredient);
+  box-shadow:
+    14px 8px 0 -1px color-mix(in srgb, var(--ingredient) 82%, white),
+    33px 2px 0 -1px var(--ingredient),
+    54px 10px 0 -2px color-mix(in srgb, var(--ingredient) 70%, #7a4c43),
+    66px -4px 0 -2px var(--ingredient);
+  transition: opacity 220ms ease, transform 260ms cubic-bezier(0.18, 0.84, 0.2, 1);
+  transform: translateY(-4px) scale(0.72);
 }
 
 .kisara-board-food i {
   position: absolute;
-  top: 19px;
-  left: 18px;
-  width: 44px;
-  height: 42px;
+  z-index: 2;
+  top: 27px;
+  left: 28px;
+  width: 54px;
+  height: 52px;
   border: 2px solid rgba(255, 255, 255, 0.44);
   border-radius: 42% 58% 46% 54%;
   background:
     radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.48), transparent 15%),
     var(--ingredient);
-  box-shadow: inset -7px -8px 10px rgba(65, 33, 48, 0.15), 0 7px 9px rgba(85, 47, 48, 0.15);
-  transition: transform 260ms cubic-bezier(0.18, 0.86, 0.24, 1), border-radius 260ms ease;
+  box-shadow: inset -8px -9px 11px rgba(65, 33, 48, 0.15), 0 7px 9px rgba(85, 47, 48, 0.15);
+  transition: transform 300ms cubic-bezier(0.16, 0.88, 0.22, 1), border-radius 260ms ease, width 260ms ease, height 260ms ease, opacity 180ms ease;
 }
 
 .kisara-board-item[data-cut="0"] .kisara-board-food i:not(:first-child) {
   opacity: 0;
 }
 
+.kisara-board-item[data-shape="cube"] .kisara-board-food i {
+  border-radius: 19px 13px 21px 14px;
+  background:
+    radial-gradient(circle at 31% 26%, rgba(255, 255, 255, 0.48), transparent 15%),
+    linear-gradient(145deg, color-mix(in srgb, var(--ingredient) 72%, white), var(--ingredient) 62%, color-mix(in srgb, var(--ingredient) 72%, #332b3c));
+}
+
+.kisara-board-item[data-shape="ice"] .kisara-board-food i {
+  border-color: rgba(255, 255, 255, 0.7);
+  border-radius: 17px 25px 14px 24px;
+  background:
+    linear-gradient(138deg, rgba(255, 255, 255, 0.65), transparent 34%),
+    linear-gradient(145deg, color-mix(in srgb, var(--ingredient) 48%, white), var(--ingredient));
+  box-shadow: inset 7px 7px 13px rgba(255, 255, 255, 0.24), inset -7px -9px 12px rgba(56, 43, 85, 0.16), 0 7px 9px rgba(74, 62, 107, 0.17);
+}
+
+.kisara-board-item[data-shape="orange"] .kisara-board-food i {
+  border-color: #f6bf77;
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(from 5deg, rgba(255, 255, 255, 0.18) 0 7deg, transparent 7deg 52deg),
+    radial-gradient(circle at 39% 34%, #ffc17b, var(--ingredient) 52%, #ba5525 100%);
+}
+
+.kisara-board-item[data-shape="star"] .kisara-board-food i {
+  border-radius: 46% 54% 42% 58%;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.54), transparent 17%),
+    radial-gradient(circle at 72% 68%, #ffd573 0 8%, transparent 9%),
+    linear-gradient(145deg, color-mix(in srgb, var(--ingredient) 80%, white), var(--ingredient));
+}
+
+.kisara-board-item[data-shape="leaf"] .kisara-board-food i {
+  width: 62px;
+  height: 47px;
+  border-radius: 76% 12% 72% 18%;
+  background:
+    linear-gradient(48deg, transparent 46%, rgba(255, 255, 255, 0.42) 47% 50%, transparent 51%),
+    linear-gradient(138deg, color-mix(in srgb, var(--ingredient) 58%, white), var(--ingredient) 68%, #337d69);
+  transform: rotate(-28deg);
+}
+
+.kisara-board-item[data-shape="cherry"][data-cut="0"] .kisara-board-food i:first-child,
+.kisara-board-item[data-shape="cherry"][data-cut="0"] .kisara-board-food i:nth-child(2) {
+  width: 43px;
+  height: 43px;
+  border-radius: 50%;
+  opacity: 1;
+  background: radial-gradient(circle at 34% 27%, #ffc1ce 0 7%, var(--ingredient) 34%, #9d2e52 100%);
+}
+
+.kisara-board-item[data-shape="cherry"][data-cut="0"] .kisara-board-food i:first-child { transform: translate(-12px, 8px) rotate(-5deg); }
+.kisara-board-item[data-shape="cherry"][data-cut="0"] .kisara-board-food i:nth-child(2) { transform: translate(15px, 3px) rotate(7deg); }
+
 .kisara-board-item[data-cut="1"] .kisara-board-food i {
-  width: 34px;
-  height: 31px;
+  width: 40px;
+  height: 35px;
   border-radius: 48% 38% 54% 32%;
 }
 
-.kisara-board-item[data-cut="1"] .kisara-board-food i:nth-child(1) { transform: translate(-8px, -6px) rotate(-9deg); }
-.kisara-board-item[data-cut="1"] .kisara-board-food i:nth-child(2) { transform: translate(13px, -3px) rotate(11deg); }
-.kisara-board-item[data-cut="1"] .kisara-board-food i:nth-child(3) { transform: translate(-1px, 17px) rotate(4deg); }
+.kisara-board-item[data-cut="1"] .kisara-board-food i:nth-child(1) { transform: translate(-14px, -8px) rotate(-10deg); }
+.kisara-board-item[data-cut="1"] .kisara-board-food i:nth-child(2) { transform: translate(15px, -5px) rotate(12deg); }
+.kisara-board-item[data-cut="1"] .kisara-board-food i:nth-child(3) { transform: translate(1px, 22px) rotate(4deg); }
 .kisara-board-item[data-cut="1"] .kisara-board-food i:nth-child(n+4) { opacity: 0; }
 
 .kisara-board-item[data-cut="2"] .kisara-board-food i {
-  width: 25px;
-  height: 23px;
+  width: 29px;
+  height: 26px;
   border-radius: 47% 34% 53% 38%;
 }
 
-.kisara-board-item[data-cut="2"] .kisara-board-food i:nth-child(1) { transform: translate(-13px, -12px) rotate(-14deg); }
-.kisara-board-item[data-cut="2"] .kisara-board-food i:nth-child(2) { transform: translate(13px, -10px) rotate(16deg); }
-.kisara-board-item[data-cut="2"] .kisara-board-food i:nth-child(3) { transform: translate(-16px, 13px) rotate(9deg); }
-.kisara-board-item[data-cut="2"] .kisara-board-food i:nth-child(4) { transform: translate(12px, 14px) rotate(-7deg); }
-.kisara-board-item[data-cut="2"] .kisara-board-food i:nth-child(5) { transform: translate(0, 1px) rotate(28deg) scale(0.82); }
+.kisara-board-item[data-cut="2"] .kisara-board-food i:nth-child(1) { transform: translate(-20px, -15px) rotate(-15deg); }
+.kisara-board-item[data-cut="2"] .kisara-board-food i:nth-child(2) { transform: translate(18px, -13px) rotate(17deg); }
+.kisara-board-item[data-cut="2"] .kisara-board-food i:nth-child(3) { transform: translate(-22px, 18px) rotate(10deg); }
+.kisara-board-item[data-cut="2"] .kisara-board-food i:nth-child(4) { transform: translate(19px, 19px) rotate(-8deg); }
+.kisara-board-item[data-cut="2"] .kisara-board-food i:nth-child(5) { transform: translate(1px, 2px) rotate(29deg) scale(0.86); }
 
-.kisara-board-item > span:last-child {
-  display: grid;
-  gap: 7px;
+.kisara-board-item[data-cut="2"] .kisara-board-food::after {
+  opacity: 0.78;
+  transform: translateY(0) scale(1);
+}
+
+.kisara-board-cut-marks {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.kisara-board-cut-marks b {
+  position: absolute;
+  left: 50%;
+  width: 30px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 248, 229, 0.72);
+  box-shadow: 0 1px 0 rgba(85, 44, 48, 0.18);
+  transform-origin: left center;
+}
+
+.kisara-board-cut-marks b:nth-child(1) { top: 35px; transform: translateX(-17px) rotate(38deg); }
+.kisara-board-cut-marks b:nth-child(2) { top: 56px; transform: translateX(-20px) rotate(-32deg); }
+.kisara-board-cut-marks b:nth-child(3) { top: 69px; width: 22px; transform: translateX(-8px) rotate(54deg); }
+
+.kisara-board-item[data-cut="1"] .kisara-board-cut-marks { opacity: 0.42; }
+.kisara-board-item[data-cut="2"] .kisara-board-cut-marks { opacity: 0.18; }
+
+.kisara-board-item-copy {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-width: 0;
+  min-height: 30px;
+  padding: 6px 10px 6px 14px;
+  border: 1px solid rgba(102, 60, 43, 0.14);
+  border-left: 4px solid var(--ingredient);
+  border-radius: 3px 6px 5px 2px;
+  background: rgba(255, 244, 213, 0.84);
+  box-shadow: 0 5px 10px rgba(94, 57, 41, 0.1);
+  transform: rotate(var(--board-tag-rotate));
+}
+
+.kisara-board-item-copy::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  right: 12px;
+  width: 22px;
+  height: 7px;
+  background: rgba(255, 255, 242, 0.5);
+  transform: rotate(4deg);
 }
 
 .kisara-board-item strong {
@@ -1541,6 +1704,13 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   background:
     linear-gradient(110deg, rgba(226, 215, 235, 0.5), rgba(255, 248, 235, 0.78) 47%, rgba(223, 238, 232, 0.58)),
     repeating-linear-gradient(90deg, transparent 0 56px, rgba(93, 67, 80, 0.04) 56px 57px);
+  scroll-margin-top: 64px;
+  transition: border-color 320ms ease, box-shadow 420ms ease;
+}
+
+.kisara-kitchen-lab[data-scrolling-result="true"] .kisara-drink-result {
+  border-color: color-mix(in srgb, var(--drink-a) 34%, rgba(91, 63, 76, 0.16));
+  box-shadow: 0 24px 58px color-mix(in srgb, var(--drink-a) 10%, transparent);
 }
 
 .kisara-drink-stage {
@@ -1837,9 +2007,9 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   z-index: 10010 !important;
   top: 0 !important;
   left: 0 !important;
-  width: 154px !important;
+  width: var(--drag-width, 184px) !important;
   min-height: 86px !important;
-  max-height: 112px !important;
+  max-height: 122px !important;
   margin: 0 !important;
   padding: 8px 10px !important;
   overflow: hidden !important;
@@ -1847,7 +2017,7 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   border-radius: 8px !important;
   opacity: 0.94 !important;
   background: rgba(255, 249, 241, 0.9) !important;
-  box-shadow: 0 18px 32px rgba(70, 42, 58, 0.24) !important;
+  box-shadow: 0 20px 38px rgba(70, 42, 58, 0.25) !important;
   pointer-events: none !important;
   filter: saturate(1.08) !important;
   animation: none !important;
@@ -1855,7 +2025,17 @@ body[data-kisara-page="projects"] .kisara-theme-button {
 }
 
 .kisara-kitchen-drag-ghost.kisara-board-item {
-  grid-template-columns: 62px minmax(0, 1fr) !important;
+  grid-template-rows: 98px auto !important;
+  min-height: 138px !important;
+  max-height: 162px !important;
+  padding: 1px 4px 5px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.kisara-kitchen-drag-ghost.kisara-board-item .kisara-board-food {
+  transform: scale(0.88);
 }
 
 .kisara-kitchen-drag-ghost .kisara-ingredient-visual {
@@ -1915,9 +2095,9 @@ body[data-kisara-page="projects"] .kisara-theme-button {
 }
 
 @keyframes kisara-board-item-in {
-  0% { opacity: 0; transform: translate3d(0, -16px, 0) rotate(-4deg) scale(0.9); }
-  70% { opacity: 1; transform: translate3d(0, 3px, 0) rotate(1deg) scale(1.03); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+  0% { opacity: 0; transform: translate3d(var(--board-x), calc(var(--board-y) - 16px), 0) rotate(var(--board-rotate)) scale(0.9); }
+  70% { opacity: 1; transform: translate3d(var(--board-x), calc(var(--board-y) + 3px), 0) rotate(var(--board-rotate)) scale(1.03); }
+  100% { opacity: 1; transform: translate3d(var(--board-x), var(--board-y), 0) rotate(var(--board-rotate)) scale(1); }
 }
 
 @keyframes kisara-board-chop {
@@ -2170,7 +2350,7 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   }
 
   .kisara-kitchen-prep {
-    grid-template-rows: auto minmax(430px, auto) auto auto;
+    grid-template-rows: auto minmax(545px, auto) auto auto;
   }
 
   .kisara-prep-readout {
@@ -2183,7 +2363,7 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   }
 
   .kisara-cutting-board {
-    min-height: 430px;
+    min-height: 545px;
     padding: 72px 18px 36px;
     border-width: 4px;
     border-radius: 18px 14px 22px 16px;
@@ -2194,20 +2374,34 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   }
 
   .kisara-board-items {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    width: min(100%, 270px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px 4px;
+    width: 100%;
   }
 
   .kisara-board-item {
-    grid-template-columns: 72px minmax(0, 1fr);
-    min-height: 82px;
+    grid-template-rows: 92px auto;
+    min-height: 132px;
+    padding-inline: 0;
   }
 
   .kisara-board-food {
-    width: 70px;
-    height: 70px;
-    transform: scale(0.84);
+    width: 100px;
+    height: 98px;
+    transform: scale(0.86);
+  }
+
+  .kisara-board-item-copy {
+    gap: 5px;
+    padding: 5px 7px 5px 10px;
+  }
+
+  .kisara-board-item strong {
+    font-size: 0.7rem;
+  }
+
+  .kisara-board-item small {
+    font-size: 0.43rem;
   }
 
   .kisara-board-actions {

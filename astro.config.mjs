@@ -87,6 +87,7 @@ export default defineConfig({
   site: "https://yuimi-chaya.github.io",
   output: "static",
   prefetch: {
+    prefetchAll: false,
     defaultStrategy: "tap"
   },
   integrations: [
