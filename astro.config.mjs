@@ -87,7 +87,7 @@ export default defineConfig({
   site: "https://yuimi-chaya.github.io",
   output: "static",
   prefetch: {
-    defaultStrategy: "hover"
+    defaultStrategy: "tap"
   },
   integrations: [
     expressiveCode(expressiveCodeOptions),

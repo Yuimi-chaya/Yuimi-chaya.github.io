@@ -14,92 +14,116 @@ const linePresentation = {
 ---
 
 <KisaraLayout title="Works | Kisara" description="Yuimi Lab 的项目与实验记录。">
-  <section class="kisara-works-intro">
-    <div class="kisara-works-intro-grid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-    <div class="kisara-works-intro-inner">
-      <p class="kisara-works-kicker"><span>04</span> CONTRACT OPERATIONS / WORKS</p>
-      <div class="kisara-works-title-row">
-        <h1>Build the<br /><em>strange things.</em></h1>
-        <p>项目不一定都要长成产品。也可以是插件、镜头练习、交互原型，或一间还在学习怎么点亮的 UE5 房间。</p>
-      </div>
-      <dl>
-        <div><dt>OPERATIONS</dt><dd>{String(projectEntries.length).padStart(2, "0")}</dd></div>
-        <div><dt>TECH LINES</dt><dd>{String(projectTechLines.length).padStart(2, "0")}</dd></div>
-        <div><dt>CURRENT MODE</dt><dd>ITERATING</dd></div>
-      </dl>
+  <section class="kisara-works-intro" aria-labelledby="kisara-works-title">
+    <div class="kisara-works-intro-media">
+      <img
+        src="/themes/kisara/assets/work-kitchen-hero.webp"
+        alt="木更穿着围裙切洋葱时被熏出眼泪"
+        width="2200"
+        height="1392"
+        fetchpriority="high"
+        decoding="async"
+      />
     </div>
+    <div class="kisara-works-intro-inner">
+      <p class="kisara-works-kicker"><span>04</span> KISARA KITCHEN / WORKS</p>
+      <div class="kisara-works-title-row">
+        <div class="kisara-works-title-copy">
+          <h1 id="kisara-works-title">Works,<br /><em>one layer at a time.</em></h1>
+          <p>插件、模型、场景和网页机关，都是一层一层试出来的。偶尔切歪，偶尔流泪，最后总能端出点有意思的东西。</p>
+        </div>
+        <dl>
+          <div><dt>PROJECTS</dt><dd>{String(projectEntries.length).padStart(2, "0")}</dd></div>
+          <div><dt>TECH LINES</dt><dd>{String(projectTechLines.length).padStart(2, "0")}</dd></div>
+          <div><dt>CURRENT MODE</dt><dd>STILL COOKING</dd></div>
+        </dl>
+      </div>
+    </div>
+    <p class="kisara-works-onion-signal" aria-hidden="true"><span>ONION ALERT</span><strong>涙レベル / 01</strong></p>
+    <a class="kisara-works-intro-jump" href="#kisara-works-workbench">
+      <span>OPEN THE WORKBENCH</span><Icon name="tabler:chevron-down" aria-hidden="true" />
+    </a>
   </section>
 
-  <section class="kisara-works-console" data-kisara-projects data-active-line={projectEntries[0].line}>
-    <div class="kisara-works-channel-rail" role="group" aria-label="技术线筛选">
-      <button type="button" data-project-filter="all" aria-pressed="true">
-        <span>00</span><Icon name="tabler:sparkles" aria-hidden="true" /><strong>ALL</strong><small>全部频道</small>
-      </button>
-      {projectTechLines.map((line, index) => (
-        <button type="button" data-project-filter={line.key} aria-pressed="false">
-          <span>{String(index + 1).padStart(2, "0")}</span>
-          <Icon name={linePresentation[line.key].icon} aria-hidden="true" />
-          <strong>{linePresentation[line.key].code}</strong>
-          <small>{line.label}</small>
-        </button>
-      ))}
-    </div>
+  <section id="kisara-works-workbench" class="kisara-works-console" data-kisara-projects data-active-line={projectEntries[0].line}>
+    <header class="kisara-works-console-heading">
+      <div>
+        <p><span>PREP TABLE / 01</span> PROJECTS IN PROGRESS</p>
+        <h2>What is on the board.</h2>
+      </div>
+      <p>每条技术线都是一种处理方式：建模、交互、镜头、场景，或把机器人和网页继续折腾下去。</p>
+    </header>
 
-    <div class="kisara-works-bench">
-      <aside class="kisara-works-queue">
-        <header>
-          <div><span aria-hidden="true"></span><p>OPERATION QUEUE</p></div>
-          <output data-project-count>{projectEntries.length} ONLINE</output>
-        </header>
-        <div class="kisara-works-project-buttons">
+    <div class="kisara-works-console-inner">
+      <div class="kisara-works-channel-rail" role="group" aria-label="技术线筛选">
+        <button type="button" data-project-filter="all" aria-pressed="true">
+          <span>00</span><Icon name="tabler:sparkles" aria-hidden="true" /><strong>ALL</strong><small>全部频道</small>
+        </button>
+        {projectTechLines.map((line, index) => (
+          <button type="button" data-project-filter={line.key} aria-pressed="false">
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <Icon name={linePresentation[line.key].icon} aria-hidden="true" />
+            <strong>{linePresentation[line.key].code}</strong>
+            <small>{line.label}</small>
+          </button>
+        ))}
+      </div>
+
+      <div class="kisara-works-bench">
+        <div class="kisara-works-stage" aria-live="polite">
           {projectEntries.map((project, index) => (
-            <button
-              type="button"
-              data-project-select={project.id}
+            <article
+              id={`kisara-project-${project.id}`}
+              data-project-panel={project.id}
               data-line={project.line}
-              aria-pressed={index === 0 ? "true" : "false"}
-              aria-controls={`kisara-project-${project.id}`}
+              hidden={index !== 0}
             >
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <Icon name={linePresentation[project.line].icon} aria-hidden="true" />
-              <span><strong>{project.title}</strong><small>{project.status}</small></span>
-              <i aria-hidden="true"></i>
-            </button>
+              <Icon class="kisara-works-watermark" name={linePresentation[project.line].icon} aria-hidden="true" />
+              <header>
+                <p><span aria-hidden="true"></span>{linePresentation[project.line].code} / {project.type}</p>
+                <small>{project.status}</small>
+              </header>
+              <div class="kisara-works-stage-copy">
+                <p class="kisara-works-stage-index">PREP SHEET {String(index + 1).padStart(2, "0")}</p>
+                <h2>{project.title}</h2>
+                <p>{project.summary}</p>
+              </div>
+              <ol>
+                {project.details.map((detail, detailIndex) => (
+                  <li><span>STEP {String(detailIndex + 1).padStart(2, "0")}</span><strong>{detail}</strong></li>
+                ))}
+              </ol>
+              <footer>
+                <span>LINE / {project.line.toUpperCase()}</span>
+                <span>STATE / {project.status}</span>
+                <Icon name="tabler:activity-heartbeat" aria-hidden="true" />
+              </footer>
+            </article>
           ))}
         </div>
-      </aside>
 
-      <div class="kisara-works-stage" aria-live="polite">
-        <div class="kisara-works-stage-grid" aria-hidden="true"><i></i><i></i><i></i></div>
-        {projectEntries.map((project, index) => (
-          <article
-            id={`kisara-project-${project.id}`}
-            data-project-panel={project.id}
-            data-line={project.line}
-            hidden={index !== 0}
-          >
-            <Icon class="kisara-works-watermark" name={linePresentation[project.line].icon} aria-hidden="true" />
-            <header>
-              <p><span aria-hidden="true"></span>{linePresentation[project.line].code} / {project.type}</p>
-              <small>{project.status}</small>
-            </header>
-            <div class="kisara-works-stage-copy">
-              <p class="kisara-works-stage-index">OPERATION {String(index + 1).padStart(2, "0")}</p>
-              <h2>{project.title}</h2>
-              <p>{project.summary}</p>
-            </div>
-            <ol>
-              {project.details.map((detail, detailIndex) => (
-                <li><span>{String(detailIndex + 1).padStart(2, "0")}</span><strong>{detail}</strong></li>
-              ))}
-            </ol>
-            <footer>
-              <span>LINE / {project.line.toUpperCase()}</span>
-              <span>STATE / {project.status}</span>
-              <Icon name="tabler:activity-heartbeat" aria-hidden="true" />
-            </footer>
-          </article>
-        ))}
+        <aside class="kisara-works-queue">
+          <header>
+            <div><span aria-hidden="true"></span><p>PROJECT MENU</p></div>
+            <output data-project-count>{String(projectEntries.length).padStart(2, "0")} READY</output>
+          </header>
+          <div class="kisara-works-project-buttons">
+            {projectEntries.map((project, index) => (
+              <button
+                type="button"
+                data-project-select={project.id}
+                data-line={project.line}
+                aria-pressed={index === 0 ? "true" : "false"}
+                aria-controls={`kisara-project-${project.id}`}
+              >
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <Icon name={linePresentation[project.line].icon} aria-hidden="true" />
+                <span><strong>{project.title}</strong><small>{project.status}</small></span>
+                <i aria-hidden="true"></i>
+              </button>
+            ))}
+          </div>
+        </aside>
       </div>
     </div>
   </section>
@@ -146,7 +170,7 @@ const linePresentation = {
         const active = selectors.find((selector) => selector.getAttribute("aria-pressed") === "true" && !(selector instanceof HTMLElement && selector.hidden));
         const fallback = selectors.find((selector) => selector instanceof HTMLElement && !selector.hidden);
         activate(active ?? fallback);
-        if (count) count.textContent = `${String(visibleCount).padStart(2, "0")} ONLINE`;
+        if (count) count.textContent = `${String(visibleCount).padStart(2, "0")} READY`;
       };
 
       selectors.forEach((selector) => selector.addEventListener("click", () => activate(selector), { signal }));
