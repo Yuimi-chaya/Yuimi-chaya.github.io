@@ -135,7 +135,15 @@ export default defineConfig({
           "arrow-down",
           "chevron-left",
           "chevron-right",
-          "external-link"
+          "external-link",
+          "blade",
+          "blender",
+          "chef-hat",
+          "glass-full",
+          "hand-finger",
+          "hand-grab",
+          "tools-kitchen-2",
+          "trash"
         ],
         "simple-icons": [
           "unity",

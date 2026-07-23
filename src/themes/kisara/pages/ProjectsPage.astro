@@ -4,13 +4,161 @@ import "../styles/projects.css";
 import { Icon } from "astro-icon/components";
 import { projectEntries, projectTechLines } from "@/core/data/projects";
 
-const linePresentation = {
-  unity: { icon: "simple-icons:unity", code: "U3D" },
-  blender: { icon: "simple-icons:blender", code: "BLD" },
-  ue5: { icon: "simple-icons:unrealengine", code: "UE5" },
-  mmd: { icon: "tabler:movie", code: "MMD" },
-  astrbot: { icon: "tabler:terminal-2", code: "BOT" }
-} as const;
+const getProject = (id: string) => projectEntries.find((project) => project.id === id)!;
+
+const kitchenIngredients = [
+  {
+    id: "unity",
+    code: "U3D",
+    name: "碰撞果冻",
+    english: "COLLIDER JELLY",
+    icon: "simple-icons:unity",
+    shape: "cube",
+    color: "#625e71",
+    soft: "#dedbe6",
+    note: "交互手感 / 状态机",
+    project: getProject("unity-toys")
+  },
+  {
+    id: "ue5",
+    code: "UE5",
+    name: "流明冰块",
+    english: "LUMEN ICE",
+    icon: "simple-icons:unrealengine",
+    shape: "ice",
+    color: "#665b91",
+    soft: "#ded9ef",
+    note: "蓝图 / 光照 / 材质",
+    project: getProject("ue5-room")
+  },
+  {
+    id: "blender",
+    code: "BLD",
+    name: "网格橙片",
+    english: "MESH ORANGE",
+    icon: "simple-icons:blender",
+    shape: "orange",
+    color: "#e48039",
+    soft: "#f8dfc4",
+    note: "建模 / 材质 / 小道具",
+    project: getProject("blender-props")
+  },
+  {
+    id: "astrbot",
+    code: "ASTR",
+    name: "提示词星糖",
+    english: "PROMPT CANDY",
+    icon: "tabler:terminal-2",
+    shape: "star",
+    color: "#d95e9b",
+    soft: "#f5d7e7",
+    note: "插件 / 部署 / Bot",
+    project: getProject("astrbot-lab")
+  },
+  {
+    id: "blog",
+    code: "BLOG",
+    name: "样式薄荷叶",
+    english: "LAYOUT MINT",
+    icon: "tabler:book-2",
+    shape: "leaf",
+    color: "#57a48d",
+    soft: "#d6eee7",
+    note: "设计 / 页面 / 小机关",
+    project: getProject("yuimi-web-lab")
+  },
+  {
+    id: "mmd",
+    code: "MMD",
+    name: "关键帧樱桃",
+    english: "KEYFRAME CHERRY",
+    icon: "tabler:movie",
+    shape: "cherry",
+    color: "#cf587b",
+    soft: "#f4d7df",
+    note: "动作 / 镜头 / 舞台",
+    project: getProject("mmd-camera")
+  }
+] as const;
+
+const kitchenRecipes = [
+  {
+    ingredients: ["blender", "unity"],
+    title: "碰撞体橙昔",
+    english: "COLLIDER SMOOTHIE",
+    description: "入口先弹一下，再在舌尖烘焙成低模余味。适合给状态机补充一点不讲道理的手感。",
+    effect: "副作用：杯子掉到桌下时，可能穿过地板。"
+  },
+  {
+    ingredients: ["blender", "ue5"],
+    title: "流明烘焙拿铁",
+    english: "LUMEN BAKE LATTE",
+    description: "每颗冰都在实时计算间接光。看起来很电影，喝完以后显卡会开始替你叹气。",
+    effect: "副作用：夜里关灯后仍会自动补一盏轮廓光。"
+  },
+  {
+    ingredients: ["astrbot", "blog"],
+    title: "提示词薄荷汽水",
+    english: "PROMPT MINT SODA",
+    description: "第一口是文档，第二口是插件，第三口开始自动回答你根本没有问过的问题。",
+    effect: "副作用：会把一句话拆成三个可配置项。"
+  },
+  {
+    ingredients: ["blog", "mmd"],
+    title: "关键帧樱桃苏打",
+    english: "KEYFRAME CHERRY FIZZ",
+    description: "摇匀后自带 24fps 的青春感，杯中气泡会严格按照镜头节奏依次破裂。",
+    effect: "副作用：喝快了会忍不住给空气打关键帧。"
+  },
+  {
+    ingredients: ["ue5", "unity"],
+    title: "引擎内战双拼",
+    english: "ENGINE DUEL FLOAT",
+    description: "两套坐标系在杯底吵得很凶，杯口却意外拥有不错的互动手感和电影感。",
+    effect: "副作用：配方文件会同时出现两个 Content 文件夹。"
+  },
+  {
+    ingredients: ["blender", "mmd"],
+    title: "骨骼绑定奶昔",
+    english: "RIGGED MILKSHAKE",
+    description: "杯身有一百多根骨骼，吸管只要稍微动一下，整杯饮料就会跟着做表情。",
+    effect: "副作用：偶尔穿模，但镜头拍不到就算没有。"
+  },
+  {
+    ingredients: ["astrbot", "blog", "unity"],
+    title: "会回消息的交互汽水",
+    english: "RESPONSIVE BOT POP",
+    description: "你只是戳了一下杯沿，它却给你生成了按钮反馈、插件日志和一朵小红花。",
+    effect: "副作用：凌晨三点仍会显示在线。"
+  },
+  {
+    ingredients: ["blender", "mmd", "ue5"],
+    title: "电影感老婆特调",
+    english: "CINEMATIC WAIFU MIX",
+    description: "灯光、模型、镜头和动作全部超标，唯一没通过审核的是电脑风扇的音量。",
+    effect: "副作用：任何普通房间都会被自动改造成舞台。"
+  },
+  {
+    ingredients: ["astrbot", "blender", "blog", "mmd", "ue5", "unity"],
+    title: "Yuimi Lab 厨房核心",
+    english: "YUIMI LAB CORE FLOAT",
+    description: "把交互、模型、镜头、机器人和页面设计全部压进同一杯。入口像刚过构建，后味像凌晨才发现依赖装错版本。",
+    effect: "副作用：会在脑内自动新建三个没做完的项目。"
+  }
+] as const;
+
+const kitchenCatalog = {
+  ingredients: kitchenIngredients.map(({ id, code, name, english, color, soft, project }) => ({
+    id,
+    code,
+    name,
+    english,
+    color,
+    soft,
+    project: project.title
+  })),
+  recipes: kitchenRecipes
+};
 ---
 
 <KisaraLayout title="Works | Kisara" description="Yuimi Lab 的项目与实验记录。">
@@ -33,98 +181,179 @@ const linePresentation = {
           <p>插件、模型、场景和网页机关，都是一层一层试出来的。偶尔切歪，偶尔流泪，最后总能端出点有意思的东西。</p>
         </div>
         <dl>
-          <div><dt>PROJECTS</dt><dd>{String(projectEntries.length).padStart(2, "0")}</dd></div>
-          <div><dt>TECH LINES</dt><dd>{String(projectTechLines.length).padStart(2, "0")}</dd></div>
+          <div><dt>INGREDIENTS</dt><dd>{String(kitchenIngredients.length).padStart(2, "0")}</dd></div>
+          <div><dt>TECH LINES</dt><dd>{String(projectTechLines.length + 1).padStart(2, "0")}</dd></div>
           <div><dt>CURRENT MODE</dt><dd>STILL COOKING</dd></div>
         </dl>
       </div>
     </div>
     <p class="kisara-works-onion-signal" aria-hidden="true"><span>ONION ALERT</span><strong>涙レベル / 01</strong></p>
-    <a class="kisara-works-intro-jump" href="#kisara-works-workbench">
-      <span>OPEN THE WORKBENCH</span><Icon name="tabler:chevron-down" aria-hidden="true" />
+    <a class="kisara-works-intro-jump" href="#kisara-kitchen-lab">
+      <span>OPEN KISARA'S KITCHEN</span><Icon name="tabler:chevron-down" aria-hidden="true" />
     </a>
+    <div class="kisara-works-hero-blend" aria-hidden="true"></div>
   </section>
 
-  <section id="kisara-works-workbench" class="kisara-works-console" data-kisara-projects data-active-line={projectEntries[0].line}>
-    <header class="kisara-works-console-heading">
+  <section id="kisara-kitchen-lab" class="kisara-kitchen-lab" data-kisara-kitchen>
+    <script
+      type="application/json"
+      data-kitchen-catalog
+      set:html={JSON.stringify(kitchenCatalog).replace(/</g, "\\u003c")}
+    ></script>
+
+    <header class="kisara-kitchen-heading">
       <div>
-        <p><span>PREP TABLE / 01</span> PROJECTS IN PROGRESS</p>
-        <h2>What is on the board.</h2>
+        <p><span>PREP TABLE / 01</span> TECH INGREDIENTS</p>
+        <h2>Make something<br /><em>edible-ish.</em></h2>
       </div>
-      <p>每条技术线都是一种处理方式：建模、交互、镜头、场景，或把机器人和网页继续折腾下去。</p>
+      <p>把技术线当成食材，先在砧板上处理，再塞进榨汁机。最后端出来的是作品、饮料，或者一次无法复现的构建结果。</p>
     </header>
 
-    <div class="kisara-works-console-inner">
-      <div class="kisara-works-channel-rail" role="group" aria-label="技术线筛选">
-        <button type="button" data-project-filter="all" aria-pressed="true">
-          <span>00</span><Icon name="tabler:sparkles" aria-hidden="true" /><strong>ALL</strong><small>全部频道</small>
-        </button>
-        {projectTechLines.map((line, index) => (
-          <button type="button" data-project-filter={line.key} aria-pressed="false">
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            <Icon name={linePresentation[line.key].icon} aria-hidden="true" />
-            <strong>{linePresentation[line.key].code}</strong>
-            <small>{line.label}</small>
-          </button>
-        ))}
-      </div>
+    <div class="kisara-kitchen-counter">
+      <aside class="kisara-kitchen-pantry" aria-labelledby="kisara-pantry-title">
+        <header>
+          <div>
+            <Icon name="tabler:chef-hat" aria-hidden="true" />
+            <span><small>TECH PANTRY</small><strong id="kisara-pantry-title">今日食材</strong></span>
+          </div>
+          <output data-pantry-count>{String(kitchenIngredients.length).padStart(2, "0")}</output>
+        </header>
 
-      <div class="kisara-works-bench">
-        <div class="kisara-works-stage" aria-live="polite">
-          {projectEntries.map((project, index) => (
-            <article
-              id={`kisara-project-${project.id}`}
-              data-project-panel={project.id}
-              data-line={project.line}
-              hidden={index !== 0}
+        <div class="kisara-ingredient-rack">
+          {kitchenIngredients.map((ingredient, index) => (
+            <button
+              type="button"
+              class="kisara-ingredient"
+              data-kitchen-ingredient={ingredient.id}
+              data-shape={ingredient.shape}
+              style={`--ingredient: ${ingredient.color}; --ingredient-soft: ${ingredient.soft}; --ingredient-order: ${index};`}
+              aria-label={`将 ${ingredient.name} 放到砧板`}
             >
-              <Icon class="kisara-works-watermark" name={linePresentation[project.line].icon} aria-hidden="true" />
-              <header>
-                <p><span aria-hidden="true"></span>{linePresentation[project.line].code} / {project.type}</p>
-                <small>{project.status}</small>
-              </header>
-              <div class="kisara-works-stage-copy">
-                <p class="kisara-works-stage-index">PREP SHEET {String(index + 1).padStart(2, "0")}</p>
-                <h2>{project.title}</h2>
-                <p>{project.summary}</p>
-              </div>
-              <ol>
-                {project.details.map((detail, detailIndex) => (
-                  <li><span>STEP {String(detailIndex + 1).padStart(2, "0")}</span><strong>{detail}</strong></li>
-                ))}
-              </ol>
-              <footer>
-                <span>LINE / {project.line.toUpperCase()}</span>
-                <span>STATE / {project.status}</span>
-                <Icon name="tabler:activity-heartbeat" aria-hidden="true" />
-              </footer>
-            </article>
+              <span class="kisara-ingredient-visual" aria-hidden="true">
+                <span class="kisara-ingredient-shape">
+                  <Icon name={ingredient.icon} />
+                  <i></i><i></i>
+                </span>
+              </span>
+              <span class="kisara-ingredient-copy">
+                <small>{ingredient.english}</small>
+                <strong>{ingredient.name}</strong>
+                <span>{ingredient.code} · {ingredient.note}</span>
+              </span>
+              <span class="kisara-ingredient-project">
+                <i aria-hidden="true"></i>{ingredient.project.title}
+              </span>
+            </button>
           ))}
         </div>
+      </aside>
 
-        <aside class="kisara-works-queue">
-          <header>
-            <div><span aria-hidden="true"></span><p>PROJECT MENU</p></div>
-            <output data-project-count>{String(projectEntries.length).padStart(2, "0")} READY</output>
-          </header>
-          <div class="kisara-works-project-buttons">
-            {projectEntries.map((project, index) => (
-              <button
-                type="button"
-                data-project-select={project.id}
-                data-line={project.line}
-                aria-pressed={index === 0 ? "true" : "false"}
-                aria-controls={`kisara-project-${project.id}`}
-              >
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <Icon name={linePresentation[project.line].icon} aria-hidden="true" />
-                <span><strong>{project.title}</strong><small>{project.status}</small></span>
-                <i aria-hidden="true"></i>
-              </button>
-            ))}
+      <div class="kisara-kitchen-prep">
+        <div class="kisara-prep-readout">
+          <p><span>BOARD LOAD</span><output data-board-count>00 / 06</output></p>
+          <p><span>CUT LEVEL</span><output data-cut-level>RAW</output></p>
+        </div>
+
+        <div class="kisara-cutting-board" data-drop-zone="board" data-cutting-board>
+          <span class="kisara-board-handle" aria-hidden="true"></span>
+          <div class="kisara-board-brand" aria-hidden="true">
+            <span>KISARA</span><strong>PREP BOARD</strong><small>HANDLE WITH QUESTIONABLE CARE</small>
           </div>
-        </aside>
+          <div class="kisara-board-items" data-board-items></div>
+          <div class="kisara-board-empty" data-board-empty>
+            <Icon name="tabler:tools-kitchen-2" aria-hidden="true" />
+            <strong>砧板还是空的</strong>
+            <span>从旁边拿点技术食材过来</span>
+          </div>
+          <span class="kisara-board-juice-mark" aria-hidden="true"></span>
+        </div>
+
+        <div class="kisara-board-actions">
+          <button type="button" data-chop-all disabled>
+            <Icon name="tabler:blade" aria-hidden="true" />
+            <span><strong>切一刀</strong><small>CHOP THE BOARD</small></span>
+          </button>
+          <button type="button" data-load-blender disabled>
+            <Icon name="tabler:arrow-right" aria-hidden="true" />
+            <span><strong>倒进榨汁机</strong><small>LOAD PREPPED ITEMS</small></span>
+          </button>
+        </div>
+
+        <div class="kisara-kitchen-status" role="status" aria-live="polite">
+          <span aria-hidden="true"></span>
+          <p data-kitchen-status>厨房已开火，食材正在假装自己很专业。</p>
+        </div>
       </div>
+
+      <aside class="kisara-appliance-deck" aria-label="厨房设备">
+        <section class="kisara-blender-station" data-drop-zone="blender" data-blender-station>
+          <header><span>APPLIANCE / 01</span><strong>实验榨汁机</strong></header>
+          <div class="kisara-blender-machine" aria-hidden="true">
+            <span class="kisara-blender-lid"></span>
+            <div class="kisara-blender-jar">
+              <span class="kisara-blender-handle"></span>
+              <div class="kisara-blender-liquid" data-blender-liquid>
+                <div data-blender-pieces></div>
+                <i></i><i></i><i></i>
+              </div>
+              <span class="kisara-blender-blade"></span>
+            </div>
+            <div class="kisara-blender-base">
+              <span></span>
+              <i></i><i></i><i></i>
+            </div>
+          </div>
+          <div class="kisara-blender-readout">
+            <span>JAR CONTENT</span><output data-blender-count>00 / 06</output>
+          </div>
+          <button type="button" class="kisara-blend-button" data-blend disabled>
+            <Icon name="tabler:blender" aria-hidden="true" />
+            <span><strong>开始乱炖</strong><small>BLEND THIS BUILD</small></span>
+          </button>
+        </section>
+
+        <button type="button" class="kisara-kitchen-trash" data-drop-zone="trash" data-trash-button>
+          <span class="kisara-trash-lid" aria-hidden="true"></span>
+          <span class="kisara-trash-body" aria-hidden="true"><Icon name="tabler:trash" /></span>
+          <span><strong>回收站</strong><small>RESET THE COUNTER</small></span>
+        </button>
+      </aside>
+    </div>
+
+    <section class="kisara-drink-result" data-drink-result data-state="idle" aria-labelledby="kisara-drink-title">
+      <div class="kisara-drink-stage" aria-hidden="true">
+        <span class="kisara-drink-shadow"></span>
+        <div class="kisara-drink-glass">
+          <span class="kisara-drink-straw"></span>
+          <span class="kisara-drink-garnish"></span>
+          <div class="kisara-drink-liquid">
+            <i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <span class="kisara-drink-label">Y</span>
+        </div>
+        <span class="kisara-drink-spark spark-a"></span>
+        <span class="kisara-drink-spark spark-b"></span>
+        <span class="kisara-drink-spark spark-c"></span>
+      </div>
+      <div class="kisara-drink-copy">
+        <p><span>RESULT / 00</span><strong data-result-english>NO ORDER YET</strong></p>
+        <h2 id="kisara-drink-title" data-result-title>今晚还没有出杯。</h2>
+        <p data-result-description>砧板、榨汁机和垃圾桶都已经就位，只差一份稍微离谱一点的技术配方。</p>
+        <div class="kisara-drink-meta">
+          <div><span>INGREDIENTS</span><output data-result-ingredients>WAITING</output></div>
+          <div><span>TASTE NOTE</span><output data-result-effect>尚未检测到副作用。</output></div>
+        </div>
+        <button type="button" data-remix disabled>
+          <Icon name="tabler:refresh" aria-hidden="true" />
+          <span>再开一局</span>
+        </button>
+      </div>
+    </section>
+
+    <div class="kisara-kitchen-pointer" data-kitchen-pointer aria-hidden="true">
+      <span data-pointer-mode="hand"><Icon name="tabler:hand-finger" /></span>
+      <span data-pointer-mode="grab"><Icon name="tabler:hand-grab" /></span>
+      <span data-pointer-mode="blade"><Icon name="tabler:blade" /></span>
     </div>
   </section>
 
@@ -133,50 +362,510 @@ const linePresentation = {
       window.__yuimiKisaraInnerCleanup?.();
       const lifecycle = new AbortController();
       const signal = lifecycle.signal;
+      let pointerFrame = 0;
+      let dragFrame = 0;
+      let blendTimer = 0;
+      let chopTimer = 0;
+      let statusTimer = 0;
+      let dragGhost = null;
+      let dragState = null;
+
       const cleanup = () => {
         lifecycle.abort();
+        if (pointerFrame) cancelAnimationFrame(pointerFrame);
+        if (dragFrame) cancelAnimationFrame(dragFrame);
+        if (blendTimer) window.clearTimeout(blendTimer);
+        if (chopTimer) window.clearTimeout(chopTimer);
+        if (statusTimer) window.clearTimeout(statusTimer);
+        dragGhost?.remove();
         if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
       };
+
       window.__yuimiKisaraInnerCleanup = cleanup;
       document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
-      const root = document.querySelector("[data-kisara-projects]");
+
+      const root = document.querySelector("[data-kisara-kitchen]");
       if (!(root instanceof HTMLElement)) return;
-      const filters = Array.from(root.querySelectorAll("[data-project-filter]"));
-      const selectors = Array.from(root.querySelectorAll("[data-project-select]"));
-      const panels = Array.from(root.querySelectorAll("[data-project-panel]"));
-      const count = root.querySelector("[data-project-count]");
+      const catalogNode = root.querySelector("[data-kitchen-catalog]");
+      if (!(catalogNode instanceof HTMLScriptElement)) return;
 
-      const activate = (selector) => {
-        if (!(selector instanceof HTMLElement) || selector.hidden) return;
-        const id = selector.dataset.projectSelect;
-        selectors.forEach((item) => item.setAttribute("aria-pressed", String(item === selector)));
-        panels.forEach((panel) => {
-          if (panel instanceof HTMLElement) panel.hidden = panel.dataset.projectPanel !== id;
-        });
-        root.dataset.activeLine = selector.dataset.line ?? "astrbot";
+      let catalog;
+      try {
+        catalog = JSON.parse(catalogNode.textContent || "{}");
+      } catch {
+        return;
+      }
+
+      const ingredientMap = new Map((catalog.ingredients || []).map((item) => [item.id, item]));
+      const maxIngredients = Math.max(2, ingredientMap.size || 6);
+      const pantryButtons = new Map(
+        Array.from(root.querySelectorAll("[data-kitchen-ingredient]"))
+          .filter((button) => button instanceof HTMLButtonElement)
+          .map((button) => [button.dataset.kitchenIngredient, button])
+      );
+      const boardItemsRoot = root.querySelector("[data-board-items]");
+      const boardEmpty = root.querySelector("[data-board-empty]");
+      const boardCount = root.querySelector("[data-board-count]");
+      const cutLevel = root.querySelector("[data-cut-level]");
+      const pantryCount = root.querySelector("[data-pantry-count]");
+      const blenderPieces = root.querySelector("[data-blender-pieces]");
+      const blenderLiquid = root.querySelector("[data-blender-liquid]");
+      const blenderCount = root.querySelector("[data-blender-count]");
+      const blenderStation = root.querySelector("[data-blender-station]");
+      const chopButton = root.querySelector("[data-chop-all]");
+      const loadButton = root.querySelector("[data-load-blender]");
+      const blendButton = root.querySelector("[data-blend]");
+      const remixButton = root.querySelector("[data-remix]");
+      const statusOutput = root.querySelector("[data-kitchen-status]");
+      const result = root.querySelector("[data-drink-result]");
+      const resultTitle = root.querySelector("[data-result-title]");
+      const resultEnglish = root.querySelector("[data-result-english]");
+      const resultDescription = root.querySelector("[data-result-description]");
+      const resultIngredients = root.querySelector("[data-result-ingredients]");
+      const resultEffect = root.querySelector("[data-result-effect]");
+      const customPointer = root.querySelector("[data-kitchen-pointer]");
+
+      if (!(boardItemsRoot instanceof HTMLElement) || !(blenderPieces instanceof HTMLElement)) return;
+
+      const boardState = new Map();
+      let blenderState = [];
+      let isBlending = false;
+      let mixNumber = 0;
+      let suppressClickUntil = 0;
+      let pendingPointer = null;
+
+      const announce = (message, sticky = false) => {
+        if (statusOutput) statusOutput.textContent = message;
+        root.dataset.statusPulse = "true";
+        if (statusTimer) window.clearTimeout(statusTimer);
+        statusTimer = window.setTimeout(() => {
+          delete root.dataset.statusPulse;
+          if (!sticky && statusOutput) statusOutput.textContent = "厨房继续运转中，今天也没有严格遵守配方。";
+        }, sticky ? 2200 : 1800);
       };
 
-      const applyFilter = (filter) => {
-        let visibleCount = 0;
-        selectors.forEach((selector) => {
-          if (!(selector instanceof HTMLElement)) return;
-          const visible = filter === "all" || selector.dataset.line === filter;
-          selector.hidden = !visible;
-          if (visible) visibleCount += 1;
+      const setDropActive = (zone) => {
+        root.querySelectorAll("[data-drop-zone]").forEach((element) => {
+          if (element instanceof HTMLElement) element.dataset.dropActive = String(element === zone);
         });
-        filters.forEach((button) => {
-          if (button instanceof HTMLElement) button.setAttribute("aria-pressed", String(button.dataset.projectFilter === filter));
-        });
-        const active = selectors.find((selector) => selector.getAttribute("aria-pressed") === "true" && !(selector instanceof HTMLElement && selector.hidden));
-        const fallback = selectors.find((selector) => selector instanceof HTMLElement && !selector.hidden);
-        activate(active ?? fallback);
-        if (count) count.textContent = `${String(visibleCount).padStart(2, "0")} READY`;
       };
 
-      selectors.forEach((selector) => selector.addEventListener("click", () => activate(selector), { signal }));
-      filters.forEach((button) => button.addEventListener("click", () => {
-        if (button instanceof HTMLElement) applyFilter(button.dataset.projectFilter ?? "all");
-      }, { signal }));
+      const getMeta = (id) => ingredientMap.get(id);
+      const ingredientCodes = (ids) => ids.map((id) => getMeta(id)?.code || id.toUpperCase()).join(" + ");
+
+      const createBoardItem = (id, cuts) => {
+        const meta = getMeta(id);
+        if (!meta) return null;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "kisara-board-item";
+        button.dataset.boardItem = id;
+        button.dataset.cut = String(cuts);
+        button.style.setProperty("--ingredient", meta.color);
+        button.style.setProperty("--ingredient-soft", meta.soft);
+        button.setAttribute("aria-label", `${meta.name}，切配等级 ${cuts}，点击继续切`);
+
+        const food = document.createElement("span");
+        food.className = "kisara-board-food";
+        for (let index = 0; index < 5; index += 1) food.append(document.createElement("i"));
+
+        const copy = document.createElement("span");
+        const strong = document.createElement("strong");
+        const small = document.createElement("small");
+        strong.textContent = meta.code;
+        small.textContent = cuts >= 2 ? "PREPPED" : cuts === 1 ? "HALF CUT" : "RAW";
+        copy.append(strong, small);
+        button.append(food, copy);
+        return button;
+      };
+
+      const renderBoard = () => {
+        boardItemsRoot.replaceChildren();
+        Array.from(boardState.entries()).forEach(([id, item]) => {
+          const element = createBoardItem(id, item.cuts);
+          if (element) boardItemsRoot.append(element);
+        });
+        const total = boardState.size;
+        const prepared = Array.from(boardState.values()).filter((item) => item.cuts >= 2).length;
+        if (boardEmpty instanceof HTMLElement) boardEmpty.hidden = total > 0;
+        if (boardCount) boardCount.textContent = `${String(total).padStart(2, "0")} / ${String(maxIngredients).padStart(2, "0")}`;
+        if (cutLevel) {
+          cutLevel.textContent = total === 0 ? "RAW" : prepared === total ? "READY" : `${prepared}/${total} PREPPED`;
+        }
+        if (chopButton instanceof HTMLButtonElement) chopButton.disabled = total === 0 || prepared === total || isBlending;
+        if (loadButton instanceof HTMLButtonElement) loadButton.disabled = prepared === 0 || isBlending;
+      };
+
+      const renderBlender = () => {
+        blenderPieces.replaceChildren();
+        blenderState.forEach((id, index) => {
+          const meta = getMeta(id);
+          if (!meta) return;
+          const piece = document.createElement("span");
+          piece.style.setProperty("--piece-color", meta.color);
+          piece.style.setProperty("--piece-index", String(index));
+          piece.textContent = meta.code.slice(0, 1);
+          blenderPieces.append(piece);
+        });
+        const first = getMeta(blenderState[0]);
+        const second = getMeta(blenderState[1] || blenderState[0]);
+        if (blenderLiquid instanceof HTMLElement) {
+          blenderLiquid.style.setProperty("--blend-a", first?.color || "#d996b5");
+          blenderLiquid.style.setProperty("--blend-b", second?.color || "#f1c56f");
+        }
+        if (blenderCount) blenderCount.textContent = `${String(blenderState.length).padStart(2, "0")} / ${String(maxIngredients).padStart(2, "0")}`;
+        if (blendButton instanceof HTMLButtonElement) blendButton.disabled = blenderState.length < 2 || isBlending;
+        if (blenderStation instanceof HTMLElement) blenderStation.dataset.loaded = String(blenderState.length > 0);
+      };
+
+      const syncPantry = () => {
+        const used = new Set([...boardState.keys(), ...blenderState]);
+        pantryButtons.forEach((button, id) => {
+          const unavailable = used.has(id);
+          button.dataset.used = String(unavailable);
+          button.setAttribute("aria-disabled", String(unavailable));
+        });
+        if (pantryCount) pantryCount.textContent = String(Math.max(0, pantryButtons.size - used.size)).padStart(2, "0");
+      };
+
+      const renderAll = () => {
+        renderBoard();
+        renderBlender();
+        syncPantry();
+      };
+
+      const addToBoard = (id) => {
+        const meta = getMeta(id);
+        if (!meta || boardState.has(id) || blenderState.includes(id)) {
+          announce("这份食材已经在料理台上了，再放会变成依赖重复。", true);
+          return;
+        }
+        if (boardState.size >= maxIngredients) {
+          announce("整套技术栈都在砧板上了，再堆就只能把依赖文件也切进去。", true);
+          return;
+        }
+        boardState.set(id, { cuts: 0 });
+        renderAll();
+        announce(`${meta.name} 已经上砧板。`);
+      };
+
+      const chopItem = (id) => {
+        const item = boardState.get(id);
+        const meta = getMeta(id);
+        if (!item || !meta || isBlending) return;
+        if (item.cuts >= 2) {
+          announce(`${meta.name} 已经切得足够细，再切就只剩技术债了。`, true);
+          return;
+        }
+        item.cuts += 1;
+        renderBoard();
+        announce(item.cuts >= 2 ? `${meta.name} 处理完成，可以倒进榨汁机。` : `${meta.name} 被认真地切了一刀。`);
+      };
+
+      const chopAll = () => {
+        let changed = 0;
+        boardState.forEach((item) => {
+          if (item.cuts < 2) {
+            item.cuts += 1;
+            changed += 1;
+          }
+        });
+        if (!changed) return;
+        root.dataset.chopping = "true";
+        if (chopTimer) window.clearTimeout(chopTimer);
+        chopTimer = window.setTimeout(() => {
+          chopTimer = 0;
+          delete root.dataset.chopping;
+        }, 240);
+        renderBoard();
+        announce("咚。整张砧板都获得了一次非常公平的处理。", true);
+      };
+
+      const transferItem = (id) => {
+        const item = boardState.get(id);
+        const meta = getMeta(id);
+        if (!item || !meta) return false;
+        if (item.cuts < 2) {
+          announce(`${meta.name} 还没处理好，榨汁机会拒绝编译。`, true);
+          return false;
+        }
+        if (blenderState.length >= maxIngredients) {
+          announce("杯体已经达到安全上限，再塞就会从盖子里喷出来。", true);
+          return false;
+        }
+        boardState.delete(id);
+        blenderState.push(id);
+        renderAll();
+        announce(`${meta.name} 已进入榨汁机。`);
+        return true;
+      };
+
+      const loadPreparedItems = () => {
+        const ready = Array.from(boardState.entries())
+          .filter(([, item]) => item.cuts >= 2)
+          .map(([id]) => id)
+          .slice(0, Math.max(0, maxIngredients - blenderState.length));
+        if (!ready.length) {
+          announce("目前没有处理完成的食材。", true);
+          return;
+        }
+        ready.forEach((id) => {
+          boardState.delete(id);
+          blenderState.push(id);
+        });
+        renderAll();
+        announce(`${ready.length} 份食材沿着砧板滑进了榨汁机。`, true);
+      };
+
+      const removeBoardItem = (id) => {
+        const meta = getMeta(id);
+        if (!boardState.delete(id)) return;
+        renderAll();
+        announce(`${meta?.name || "这份食材"} 被丢进了回收站。`);
+      };
+
+      const resetKitchen = (announceReset = true) => {
+        if (blendTimer) {
+          window.clearTimeout(blendTimer);
+          blendTimer = 0;
+        }
+        if (chopTimer) {
+          window.clearTimeout(chopTimer);
+          chopTimer = 0;
+        }
+        boardState.clear();
+        blenderState = [];
+        isBlending = false;
+        root.dataset.blending = "false";
+        root.dataset.hasResult = "false";
+        if (result instanceof HTMLElement) result.dataset.state = "idle";
+        if (resultTitle) resultTitle.textContent = "今晚还没有出杯。";
+        if (resultEnglish) resultEnglish.textContent = "NO ORDER YET";
+        if (resultDescription) resultDescription.textContent = "砧板、榨汁机和垃圾桶都已经就位，只差一份稍微离谱一点的技术配方。";
+        if (resultIngredients) resultIngredients.textContent = "WAITING";
+        if (resultEffect) resultEffect.textContent = "尚未检测到副作用。";
+        if (remixButton instanceof HTMLButtonElement) remixButton.disabled = true;
+        renderAll();
+        if (announceReset) announce("台面已经收拾干净，上一杯的事故记录也一并删除。", true);
+      };
+
+      const sortedKey = (ids) => [...ids].sort().join("|");
+      const resolveRecipe = (ids) => {
+        const exact = (catalog.recipes || []).find((recipe) => sortedKey(recipe.ingredients) === sortedKey(ids));
+        if (exact) return exact;
+        const allMeta = ids.map((id) => getMeta(id)).filter(Boolean);
+        if (ids.length >= 4) {
+          return {
+            title: "技术栈乱炖",
+            english: "STACK OVERFLOW PUNCH",
+            description: "配方已经越过可维护边界，但杯顶的粉色泡沫坚持声称这叫模块化设计。",
+            effect: "副作用：每喝一口，待办列表就会多一项。"
+          };
+        }
+        return {
+          title: `${allMeta.map((item) => item.code).join(" × ")} 非法联名`,
+          english: "UNREGISTERED LAB SPECIAL",
+          description: "配方簿里没有这杯，但榨汁机认为能跑就是成功。味道介于灵感闪现和忘记保存之间。",
+          effect: "副作用：无法复现，也暂时没有测试覆盖。"
+        };
+      };
+
+      const showResult = () => {
+        const ids = [...blenderState];
+        const recipe = resolveRecipe(ids);
+        const first = getMeta(ids[0]);
+        const second = getMeta(ids[1] || ids[0]);
+        mixNumber += 1;
+        if (result instanceof HTMLElement) {
+          result.dataset.state = "ready";
+          result.style.setProperty("--drink-a", first?.color || "#d95e9b");
+          result.style.setProperty("--drink-b", second?.color || "#f1c56f");
+        }
+        if (resultTitle) resultTitle.textContent = recipe.title;
+        if (resultEnglish) resultEnglish.textContent = recipe.english;
+        if (resultDescription) resultDescription.textContent = recipe.description;
+        if (resultIngredients) resultIngredients.textContent = ingredientCodes(ids);
+        if (resultEffect) resultEffect.textContent = recipe.effect;
+        const index = result?.querySelector(".kisara-drink-copy > p span");
+        if (index) index.textContent = `RESULT / ${String(mixNumber).padStart(2, "0")}`;
+        if (remixButton instanceof HTMLButtonElement) remixButton.disabled = false;
+        if (blendButton instanceof HTMLButtonElement) blendButton.disabled = true;
+        root.dataset.hasResult = "true";
+        announce(`${recipe.title} 已经出杯。建议先拍照，再决定要不要喝。`, true);
+      };
+
+      const blend = () => {
+        if (isBlending || blenderState.length < 2) {
+          announce("至少需要两份处理好的食材，榨汁机才愿意启动。", true);
+          return;
+        }
+        isBlending = true;
+        root.dataset.blending = "true";
+        renderAll();
+        announce("榨汁机正在把技术栈打成一种看不出原型的颜色……", true);
+        blendTimer = window.setTimeout(() => {
+          blendTimer = 0;
+          isBlending = false;
+          root.dataset.blending = "false";
+          renderAll();
+          showResult();
+        }, 1320);
+      };
+
+      const createDragGhost = (source) => {
+        const ghost = source.cloneNode(true);
+        ghost.removeAttribute("id");
+        ghost.removeAttribute("data-kitchen-ingredient");
+        ghost.removeAttribute("data-board-item");
+        ghost.classList.add("kisara-kitchen-drag-ghost");
+        ghost.setAttribute("aria-hidden", "true");
+        document.body.append(ghost);
+        return ghost;
+      };
+
+      const updateDragPosition = () => {
+        dragFrame = 0;
+        if (!dragState || !dragGhost) return;
+        dragGhost.style.transform = `translate3d(${dragState.x}px, ${dragState.y}px, 0) rotate(${dragState.rotation}deg)`;
+      };
+
+      const queueDragPosition = () => {
+        if (!dragFrame) dragFrame = requestAnimationFrame(updateDragPosition);
+      };
+
+      const finishDrag = (event, cancelled = false) => {
+        if (!dragState) return;
+        const state = dragState;
+        const moved = state.moved;
+        const target = !cancelled && moved ? document.elementFromPoint(event.clientX, event.clientY) : null;
+        const zone = target instanceof Element ? target.closest("[data-drop-zone]") : null;
+
+        if (moved) {
+          suppressClickUntil = performance.now() + 360;
+          if (zone instanceof HTMLElement) {
+            const kind = zone.dataset.dropZone;
+            if (kind === "board" && state.source === "pantry") addToBoard(state.id);
+            else if (kind === "blender" && state.source === "board") transferItem(state.id);
+            else if (kind === "trash" && state.source === "board") removeBoardItem(state.id);
+            else if (kind === "blender") announce("未经切配的食材被榨汁机礼貌退回。", true);
+            else if (kind === "trash") announce("还没开封就丢掉有点浪费，先做点东西吧。", true);
+          } else {
+            announce("食材滚回了原位，台面假装什么都没发生。", true);
+          }
+        }
+
+        state.element.classList.remove("is-drag-source");
+        dragGhost?.remove();
+        dragGhost = null;
+        dragState = null;
+        delete root.dataset.dragging;
+        setDropActive(null);
+        if (customPointer instanceof HTMLElement) customPointer.dataset.mode = "hand";
+      };
+
+      const beginDrag = (event, element, id, source) => {
+        if (event.button !== 0 || isBlending) return;
+        if (source === "pantry" && element.getAttribute("aria-disabled") === "true") return;
+        const rect = element.getBoundingClientRect();
+        dragState = {
+          id,
+          source,
+          element,
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          x: event.clientX - rect.width / 2,
+          y: event.clientY - rect.height / 2,
+          rotation: source === "pantry" ? -3 : 2,
+          moved: false
+        };
+        element.setPointerCapture?.(event.pointerId);
+      };
+
+      root.addEventListener("pointerdown", (event) => {
+        const element = event.target instanceof Element
+          ? event.target.closest("[data-kitchen-ingredient], [data-board-item]")
+          : null;
+        if (!(element instanceof HTMLElement)) return;
+        const id = element.dataset.kitchenIngredient || element.dataset.boardItem;
+        if (!id) return;
+        beginDrag(event, element, id, element.dataset.boardItem ? "board" : "pantry");
+      }, { signal });
+
+      root.addEventListener("pointermove", (event) => {
+        pendingPointer = { x: event.clientX, y: event.clientY, target: event.target };
+        if (!pointerFrame) {
+          pointerFrame = requestAnimationFrame(() => {
+            pointerFrame = 0;
+            if (!(customPointer instanceof HTMLElement) || !pendingPointer) return;
+            const target = pendingPointer.target instanceof Element ? pendingPointer.target : null;
+            const inPantry = target?.closest(".kisara-kitchen-pantry");
+            const inBoard = target?.closest(".kisara-cutting-board");
+            const inBoardAction = target?.closest(".kisara-board-actions");
+            const shouldShow = Boolean(dragState || inPantry || (inBoard && !inBoardAction));
+            customPointer.dataset.visible = String(shouldShow);
+            customPointer.dataset.mode = dragState?.moved ? "grab" : inBoard ? "blade" : "hand";
+            customPointer.style.transform = `translate3d(${pendingPointer.x}px, ${pendingPointer.y}px, 0)`;
+          });
+        }
+
+        if (!dragState || dragState.pointerId !== event.pointerId) return;
+        const distance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
+        if (!dragState.moved && distance >= 7) {
+          dragState.moved = true;
+          dragGhost = createDragGhost(dragState.element);
+          const ghostRect = dragGhost.getBoundingClientRect();
+          dragState.x = event.clientX - ghostRect.width / 2;
+          dragState.y = event.clientY - ghostRect.height / 2;
+          dragState.element.classList.add("is-drag-source");
+          root.dataset.dragging = "true";
+        }
+        if (!dragState.moved) return;
+        event.preventDefault();
+        dragState.x = event.clientX - (dragGhost?.offsetWidth || 82) / 2;
+        dragState.y = event.clientY - (dragGhost?.offsetHeight || 82) / 2;
+        queueDragPosition();
+        const underPointer = document.elementFromPoint(event.clientX, event.clientY);
+        const zone = underPointer instanceof Element ? underPointer.closest("[data-drop-zone]") : null;
+        setDropActive(zone instanceof HTMLElement ? zone : null);
+      }, { signal });
+
+      root.addEventListener("pointerup", (event) => finishDrag(event), { signal });
+      root.addEventListener("pointercancel", (event) => finishDrag(event, true), { signal });
+      root.addEventListener("lostpointercapture", (event) => {
+        if (dragState && dragState.pointerId === event.pointerId) finishDrag(event, true);
+      }, { signal });
+      root.addEventListener("pointerleave", () => {
+        if (customPointer instanceof HTMLElement && !dragState) customPointer.dataset.visible = "false";
+      }, { signal });
+
+      root.addEventListener("click", (event) => {
+        if (performance.now() < suppressClickUntil) {
+          event.preventDefault();
+          return;
+        }
+        const target = event.target instanceof Element ? event.target : null;
+        const ingredient = target?.closest("[data-kitchen-ingredient]");
+        const boardItem = target?.closest("[data-board-item]");
+        if (ingredient instanceof HTMLElement) {
+          const id = ingredient.dataset.kitchenIngredient;
+          if (id) addToBoard(id);
+          return;
+        }
+        if (boardItem instanceof HTMLElement) {
+          const id = boardItem.dataset.boardItem;
+          if (id) chopItem(id);
+          return;
+        }
+        if (target?.closest("[data-chop-all]")) chopAll();
+        else if (target?.closest("[data-load-blender]")) loadPreparedItems();
+        else if (target?.closest("[data-blend]")) blend();
+        else if (target?.closest("[data-trash-button]")) resetKitchen();
+        else if (target?.closest("[data-remix]")) resetKitchen();
+      }, { signal });
+
+      root.dataset.kitchenReady = "true";
+      renderAll();
     })();
   </script>
 </KisaraLayout>
