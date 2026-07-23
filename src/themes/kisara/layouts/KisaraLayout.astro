@@ -18,9 +18,10 @@ import {
 interface Props {
   title?: string;
   description?: string;
+  isArticlePage?: boolean;
 }
 
-const { title = `${site.title} | Kisara`, description = site.description } = Astro.props;
+const { title = `${site.title} | Kisara`, description = site.description, isArticlePage = false } = Astro.props;
 const canonicalPath = getCanonicalPath(Astro.url.pathname);
 const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
 const isHome = canonicalPath === "/";
@@ -223,7 +224,14 @@ const audioConfig = {
     </script>
     <title>{title}</title>
   </head>
-  <body class:list={[isHome ? "kisara-home-page" : "kisara-inner-page"]} data-kisara-page={pageKey} data-pagefind-ignore transition:animate="none">
+  <body
+    class:list={[isHome ? "kisara-home-page" : "kisara-inner-page"]}
+    data-kisara-page={pageKey}
+    data-yuimi-selection-lock={isArticlePage ? undefined : "true"}
+    data-yuimi-article-page={isArticlePage ? "true" : undefined}
+    data-pagefind-ignore
+    transition:animate="none"
+  >
     <a class="kisara-skip-link" href="#kisara-main">跳到正文</a>
     <header class:list={["kisara-header", isHome ? "is-home-header" : "is-inner-header"]}>
       <a class="kisara-brand" href={getThemePath("kisara", "/")} aria-label="Kisara 主题首页" data-astro-prefetch="load">
@@ -460,14 +468,19 @@ const audioConfig = {
           });
         };
 
-        document.querySelectorAll("img, video").forEach((asset) => asset.setAttribute("draggable", "false"));
+        const isSelectionLocked = () => document.body?.dataset.yuimiSelectionLock === "true";
+        if (isSelectionLocked()) {
+          document.querySelectorAll("img, video").forEach((asset) => asset.setAttribute("draggable", "false"));
+        }
 
         document.addEventListener("dragstart", (event) => {
+          if (!isSelectionLocked()) return;
           const target = event.target instanceof Element ? event.target : null;
           if (target?.closest("img, picture, canvas, video, svg, .kisara-title, .kisara-gate-visual")) event.preventDefault();
         }, { capture: true, signal });
 
         document.addEventListener("selectstart", (event) => {
+          if (!isSelectionLocked()) return;
           const target = event.target instanceof Element ? event.target : null;
           if (target?.closest(".kisara-gate, img, picture, canvas, video, svg")) event.preventDefault();
         }, { capture: true, signal });
@@ -524,6 +537,16 @@ const audioConfig = {
           event.preventDefault();
           closePanel();
           showMenu(event.clientX, event.clientY);
+        }, { signal });
+        window.addEventListener("yuimi:context-menu-request", (event) => {
+          if (!(event instanceof CustomEvent)) return;
+          const x = Number(event.detail?.clientX);
+          const y = Number(event.detail?.clientY);
+          closePanel();
+          showMenu(
+            Number.isFinite(x) ? x : window.innerWidth / 2,
+            Number.isFinite(y) ? y : window.innerHeight / 2
+          );
         }, { signal });
 
         window.addEventListener("keydown", (event) => {

@@ -8,9 +8,10 @@ import { site } from "@/lib/site";
 interface Props {
   title?: string;
   description?: string;
+  isArticlePage?: boolean;
 }
 
-const { title = site.title, description = site.description } = Astro.props;
+const { title = site.title, description = site.description, isArticlePage = false } = Astro.props;
 const canonicalPath = getCanonicalPath(Astro.url.pathname);
 const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
 const navItems = site.nav.map((item) => ({
@@ -35,7 +36,11 @@ const themeOptions = themes.map((theme) => ({
     <ThemePreferenceGate currentTheme="blank" />
     <title>{title}</title>
   </head>
-  <body data-pagefind-ignore>
+  <body
+    data-pagefind-ignore
+    data-yuimi-selection-lock={isArticlePage ? undefined : "true"}
+    data-yuimi-article-page={isArticlePage ? "true" : undefined}
+  >
     <a class="blank-skip-link" href="#blank-main">跳到正文</a>
     <header class="blank-header">
       <a class="blank-wordmark" href={getThemePath("blank", "/")}>
@@ -118,6 +123,15 @@ const themeOptions = themes.map((theme) => ({
         };
 
         window.addEventListener("contextmenu", openMenu);
+        window.addEventListener("yuimi:context-menu-request", (event) => {
+          if (!(event instanceof CustomEvent)) return;
+          const x = Number(event.detail?.clientX);
+          const y = Number(event.detail?.clientY);
+          showMenuAt(
+            Number.isFinite(x) ? x : window.innerWidth / 2,
+            Number.isFinite(y) ? y : window.innerHeight / 2
+          );
+        });
         window.addEventListener("keydown", (event) => {
           if (event.key === "Escape") closeMenu();
           if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {

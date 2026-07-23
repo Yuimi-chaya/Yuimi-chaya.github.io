@@ -12,13 +12,15 @@ interface Props {
   description?: string;
   honorThemePreference?: boolean;
   redirectThemedNotFound?: boolean;
+  isArticlePage?: boolean;
 }
 
 const {
   title = site.title,
   description = site.description,
   honorThemePreference = true,
-  redirectThemedNotFound = false
+  redirectThemedNotFound = false,
+  isArticlePage = false
 } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 const themedNotFoundRedirectScript = `(() => {
@@ -51,7 +53,10 @@ const themedNotFoundRedirectScript = `(() => {
     <title>{title}</title>
     <ClientRouter />
   </head>
-  <body>
+  <body
+    data-yuimi-selection-lock={isArticlePage ? undefined : "true"}
+    data-yuimi-article-page={isArticlePage ? "true" : undefined}
+  >
     <div class="sakura-rain" aria-hidden="true">
       {Array.from({ length: 34 }).map(() => <span></span>)}
     </div>
@@ -942,6 +947,15 @@ const themedNotFoundRedirectScript = `(() => {
       window.addEventListener("contextmenu", (event) => {
         event.preventDefault();
         showContextMenuAt(event.clientX, event.clientY);
+      });
+      window.addEventListener("yuimi:context-menu-request", (event) => {
+        if (!(event instanceof CustomEvent)) return;
+        const x = Number(event.detail?.clientX);
+        const y = Number(event.detail?.clientY);
+        showContextMenuAt(
+          Number.isFinite(x) ? x : window.innerWidth / 2,
+          Number.isFinite(y) ? y : window.innerHeight / 2
+        );
       });
       window.addEventListener("keydown", (event) => {
         if (event.key === "Escape") hideContextMenu();

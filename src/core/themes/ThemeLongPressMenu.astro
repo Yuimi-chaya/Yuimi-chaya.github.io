@@ -1,3 +1,22 @@
+<style is:global>
+  body[data-yuimi-selection-lock="true"],
+  body[data-yuimi-selection-lock="true"] :where(*) {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  body[data-yuimi-selection-lock="true"] :where(input, textarea, select, option, [contenteditable="true"]) {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  body[data-yuimi-selection-lock="true"] :where(img, picture, canvas, video, svg) {
+    -webkit-user-drag: none;
+  }
+</style>
+
 <script is:inline data-astro-rerun>
   (() => {
     window.__yuimiThemeLongPressCleanup?.();
@@ -9,66 +28,95 @@
     let pressTimer = 0;
     let startX = 0;
     let startY = 0;
+    let startScrollX = 0;
+    let startScrollY = 0;
     let activePointerId = null;
-    let moved = false;
     let suppressContextMenuUntil = 0;
     let suppressClickUntil = 0;
     let suppressNextClick = false;
 
     const isTouchPointer = (event) => event.pointerType === "touch";
-    const isIgnoredTarget = (target) => target instanceof Element
+    const isEditableTarget = (target) => target instanceof Element
       && Boolean(target.closest("button, input, textarea, select, option, [contenteditable='true'], [data-no-long-press]"));
+    const isArticleTarget = (target) => document.body?.dataset.yuimiArticlePage === "true"
+      && target instanceof Element
+      && Boolean(target.closest("article"));
+    const isIgnoredTarget = (target) => isEditableTarget(target) || isArticleTarget(target);
+    const isSelectionLocked = () => document.body?.dataset.yuimiSelectionLock === "true";
 
     const clearPress = () => {
       if (pressTimer) window.clearTimeout(pressTimer);
       pressTimer = 0;
       activePointerId = null;
-      moved = false;
     };
 
     const openThemeMenu = () => {
-      if (moved || activePointerId === null) return;
+      if (activePointerId === null) return;
       suppressContextMenuUntil = Date.now() + 900;
       suppressClickUntil = performance.now() + 260;
       suppressNextClick = true;
-      const event = new MouseEvent("contextmenu", {
-        bubbles: true,
-        cancelable: true,
-        view: window,
-        clientX: Math.round(startX),
-        clientY: Math.round(startY),
-        button: 2
-      });
-      Object.defineProperty(event, "__yuimiLongPress", { value: true });
-      window.dispatchEvent(event);
+      window.dispatchEvent(new CustomEvent("yuimi:context-menu-request", {
+        detail: {
+          clientX: Math.round(startX),
+          clientY: Math.round(startY),
+          source: "long-press"
+        }
+      }));
     };
 
-    const handlePointerDown = (event) => {
-      if (!isTouchPointer(event) || isIgnoredTarget(event.target)) return;
+    const beginPress = (pointerId, clientX, clientY, target) => {
+      if (isIgnoredTarget(target)) return;
       clearPress();
-      activePointerId = event.pointerId;
-      startX = event.clientX;
-      startY = event.clientY;
+      activePointerId = pointerId;
+      startX = clientX;
+      startY = clientY;
+      startScrollX = window.scrollX;
+      startScrollY = window.scrollY;
       pressTimer = window.setTimeout(() => {
         pressTimer = 0;
         openThemeMenu();
       }, longPressDelay);
     };
 
+    const movePress = (pointerId, clientX, clientY) => {
+      if (pointerId !== activePointerId) return;
+      if (Math.hypot(clientX - startX, clientY - startY) > movementTolerance) clearPress();
+    };
+
+    const endPress = (pointerId) => {
+      if (pointerId === activePointerId) clearPress();
+    };
+
+    const handlePointerDown = (event) => {
+      if (!isTouchPointer(event)) return;
+      beginPress(event.pointerId, event.clientX, event.clientY, event.target);
+    };
+
     const handlePointerMove = (event) => {
-      if (event.pointerId !== activePointerId) return;
-      if (Math.hypot(event.clientX - startX, event.clientY - startY) > movementTolerance) {
-        moved = true;
-        clearPress();
-      }
+      movePress(event.pointerId, event.clientX, event.clientY);
     };
 
     const handlePointerEnd = (event) => {
-      if (event.pointerId === activePointerId) clearPress();
+      endPress(event.pointerId);
+    };
+
+    const handleTouchStart = (event) => {
+      if (event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      beginPress(touch.identifier, touch.clientX, touch.clientY, event.target);
+    };
+
+    const handleTouchMove = (event) => {
+      const touch = Array.from(event.touches).find((item) => item.identifier === activePointerId);
+      if (touch) movePress(touch.identifier, touch.clientX, touch.clientY);
+    };
+
+    const handleTouchEnd = (event) => {
+      const touch = Array.from(event.changedTouches).find((item) => item.identifier === activePointerId);
+      if (touch) endPress(touch.identifier);
     };
 
     const suppressNativeContextMenu = (event) => {
-      if (event.__yuimiLongPress) return;
       if (Date.now() >= suppressContextMenuUntil) return;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -84,14 +132,42 @@
       event.stopImmediatePropagation();
     };
 
-    window.addEventListener("pointerdown", handlePointerDown, { capture: true, passive: true, signal });
-    window.addEventListener("pointermove", handlePointerMove, { capture: true, passive: true, signal });
-    window.addEventListener("pointerup", handlePointerEnd, { capture: true, passive: true, signal });
-    window.addEventListener("pointercancel", handlePointerEnd, { capture: true, passive: true, signal });
+    const handleScroll = () => {
+      if (activePointerId === null) return;
+      if (Math.hypot(window.scrollX - startScrollX, window.scrollY - startScrollY) > movementTolerance) clearPress();
+    };
+
+    const preventLockedSelection = (event) => {
+      if (!isSelectionLocked() || isEditableTarget(event.target)) return;
+      event.preventDefault();
+    };
+
+    const preventLockedDrag = (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (isSelectionLocked() && target?.closest("img, picture, canvas, video, svg")) event.preventDefault();
+    };
+
+    if ("PointerEvent" in window) {
+      window.addEventListener("pointerdown", handlePointerDown, { capture: true, passive: true, signal });
+      window.addEventListener("pointermove", handlePointerMove, { capture: true, passive: true, signal });
+      window.addEventListener("pointerup", handlePointerEnd, { capture: true, passive: true, signal });
+      window.addEventListener("pointercancel", handlePointerEnd, { capture: true, passive: true, signal });
+    } else {
+      window.addEventListener("touchstart", handleTouchStart, { capture: true, passive: true, signal });
+      window.addEventListener("touchmove", handleTouchMove, { capture: true, passive: true, signal });
+      window.addEventListener("touchend", handleTouchEnd, { capture: true, passive: true, signal });
+      window.addEventListener("touchcancel", clearPress, { capture: true, passive: true, signal });
+    }
     window.addEventListener("contextmenu", suppressNativeContextMenu, { capture: true, signal });
     window.addEventListener("click", suppressSyntheticClick, { capture: true, signal });
-    window.addEventListener("scroll", clearPress, { passive: true, signal });
+    window.addEventListener("scroll", handleScroll, { passive: true, signal });
+    document.addEventListener("selectstart", preventLockedSelection, { capture: true, signal });
+    document.addEventListener("dragstart", preventLockedDrag, { capture: true, signal });
     document.addEventListener("visibilitychange", clearPress, { signal });
+
+    if (isSelectionLocked()) {
+      document.querySelectorAll("img, video").forEach((asset) => asset.setAttribute("draggable", "false"));
+    }
 
     const cleanup = () => {
       if (pressTimer) window.clearTimeout(pressTimer);
