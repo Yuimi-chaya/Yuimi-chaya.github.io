@@ -500,6 +500,8 @@ const gateStyle = [
             ? element.querySelector(".kisara-opening-edge-live-surface")
             : null,
           sampler: null,
+          samplerPromise: null,
+          samplerFailed: false,
           textureReady: false,
           textureQueued: false,
           renderedOpacity: -1,
@@ -848,6 +850,34 @@ const gateStyle = [
         else openingEdgeRenderQueue.push(record);
         scheduleOpeningEdgeRenderQueue();
       };
+      const ensureOpeningEdgeSampler = (record, priority = false) => {
+        if (!record || !record.source || record.samplerFailed) return Promise.resolve(null);
+        if (record.sampler) {
+          if (!record.textureReady) queueOpeningEdgeTexture(record, priority);
+          return Promise.resolve(record.sampler);
+        }
+        if (record.samplerPromise) return record.samplerPromise;
+
+        record.samplerPromise = loadOpeningEdgeSampler(record.source).then((sampler) => {
+          record.samplerPromise = null;
+          if (disposed) return null;
+          if (!sampler) {
+            record.samplerFailed = true;
+            return null;
+          }
+          record.sampler = sampler;
+          queueOpeningEdgeTexture(record, priority);
+          return sampler;
+        });
+        return record.samplerPromise;
+      };
+      const primeCurrentOpeningEdgeTextures = () => {
+        openingEdgeRecords.forEach((record) => {
+          if ((openingEdgeState[record.id]?.opacity ?? 0) > 0.015) {
+            ensureOpeningEdgeSampler(record, true);
+          }
+        });
+      };
       const refreshOpeningEdgeTextures = () => {
         openingEdgeRecords.forEach((record) => {
           record.textureReady = false;
@@ -986,7 +1016,8 @@ const gateStyle = [
       };
       const syncOpeningEdgeState = (nextState, nextFlareState) => {
         if (lockedOpeningEdgeState !== null) return;
-        applyOpeningEdgeState(nextState, nextFlareState);
+        openingEdgeState = nextState;
+        openingEdgeFlareState = nextFlareState;
       };
       const lockOpeningEdgeState = () => {
         syncOpeningEdgeLiveGeometry(true);
@@ -995,18 +1026,13 @@ const gateStyle = [
           flare: { ...openingEdgeFlareState }
         };
         applyOpeningEdgeState(lockedOpeningEdgeState.scenes, lockedOpeningEdgeState.flare);
+        primeCurrentOpeningEdgeTextures();
       };
       const releaseOpeningEdgeState = () => {
         lockedOpeningEdgeState = null;
         openingEdgeLiveSyncTimestamp = 0;
       };
-      openingEdgeRecords.forEach((record) => {
-        loadOpeningEdgeSampler(record.source).then((sampler) => {
-          if (disposed) return;
-          record.sampler = sampler;
-          queueOpeningEdgeTexture(record, record.kind === "base");
-        });
-      });
+      ensureOpeningEdgeSampler(openingEdgeRecordById.get("base"), true);
       window.addEventListener("resize", scheduleOpeningEdgeTextureRefresh, { passive: true, signal });
       const releaseSessionKey = "yuimi-kisara-release-viewed-v1";
       let releaseCompletedInTab = false;
@@ -10471,7 +10497,6 @@ const gateStyle = [
           cue.classList.toggle("is-guiding", cueGuided);
           cue.classList.toggle("is-enter-ready", burstComplete && pageMode === "gate");
         }
-        syncOpeningEdgeLiveGeometry();
       };
 
       const transitionChargeIntro = (nextTarget, timestamp) => {
@@ -10925,6 +10950,7 @@ const gateStyle = [
         setPostReleaseActive(false);
         releaseOpeningEdgeState();
         syncOpeningEdgeLiveGeometry(true);
+        primeCurrentOpeningEdgeTextures();
         activateOpeningBridgePortal();
         smoothScrollTo(getNextPageTop(), () => {
           pageMode = "next";
@@ -10951,7 +10977,7 @@ const gateStyle = [
               : { opacity: 0, filter: "none" }
           ])
         ), { opacity: 0, filter: "none", shift: 0 });
-        queueOpeningEdgeTexture(openingEdgeRecordById.get("base"), true);
+        ensureOpeningEdgeSampler(openingEdgeRecordById.get("base"), true);
         activateOpeningBridgePortal();
         publishGateRailState({
           active: true,
@@ -11271,6 +11297,11 @@ const gateStyle = [
         openingEdgeResizeFrame = 0;
         openingEdgeRenderHandle = 0;
         openingEdgeRenderQueue.length = 0;
+        openingEdgeRecords.forEach((record) => {
+          record.sampler = null;
+          record.samplerPromise = null;
+          record.textureQueued = false;
+        });
         animationFrame = 0;
         energyFrame = 0;
         scrollFrame = 0;
