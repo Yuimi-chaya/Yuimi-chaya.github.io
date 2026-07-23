@@ -1,0 +1,106 @@
+<script is:inline data-astro-rerun>
+  (() => {
+    window.__yuimiThemeLongPressCleanup?.();
+
+    const lifecycle = new AbortController();
+    const signal = lifecycle.signal;
+    const longPressDelay = 620;
+    const movementTolerance = 10;
+    let pressTimer = 0;
+    let startX = 0;
+    let startY = 0;
+    let activePointerId = null;
+    let moved = false;
+    let suppressContextMenuUntil = 0;
+    let suppressClickUntil = 0;
+    let suppressNextClick = false;
+
+    const isTouchPointer = (event) => event.pointerType === "touch";
+    const isIgnoredTarget = (target) => target instanceof Element
+      && Boolean(target.closest("button, input, textarea, select, option, [contenteditable='true'], [data-no-long-press]"));
+
+    const clearPress = () => {
+      if (pressTimer) window.clearTimeout(pressTimer);
+      pressTimer = 0;
+      activePointerId = null;
+      moved = false;
+    };
+
+    const openThemeMenu = () => {
+      if (moved || activePointerId === null) return;
+      suppressContextMenuUntil = Date.now() + 900;
+      suppressClickUntil = performance.now() + 260;
+      suppressNextClick = true;
+      const event = new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: Math.round(startX),
+        clientY: Math.round(startY),
+        button: 2
+      });
+      Object.defineProperty(event, "__yuimiLongPress", { value: true });
+      window.dispatchEvent(event);
+    };
+
+    const handlePointerDown = (event) => {
+      if (!isTouchPointer(event) || isIgnoredTarget(event.target)) return;
+      clearPress();
+      activePointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      pressTimer = window.setTimeout(() => {
+        pressTimer = 0;
+        openThemeMenu();
+      }, longPressDelay);
+    };
+
+    const handlePointerMove = (event) => {
+      if (event.pointerId !== activePointerId) return;
+      if (Math.hypot(event.clientX - startX, event.clientY - startY) > movementTolerance) {
+        moved = true;
+        clearPress();
+      }
+    };
+
+    const handlePointerEnd = (event) => {
+      if (event.pointerId === activePointerId) clearPress();
+    };
+
+    const suppressNativeContextMenu = (event) => {
+      if (event.__yuimiLongPress) return;
+      if (Date.now() >= suppressContextMenuUntil) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+
+    const suppressSyntheticClick = (event) => {
+      if (!suppressNextClick || performance.now() >= suppressClickUntil) {
+        suppressNextClick = false;
+        return;
+      }
+      suppressNextClick = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown, { capture: true, passive: true, signal });
+    window.addEventListener("pointermove", handlePointerMove, { capture: true, passive: true, signal });
+    window.addEventListener("pointerup", handlePointerEnd, { capture: true, passive: true, signal });
+    window.addEventListener("pointercancel", handlePointerEnd, { capture: true, passive: true, signal });
+    window.addEventListener("contextmenu", suppressNativeContextMenu, { capture: true, signal });
+    window.addEventListener("click", suppressSyntheticClick, { capture: true, signal });
+    window.addEventListener("scroll", clearPress, { passive: true, signal });
+    document.addEventListener("visibilitychange", clearPress, { signal });
+
+    const cleanup = () => {
+      if (pressTimer) window.clearTimeout(pressTimer);
+      pressTimer = 0;
+      lifecycle.abort();
+      if (window.__yuimiThemeLongPressCleanup === cleanup) {
+        window.__yuimiThemeLongPressCleanup = null;
+      }
+    };
+    window.__yuimiThemeLongPressCleanup = cleanup;
+  })();
+</script>

@@ -244,6 +244,10 @@ const gateStyle = [
     </div>
     <p class="kisara-contract-state" data-kisara-state>SEAL CHAINS / DORMANT</p>
     <p class="kisara-scroll-cue" data-kisara-cue>Yuimi-chaya/GPT in Codex</p>
+    <button class="kisara-motion-toggle" type="button" data-kisara-motion-toggle hidden aria-pressed="false">
+      <Icon name="tabler:activity-heartbeat" aria-hidden="true" />
+      <span>体感视差</span>
+    </button>
     <a class="kisara-gate-skip" href="#kisara-opening" data-kisara-skip>SKIP</a>
   </section>
 
@@ -405,7 +409,11 @@ const gateStyle = [
         window.__yuimiKisaraHomeCleanup?.();
       (() => {
       const gate = document.querySelector("[data-kisara-gate]");
-      if (!gate || gate.dataset.bound === "true") return;
+      if (!gate) return;
+      if (gate.dataset.bound === "true") {
+        window.__yuimiKisaraHomeBootController?.markReady?.();
+        return;
+      }
       gate.dataset.bound = "true";
       const lifecycle = new AbortController();
       const signal = lifecycle.signal;
@@ -519,6 +527,7 @@ const gateStyle = [
       };
       const state = gate.querySelector("[data-kisara-state]");
       const cue = gate.querySelector("[data-kisara-cue]");
+      const motionToggle = gate.querySelector("[data-kisara-motion-toggle]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       let openingEdgeState = {};
@@ -2155,8 +2164,126 @@ const gateStyle = [
         imageTop: 0
       };
       const precisePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+      const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+      const orientationEvent = window.DeviceOrientationEvent;
+      const orientationSupported = !reducedMotion
+        && coarsePointer
+        && typeof orientationEvent !== "undefined";
+      const orientationPermissionRequired = orientationSupported
+        && typeof orientationEvent.requestPermission === "function";
+      let orientationEnabled = false;
+      let orientationUserDisabled = false;
+      let orientationCalibrationCount = 0;
+      let orientationBaseX = 0;
+      let orientationBaseY = 0;
+      let orientationFilteredX = 0;
+      let orientationFilteredY = 0;
       const nextPostReleaseRandom = () => randomSeed((postReleaseParticleSerial += 1) * 2.41421356237 + 0.71);
       const shortestAngleDelta = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+
+      const updateMotionToggle = () => {
+        if (!(motionToggle instanceof HTMLButtonElement)) return;
+        motionToggle.hidden = !orientationSupported || !postReleaseActive;
+        motionToggle.setAttribute("aria-pressed", String(orientationEnabled));
+        motionToggle.classList.toggle("is-active", orientationEnabled);
+        const label = motionToggle.querySelector("span");
+        if (label) label.textContent = orientationEnabled ? "体感已启用" : "启用体感";
+      };
+
+      const resetOrientationCalibration = () => {
+        orientationCalibrationCount = 0;
+        orientationBaseX = 0;
+        orientationBaseY = 0;
+        orientationFilteredX = 0;
+        orientationFilteredY = 0;
+        postReleaseTargetX = 0;
+        postReleaseTargetY = 0;
+      };
+
+      const readOrientationAxes = (event) => {
+        const rawX = Number(event.gamma);
+        const rawY = Number(event.beta);
+        if (!Number.isFinite(rawX) || !Number.isFinite(rawY)) return null;
+        const angle = ((Number(window.screen?.orientation?.angle ?? window.orientation ?? 0) % 360) + 360) % 360;
+        if (angle === 90) return { x: rawY, y: -rawX };
+        if (angle === 180) return { x: -rawX, y: -rawY };
+        if (angle === 270) return { x: -rawY, y: rawX };
+        return { x: rawX, y: rawY };
+      };
+
+      const mapOrientationDelta = (value) => {
+        const deadZone = 1.25;
+        const magnitude = Math.max(0, Math.abs(value) - deadZone);
+        return Math.sign(value) * clamp(magnitude / 14, 0, 1);
+      };
+
+      const handleDeviceOrientation = (event) => {
+        if (
+          !orientationEnabled
+          || !postReleaseActive
+          || pageMode !== "gate"
+          || window.scrollY > 2
+        ) return;
+        const axes = readOrientationAxes(event);
+        if (!axes) return;
+        if (orientationCalibrationCount < 8) {
+          orientationBaseX += axes.x;
+          orientationBaseY += axes.y;
+          orientationCalibrationCount += 1;
+          if (orientationCalibrationCount === 8) {
+            orientationBaseX /= orientationCalibrationCount;
+            orientationBaseY /= orientationCalibrationCount;
+          }
+          return;
+        }
+        const targetX = mapOrientationDelta(axes.x - orientationBaseX) * postReleaseMaxX * 0.86;
+        const targetY = mapOrientationDelta(axes.y - orientationBaseY) * postReleaseMaxY * 0.72;
+        orientationFilteredX += (targetX - orientationFilteredX) * 0.18;
+        orientationFilteredY += (targetY - orientationFilteredY) * 0.16;
+        postReleaseTargetX = clamp(orientationFilteredX, -postReleaseMaxX, postReleaseMaxX);
+        postReleaseTargetY = clamp(orientationFilteredY, -postReleaseMaxY, postReleaseMaxY);
+        postReleaseJourney = null;
+        postReleasePointerAccumulator = 0;
+        startPostReleaseAnimation();
+      };
+
+      const setOrientationEnabled = (enabled) => {
+        orientationEnabled = Boolean(enabled && orientationSupported);
+        postReleaseJourney = null;
+        postReleasePointerAccumulator = 0;
+        resetOrientationCalibration();
+        updateMotionToggle();
+        if (orientationEnabled) startPostReleaseAnimation();
+      };
+
+      const requestOrientationAccess = async () => {
+        if (!orientationSupported) return;
+        if (orientationEnabled) {
+          orientationUserDisabled = true;
+          setOrientationEnabled(false);
+          return;
+        }
+        if (orientationPermissionRequired) {
+          try {
+            const permission = await orientationEvent.requestPermission();
+            if (permission !== "granted") {
+              updateMotionToggle();
+              return;
+            }
+          } catch {
+            updateMotionToggle();
+            return;
+          }
+        }
+        orientationUserDisabled = false;
+        setOrientationEnabled(true);
+      };
+
+      window.addEventListener("deviceorientation", handleDeviceOrientation, { passive: true, signal });
+      window.addEventListener("orientationchange", resetOrientationCalibration, { passive: true, signal });
+      screen.orientation?.addEventListener("change", resetOrientationCalibration, { passive: true, signal });
+      motionToggle?.addEventListener("click", requestOrientationAccess, { signal });
+      updateMotionToggle();
 
       const getPostReleaseFlowAngle = (unit) => {
         const position = clamp(unit, 0, 1) * (postReleaseFlowSegmentCount - 1);
@@ -3481,6 +3608,8 @@ const gateStyle = [
         postReleaseActive = active;
         gate.classList.toggle("is-post-release", active);
         if (!active) {
+          setOrientationEnabled(false);
+          updateMotionToggle();
           stopPostReleaseAnimation(true);
           return;
         }
@@ -3492,6 +3621,10 @@ const gateStyle = [
         postReleaseDataPressure = 0;
         postReleaseStartedAt = performance.now();
         if (titleLensRenderer) gate.style.setProperty("--kisara-title-source-opacity", "0");
+        updateMotionToggle();
+        if (orientationSupported && !orientationPermissionRequired && !orientationUserDisabled) {
+          setOrientationEnabled(true);
+        }
         startPostReleaseAnimation();
       };
 
@@ -11254,6 +11387,7 @@ const gateStyle = [
           lastSpaceLensPaintTimestamp = 0;
           lastTitleLensPaintTimestamp = 0;
           stopPostReleaseAnimation();
+          resetOrientationCalibration();
           spaceLensRenderer?.clear();
           titleLensRenderer?.clear();
           gate.style.setProperty("--kisara-title-source-opacity", "1");
@@ -11315,6 +11449,7 @@ const gateStyle = [
         warningWarmupForceRequested = false;
         gate.classList.remove("is-warning-prewarm");
         energyLoopActive = false;
+        setOrientationEnabled(false);
         stopPostReleaseAnimation();
         layoutResizeObserver?.disconnect();
         spaceLensRenderer?.destroy();
@@ -11328,6 +11463,7 @@ const gateStyle = [
       window.__yuimiKisaraHomeCleanup = cleanup;
 
       render();
+      window.__yuimiKisaraHomeBootController?.markReady?.();
       scheduleWarningWarmup();
       const syncRestoredPosition = () => {
         if (!restoreWindowOpen || scrollFrame || pageMode !== "gate" || window.scrollY <= 2) return;
@@ -11358,7 +11494,7 @@ const gateStyle = [
         }, 420);
       }));
         })();
-      }, 64);
+      }, 0);
     };
 
     window.__yuimiKisaraHomeSchedule = scheduleKisaraHome;

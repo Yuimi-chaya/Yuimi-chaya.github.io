@@ -3,6 +3,7 @@ import "../styles/theme.css";
 import { Icon } from "astro-icon/components";
 import { ClientRouter } from "astro:transitions";
 import ThemePreferenceGate from "@/core/themes/ThemePreferenceGate.astro";
+import ThemeLongPressMenu from "@/core/themes/ThemeLongPressMenu.astro";
 import { profileIdentity } from "@/core/data/profile";
 import { getCanonicalPath, getThemePath, themes } from "@/core/themes/registry";
 import { site } from "@/lib/site";
@@ -53,6 +54,72 @@ const audioConfig = {
     <link rel="canonical" href={canonical} />
     <ThemePreferenceGate currentTheme="kisara" />
     <ClientRouter fallback="swap" />
+    <script is:inline define:vars={{ isHome }}>
+      (() => {
+        window.__yuimiKisaraHomeBootController?.dispose?.();
+        const html = document.documentElement;
+        let timer = 0;
+
+        const clearTimer = () => {
+          if (timer) window.clearTimeout(timer);
+          timer = 0;
+        };
+
+        const isHomeDocument = (documentLike) => Boolean(
+          documentLike?.body?.classList.contains("kisara-home-page")
+        );
+
+        const clear = () => {
+          clearTimer();
+          html.removeAttribute("data-kisara-home-boot");
+          html.removeAttribute("data-kisara-home-ready");
+        };
+
+        const arm = () => {
+          clearTimer();
+          html.setAttribute("data-kisara-home-boot", "pending");
+          html.removeAttribute("data-kisara-home-ready");
+          timer = window.setTimeout(() => {
+            timer = 0;
+            if (!html.hasAttribute("data-kisara-home-ready")) {
+              html.removeAttribute("data-kisara-home-boot");
+            }
+          }, 4500);
+        };
+
+        const markReady = () => {
+          if (!isHomeDocument(document)) return;
+          clearTimer();
+          html.setAttribute("data-kisara-home-ready", "true");
+          html.removeAttribute("data-kisara-home-boot");
+        };
+
+        const handleBeforeSwap = (event) => {
+          if (isHomeDocument(event.newDocument)) arm();
+          else clear();
+        };
+        const handleAfterSwap = () => {
+          if (isHomeDocument(document)) arm();
+          else clear();
+        };
+
+        document.addEventListener("astro:before-swap", handleBeforeSwap);
+        document.addEventListener("astro:after-swap", handleAfterSwap);
+        window.__yuimiKisaraHomeBootController = {
+          arm,
+          clear,
+          markReady,
+          dispose: () => {
+            clearTimer();
+            document.removeEventListener("astro:before-swap", handleBeforeSwap);
+            document.removeEventListener("astro:after-swap", handleAfterSwap);
+          }
+        };
+
+        if (isHome) arm();
+        else clear();
+      })();
+    </script>
     <script is:inline define:vars={{ audioConfig }}>
       (() => {
         if (window.__yuimiKisaraAudioBootstrap?.audio instanceof HTMLAudioElement) return;
@@ -253,6 +320,8 @@ const audioConfig = {
       <button type="button" data-kisara-action="top"><Icon name="tabler:arrow-up" aria-hidden="true" /><span>回到顶部</span></button>
       <button type="button" data-kisara-action="home"><Icon name="tabler:home" aria-hidden="true" /><span>Kisara 首页</span></button>
     </nav>
+
+    <ThemeLongPressMenu />
 
     <script is:inline data-astro-rerun>
       (() => {
