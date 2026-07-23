@@ -144,6 +144,22 @@ const projectPresentation: Record<string, { icon: string; code: string }> = {
   ue5: { icon: "tabler:flask-2", code: "SCENE" },
   mmd: { icon: "tabler:movie", code: "MOTION" }
 };
+const ambientParticles = [
+  { x: 7, y: 21, driftX: 88, driftY: -54, size: 3.2, duration: 18.4, delay: -4.8, opacity: 0.46, hue: 338 },
+  { x: 15, y: 73, driftX: 64, driftY: -92, size: 2.1, duration: 21.7, delay: -13.2, opacity: 0.34, hue: 346 },
+  { x: 24, y: 39, driftX: -42, driftY: -68, size: 4.1, duration: 24.2, delay: -8.7, opacity: 0.38, hue: 329 },
+  { x: 32, y: 84, driftX: 76, driftY: -74, size: 2.7, duration: 19.6, delay: -16.4, opacity: 0.42, hue: 341 },
+  { x: 41, y: 16, driftX: 45, driftY: 62, size: 2.4, duration: 22.8, delay: -10.1, opacity: 0.31, hue: 350 },
+  { x: 49, y: 66, driftX: -58, driftY: -86, size: 3.6, duration: 25.1, delay: -2.6, opacity: 0.4, hue: 334 },
+  { x: 57, y: 28, driftX: 73, driftY: -48, size: 2.2, duration: 20.3, delay: -15.5, opacity: 0.36, hue: 344 },
+  { x: 64, y: 79, driftX: -66, driftY: -96, size: 3.1, duration: 23.7, delay: -7.4, opacity: 0.44, hue: 327 },
+  { x: 72, y: 46, driftX: 51, driftY: 58, size: 2.5, duration: 17.9, delay: -11.6, opacity: 0.33, hue: 348 },
+  { x: 79, y: 17, driftX: -84, driftY: 72, size: 3.8, duration: 26.2, delay: -19.3, opacity: 0.39, hue: 336 },
+  { x: 86, y: 69, driftX: -52, driftY: -82, size: 2.2, duration: 19.1, delay: -5.9, opacity: 0.37, hue: 343 },
+  { x: 93, y: 35, driftX: -77, driftY: -61, size: 3.4, duration: 22.4, delay: -14.1, opacity: 0.43, hue: 331 },
+  { x: 37, y: 53, driftX: 95, driftY: -42, size: 1.9, duration: 16.8, delay: -9.2, opacity: 0.3, hue: 352 },
+  { x: 68, y: 91, driftX: -91, driftY: -70, size: 2.8, duration: 24.9, delay: -17.8, opacity: 0.35, hue: 339 }
+] as const;
 const gateStyle = [
   "--kisara-fill: 0%",
   "--kisara-burst-progress: 0%",
@@ -181,6 +197,23 @@ const gateStyle = [
         width="1280"
         height="900"
       ></canvas>
+    </div>
+    <div class="kisara-ambient-particles" aria-hidden="true">
+      {ambientParticles.map((particle) => (
+        <i
+          style={[
+            `--kisara-particle-x: ${particle.x}%`,
+            `--kisara-particle-y: ${particle.y}%`,
+            `--kisara-particle-drift-x: ${particle.driftX}px`,
+            `--kisara-particle-drift-y: ${particle.driftY}px`,
+            `--kisara-particle-size: ${particle.size}px`,
+            `--kisara-particle-duration: ${particle.duration}s`,
+            `--kisara-particle-delay: ${particle.delay}s`,
+            `--kisara-particle-opacity: ${particle.opacity}`,
+            `--kisara-particle-hue: ${particle.hue}`
+          ].join("; ")}
+        ></i>
+      ))}
     </div>
     <canvas class="kisara-burst-canvas" data-kisara-burst-canvas width="1280" height="900" aria-hidden="true"></canvas>
     <div class="kisara-screen-impact" aria-hidden="true">
@@ -1468,7 +1501,7 @@ const gateStyle = [
           transformationReleaseOpacity: 1 - transformationExit,
           silhouetteBladeBlur: (1 - silhouetteFocus) * 10.5,
           silhouetteBladeBrightness: 0.92 + silhouetteFocus * 0.08,
-          silhouetteBladeScale: 1 + silhouetteFocus * 0.052,
+          silhouetteBladeScale: 1 + silhouetteFocus * 0.1,
           fightVisible,
           fightSettle,
           fightBlur: 0.3 + 2.8 * Math.pow(1 - fightSettle, 1.35),

@@ -1113,6 +1113,15 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-scroll-accent: #ff4969;
   --kisara-scroll-hot: #fff4fa;
   --kisara-scroll-soft: rgba(255, 73, 105, 0.5);
+  --kisara-scroll-track-width: 1px;
+  --kisara-scroll-track-background: linear-gradient(180deg, rgba(145, 177, 255, 0.08), rgba(145, 177, 255, 0.44) 18%, rgba(145, 177, 255, 0.22) 82%, rgba(145, 177, 255, 0.06));
+  --kisara-scroll-progress-background: linear-gradient(180deg, rgba(145, 177, 255, 0.36), var(--kisara-scroll-accent) 72%, var(--kisara-scroll-hot));
+  --kisara-scroll-progress-clip: inset(0 round 999px);
+  --kisara-scroll-core-width: 8px;
+  --kisara-scroll-core-height: 16px;
+  --kisara-scroll-core-radius: 999px;
+  --kisara-scroll-core-rotation: 0deg;
+  --kisara-scroll-core-background: linear-gradient(180deg, var(--kisara-scroll-hot), var(--kisara-scroll-accent) 58%, #8eaef8);
   position: fixed;
   z-index: 46;
   top: 92px;
@@ -1143,25 +1152,31 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 
 .kisara-scrollbar::before {
   bottom: 0;
-  width: 1px;
-  background: linear-gradient(180deg, rgba(145, 177, 255, 0.08), rgba(145, 177, 255, 0.44) 18%, rgba(145, 177, 255, 0.22) 82%, rgba(145, 177, 255, 0.06));
+  width: var(--kisara-scroll-track-width);
+  border-radius: 999px;
+  background: var(--kisara-scroll-track-background);
   box-shadow: 0 0 7px rgba(111, 157, 255, 0.15);
+  transition: width 220ms ease, background 220ms ease, box-shadow 220ms ease;
 }
 
 .kisara-scrollbar::after {
-  width: 5px;
-  height: 5px;
-  border: 1px solid rgba(145, 177, 255, 0.72);
-  background: #111636;
-  transform: translate(-50%, -2px) rotate(45deg);
+  width: 9px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(145, 177, 255, 0.86), transparent);
+  box-shadow: 0 0 6px rgba(111, 157, 255, 0.34);
+  transform: translate(-50%, -1px);
 }
 
 .kisara-scrollbar-progress {
-  width: 2px;
+  width: var(--kisara-scroll-track-width);
   height: calc(var(--kisara-scroll-progress) * 100%);
-  background: linear-gradient(180deg, rgba(145, 177, 255, 0.36), var(--kisara-scroll-accent) 72%, var(--kisara-scroll-hot));
+  border-radius: 999px;
+  background: var(--kisara-scroll-progress-background);
+  clip-path: var(--kisara-scroll-progress-clip);
   box-shadow: 0 0 8px var(--kisara-scroll-soft), 0 0 18px color-mix(in srgb, var(--kisara-scroll-accent) 28%, transparent);
-  transition: background 180ms ease, box-shadow 180ms ease;
+  transform-origin: 50% 0;
+  transition: width 220ms ease, background 220ms ease, box-shadow 220ms ease, clip-path 220ms ease;
 }
 
 .kisara-scrollbar-progress::before,
@@ -1181,6 +1196,76 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   background: var(--kisara-scroll-hot);
   box-shadow: 0 0 8px var(--kisara-scroll-accent), 0 0 16px var(--kisara-scroll-soft);
   transform: translateX(-50%);
+}
+
+.kisara-scrollbar-phases {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.kisara-scrollbar-phases i {
+  position: absolute;
+  left: 50%;
+  width: 8px;
+  height: 1px;
+  border-radius: 999px;
+  background: rgba(170, 190, 242, 0.28);
+  box-shadow: 0 0 4px rgba(111, 157, 255, 0.16);
+  transform: translate(-50%, -50%) scaleX(0.7);
+  transition: width 220ms ease, opacity 220ms ease, background 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+}
+
+.kisara-scrollbar-phases i:nth-child(1) {
+  top: 45%;
+}
+
+.kisara-scrollbar-phases i:nth-child(2) {
+  top: 55%;
+}
+
+.kisara-scrollbar-phases i:nth-child(3) {
+  top: 65%;
+}
+
+.kisara-scrollbar.is-gate-progress .kisara-scrollbar-phases {
+  opacity: 1;
+}
+
+.kisara-scrollbar:is(
+  [data-stage="rupture"],
+  [data-stage="enchant"],
+  [data-stage="blade"],
+  [data-stage="warning"],
+  [data-stage="singularity"],
+  [data-stage="collapse"],
+  [data-stage="detonation"],
+  [data-stage="reconstruction"],
+  [data-stage="complete"]
+) .kisara-scrollbar-phases i:nth-child(1),
+.kisara-scrollbar:is(
+  [data-stage="blade"],
+  [data-stage="warning"],
+  [data-stage="singularity"],
+  [data-stage="collapse"],
+  [data-stage="detonation"],
+  [data-stage="reconstruction"],
+  [data-stage="complete"]
+) .kisara-scrollbar-phases i:nth-child(2),
+.kisara-scrollbar:is(
+  [data-stage="singularity"],
+  [data-stage="collapse"],
+  [data-stage="detonation"],
+  [data-stage="reconstruction"],
+  [data-stage="complete"]
+) .kisara-scrollbar-phases i:nth-child(3) {
+  width: 12px;
+  opacity: 0.96;
+  background: var(--kisara-scroll-hot);
+  box-shadow: 0 0 6px var(--kisara-scroll-accent), 0 0 12px var(--kisara-scroll-soft);
+  transform: translate(-50%, -50%) scaleX(1);
 }
 
 .kisara-scrollbar-guide {
@@ -1249,13 +1334,14 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 
 .kisara-scrollbar-thumb::after {
   top: 50%;
-  width: 11px;
-  height: 11px;
+  width: var(--kisara-scroll-core-width);
+  height: var(--kisara-scroll-core-height);
   border: 1px solid rgba(255, 220, 232, 0.88);
-  background: linear-gradient(135deg, var(--kisara-scroll-hot) 0 18%, var(--kisara-scroll-accent) 42% 72%, #8eaef8 100%);
+  border-radius: var(--kisara-scroll-core-radius);
+  background: var(--kisara-scroll-core-background);
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.66), 0 0 18px var(--kisara-scroll-soft);
-  transform: translate(-50%, -50%) rotate(45deg);
-  transition: border-radius 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  transform: translate(-50%, -50%) rotate(var(--kisara-scroll-core-rotation));
+  transition: width 220ms ease, height 220ms ease, border-radius 220ms ease, background 220ms ease, box-shadow 220ms ease, transform 220ms ease;
 }
 
 .kisara-scrollbar-thumb i {
@@ -1305,6 +1391,13 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-scroll-accent: #7fa8ff;
   --kisara-scroll-hot: #f0f5ff;
   --kisara-scroll-soft: rgba(111, 157, 255, 0.58);
+  --kisara-scroll-track-width: 3px;
+  --kisara-scroll-track-background: repeating-linear-gradient(180deg, rgba(127, 168, 255, 0.14) 0 5px, transparent 5px 9px, rgba(240, 245, 255, 0.18) 9px 10px, transparent 10px 15px);
+  --kisara-scroll-progress-background: repeating-linear-gradient(180deg, #7fa8ff 0 5px, rgba(127, 168, 255, 0.12) 5px 8px, #f0f5ff 8px 10px, rgba(127, 168, 255, 0.18) 10px 15px);
+  --kisara-scroll-core-width: 14px;
+  --kisara-scroll-core-height: 8px;
+  --kisara-scroll-core-radius: 50%;
+  --kisara-scroll-core-background: radial-gradient(ellipse, #111636 0 34%, #f0f5ff 38% 47%, #7fa8ff 52% 69%, rgba(127, 168, 255, 0.18) 74% 100%);
 }
 
 .kisara-scrollbar.is-returning .kisara-scrollbar-thumb::after {
@@ -1317,6 +1410,17 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-scroll-accent: #d773b8;
   --kisara-scroll-hot: #fff1fb;
   --kisara-scroll-soft: rgba(215, 115, 184, 0.62);
+  --kisara-scroll-track-width: 6px;
+  --kisara-scroll-track-background:
+    linear-gradient(90deg, rgba(215, 115, 184, 0.16) 0 1px, transparent 1px 5px, rgba(255, 241, 251, 0.14) 5px 6px),
+    repeating-linear-gradient(180deg, transparent 0 6px, rgba(215, 115, 184, 0.12) 6px 9px, transparent 9px 14px);
+  --kisara-scroll-progress-background:
+    linear-gradient(90deg, #d773b8 0 1.5px, rgba(42, 18, 52, 0.34) 1.5px 4.5px, #fff1fb 4.5px 6px),
+    repeating-linear-gradient(180deg, transparent 0 5px, rgba(255, 241, 251, 0.38) 5px 7px, transparent 7px 12px);
+  --kisara-scroll-core-width: 16px;
+  --kisara-scroll-core-height: 9px;
+  --kisara-scroll-core-radius: 999px;
+  --kisara-scroll-core-background: linear-gradient(90deg, #d773b8 0 24%, #261630 27% 43%, #fff1fb 46% 54%, #261630 57% 73%, #d773b8 76% 100%);
 }
 
 .kisara-scrollbar.is-gate-progress[data-stage="rupture"],
@@ -1325,6 +1429,13 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-scroll-accent: #ff4969;
   --kisara-scroll-hot: #fff7fb;
   --kisara-scroll-soft: rgba(255, 73, 105, 0.72);
+  --kisara-scroll-track-width: 4px;
+  --kisara-scroll-track-background: linear-gradient(90deg, rgba(255, 73, 105, 0.08), rgba(255, 247, 251, 0.24) 48% 52%, rgba(255, 73, 105, 0.08));
+  --kisara-scroll-progress-background: linear-gradient(180deg, #d773b8 0%, #ff4969 44%, #fff7fb 72%, #ff7896 100%);
+  --kisara-scroll-core-width: 15px;
+  --kisara-scroll-core-height: 15px;
+  --kisara-scroll-core-radius: 48% 52% 58% 42% / 42% 48% 52% 58%;
+  --kisara-scroll-core-background: radial-gradient(circle at 36% 32%, #fff 0 10%, #ffb4c8 20%, #ff4969 51%, #8f244f 78%, #251027 100%);
 }
 
 .kisara-scrollbar.is-gate-progress[data-stage="rupture"] .kisara-scrollbar-thumb::after {
@@ -1340,6 +1451,13 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-scroll-accent: #f4f6ff;
   --kisara-scroll-hot: #ffffff;
   --kisara-scroll-soft: rgba(255, 255, 255, 0.76);
+  --kisara-scroll-track-width: 2px;
+  --kisara-scroll-track-background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0 3px, transparent 3px 8px);
+  --kisara-scroll-progress-background: repeating-linear-gradient(180deg, #fff 0 3px, rgba(255, 255, 255, 0.12) 3px 7px, #d8e2ff 7px 8px, transparent 8px 12px);
+  --kisara-scroll-core-width: 6px;
+  --kisara-scroll-core-height: 6px;
+  --kisara-scroll-core-radius: 50%;
+  --kisara-scroll-core-background: #fff;
 }
 
 .kisara-scrollbar.is-gate-progress[data-stage="warning"] .kisara-scrollbar-thumb i::before,
@@ -1366,6 +1484,15 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-scroll-accent: #ff4f87;
   --kisara-scroll-hot: #f7eaff;
   --kisara-scroll-soft: rgba(185, 90, 255, 0.7);
+  --kisara-scroll-track-width: 8px;
+  --kisara-scroll-track-background: linear-gradient(90deg, rgba(255, 79, 135, 0.12), rgba(2, 3, 11, 0.72) 32% 68%, rgba(141, 104, 255, 0.12));
+  --kisara-scroll-progress-background:
+    linear-gradient(90deg, #ff4f87 0 13%, #61285f 24%, #02030b 43% 57%, #49306d 72%, #8d68ff 88%, #f7eaff 100%),
+    repeating-linear-gradient(180deg, transparent 0 7px, rgba(247, 234, 255, 0.2) 7px 8px, transparent 8px 15px);
+  --kisara-scroll-core-width: 16px;
+  --kisara-scroll-core-height: 16px;
+  --kisara-scroll-core-radius: 50%;
+  --kisara-scroll-core-background: radial-gradient(circle, #02030b 0 27%, #ff4f87 43%, #8d68ff 62%, #f7eaff 78%, transparent 82%);
 }
 
 .kisara-scrollbar.is-gate-progress[data-stage="singularity"] .kisara-scrollbar-thumb::after,
@@ -1389,6 +1516,14 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-scroll-accent: #ff7fa5;
   --kisara-scroll-hot: #ffffff;
   --kisara-scroll-soft: rgba(255, 255, 255, 0.9);
+  --kisara-scroll-track-width: 10px;
+  --kisara-scroll-track-background: linear-gradient(90deg, transparent, rgba(255, 127, 165, 0.14) 38%, rgba(255, 255, 255, 0.24) 50%, rgba(255, 127, 165, 0.14) 62%, transparent);
+  --kisara-scroll-progress-background: linear-gradient(180deg, rgba(255, 73, 105, 0.32), #ff7fa5 54%, #fff 86%);
+  --kisara-scroll-progress-clip: polygon(42% 0, 58% 0, 100% 100%, 0 100%);
+  --kisara-scroll-core-width: 17px;
+  --kisara-scroll-core-height: 17px;
+  --kisara-scroll-core-radius: 50%;
+  --kisara-scroll-core-background: radial-gradient(circle, #fff 0 18%, #ffdce7 31%, #ff7fa5 55%, rgba(255, 73, 105, 0.42) 72%, transparent 78%);
 }
 
 .kisara-scrollbar.is-gate-progress[data-stage="detonation"] .kisara-scrollbar-thumb::after,
@@ -1400,6 +1535,20 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-scroll-accent: #82b7ff;
   --kisara-scroll-hot: #fff5fb;
   --kisara-scroll-soft: rgba(255, 85, 139, 0.68);
+  --kisara-scroll-track-width: 7px;
+  --kisara-scroll-track-background: repeating-linear-gradient(180deg, rgba(130, 183, 255, 0.12) 0 4px, transparent 4px 7px, rgba(255, 85, 139, 0.1) 7px 10px, transparent 10px 14px);
+  --kisara-scroll-progress-background:
+    linear-gradient(90deg, #82b7ff 0 36%, rgba(17, 22, 54, 0.74) 36% 52%, #ff558b 52% 100%),
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.46) 0 3px, transparent 3px 7px);
+  --kisara-scroll-progress-clip: inset(0 round 1px);
+  --kisara-scroll-core-width: 12px;
+  --kisara-scroll-core-height: 12px;
+  --kisara-scroll-core-radius: 2px;
+  --kisara-scroll-core-background:
+    linear-gradient(#fff 0 0) 1px 1px / 4px 4px no-repeat,
+    linear-gradient(#ff5f8d 0 0) 7px 2px / 4px 4px no-repeat,
+    linear-gradient(#82b7ff 0 0) 3px 7px / 4px 4px no-repeat,
+    #111636;
 }
 
 .kisara-scrollbar.is-gate-progress[data-stage="reconstruction"] .kisara-scrollbar-progress::before {
@@ -1419,6 +1568,13 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
   --kisara-scroll-accent: #ff7896;
   --kisara-scroll-hot: #ffffff;
   --kisara-scroll-soft: rgba(255, 120, 150, 0.68);
+  --kisara-scroll-track-width: 4px;
+  --kisara-scroll-track-background: linear-gradient(90deg, rgba(130, 183, 255, 0.16), rgba(255, 255, 255, 0.32) 50%, rgba(255, 120, 150, 0.16));
+  --kisara-scroll-progress-background: linear-gradient(180deg, #82b7ff, #fff 48%, #ff7896);
+  --kisara-scroll-core-width: 16px;
+  --kisara-scroll-core-height: 16px;
+  --kisara-scroll-core-radius: 50%;
+  --kisara-scroll-core-background: radial-gradient(circle, #111636 0 31%, #fff 35% 47%, #ff7896 52% 69%, rgba(255, 120, 150, 0.12) 74% 100%);
 }
 
 .kisara-scrollbar.is-gate-progress[data-stage="complete"] .kisara-scrollbar-thumb::after {
@@ -1441,14 +1597,14 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 }
 
 @keyframes kisara-scroll-rupture {
-  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.88); }
-  42% { transform: translate(-50%, -50%) rotate(51deg) scale(1.26); }
-  58% { transform: translate(-50%, -50%) rotate(40deg) scale(0.96); }
+  0%, 100% { transform: translate(-50%, -50%) rotate(-4deg) scale(0.88, 1); }
+  42% { transform: translate(-50%, -50%) rotate(7deg) scale(1.28, 0.82); }
+  58% { transform: translate(-50%, -50%) rotate(-6deg) scale(0.94, 1.12); }
 }
 
 @keyframes kisara-scroll-return {
-  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.9); }
-  50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.08); }
+  0%, 100% { transform: translate(-50%, -50%) scale(0.92, 1); }
+  50% { transform: translate(-50%, -50%) scale(1.12, 0.86); }
 }
 
 @keyframes kisara-scroll-guide-chevron {
@@ -1469,10 +1625,10 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 }
 
 @keyframes kisara-scroll-heartbeat {
-  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.92); }
-  35% { transform: translate(-50%, -50%) rotate(45deg) scale(1.18); }
-  52% { transform: translate(-50%, -50%) rotate(45deg) scale(1.02); }
-  67% { transform: translate(-50%, -50%) rotate(45deg) scale(1.12); }
+  0%, 100% { transform: translate(-50%, -50%) scale(0.92); }
+  35% { transform: translate(-50%, -50%) scale(1.18); }
+  52% { transform: translate(-50%, -50%) scale(1.02); }
+  67% { transform: translate(-50%, -50%) scale(1.12); }
 }
 
 @keyframes kisara-scroll-warning-strike {
@@ -1483,8 +1639,8 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 }
 
 @keyframes kisara-scroll-singularity {
-  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.9); }
-  50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.2); }
+  0%, 100% { transform: translate(-50%, -50%) scale(0.9); }
+  50% { transform: translate(-50%, -50%) scale(1.2); }
 }
 
 @keyframes kisara-scroll-orbit {
@@ -1493,9 +1649,9 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 }
 
 @keyframes kisara-scroll-detonation {
-  0% { transform: translate(-50%, -50%) rotate(45deg) scale(0.84); opacity: 0.72; }
-  68% { transform: translate(-50%, -50%) rotate(45deg) scale(1.42); opacity: 1; }
-  100% { transform: translate(-50%, -50%) rotate(45deg) scale(1.68); opacity: 0; }
+  0% { transform: translate(-50%, -50%) scale(0.84); opacity: 0.72; }
+  68% { transform: translate(-50%, -50%) scale(1.42); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.68); opacity: 0; }
 }
 
 @keyframes kisara-scroll-reconstruction {
@@ -1505,8 +1661,8 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 }
 
 @keyframes kisara-scroll-complete {
-  0%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(0.96); box-shadow: 0 0 8px #fff, 0 0 18px var(--kisara-scroll-soft); }
-  50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.14); box-shadow: 0 0 12px #fff, 0 0 28px var(--kisara-scroll-soft); }
+  0%, 100% { transform: translate(-50%, -50%) scale(0.96); box-shadow: 0 0 8px #fff, 0 0 18px var(--kisara-scroll-soft); }
+  50% { transform: translate(-50%, -50%) scale(1.14); box-shadow: 0 0 12px #fff, 0 0 28px var(--kisara-scroll-soft); }
 }
 
 .kisara-gate {
@@ -1628,6 +1784,94 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 .kisara-gate.is-opening-bridge-live .kisara-gate-visual-shell {
   position: fixed;
   inset: 0;
+}
+
+.kisara-ambient-particles {
+  position: absolute;
+  z-index: -1;
+  inset: -7%;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  mix-blend-mode: screen;
+}
+
+.kisara-ambient-particles i {
+  position: absolute;
+  top: var(--kisara-particle-y);
+  left: var(--kisara-particle-x);
+  width: var(--kisara-particle-size);
+  height: var(--kisara-particle-size);
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(
+    circle at 36% 32%,
+    rgba(255, 255, 255, 0.98) 0 11%,
+    hsla(var(--kisara-particle-hue), 100%, 84%, 0.92) 24%,
+    hsla(var(--kisara-particle-hue), 100%, 68%, 0.66) 48%,
+    hsla(var(--kisara-particle-hue), 100%, 58%, 0.08) 72%,
+    transparent 78%
+  );
+  box-shadow:
+    0 0 calc(var(--kisara-particle-size) * 2.6) hsla(var(--kisara-particle-hue), 100%, 72%, 0.72),
+    0 0 calc(var(--kisara-particle-size) * 5.2) hsla(var(--kisara-particle-hue), 100%, 62%, 0.2);
+  animation: kisara-ambient-particle-drift var(--kisara-particle-duration) cubic-bezier(0.38, 0.08, 0.24, 0.98) infinite;
+  animation-delay: var(--kisara-particle-delay);
+  will-change: transform, opacity;
+}
+
+.kisara-ambient-particles i::after {
+  content: "";
+  position: absolute;
+  inset: -160%;
+  border: 1px solid hsla(var(--kisara-particle-hue), 100%, 82%, 0.18);
+  border-radius: 50%;
+  transform: scale(0.42);
+  animation: kisara-ambient-particle-halo 3.6s ease-in-out infinite;
+  animation-delay: var(--kisara-particle-delay);
+}
+
+@keyframes kisara-ambient-particle-drift {
+  0% {
+    opacity: 0;
+    transform: translate3d(
+      calc(var(--kisara-particle-drift-x) * -0.3),
+      calc(var(--kisara-particle-drift-y) * -0.18),
+      0
+    ) scale(0.58);
+  }
+  16% {
+    opacity: calc(var(--kisara-particle-opacity) * 0.72);
+  }
+  44% {
+    opacity: var(--kisara-particle-opacity);
+    transform: translate3d(
+      calc(var(--kisara-particle-drift-x) * 0.28),
+      calc(var(--kisara-particle-drift-y) * 0.42),
+      0
+    ) scale(1.12);
+  }
+  72% {
+    opacity: calc(var(--kisara-particle-opacity) * 0.82);
+    transform: translate3d(
+      calc(var(--kisara-particle-drift-x) * 0.68),
+      calc(var(--kisara-particle-drift-y) * 0.74),
+      0
+    ) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(
+      var(--kisara-particle-drift-x),
+      var(--kisara-particle-drift-y),
+      0
+    ) scale(0.64);
+  }
+}
+
+@keyframes kisara-ambient-particle-halo {
+  0%, 100% { opacity: 0.18; transform: scale(0.38); }
+  50% { opacity: 0.54; transform: scale(0.92); }
 }
 
 .kisara-screen-impact,
@@ -5719,9 +5963,8 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
     width: 14px;
   }
 
-  .kisara-scrollbar-thumb::after {
-    width: 9px;
-    height: 9px;
+  .kisara-ambient-particles i:nth-child(n + 10) {
+    display: none;
   }
 
   .kisara-scrollbar-guide {
@@ -6023,6 +6266,10 @@ html[data-theme="kisara"] body[data-yuimi-selection-lock="true"] :where(img, pic
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .kisara-ambient-particles {
+    display: none;
+  }
+
   .kisara-audio-control,
   .kisara-audio-control::after,
   .kisara-audio-emblem::before,
