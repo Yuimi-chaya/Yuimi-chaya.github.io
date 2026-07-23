@@ -12,15 +12,18 @@ const gamePresentation = {
 ---
 
 <KisaraLayout title="Games | Kisara" description="Yuimi Lab 的小游戏收藏。">
-  <section class="kisara-game-hero" aria-labelledby="kisara-game-hero-title">
-    <img
-      src="/themes/kisara/assets/game-night-hero.png"
-      alt="木更在夜色中查看手机"
-      width="1260"
-      height="709"
-      fetchpriority="high"
-      decoding="async"
-    />
+  <section class="kisara-game-hero" data-kisara-game-hero data-intro-state="idle" aria-labelledby="kisara-game-hero-title">
+    <div class="kisara-game-hero-media">
+      <img
+        src="/themes/kisara/assets/game-night-hero.png"
+        alt="木更在夜色中查看手机"
+        width="1260"
+        height="709"
+        fetchpriority="high"
+        decoding="async"
+      />
+    </div>
+    <div class="kisara-game-hero-intro" aria-hidden="true"><i></i></div>
     <div class="kisara-game-hero-copy">
       <p><span>05</span> NIGHT SHIFT / GAME CHANNEL</p>
       <h1 id="kisara-game-hero-title">One more round<br /><em>before morning.</em></h1>
@@ -109,12 +112,44 @@ const gamePresentation = {
       window.__yuimiKisaraInnerCleanup?.();
       const lifecycle = new AbortController();
       const signal = lifecycle.signal;
+      const hero = document.querySelector("[data-kisara-game-hero]");
+      let introTimer = 0;
       const cleanup = () => {
         lifecycle.abort();
+        window.clearTimeout(introTimer);
         if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
       };
       window.__yuimiKisaraInnerCleanup = cleanup;
       document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
+
+      const finishHeroIntro = () => {
+        if (!(hero instanceof HTMLElement)) return;
+        window.clearTimeout(introTimer);
+        hero.dataset.introState = "complete";
+      };
+
+      const playHeroIntro = async () => {
+        if (!(hero instanceof HTMLElement)) return;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          finishHeroIntro();
+          return;
+        }
+
+        hero.dataset.introState = "idle";
+        const image = hero.querySelector(".kisara-game-hero-media img");
+        if (image instanceof HTMLImageElement && !image.complete) {
+          await image.decode().catch(() => undefined);
+        }
+        if (signal.aborted) return;
+        void hero.offsetWidth;
+        requestAnimationFrame(() => {
+          if (signal.aborted) return;
+          hero.dataset.introState = "playing";
+          introTimer = window.setTimeout(finishHeroIntro, 1760);
+        });
+      };
+
+      void playHeroIntro();
       const root = document.querySelector("[data-kisara-arcade]");
       if (!(root instanceof HTMLElement)) return;
       const selectors = Array.from(root.querySelectorAll("[data-game-select]"));
