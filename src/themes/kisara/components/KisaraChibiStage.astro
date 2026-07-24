@@ -1,0 +1,885 @@
+---
+import { Icon } from "astro-icon/components";
+
+const characters = [
+  { id: "kisara", src: "/themes/kisara/assets/chibi/kisara.png", label: "木更" },
+  { id: "ayano", src: "/themes/kisara/assets/chibi/ayano.png", label: "绫乃" },
+  { id: "shu", src: "/themes/kisara/assets/chibi/shu.png", label: "修" },
+  { id: "sharon", src: "/themes/kisara/assets/chibi/sharon.png", label: "莎朗" },
+];
+---
+
+<section class="kisara-chibi-stage" data-kisara-chibi-stage aria-label="Q 版角色互动舞台">
+  <div class="kisara-chibi-ambient" aria-hidden="true">
+    <i></i><i></i><i></i>
+  </div>
+  <div class="kisara-chibi-floor" aria-hidden="true"><span></span></div>
+
+  <button
+    class="kisara-chibi-reset"
+    type="button"
+    data-chibi-reset
+    aria-label="复位 Q 版角色"
+    title="复位角色"
+  >
+    <Icon name="tabler:refresh" aria-hidden="true" />
+  </button>
+
+  {characters.map((character) => (
+    <button
+      class="kisara-chibi"
+      type="button"
+      data-chibi={character.id}
+      aria-label={`拖动${character.label}`}
+      title={`拖动${character.label}靠近其他角色`}
+    >
+      <span class="kisara-chibi-bubble" data-chibi-bubble aria-hidden="true"></span>
+      <span class="kisara-chibi-figure">
+        <img src={character.src} alt="" draggable="false" loading="lazy" decoding="async" />
+      </span>
+      <span class="kisara-chibi-shadow" aria-hidden="true"></span>
+    </button>
+  ))}
+
+  <span class="sr-only" data-chibi-live aria-live="polite"></span>
+</section>
+
+<style>
+  .kisara-chibi-stage {
+    --scene-accent: 255, 91, 126;
+    position: relative;
+    width: min(1240px, 100%);
+    min-height: clamp(430px, 48vw, 560px);
+    margin-inline: auto;
+    overflow: clip;
+    isolation: isolate;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .kisara-chibi-stage::before {
+    position: absolute;
+    z-index: -2;
+    inset: 4% 3% 1%;
+    content: "";
+    background:
+      radial-gradient(circle at 18% 76%, rgba(255, 105, 146, 0.12), transparent 22%),
+      radial-gradient(circle at 45% 74%, rgba(121, 155, 255, 0.11), transparent 24%),
+      radial-gradient(circle at 72% 77%, rgba(255, 211, 129, 0.085), transparent 20%),
+      radial-gradient(circle at 88% 73%, rgba(159, 129, 255, 0.1), transparent 21%);
+    filter: blur(7px);
+    transition: background 500ms ease;
+  }
+
+  .kisara-chibi-stage::after {
+    position: absolute;
+    z-index: -1;
+    right: 3%;
+    bottom: 10.5%;
+    left: 3%;
+    height: 1px;
+    content: "";
+    background: linear-gradient(90deg, transparent, rgba(255, 103, 137, 0.58) 18%, rgba(141, 170, 255, 0.38) 52%, rgba(255, 103, 137, 0.58) 82%, transparent);
+    box-shadow: 0 0 18px rgba(var(--scene-accent), 0.28);
+  }
+
+  .kisara-chibi-ambient {
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .kisara-chibi-ambient i {
+    position: absolute;
+    top: 7%;
+    width: 1px;
+    height: 68%;
+    transform-origin: 50% 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(var(--scene-accent), 0.035) 45%, transparent);
+    filter: blur(0.2px);
+    opacity: 0.42;
+  }
+
+  .kisara-chibi-ambient i:nth-child(1) { left: 19%; transform: rotate(13deg); }
+  .kisara-chibi-ambient i:nth-child(2) { left: 50%; transform: rotate(-4deg); opacity: 0.28; }
+  .kisara-chibi-ambient i:nth-child(3) { right: 17%; transform: rotate(-14deg); }
+
+  .kisara-chibi-floor {
+    position: absolute;
+    z-index: -1;
+    right: 6%;
+    bottom: 1.5%;
+    left: 6%;
+    height: 24%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(var(--scene-accent), 0.105), rgba(67, 84, 145, 0.035) 45%, transparent 72%);
+    transform: perspective(300px) rotateX(67deg);
+    filter: blur(1px);
+    pointer-events: none;
+  }
+
+  .kisara-chibi-floor span {
+    position: absolute;
+    inset: 15% 8%;
+    border: 1px solid rgba(160, 180, 255, 0.11);
+    border-radius: 50%;
+  }
+
+  .kisara-chibi-reset {
+    position: absolute;
+    z-index: 8;
+    top: 20px;
+    right: 14px;
+    display: grid;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    place-items: center;
+    color: rgba(224, 230, 255, 0.7);
+    border: 0;
+    border-radius: 50%;
+    background: rgba(20, 25, 55, 0.38);
+    box-shadow: inset 0 0 0 1px rgba(162, 181, 255, 0.15), 0 8px 26px rgba(1, 3, 16, 0.2);
+    backdrop-filter: blur(12px) saturate(1.25);
+    cursor: pointer;
+    transition: color 180ms ease, background 180ms ease, transform 350ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .kisara-chibi-reset :global(svg) {
+    width: 17px;
+    height: 17px;
+    transition: transform 480ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .kisara-chibi-reset:hover,
+  .kisara-chibi-reset:focus-visible {
+    color: #fff;
+    outline: none;
+    background: rgba(255, 73, 105, 0.2);
+    transform: translateY(-2px);
+  }
+
+  .kisara-chibi-reset:hover :global(svg),
+  .kisara-chibi-reset:focus-visible :global(svg) { transform: rotate(-180deg); }
+
+  .kisara-chibi {
+    --chibi-x: 0px;
+    --chibi-y: 0px;
+    --drag-tilt: 0deg;
+    --chibi-acrylic: 255, 116, 161;
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    left: 0;
+    display: block;
+    width: clamp(124px, 14.2vw, 176px);
+    padding: 0;
+    color: inherit;
+    border: 0;
+    background: transparent;
+    transform: translate3d(var(--chibi-x), var(--chibi-y), 0);
+    touch-action: none;
+    cursor: grab;
+    opacity: 0;
+    will-change: transform;
+  }
+
+  .kisara-chibi[data-chibi="kisara"] {
+    --chibi-acrylic: 255, 113, 164;
+    aspect-ratio: 180 / 229;
+  }
+
+  .kisara-chibi[data-chibi="ayano"] {
+    --chibi-acrylic: 104, 156, 255;
+    width: clamp(112px, 12.7vw, 158px);
+    aspect-ratio: 149 / 236;
+  }
+
+  .kisara-chibi[data-chibi="sharon"] {
+    --chibi-acrylic: 177, 139, 255;
+    width: clamp(132px, 15.2vw, 188px);
+    aspect-ratio: 196 / 241;
+  }
+
+  .kisara-chibi[data-chibi="shu"] {
+    --chibi-acrylic: 124, 181, 150;
+    width: clamp(112px, 12.8vw, 158px);
+    aspect-ratio: 177 / 266;
+  }
+
+  .kisara-chibi-stage[data-ready="true"] .kisara-chibi {
+    opacity: 1;
+    transition: opacity 320ms ease;
+  }
+
+  .kisara-chibi.is-snapping {
+    transition: transform 520ms cubic-bezier(0.16, 1.25, 0.3, 1), opacity 220ms ease;
+  }
+
+  .kisara-chibi.is-dragging {
+    z-index: 7;
+    cursor: grabbing;
+  }
+
+  .kisara-chibi:focus-visible {
+    outline: none;
+  }
+
+  .kisara-chibi:focus-visible .kisara-chibi-figure {
+    filter: drop-shadow(0 0 13px rgba(255, 117, 151, 0.8));
+  }
+
+  .kisara-chibi-figure {
+    position: relative;
+    z-index: 2;
+    display: block;
+    width: 100%;
+    height: 100%;
+    isolation: isolate;
+    transform-origin: 50% 92%;
+    filter:
+      drop-shadow(0 15px 12px rgba(0, 0, 20, 0.34))
+      drop-shadow(0 0 1.15px rgba(4, 7, 27, 0.62))
+      drop-shadow(0 0 2.5px rgba(var(--chibi-acrylic), 0.09));
+    will-change: transform, filter;
+  }
+
+  .kisara-chibi-figure img {
+    position: relative;
+    z-index: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: blur(0.12px) saturate(0.99) contrast(1.015);
+    pointer-events: none;
+    -webkit-user-drag: none;
+  }
+
+  .kisara-chibi.is-dragging .kisara-chibi-figure {
+    transform: translateY(-13px) rotate(var(--drag-tilt)) scale(1.055);
+    filter: drop-shadow(0 23px 15px rgba(0, 0, 20, 0.44)) drop-shadow(0 0 10px rgba(var(--scene-accent), 0.24));
+    transition: transform 90ms linear, filter 180ms ease;
+  }
+
+  .kisara-chibi.is-speaking .kisara-chibi-figure {
+    animation: kisara-chibi-speak 520ms cubic-bezier(0.16, 1.25, 0.3, 1);
+  }
+
+  .kisara-chibi.is-speaking .kisara-chibi-shadow {
+    animation: kisara-chibi-shadow-speak 520ms cubic-bezier(0.16, 1.25, 0.3, 1);
+  }
+
+  .kisara-chibi.is-dropped .kisara-chibi-figure {
+    animation: kisara-chibi-drop 560ms cubic-bezier(0.16, 1.3, 0.3, 1);
+  }
+
+  .kisara-chibi.is-dropped .kisara-chibi-shadow {
+    animation: kisara-chibi-shadow-drop 560ms cubic-bezier(0.16, 1.3, 0.3, 1);
+  }
+
+  .kisara-chibi-shadow {
+    position: absolute;
+    z-index: 1;
+    right: 22%;
+    bottom: -4px;
+    left: 22%;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(0, 0, 16, 0.32);
+    filter: blur(5px);
+    pointer-events: none;
+    transform: scaleX(0.78);
+    transition: opacity 180ms ease, transform 180ms ease, filter 180ms ease;
+  }
+
+  .kisara-chibi.is-dragging .kisara-chibi-shadow {
+    opacity: 0.42;
+    filter: blur(7px);
+    transform: scaleX(0.54);
+  }
+
+  .kisara-chibi-bubble {
+    position: absolute;
+    z-index: 9;
+    top: -24%;
+    left: 50%;
+    display: grid;
+    min-width: 58px;
+    min-height: 44px;
+    padding: 8px 13px 9px;
+    place-items: center;
+    color: #19152b;
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    border-radius: 52% 48% 45% 55% / 56% 53% 47% 44%;
+    background:
+      radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.96), transparent 34%),
+      rgba(248, 246, 255, 0.9);
+    box-shadow: 0 12px 26px rgba(1, 2, 15, 0.24), 0 0 22px rgba(var(--scene-accent), 0.16);
+    backdrop-filter: blur(8px) saturate(1.15);
+    font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+    font-size: clamp(1.15rem, 1.8vw, 1.55rem);
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 11px) scale(0.62) rotate(-4deg);
+    transform-origin: 45% 100%;
+  }
+
+  .kisara-chibi-bubble::before,
+  .kisara-chibi-bubble::after {
+    position: absolute;
+    content: "";
+    border-radius: 50%;
+    background: rgba(248, 246, 255, 0.9);
+    box-shadow: 0 6px 10px rgba(1, 2, 15, 0.16);
+  }
+
+  .kisara-chibi-bubble::before {
+    right: 15%;
+    bottom: -9px;
+    width: 12px;
+    height: 12px;
+  }
+
+  .kisara-chibi-bubble::after {
+    right: 8%;
+    bottom: -18px;
+    width: 6px;
+    height: 6px;
+  }
+
+  .kisara-chibi-bubble.is-visible {
+    animation: kisara-chibi-bubble-in 240ms cubic-bezier(0.16, 1.35, 0.3, 1) forwards;
+  }
+
+  @keyframes kisara-chibi-speak {
+    0%, 100% { transform: translateY(0) scale(1); }
+    34% { transform: translateY(-13px) scale(1.04, 0.97) rotate(-2deg); }
+    58% { transform: translateY(1px) scale(0.98, 1.04) rotate(1deg); }
+    76% { transform: translateY(-4px) scale(1.01); }
+  }
+
+  @keyframes kisara-chibi-drop {
+    0% { transform: translateY(-9px) scale(1.045, 0.96); }
+    38% { transform: translateY(3px) scale(0.94, 1.07); }
+    64% { transform: translateY(-5px) scale(1.025, 0.98); }
+    100% { transform: translateY(0) scale(1); }
+  }
+
+  @keyframes kisara-chibi-shadow-speak {
+    0%, 100% { opacity: 1; transform: scaleX(0.78); }
+    34% { opacity: 0.46; transform: scaleX(0.5); }
+    58% { opacity: 0.9; transform: scaleX(0.88); }
+    76% { opacity: 0.7; transform: scaleX(0.66); }
+  }
+
+  @keyframes kisara-chibi-shadow-drop {
+    0% { opacity: 0.5; transform: scaleX(0.55); }
+    38% { opacity: 1; transform: scaleX(0.94); }
+    64% { opacity: 0.72; transform: scaleX(0.68); }
+    100% { opacity: 1; transform: scaleX(0.78); }
+  }
+
+  @keyframes kisara-chibi-bubble-in {
+    0% { opacity: 0; transform: translate(-50%, 11px) scale(0.62) rotate(-4deg); }
+    62% { opacity: 1; transform: translate(-50%, -3px) scale(1.08) rotate(2deg); }
+    100% { opacity: 1; transform: translate(-50%, 0) scale(1) rotate(0); }
+  }
+
+  @media (max-width: 720px) {
+    .kisara-chibi-stage {
+      min-height: 610px;
+    }
+
+    .kisara-chibi-stage::after {
+      right: 5%;
+      bottom: 6.8%;
+      left: 5%;
+    }
+
+    .kisara-chibi-floor {
+      right: 2%;
+      bottom: -1%;
+      left: 2%;
+      height: 18%;
+    }
+
+    .kisara-chibi-reset {
+      top: 10px;
+      right: 8px;
+    }
+
+    .kisara-chibi {
+      width: clamp(110px, 31vw, 142px);
+    }
+
+    .kisara-chibi[data-chibi="ayano"],
+    .kisara-chibi[data-chibi="shu"] { width: clamp(100px, 27vw, 128px); }
+    .kisara-chibi[data-chibi="sharon"] { width: clamp(116px, 33vw, 150px); }
+
+    .kisara-chibi-bubble {
+      top: -18%;
+      font-size: 1.16rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kisara-chibi,
+    .kisara-chibi-figure,
+    .kisara-chibi-bubble,
+    .kisara-chibi-reset,
+    .kisara-chibi-reset :global(svg) {
+      animation-duration: 1ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
+</style>
+
+<script is:inline data-astro-rerun>
+  (() => {
+    window.__yuimiKisaraChibiCleanup?.();
+
+    const root = document.querySelector("[data-kisara-chibi-stage]");
+    if (!(root instanceof HTMLElement)) return;
+
+    const lifecycle = new AbortController();
+    const nodes = new Map(
+      Array.from(root.querySelectorAll("[data-chibi]"))
+        .filter((node) => node instanceof HTMLElement)
+        .map((node) => [node.dataset.chibi, node])
+    );
+    const resetButton = root.querySelector("[data-chibi-reset]");
+    const liveRegion = root.querySelector("[data-chibi-live]");
+    const characterOrder = ["kisara", "ayano", "shu", "sharon"];
+    const nameMap = { kisara: "木更", ayano: "绫乃", shu: "修", sharon: "莎朗" };
+    const soloEmoji = {
+      kisara: ["💗✨", "😤💢", "🍬💗", "👀❓"],
+      ayano: ["😌☕", "📋✨", "😏🍱", "🙃💭"],
+      shu: ["😅💸", "☕😵", "📦❓", "🙂💭"],
+      sharon: ["😐☕", "🧐📏", "⏱️👀", "🙏✨"],
+    };
+
+    const scenes = {
+      "ayano|kisara": [
+        [["kisara", "😤💢"], ["ayano", "😏🍱"], ["kisara", "😡🔪💗"]],
+        [["ayano", "👀💗"], ["kisara", "🙅‍♀️💥"], ["ayano", "😌☕"]],
+        [["kisara", "🧐❓"], ["ayano", "🙂➕🍱"], ["kisara", "😑💢"]],
+      ],
+      "kisara|shu": [
+        [["kisara", "🥰💗✨"], ["shu", "😅💸"], ["kisara", "☕🚫💢"]],
+        [["shu", "🙂👍"], ["kisara", "😳💗💗"], ["shu", "😵‍💫✨"]],
+        [["kisara", "🏠💗❓"], ["shu", "📋😓"], ["kisara", "😤👉🏠"]],
+      ],
+      "kisara|sharon": [
+        [["sharon", "🧐📏"], ["kisara", "😤🛡️💗"], ["sharon", "😐☕"]],
+        [["kisara", "👀🔔❓"], ["sharon", "⏱️😐"], ["kisara", "🍬🤝"]],
+        [["sharon", "🙏✨"], ["kisara", "😑💭"], ["sharon", "☕➕🍬"]],
+      ],
+      "ayano|shu": [
+        [["ayano", "📋✍️"], ["shu", "😵❓"], ["ayano", "😏👉"]],
+        [["shu", "☕🙂"], ["ayano", "😳↩️😌"], ["shu", "👀❓"]],
+        [["ayano", "📞⚡"], ["shu", "😮‍💨💸"], ["ayano", "🚗💨"]],
+      ],
+      "ayano|sharon": [
+        [["ayano", "👀❓"], ["sharon", "👁️👁️"], ["ayano", "😌☕"]],
+        [["sharon", "🕯️⚠️"], ["ayano", "🔧✨"], ["sharon", "🙂👍"]],
+        [["ayano", "🍵❓"], ["sharon", "🤔➕🍬"], ["ayano", "😏✨"]],
+      ],
+      "sharon|shu": [
+        [["sharon", "🧾🤨"], ["shu", "😐🤏"], ["sharon", "📚👉"]],
+        [["shu", "🥪❓"], ["sharon", "🙂🤏"], ["shu", "😮‍💨✨"]],
+        [["sharon", "⏱️3️⃣"], ["shu", "😵‍💫💦"], ["sharon", "😐📌"]],
+      ],
+      "ayano|kisara|shu": [
+        [["kisara", "😤👉💗"], ["ayano", "😏↔️"], ["shu", "😵🥤"], ["kisara", "🥤💗🔒"]],
+        [["ayano", "🍱✨"], ["kisara", "🍱💢"], ["shu", "😅🙏"], ["ayano", "😌✌️"]],
+      ],
+      "kisara|sharon|shu": [
+        [["sharon", "🚪👀"], ["kisara", "✋💥➡️"], ["shu", "😓❓"], ["sharon", "📌😐"]],
+        [["kisara", "🛡️💗"], ["sharon", "📏⚠️"], ["shu", "🙃☕"], ["kisara", "😤✨"]],
+      ],
+      "ayano|sharon|shu": [
+        [["ayano", "📋📋📋"], ["shu", "3️⃣⏱️"], ["sharon", "✂️📄"], ["ayano", "🙂👍"]],
+        [["sharon", "🧐📌"], ["ayano", "🔧📋"], ["shu", "😶☕"], ["sharon", "✅✨"]],
+      ],
+      "ayano|kisara|sharon": [
+        [["kisara", "👀❓"], ["ayano", "🙂🔞❌"], ["sharon", "💸🚪"], ["kisara", "😤📚"]],
+        [["ayano", "☕🤝"], ["sharon", "🍬👍"], ["kisara", "😑💢"], ["ayano", "😏✨"]],
+      ],
+      "ayano|kisara|sharon|shu": [
+        [["shu", "📦4️⃣🍱❓"], ["ayano", "🙂✨"], ["kisara", "😤💗🏆"], ["sharon", "🧐🔢"], ["shu", "😵❓"], ["kisara", "🥄1️⃣💗"], ["ayano", "🙈🎲"]],
+        [["kisara", "💗🍱💥"], ["ayano", "😏🍱✨"], ["sharon", "📋🔍"], ["shu", "😰🙏"], ["kisara", "👑💗"], ["ayano", "🎲👀"], ["sharon", "⏱️▶️"]],
+      ],
+    };
+
+    const state = new Map();
+    const groups = [];
+    const timers = new Set();
+    const bubbleTimers = new Map();
+    let drag = null;
+    let sceneToken = 0;
+    let frame = 0;
+    let lastStageSize = { width: 0, height: 0 };
+    let lastCompactLayout = null;
+    let cleaned = false;
+
+    const schedule = (callback, delay) => {
+      const timer = window.setTimeout(() => {
+        timers.delete(timer);
+        callback();
+      }, delay);
+      timers.add(timer);
+      return timer;
+    };
+
+    const clearTimerSet = () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers.clear();
+      bubbleTimers.forEach((timer) => window.clearTimeout(timer));
+      bubbleTimers.clear();
+    };
+
+    const randomItem = (items) => items[Math.floor(Math.random() * items.length)];
+    const canonicalIds = (ids) => characterOrder.filter((id) => ids.includes(id));
+    const sceneKey = (ids) => [...ids].sort().join("|");
+
+    const dimensions = (id) => {
+      const node = nodes.get(id);
+      return { width: node?.offsetWidth || 120, height: node?.offsetHeight || 180 };
+    };
+
+    const clampPosition = (id, x, y) => {
+      const { width, height } = dimensions(id);
+      return {
+        x: Math.min(Math.max(8, x), Math.max(8, root.clientWidth - width - 8)),
+        y: Math.min(Math.max(38, y), Math.max(38, root.clientHeight - height - 24)),
+      };
+    };
+
+    const setPosition = (id, x, y, animate = false) => {
+      const node = nodes.get(id);
+      if (!node) return;
+      const next = clampPosition(id, x, y);
+      state.set(id, next);
+      if (animate) {
+        node.classList.add("is-snapping");
+        schedule(() => node.classList.remove("is-snapping"), 580);
+      }
+      node.style.setProperty("--chibi-x", `${next.x}px`);
+      node.style.setProperty("--chibi-y", `${next.y}px`);
+    };
+
+    const centerOf = (id) => {
+      const point = state.get(id) || { x: 0, y: 0 };
+      const { width, height } = dimensions(id);
+      return { x: point.x + width / 2, y: point.y + height / 2 };
+    };
+
+    const removeFromGroups = (id) => {
+      for (let index = groups.length - 1; index >= 0; index -= 1) {
+        const remaining = groups[index].filter((member) => member !== id);
+        if (remaining.length < 2) groups.splice(index, 1);
+        else groups[index] = remaining;
+      }
+    };
+
+    const groupFor = (id) => groups.find((group) => group.includes(id));
+
+    const animateClass = (node, className, duration = 620) => {
+      node.classList.remove(className);
+      void node.offsetWidth;
+      node.classList.add(className);
+      schedule(() => node.classList.remove(className), duration);
+    };
+
+    const setBubble = (id, emoji, duration = 1180) => {
+      const node = nodes.get(id);
+      const bubble = node?.querySelector("[data-chibi-bubble]");
+      if (!(node instanceof HTMLElement) || !(bubble instanceof HTMLElement)) return;
+
+      const previousTimer = bubbleTimers.get(id);
+      if (previousTimer) window.clearTimeout(previousTimer);
+      bubble.textContent = emoji;
+      bubble.setAttribute("aria-hidden", "false");
+      bubble.classList.remove("is-visible");
+      void bubble.offsetWidth;
+      bubble.classList.add("is-visible");
+      animateClass(node, "is-speaking", 560);
+      if (liveRegion) liveRegion.textContent = `${nameMap[id] || id} ${emoji}`;
+
+      const timer = window.setTimeout(() => {
+        bubble.classList.remove("is-visible");
+        bubble.setAttribute("aria-hidden", "true");
+        bubbleTimers.delete(id);
+      }, duration);
+      bubbleTimers.set(id, timer);
+    };
+
+    const cancelScene = (hideBubbles = true) => {
+      sceneToken += 1;
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers.clear();
+      if (!hideBubbles) return;
+      bubbleTimers.forEach((timer) => window.clearTimeout(timer));
+      bubbleTimers.clear();
+      nodes.forEach((node) => {
+        node.classList.remove("is-speaking", "is-dropped", "is-snapping");
+        const bubble = node.querySelector("[data-chibi-bubble]");
+        bubble?.classList.remove("is-visible");
+        bubble?.setAttribute("aria-hidden", "true");
+      });
+    };
+
+    const playSolo = (id) => {
+      cancelScene();
+      setBubble(id, randomItem(soloEmoji[id] || ["✨"]));
+    };
+
+    const playScene = (ids) => {
+      cancelScene();
+      const key = sceneKey(ids);
+      const variants = scenes[key];
+      if (!variants?.length) {
+        ids.forEach((id, index) => schedule(() => setBubble(id, randomItem(soloEmoji[id])), index * 220));
+        return;
+      }
+
+      const token = sceneToken;
+      const beats = randomItem(variants);
+      root.style.setProperty("--scene-accent", key.includes("kisara") ? "255, 91, 126" : key.includes("sharon") ? "145, 132, 255" : "112, 164, 255");
+      beats.forEach(([speaker, emoji], index) => {
+        schedule(() => {
+          if (token !== sceneToken) return;
+          setBubble(speaker, emoji, index === beats.length - 1 ? 1450 : 1120);
+        }, 160 + index * 610);
+      });
+    };
+
+    const initialLayout = (animate = false) => {
+      cancelScene();
+      groups.splice(0, groups.length);
+      const width = root.clientWidth;
+      const height = root.clientHeight;
+      const compact = width < 620;
+      lastCompactLayout = compact;
+
+      if (compact) {
+        const placements = {
+          kisara: [0.08, 0.16],
+          ayano: [0.58, 0.18],
+          shu: [0.12, 0.57],
+          sharon: [0.55, 0.54],
+        };
+        characterOrder.forEach((id) => {
+          const { width: itemWidth } = dimensions(id);
+          const [ratioX, ratioY] = placements[id];
+          setPosition(id, Math.min(width - itemWidth - 10, width * ratioX), height * ratioY, animate);
+        });
+      } else {
+        const ratios = { kisara: 0.06, ayano: 0.31, shu: 0.58, sharon: 0.79 };
+        characterOrder.forEach((id, index) => {
+          const { height: itemHeight } = dimensions(id);
+          const y = height - itemHeight - (index % 2 ? 42 : 34);
+          setPosition(id, width * ratios[id], y, animate);
+        });
+      }
+
+      root.style.setProperty("--scene-accent", "255, 91, 126");
+      root.dataset.ready = "true";
+      lastStageSize = { width, height };
+    };
+
+    const layoutGroup = (ids, anchor) => {
+      const ordered = canonicalIds(ids);
+      const items = ordered.map((id) => ({ id, ...dimensions(id) }));
+      const stageWidth = root.clientWidth;
+      const stageHeight = root.clientHeight;
+      const maxWidth = Math.max(...items.map((item) => item.width));
+      const maxHeight = Math.max(...items.map((item) => item.height));
+      const useGrid = stageWidth < 660 && items.length >= 3;
+
+      if (!useGrid) {
+        const gap = 14;
+        const totalWidth = items.reduce((sum, item) => sum + item.width, 0) + gap * (items.length - 1);
+        const startX = Math.min(Math.max(12, anchor.x - totalWidth / 2), Math.max(12, stageWidth - totalWidth - 12));
+        const baseline = Math.min(
+          Math.max(maxHeight + 54, anchor.y + maxHeight * 0.47),
+          stageHeight - 30
+        );
+        let cursor = startX;
+        items.forEach((item, index) => {
+          setPosition(item.id, cursor, baseline - item.height + (index % 2 ? 3 : 0), true);
+          cursor += item.width + gap;
+        });
+        return;
+      }
+
+      const columns = 2;
+      const cellWidth = Math.min(maxWidth + 15, (stageWidth - 34) / columns);
+      const rowGap = Math.max(102, maxHeight * 0.63);
+      const rows = Math.ceil(items.length / columns);
+      const totalWidth = cellWidth * columns;
+      const startX = Math.min(Math.max(12, anchor.x - totalWidth / 2), Math.max(12, stageWidth - totalWidth - 12));
+      const blockHeight = maxHeight + rowGap * (rows - 1);
+      const startY = Math.min(Math.max(48, anchor.y - blockHeight / 2), Math.max(48, stageHeight - blockHeight - 26));
+
+      items.forEach((item, index) => {
+        const row = Math.floor(index / columns);
+        const column = index % columns;
+        const rowCount = Math.min(columns, items.length - row * columns);
+        const rowOffset = rowCount === 1 ? cellWidth / 2 : 0;
+        setPosition(
+          item.id,
+          startX + column * cellWidth + rowOffset + (cellWidth - item.width) / 2,
+          startY + row * rowGap + (maxHeight - item.height),
+          true
+        );
+      });
+    };
+
+    const nearestTarget = (actorId) => {
+      const actorCenter = centerOf(actorId);
+      const actorSize = dimensions(actorId);
+      let winner = null;
+
+      nodes.forEach((node, id) => {
+        if (id === actorId) return;
+        const targetCenter = centerOf(id);
+        const targetSize = dimensions(id);
+        const distance = Math.hypot(actorCenter.x - targetCenter.x, actorCenter.y - targetCenter.y);
+        const threshold = Math.min(210, (actorSize.width + targetSize.width) * 0.72);
+        if (distance <= threshold && (!winner || distance < winner.distance)) {
+          winner = { id, distance, center: targetCenter };
+        }
+      });
+      return winner;
+    };
+
+    const settleCharacter = (id) => {
+      const node = nodes.get(id);
+      if (!node) return;
+      animateClass(node, "is-dropped", 620);
+      const target = nearestTarget(id);
+      if (!target) {
+        playSolo(id);
+        return;
+      }
+
+      const existing = groupFor(target.id) || [target.id];
+      const members = canonicalIds([...new Set([...existing, id])]);
+      groups.splice(0, groups.length, ...groups.filter((group) => !group.some((member) => members.includes(member))));
+      groups.push(members);
+      const actorCenter = centerOf(id);
+      layoutGroup(members, {
+        x: (target.center.x + actorCenter.x) / 2,
+        y: (target.center.y + actorCenter.y) / 2,
+      });
+      schedule(() => playScene(members), 360);
+    };
+
+    const beginDrag = (event, id) => {
+      if (event.button !== 0 && event.pointerType !== "touch") return;
+      const node = nodes.get(id);
+      if (!node) return;
+      event.preventDefault();
+      cancelScene();
+      removeFromGroups(id);
+      const rect = node.getBoundingClientRect();
+      drag = {
+        id,
+        pointerId: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+        lastX: event.clientX,
+        moved: false,
+      };
+      node.setPointerCapture?.(event.pointerId);
+      node.classList.remove("is-snapping", "is-dropped");
+      node.classList.add("is-dragging");
+      root.dataset.dragging = "true";
+    };
+
+    const moveDrag = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      event.preventDefault();
+      const stageRect = root.getBoundingClientRect();
+      const nextX = event.clientX - stageRect.left - drag.offsetX;
+      const nextY = event.clientY - stageRect.top - drag.offsetY;
+      const deltaX = event.clientX - drag.lastX;
+      drag.lastX = event.clientX;
+      drag.moved ||= Math.abs(deltaX) > 2 || Math.abs(event.movementY || 0) > 2;
+      const node = nodes.get(drag.id);
+      node?.style.setProperty("--drag-tilt", `${Math.max(-7, Math.min(7, deltaX * 0.55))}deg`);
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (drag) setPosition(drag.id, nextX, nextY);
+      });
+    };
+
+    const endDrag = (event, cancelled = false) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const current = drag;
+      drag = null;
+      const node = nodes.get(current.id);
+      node?.releasePointerCapture?.(event.pointerId);
+      node?.classList.remove("is-dragging");
+      node?.style.setProperty("--drag-tilt", "0deg");
+      root.removeAttribute("data-dragging");
+      if (!cancelled) settleCharacter(current.id);
+    };
+
+    nodes.forEach((node, id) => {
+      node.addEventListener("pointerdown", (event) => beginDrag(event, id), { signal: lifecycle.signal });
+      node.addEventListener("pointermove", moveDrag, { signal: lifecycle.signal });
+      node.addEventListener("pointerup", (event) => endDrag(event), { signal: lifecycle.signal });
+      node.addEventListener("pointercancel", (event) => endDrag(event, true), { signal: lifecycle.signal });
+      node.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          playSolo(id);
+        }
+      }, { signal: lifecycle.signal });
+    });
+
+    resetButton?.addEventListener("click", () => initialLayout(true), { signal: lifecycle.signal });
+
+    const resizeObserver = new ResizeObserver(() => {
+      const width = root.clientWidth;
+      const height = root.clientHeight;
+      if (!width || !height) return;
+      const compact = width < 620;
+      if (!lastStageSize.width || !lastStageSize.height) {
+        initialLayout(false);
+        return;
+      }
+      if (lastCompactLayout !== compact) {
+        initialLayout(false);
+        return;
+      }
+      const scaleX = width / lastStageSize.width;
+      const scaleY = height / lastStageSize.height;
+      state.forEach((point, id) => setPosition(id, point.x * scaleX, point.y * scaleY));
+      lastStageSize = { width, height };
+    });
+    resizeObserver.observe(root);
+
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      if (frame) cancelAnimationFrame(frame);
+      clearTimerSet();
+      resizeObserver.disconnect();
+      lifecycle.abort();
+      if (window.__yuimiKisaraChibiCleanup === cleanup) delete window.__yuimiKisaraChibiCleanup;
+    };
+
+    window.__yuimiKisaraChibiCleanup = cleanup;
+    document.addEventListener("astro:before-swap", cleanup, { once: true, signal: lifecycle.signal });
+    requestAnimationFrame(() => initialLayout(false));
+  })();
+</script>
