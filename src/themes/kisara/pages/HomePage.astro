@@ -514,13 +514,47 @@ const gateStyle = [
         sceneId: "",
         rendered: Object.create(null)
       }));
-      const sceneImageWarmers = sceneManifest.map((scene) => {
+      let sceneDecodeGeneration = 0;
+      const sceneImageWarmers = new Map(sceneManifest.map((scene, index) => {
         const image = new Image();
         image.decoding = "async";
+        image.fetchPriority = index < 2 ? "high" : "low";
         image.src = scene.image;
-        image.decode?.().catch(() => {});
-        return image;
-      });
+        return [scene.id, {
+          image,
+          status: "idle",
+          promise: null
+        }];
+      }));
+      const warmSceneImage = (scene) => {
+        const record = scene?.id ? sceneImageWarmers.get(scene.id) : null;
+        if (!record || record.status === "ready" || record.status === "failed") {
+          return record?.promise ?? Promise.resolve();
+        }
+        if (record.status === "decoding") return record.promise;
+
+        const generation = sceneDecodeGeneration;
+        record.status = "decoding";
+        record.promise = Promise.resolve(
+          typeof record.image.decode === "function" ? record.image.decode() : undefined
+        ).then(() => {
+          if (disposed || generation !== sceneDecodeGeneration) return;
+          record.status = "ready";
+        }).catch(() => {
+          if (disposed || generation !== sceneDecodeGeneration) return;
+          record.status = "failed";
+        });
+        return record.promise;
+      };
+      const warmSceneImagesForProgress = (fill, intro) => {
+        if (fill >= 0.08) warmSceneImage(memorySceneRecords[2]);
+        if (fill >= 0.25) warmSceneImage(memorySceneRecords[3]);
+        if (fill >= 0.42) warmSceneImage(memorySceneRecords[4]);
+        if (fill >= 0.55 || intro > 0.001) warmSceneImage(transformationSceneRecords[0]);
+        if (fill >= 0.7 || intro >= 0.18) warmSceneImage(transformationSceneRecords[1]);
+        if (fill >= 0.84 || intro >= 0.46) warmSceneImage(transformationSceneRecords[2]);
+      };
+      memorySceneRecords.slice(0, 2).forEach(warmSceneImage);
       let sceneSlotOverflowWarned = false;
       const meterShell = gate.querySelector(".kisara-contract-meter");
       const title = gate.querySelector(".kisara-title");
@@ -10535,6 +10569,7 @@ const gateStyle = [
           && releaseMode === "complete";
         const tideVisible = fill > 0.0005;
         const reveal = smoothstep(clamp((fill - 0.025) / 0.975, 0, 1));
+        warmSceneImagesForProgress(Math.max(fill, targetProgress), chargeIntroProgress);
         const memoryState = syncMemorySequence(fill);
         const {
           silhouetteFocus,
@@ -11514,6 +11549,8 @@ const gateStyle = [
         gate.removeAttribute("data-binding");
         deactivateOpeningBridgePortal();
         lifecycle.abort();
+        sceneDecodeGeneration += 1;
+        sceneImageWarmers.clear();
         spaceLensInitGeneration += 1;
         titleLensInitGeneration += 1;
         if (openingEdgeResizeFrame) window.cancelAnimationFrame(openingEdgeResizeFrame);
