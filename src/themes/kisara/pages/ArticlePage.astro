@@ -1,6 +1,6 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
-import "../styles/article.css";
+import articleStylesheet from "../styles/article.css?url";
 import { Icon } from "astro-icon/components";
 import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
@@ -13,7 +13,12 @@ const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit
   .format(frontmatter.updatedDate ?? frontmatter.pubDate);
 ---
 
-<KisaraLayout title={`${frontmatter.title} | Kisara`} description={frontmatter.description} isArticlePage>
+<KisaraLayout
+  title={`${frontmatter.title} | Kisara`}
+  description={frontmatter.description}
+  isArticlePage
+  stylesheets={[articleStylesheet]}
+>
   <div class="kisara-reading-progress" data-kisara-reading-progress aria-hidden="true"><span></span></div>
   <div class="kisara-article-shell" data-kisara-article>
     <header class="kisara-article-header">

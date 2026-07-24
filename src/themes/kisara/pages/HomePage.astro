@@ -1181,6 +1181,10 @@ const gateStyle = [
       let lastQualityAdjustment = 0;
       const singularityFieldCanvas = document.createElement("canvas");
       const singularityFieldContext = singularityFieldCanvas.getContext("2d", { alpha: true });
+      const singularityWarmupCanvas = document.createElement("canvas");
+      singularityWarmupCanvas.width = 4;
+      singularityWarmupCanvas.height = 4;
+      const singularityWarmupContext = singularityWarmupCanvas.getContext("2d", { alpha: true });
       let singularityFieldImageData = null;
       let singularityFieldLastPaintTimestamp = 0;
       const ensureSingularityFieldBuffer = (targetSize) => {
@@ -1207,6 +1211,21 @@ const gateStyle = [
       let titleLensRenderer = null;
       let titleLensInitGeneration = 0;
       let lastTitleLensPaintTimestamp = 0;
+      const titleFontProbeCanvas = document.createElement("canvas");
+      const titleFontProbeContext = titleFontProbeCanvas.getContext("2d");
+      const readTitleFontSignature = () => {
+        if (!title || !titleFontProbeContext) return "";
+        const style = window.getComputedStyle(title);
+        titleFontProbeContext.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        return [
+          style.fontFamily,
+          style.fontWeight,
+          style.fontSize,
+          style.letterSpacing,
+          titleFontProbeContext.measureText("Kisara").width.toFixed(3)
+        ].join("|");
+      };
+      let titleFontSignature = "";
       let pageMode = restoredBelowGate ? "next" : "gate";
       let scrollFrame = 0;
       let scrollTransitionSerial = 0;
@@ -4851,6 +4870,7 @@ const gateStyle = [
           draw,
           warm,
           refresh: () => {
+            warmed = false;
             sizeDirty = true;
             resize(true);
           },
@@ -4862,9 +4882,17 @@ const gateStyle = [
       let warningWarmupHandle = 0;
       let warningWarmupUsesIdleCallback = false;
       let warningWarmupReleaseFrame = 0;
-      let warningLensWarmupFrame = 0;
-      let warningWarmupLastAt = -Infinity;
       let warningWarmupForceRequested = false;
+      const warningWarmupState = {
+        css: reducedMotion,
+        singularity: reducedMotion,
+        spaceLens: reducedMotion,
+        titleLens: reducedMotion
+      };
+      const isWarningWarmupComplete = () => Object.values(warningWarmupState).every(Boolean);
+      const syncWarningWarmupState = () => {
+        gate.dataset.releaseWarmup = isWarningWarmupComplete() ? "ready" : "pending";
+      };
       const runWarningWarmup = () => {
         warningWarmupHandle = 0;
         warningWarmupScheduled = false;
@@ -4873,49 +4901,75 @@ const gateStyle = [
         if (disposed || !gate.isConnected) return;
         if (reducedMotion || pageMode !== "gate" || document.visibilityState !== "visible") return;
         if (warningPresentationActive || burstProgress >= crossStart - 0.03) return;
-        const timestamp = performance.now();
-        if (!force && timestamp - warningWarmupLastAt < 3200) return;
-        warningWarmupLastAt = timestamp;
+        let performedTask = false;
 
-        ensureSingularityFieldBuffer(gate.clientWidth < 640 ? 80 : 108);
-        spaceLensRenderer?.warm?.(true);
-        if (warningLensWarmupFrame) window.cancelAnimationFrame(warningLensWarmupFrame);
-        warningLensWarmupFrame = window.requestAnimationFrame(() => {
-          warningLensWarmupFrame = 0;
-          if (!disposed && pageMode === "gate") titleLensRenderer?.warm?.(true);
-        });
-
-        if (warningWarmupReleaseFrame) {
-          window.cancelAnimationFrame(warningWarmupReleaseFrame);
-          warningWarmupReleaseFrame = 0;
-        }
-        gate.classList.add("is-warning-prewarm");
-        gate.getBoundingClientRect();
-        warningWarmupReleaseFrame = window.requestAnimationFrame(() => {
-          if (disposed) return;
+        if (!warningWarmupState.css) {
+          warningWarmupState.css = true;
+          performedTask = true;
+          if (warningWarmupReleaseFrame) window.cancelAnimationFrame(warningWarmupReleaseFrame);
+          gate.classList.add("is-warning-prewarm");
+          gate.getBoundingClientRect();
           warningWarmupReleaseFrame = window.requestAnimationFrame(() => {
-            warningWarmupReleaseFrame = 0;
-            if (!disposed) gate.classList.remove("is-warning-prewarm");
+            if (disposed) return;
+            warningWarmupReleaseFrame = window.requestAnimationFrame(() => {
+              warningWarmupReleaseFrame = 0;
+              if (!disposed) gate.classList.remove("is-warning-prewarm");
+            });
           });
-        });
+        } else if (!warningWarmupState.singularity) {
+          warningWarmupState.singularity = true;
+          performedTask = true;
+          const mobile = gate.clientWidth < 640;
+          ensureSingularityFieldBuffer(mobile ? 80 : 108);
+          if (singularityWarmupContext) {
+            singularityWarmupContext.setTransform(1, 0, 0, 1, 0, 0);
+            singularityWarmupContext.clearRect(0, 0, 4, 4);
+            paintSingularityField(singularityWarmupContext, performance.now(), {
+              mobile,
+              quality: 1,
+              activity: 0.72,
+              opacity: 0.72,
+              radius: 12,
+              gravity: 0.68,
+              shadowQuality: 1,
+              compression: 0.36
+            });
+            singularityWarmupContext.clearRect(0, 0, 4, 4);
+            singularityFieldLastPaintTimestamp = 0;
+          }
+        } else if (!warningWarmupState.spaceLens && spaceLensRenderer) {
+          warningWarmupState.spaceLens = true;
+          performedTask = true;
+          spaceLensRenderer.warm?.();
+        } else if (!warningWarmupState.titleLens && titleLensRenderer) {
+          warningWarmupState.titleLens = true;
+          performedTask = true;
+          titleLensRenderer.warm?.();
+        }
+
+        syncWarningWarmupState();
+        if (!isWarningWarmupComplete() && performedTask) scheduleWarningWarmup(force);
       };
       const scheduleWarningWarmup = (force = false) => {
         if (force) warningWarmupForceRequested = true;
         if (disposed || reducedMotion || pageMode !== "gate") return;
+        if (isWarningWarmupComplete()) return;
         if (warningWarmupScheduled) return;
-        if (!force && performance.now() - warningWarmupLastAt < 3200) return;
         warningWarmupScheduled = true;
         if ("requestIdleCallback" in window) {
           warningWarmupUsesIdleCallback = true;
-          warningWarmupHandle = window.requestIdleCallback(runWarningWarmup, { timeout: force ? 240 : 900 });
+          warningWarmupHandle = window.requestIdleCallback(runWarningWarmup, { timeout: force ? 120 : 480 });
         } else {
           warningWarmupUsesIdleCallback = false;
-          warningWarmupHandle = window.setTimeout(runWarningWarmup, force ? 32 : 180);
+          warningWarmupHandle = window.setTimeout(runWarningWarmup, force ? 24 : 140);
         }
       };
+      syncWarningWarmupState();
 
       const startSpaceLens = () => {
         if (disposed || !spaceLensCanvas || reducedMotion) return;
+        warningWarmupState.spaceLens = false;
+        syncWarningWarmupState();
         const generation = ++spaceLensInitGeneration;
         spaceLensCanvas.dataset.state = "loading";
         createSpaceLensRenderer().then((renderer) => {
@@ -4924,6 +4978,8 @@ const gateStyle = [
             return;
           }
           spaceLensRenderer = renderer;
+          warningWarmupState.spaceLens = !renderer;
+          syncWarningWarmupState();
           spaceLensCanvas.dataset.state = renderer ? "ready" : "fallback";
           scheduleWarningWarmup();
         });
@@ -4933,6 +4989,8 @@ const gateStyle = [
         event.preventDefault();
         spaceLensInitGeneration += 1;
         spaceLensRenderer = null;
+        warningWarmupState.spaceLens = false;
+        syncWarningWarmupState();
         spaceLensCanvas.style.opacity = "0";
         spaceLensCanvas.dataset.state = "lost";
       }, { passive: false, signal });
@@ -4943,6 +5001,8 @@ const gateStyle = [
 
       const startTitleLens = () => {
         if (disposed || !titleLensCanvas || reducedMotion) return;
+        warningWarmupState.titleLens = false;
+        syncWarningWarmupState();
         const generation = ++titleLensInitGeneration;
         titleLensCanvas.dataset.state = "loading";
         const renderer = createTitleLensRenderer();
@@ -4951,6 +5011,9 @@ const gateStyle = [
           return;
         }
         titleLensRenderer = renderer;
+        warningWarmupState.titleLens = !renderer;
+        titleFontSignature = readTitleFontSignature();
+        syncWarningWarmupState();
         titleLensCanvas.dataset.state = renderer ? "ready" : "fallback";
         scheduleWarningWarmup();
       };
@@ -4959,6 +5022,8 @@ const gateStyle = [
         event.preventDefault();
         titleLensInitGeneration += 1;
         titleLensRenderer = null;
+        warningWarmupState.titleLens = false;
+        syncWarningWarmupState();
         titleLensCanvas.style.opacity = "0";
         titleLensCanvas.dataset.state = "lost";
         gate.style.setProperty("--kisara-title-source-opacity", "1");
@@ -4969,9 +5034,16 @@ const gateStyle = [
       startTitleLens();
       document.fonts?.ready.then(() => {
         if (disposed) return;
+        const nextFontSignature = readTitleFontSignature();
+        if (nextFontSignature === titleFontSignature) return;
+        titleFontSignature = nextFontSignature;
+        if (!titleLensRenderer) return;
+        warningWarmupState.titleLens = false;
         titleLensRenderer?.refresh();
         resizeTitleChains(true);
         resizeTitleDataCanvas(true);
+        syncWarningWarmupState();
+        scheduleWarningWarmup();
       });
 
       const drawSpaceLens = (timestamp, parameters) => {
@@ -11157,6 +11229,7 @@ const gateStyle = [
       const addProgress = (delta) => {
         if (["forward", "rewinding", "complete"].includes(releaseMode)) return;
         const boundedDelta = clamp(delta, -180, 180);
+        if (boundedDelta > 0) scheduleWarningWarmup(true);
         const fillComplete = targetProgress >= 0.9995 && progress >= 0.995;
         const burstInProgress = targetBurstProgress > 0.0005 || burstProgress > 0.0005;
         const timestamp = performance.now();
@@ -11461,7 +11534,6 @@ const gateStyle = [
           }
         }
         if (warningWarmupReleaseFrame) window.cancelAnimationFrame(warningWarmupReleaseFrame);
-        if (warningLensWarmupFrame) window.cancelAnimationFrame(warningLensWarmupFrame);
         openingEdgeResizeFrame = 0;
         openingEdgeRenderHandle = 0;
         openingEdgeRenderQueue.length = 0;
@@ -11479,7 +11551,6 @@ const gateStyle = [
         restoreSyncTimer = 0;
         warningWarmupHandle = 0;
         warningWarmupReleaseFrame = 0;
-        warningLensWarmupFrame = 0;
         warningWarmupScheduled = false;
         warningWarmupForceRequested = false;
         gate.classList.remove("is-warning-prewarm");

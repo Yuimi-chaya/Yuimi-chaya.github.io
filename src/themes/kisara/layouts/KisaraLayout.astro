@@ -19,9 +19,15 @@ interface Props {
   title?: string;
   description?: string;
   isArticlePage?: boolean;
+  stylesheets?: string[];
 }
 
-const { title = `${site.title} | Kisara`, description = site.description, isArticlePage = false } = Astro.props;
+const {
+  title = `${site.title} | Kisara`,
+  description = site.description,
+  isArticlePage = false,
+  stylesheets = []
+} = Astro.props;
 const canonicalPath = getCanonicalPath(Astro.url.pathname);
 const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
 const isHome = canonicalPath === "/";
@@ -67,6 +73,7 @@ const audioConfig = {
     <meta name="robots" content="noindex,follow" />
     <link rel="icon" type="image/x-icon" href="/themes/kisara/favicon.ico?v=keyheart" />
     <link rel="canonical" href={canonical} />
+    {stylesheets.map((href) => <link rel="stylesheet" href={href} />)}
     <ThemePreferenceGate currentTheme="kisara" />
     <ClientRouter fallback="swap" />
     <script is:inline define:vars={{ isHome }}>
@@ -135,7 +142,7 @@ const audioConfig = {
         else clear();
       })();
     </script>
-    <script is:inline define:vars={{ audioConfig }}>
+    <script is:inline define:vars={{ audioConfig, isHome }}>
       (() => {
         if (window.__yuimiKisaraAudioBootstrap?.audio instanceof HTMLAudioElement) return;
 
@@ -191,11 +198,12 @@ const audioConfig = {
           const audio = new Audio();
           audio.dataset.kisaraThemeAudio = "";
           audio.dataset.kisaraAudioBootstrap = "head";
-          audio.preload = "auto";
+          audio.preload = isHome ? "none" : "auto";
           audio.playsInline = true;
           audio.setAttribute("playsinline", "");
           audio.volume = audioConfig.volume;
           bootstrap.audio = audio;
+          let audioStarted = false;
 
           const restorePosition = () => {
             const time = bootstrap.restoreTime;
@@ -212,11 +220,19 @@ const audioConfig = {
           };
 
           audio.addEventListener("loadedmetadata", restorePosition, { once: true });
-          audio.src = track.src;
-          audio.load();
+          const startAudio = () => {
+            if (audioStarted) return bootstrap.playPromise ?? Promise.resolve(!audio.paused);
+            audioStarted = true;
+            audio.preload = "auto";
+            audio.src = track.src;
+            audio.load();
 
-          if (bootstrap.enabled) {
-            bootstrap.playPromise = Promise.resolve(audio.play())
+            if (!bootstrap.enabled) {
+              bootstrap.settled = true;
+              return Promise.resolve(false);
+            }
+
+            return Promise.resolve(audio.play())
               .then(() => {
                 bootstrap.blocked = false;
                 return true;
@@ -228,9 +244,13 @@ const audioConfig = {
               .finally(() => {
                 bootstrap.settled = true;
               });
-          } else {
-            bootstrap.settled = true;
-          }
+          };
+
+          bootstrap.playPromise = isHome && document.readyState === "loading"
+            ? new Promise((resolve) => {
+                document.addEventListener("DOMContentLoaded", () => resolve(startAudio()), { once: true });
+              })
+            : startAudio();
         } catch {
           bootstrap.settled = true;
         }
