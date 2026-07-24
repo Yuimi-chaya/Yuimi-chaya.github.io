@@ -43,7 +43,7 @@ const navItems = site.nav.map((item) => {
     ...item,
     href: getThemePath("kisara", item.href),
     active,
-    prefetch: import.meta.env.PROD && !active ? (homeExitRoute || reciprocalGameRoute ? "load" : "hover") : undefined
+    warmup: import.meta.env.PROD && !active ? (homeExitRoute || reciprocalGameRoute ? "load" : "hover") : undefined
   };
 });
 const themeOptions = themes.map((theme) => ({
@@ -76,6 +76,11 @@ const audioConfig = {
     {stylesheets.map((href) => <link rel="stylesheet" href={href} />)}
     <ThemePreferenceGate currentTheme="kisara" />
     <ClientRouter fallback="swap" />
+    <script>
+      import { initKisaraRouteWarmup } from "../lib/routeWarmup";
+
+      initKisaraRouteWarmup();
+    </script>
     <script is:inline define:vars={{ isHome }}>
       (() => {
         window.__yuimiKisaraHomeBootController?.dispose?.();
@@ -274,7 +279,12 @@ const audioConfig = {
       </a>
       <nav class="kisara-nav" aria-label="Kisara theme navigation">
         {navItems.map((item) => (
-          <a href={item.href} aria-current={item.active ? "page" : undefined} data-astro-prefetch={item.prefetch}>
+          <a
+            href={item.href}
+            aria-current={item.active ? "page" : undefined}
+            data-astro-prefetch={item.active ? undefined : item.warmup === "load" ? "false" : item.warmup}
+            data-kisara-route-warmup={item.warmup === "load" ? "load" : undefined}
+          >
             <Icon name={item.icon} aria-hidden="true" />
             <span>{item.label}</span>
           </a>
@@ -315,7 +325,12 @@ const audioConfig = {
         </div>
         <nav class="kisara-footer-directory" aria-label="Kisara footer navigation">
           {navItems.map((item, index) => (
-            <a href={item.href} aria-current={item.active ? "page" : undefined} data-astro-prefetch={item.prefetch}>
+            <a
+              href={item.href}
+              aria-current={item.active ? "page" : undefined}
+              data-astro-prefetch={item.active ? undefined : item.warmup === "load" ? "false" : item.warmup}
+              data-kisara-route-warmup={item.warmup === "load" ? "load" : undefined}
+            >
               <span>{String(index + 1).padStart(2, "0")}</span>
               <strong>{item.label}</strong>
               <small>{item.hint}</small>
