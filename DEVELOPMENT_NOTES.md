@@ -853,3 +853,10 @@
 - The page-specific runtime owns the root/body scroll lock, hides the shared footer and document scrollbar only on the About route, and releases every listener, timer, and class through the existing `__yuimiKisaraInnerCleanup` / `astro:before-swap` lifecycle. `Blog -> Me` ClientRouter navigation rebuilt the stage and captured wheel input without duplicate handlers.
 - Responsive layouts keep all six chapters within `390x844` and short `390x667` viewports with zero horizontal overflow. Desktop `1280x720` and both mobile checks retained `scrollY=0`; forward and reverse chapter traversal reached every endpoint. Browser logs were empty.
 - `git diff --check`, `npm test` (3/3), and `npm run build` (36 Astro pages, sitemap, Pagefind 37 pages) passed. Fine transition feel and final visual acceptance remain with the user in local preview.
+
+### 2026-07-24 Kisara compact context menu
+
+- Superseded the three-module Kisara context menu, whose repeated headings, status badge, and full theme route list made a quick action surface read like a settings page. The menu is now one translucent `252x190px` desktop panel (`244x188px` at `390px` width) with a compact identity row.
+- Reduced the visible actions to back, forward, refresh, scroll to top, theme home, and copy link. Copy title was removed. Copy feedback now temporarily replaces the copy-link label instead of adding a second visible status module; the live status remains available to assistive technology.
+- Theme selection is a single segmented KAGARI / BLANK / KISARA row with an explicit active state. A dedicated close icon improves mobile long-press use, while the existing desktop context-menu, keyboard, shared long-press event, theme selection, placement clamp, and ClientRouter lifecycle remain unchanged.
+- Runtime validation opened the menu by context click, confirmed all six commands plus close and three theme choices, exercised copy feedback and close, and checked a `390x844` viewport with zero horizontal overflow. Browser logs were empty. `git diff --check`, `npm test` (3/3), and `npm run build` (36 Astro pages, sitemap, Pagefind 37 pages) passed.

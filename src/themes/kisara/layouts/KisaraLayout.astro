@@ -35,6 +35,11 @@ const themeOptions = themes.map((theme) => ({
   ...theme,
   href: getThemePath(theme.id, canonicalPath)
 }));
+const contextThemeLabels: Record<string, string> = {
+  "fuyukawa-kagari": "KAGARI",
+  blank: "BLANK",
+  kisara: "KISARA"
+};
 const audioConfig = {
   tracks: kisaraAudioTracks,
   storageKey: KISARA_AUDIO_STORAGE_KEY,
@@ -320,74 +325,57 @@ const audioConfig = {
       <header class="kisara-context-head">
         <span class="kisara-context-emblem" aria-hidden="true"><Icon name="tabler:heart" /></span>
         <span class="kisara-context-identity">
-          <small>CONTRACT CHANNEL 03</small>
-          <strong>KISARA ACCESS</strong>
+          <strong>KISARA</strong>
+          <small>QUICK ACCESS</small>
         </span>
-        <span class="kisara-context-status" data-kisara-context-status aria-live="polite">
-          <i aria-hidden="true"></i>
-          <span>READY</span>
-        </span>
+        <button class="kisara-context-close" type="button" data-kisara-action="close" aria-label="关闭快捷菜单" title="关闭">
+          <Icon name="tabler:x" aria-hidden="true" />
+        </button>
       </header>
 
-      <section class="kisara-context-group" aria-labelledby="kisara-context-navigation">
-        <span class="kisara-context-label" id="kisara-context-navigation">NAVIGATION / 01</span>
-        <div class="kisara-context-command-grid">
-          <button type="button" data-kisara-action="back">
-            <Icon name="tabler:arrow-left" aria-hidden="true" />
-            <span><strong>后退</strong><small>BACK</small></span>
-          </button>
-          <button type="button" data-kisara-action="forward">
-            <Icon name="tabler:arrow-right" aria-hidden="true" />
-            <span><strong>前进</strong><small>FORWARD</small></span>
-          </button>
-          <button type="button" data-kisara-action="refresh">
-            <Icon name="tabler:refresh" aria-hidden="true" />
-            <span><strong>刷新</strong><small>RELOAD</small></span>
-          </button>
-          <button type="button" data-kisara-action="home">
-            <Icon name="tabler:home" aria-hidden="true" />
-            <span><strong>主题首页</strong><small>HOME</small></span>
-          </button>
-        </div>
-      </section>
+      <div class="kisara-context-command-strip" aria-label="浏览器操作">
+        <button type="button" data-kisara-action="back" aria-label="后退" title="后退">
+          <Icon name="tabler:arrow-left" aria-hidden="true" /><span>后退</span>
+        </button>
+        <button type="button" data-kisara-action="forward" aria-label="前进" title="前进">
+          <Icon name="tabler:arrow-right" aria-hidden="true" /><span>前进</span>
+        </button>
+        <button type="button" data-kisara-action="refresh" aria-label="刷新" title="刷新">
+          <Icon name="tabler:refresh" aria-hidden="true" /><span>刷新</span>
+        </button>
+        <button type="button" data-kisara-action="top" aria-label="回到顶部" title="回到顶部">
+          <Icon name="tabler:arrow-up" aria-hidden="true" /><span>顶部</span>
+        </button>
+      </div>
 
-      <section class="kisara-context-group" aria-labelledby="kisara-context-tools">
-        <span class="kisara-context-label" id="kisara-context-tools">PAGE TOOLS / 02</span>
-        <div class="kisara-context-tool-grid">
-          <button type="button" data-kisara-action="top" data-kisara-default-label="回到顶部">
-            <Icon name="tabler:arrow-up" aria-hidden="true" />
-            <span>回到顶部</span>
-          </button>
-          <button type="button" data-kisara-action="copy" data-kisara-default-label="复制链接">
-            <Icon name="tabler:copy" aria-hidden="true" />
-            <span>复制链接</span>
-          </button>
-          <button type="button" data-kisara-action="title" data-kisara-default-label="复制标题">
-            <Icon name="tabler:file-text" aria-hidden="true" />
-            <span>复制标题</span>
-          </button>
-        </div>
-      </section>
+      <div class="kisara-context-page-actions" aria-label="页面操作">
+        <button type="button" data-kisara-action="home">
+          <Icon name="tabler:home" aria-hidden="true" /><span>主题首页</span>
+        </button>
+        <button type="button" data-kisara-action="copy" data-kisara-default-label="复制链接">
+          <Icon name="tabler:link" aria-hidden="true" /><span>复制链接</span>
+        </button>
+      </div>
 
-      <section class="kisara-context-group kisara-context-theme-group" aria-labelledby="kisara-context-themes">
-        <span class="kisara-context-label" id="kisara-context-themes">THEME ROUTE / 03</span>
-        <div class="kisara-context-theme-list">
-          {themeOptions.map((theme, index) => (
+      <div class="kisara-context-theme-switch">
+        <span>THEME</span>
+        <div aria-label="切换主题">
+          {themeOptions.map((theme) => (
             <button
               type="button"
               data-theme-select={theme.id}
               aria-pressed={theme.id === "kisara" ? "true" : "false"}
+              aria-label={`切换到 ${theme.label} 主题`}
+              title={theme.label}
             >
-              <span class="kisara-context-theme-index">{String(index + 1).padStart(2, "0")}</span>
-              <span class="kisara-context-theme-name">
-                <strong>{theme.label}</strong>
-                <small>{theme.id === "kisara" ? "ACTIVE" : "SWITCH"}</small>
-              </span>
               <i aria-hidden="true"></i>
+              <span>{contextThemeLabels[theme.id] ?? theme.label}</span>
             </button>
           ))}
         </div>
-      </section>
+      </div>
+
+      <span class="kisara-context-live" data-kisara-context-status aria-live="polite"><span></span></span>
     </nav>
 
     <ThemeLongPressMenu />
@@ -568,7 +556,7 @@ const audioConfig = {
           panelButton?.setAttribute("aria-expanded", "false");
         };
 
-        const setMenuStatus = (label = "READY", tone = "") => {
+        const setMenuStatus = (label = "", tone = "") => {
           if (!(menuStatus instanceof HTMLElement)) return;
           const text = menuStatus.querySelector("span");
           if (text) text.textContent = label;
@@ -605,7 +593,7 @@ const audioConfig = {
           const defaultLabel = button.dataset.kisaraDefaultLabel ?? text?.textContent ?? "";
           if (text) text.textContent = label;
           button.classList.toggle("is-success", success);
-          setMenuStatus(success ? "COPIED" : "BLOCKED", success ? "success" : "error");
+          setMenuStatus(label, success ? "success" : "error");
           window.setTimeout(() => {
             if (text) text.textContent = defaultLabel;
             button.classList.remove("is-success");
@@ -632,7 +620,7 @@ const audioConfig = {
           menu.style.left = `${Math.max(12, Math.min(x, window.innerWidth - menuWidth - 12))}px`;
           menu.style.top = `${Math.max(12, Math.min(y, window.innerHeight - menuHeight - 12))}px`;
           setMenuStatus();
-          if (focusFirst) menu.querySelector("button")?.focus({ preventScroll: true });
+          if (focusFirst) menu.querySelector('[data-kisara-action="back"]')?.focus({ preventScroll: true });
         };
 
         panelButton?.addEventListener("click", () => {
@@ -691,14 +679,13 @@ const audioConfig = {
           }
           if (action === "back") history.back();
           if (action === "forward") history.forward();
+          if (action === "close") {
+            closeMenu();
+            return;
+          }
           if (action === "copy") {
             const copied = await copyText(window.location.href);
             showActionFeedback(actionButton, copied ? "链接已复制" : "复制失败", copied);
-            return;
-          }
-          if (action === "title") {
-            const copied = await copyText(document.title);
-            showActionFeedback(actionButton, copied ? "标题已复制" : "复制失败", copied);
             return;
           }
           if (action) closeMenu();
