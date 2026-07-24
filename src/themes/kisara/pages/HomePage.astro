@@ -1220,12 +1220,13 @@ const gateStyle = [
       let lastQualityAdjustment = 0;
       const singularityFieldCanvas = document.createElement("canvas");
       const singularityFieldContext = singularityFieldCanvas.getContext("2d", { alpha: true });
-      const singularityWarmupCanvas = document.createElement("canvas");
-      singularityWarmupCanvas.width = 4;
-      singularityWarmupCanvas.height = 4;
-      const singularityWarmupContext = singularityWarmupCanvas.getContext("2d", { alpha: true });
       let singularityFieldImageData = null;
       let singularityFieldLastPaintTimestamp = 0;
+      let burstWarmupStep = -1;
+      let burstWarmupPromise = null;
+      let burstWarmupResolve = null;
+      let burstWarmupCompletionFrame = 0;
+      let burstWarmupTimeout = 0;
       const ensureSingularityFieldBuffer = (targetSize) => {
         if (!singularityFieldContext) return false;
         const size = Math.max(1, Math.round(targetSize));
@@ -3838,6 +3839,102 @@ const gateStyle = [
         fightImage.src = fightSource;
       }
 
+      const createTransparentWebglWarmup = (gl, canvas, drawFrame, clearFrame) => {
+        let warmed = false;
+        let destroyed = false;
+        let activePromise = null;
+        let activeResolve = null;
+        let settleFrame = 0;
+        let completionFence = null;
+
+        const releaseFence = () => {
+          if (!completionFence) return;
+          gl.deleteSync(completionFence);
+          completionFence = null;
+        };
+
+        const finish = (completed, shouldClear = true) => {
+          if (settleFrame) window.cancelAnimationFrame(settleFrame);
+          settleFrame = 0;
+          releaseFence();
+          if (!completed) warmed = false;
+          if (shouldClear && !destroyed) {
+            try {
+              clearFrame();
+            } catch {}
+          }
+          const resolve = activeResolve;
+          activeResolve = null;
+          activePromise = null;
+          resolve?.(completed);
+        };
+
+        const warm = (force = false) => {
+          if (destroyed) return Promise.resolve(false);
+          if (activePromise) return activePromise;
+          if (warmed && !force) return Promise.resolve(true);
+
+          warmed = true;
+          try {
+            drawFrame();
+            completionFence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+            gl.flush();
+          } catch {
+            warmed = false;
+            try {
+              clearFrame();
+            } catch {}
+            return Promise.resolve(false);
+          }
+
+          activePromise = new Promise((resolve) => {
+            activeResolve = resolve;
+            let frameCount = 0;
+            const settle = () => {
+              settleFrame = 0;
+              if (destroyed || gl.isContextLost()) {
+                finish(false, false);
+                return;
+              }
+
+              frameCount += 1;
+              let gpuReady = !completionFence;
+              if (completionFence) {
+                const status = gl.clientWaitSync(completionFence, 0, 0);
+                if (status === gl.WAIT_FAILED) {
+                  finish(false, true);
+                  return;
+                }
+                gpuReady = status === gl.ALREADY_SIGNALED
+                  || status === gl.CONDITION_SATISFIED;
+              }
+
+              // The first callback runs before paint. Keep the transparent canvas
+              // alive through one compositor frame before clearing it.
+              if (frameCount < 2 || (!gpuReady && frameCount < 8)) {
+                settleFrame = window.requestAnimationFrame(settle);
+                return;
+              }
+              finish(true, true);
+            };
+            settleFrame = window.requestAnimationFrame(settle);
+          });
+          return activePromise;
+        };
+
+        return {
+          warm,
+          reset: () => {
+            if (activePromise) finish(false, true);
+            else warmed = false;
+          },
+          destroy: () => {
+            destroyed = true;
+            finish(false, false);
+          }
+        };
+      };
+
       const createSpaceLensRenderer = async () => {
         if (!spaceLensCanvas || reducedMotion) return null;
         const baseSource = spaceLensCanvas.dataset.baseSrc
@@ -4239,7 +4336,6 @@ const gateStyle = [
         let cssWidth = 0;
         let cssHeight = 0;
         let sizeDirty = true;
-        let warmed = false;
 
         const resize = (force = false) => {
           if (!force && !sizeDirty) return;
@@ -4316,31 +4412,32 @@ const gateStyle = [
           spaceLensCanvas.dataset.active = "true";
         };
 
-        const warm = (force = false) => {
-          if (warmed && !force) return;
-          warmed = true;
-          draw({
+        const transparentWarmup = createTransparentWebglWarmup(
+          gl,
+          spaceLensCanvas,
+          () => draw({
             centerX: 0.5,
             centerY: 0.5,
-            reveal: 0,
+            reveal: 0.72,
             opacity: 0,
-            gravity: 0,
-            collapse: 0,
-            crush: 0,
-            shockStrength: 0,
-            shockRadius: 0,
-            shockWidth: 0.01,
-            coreRadius: 0.01,
-            lensRadius: 0.01,
-            reconstruction: 0,
+            gravity: 0.84,
+            collapse: 0.58,
+            crush: 0.32,
+            shockStrength: 0.46,
+            shockRadius: 0.24,
+            shockWidth: 0.035,
+            coreRadius: 0.055,
+            lensRadius: 0.64,
+            reconstruction: 0.34,
             reconstructionOpacity: 0,
-            time: 0
-          });
-          gl.flush();
-          clear();
-        };
+            time: performance.now() / 1000
+          }),
+          clear
+        );
+        const warm = transparentWarmup.warm;
 
         const destroy = () => {
+          transparentWarmup.destroy();
           gl.deleteTexture(baseTexture.texture);
           gl.deleteTexture(preReleaseTexture.texture);
           gl.deleteTexture(fightTexture.texture);
@@ -4728,7 +4825,6 @@ const gateStyle = [
         let cssHeight = 0;
         let renderScale = 1;
         let sizeDirty = true;
-        let warmed = false;
 
         const resize = (force = false) => {
           if (!force && !sizeDirty) return;
@@ -4864,37 +4960,38 @@ const gateStyle = [
           titleLensCanvas.dataset.active = "true";
         };
 
-        const warm = (force = false) => {
-          if (warmed && !force) return;
-          warmed = true;
-          draw({
+        const transparentWarmup = createTransparentWebglWarmup(
+          gl,
+          titleLensCanvas,
+          () => draw({
             centerX: cssWidth * 0.5,
             centerY: cssHeight * 0.5,
             opacity: 0,
-            strength: 0,
-            gravity: 0,
-            collapse: 0,
-            crush: 0,
-            shockStrength: 0,
-            shockRadius: 1,
-            shockWidth: 1,
-            coreRadius: 1,
-            lensRadius: 1,
-            release: 0,
-            dissolve: 0,
-            time: 0,
-            finalFlow: 0,
-            liquidPhase: 0,
-            liquidPressure: 0,
+            strength: 0.78,
+            gravity: 0.82,
+            collapse: 0.56,
+            crush: 0.3,
+            shockStrength: 0.42,
+            shockRadius: Math.max(1, cssHeight * 0.24),
+            shockWidth: Math.max(1, cssHeight * 0.035),
+            coreRadius: Math.max(1, cssHeight * 0.055),
+            lensRadius: Math.max(1, cssHeight * 0.62),
+            release: 0.28,
+            dissolve: 0.16,
+            time: performance.now() / 1000,
+            finalFlow: 0.24,
+            liquidPhase: 0.36,
+            liquidPressure: 0.28,
             flowDirection: 1,
-            flowFront: 0.5,
-            parallax: 0
-          });
-          gl.flush();
-          clear();
-        };
+            flowFront: 0.58,
+            parallax: 0.12
+          }),
+          clear
+        );
+        const warm = transparentWarmup.warm;
 
         const destroy = () => {
+          transparentWarmup.destroy();
           gl.deleteTexture(titleTexture);
           gl.deleteVertexArray(vertexArray);
           gl.deleteProgram(program);
@@ -4909,7 +5006,7 @@ const gateStyle = [
           draw,
           warm,
           refresh: () => {
-            warmed = false;
+            transparentWarmup.reset();
             sizeDirty = true;
             resize(true);
           },
@@ -4917,10 +5014,101 @@ const gateStyle = [
         };
       };
 
+      const writeWarningPresentationStyles = ({
+        monochrome,
+        invert,
+        focus,
+        pulse,
+        exposure,
+        coreExposure,
+        aperture,
+        saturation,
+        contrast,
+        brightness,
+        centerX,
+        centerY,
+        crossOpacity,
+        rayProgress,
+        rayBreath,
+        coreScale,
+        coreOpacity,
+        ringProgress,
+        ringOpacity,
+        shardProgress,
+        shardOpacity,
+        sparkOpacity,
+        sparkDistance,
+        strobe,
+        scale,
+        rotation,
+        shakeX,
+        shakeY
+      }) => {
+        gate.style.setProperty("--kisara-warning-monochrome", monochrome.toFixed(3));
+        gate.style.setProperty("--kisara-warning-invert", invert.toFixed(3));
+        gate.style.setProperty("--kisara-warning-focus", focus.toFixed(3));
+        gate.style.setProperty("--kisara-warning-pulse", pulse.toFixed(3));
+        gate.style.setProperty("--kisara-warning-exposure", exposure.toFixed(3));
+        gate.style.setProperty("--kisara-warning-core-exposure", coreExposure.toFixed(3));
+        gate.style.setProperty("--kisara-warning-aperture", `${aperture.toFixed(2)}%`);
+        gate.style.setProperty("--kisara-warning-saturation", saturation.toFixed(3));
+        gate.style.setProperty("--kisara-warning-contrast", contrast.toFixed(3));
+        gate.style.setProperty("--kisara-warning-brightness", brightness.toFixed(3));
+        gate.style.setProperty("--kisara-warning-center-x", `${centerX.toFixed(2)}%`);
+        gate.style.setProperty("--kisara-warning-center-y", `${centerY.toFixed(2)}%`);
+        gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-ray-progress", rayProgress.toFixed(4));
+        gate.style.setProperty("--kisara-cross-ray-breath", rayBreath.toFixed(3));
+        gate.style.setProperty("--kisara-cross-core-scale", coreScale.toFixed(3));
+        gate.style.setProperty("--kisara-cross-core-opacity", coreOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-ring-progress", ringProgress.toFixed(3));
+        gate.style.setProperty("--kisara-cross-ring-opacity", ringOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-shard-progress", shardProgress.toFixed(4));
+        gate.style.setProperty("--kisara-cross-shard-opacity", shardOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-spark-opacity", sparkOpacity.toFixed(3));
+        gate.style.setProperty("--kisara-cross-spark-distance", `${sparkDistance.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-cross-strobe", strobe.toFixed(3));
+        gate.style.setProperty("--kisara-cross-scale", scale.toFixed(3));
+        gate.style.setProperty("--kisara-cross-rotation", `${rotation.toFixed(3)}deg`);
+        gate.style.setProperty("--kisara-cross-shake-x", `${shakeX.toFixed(3)}px`);
+        gate.style.setProperty("--kisara-cross-shake-y", `${shakeY.toFixed(3)}px`);
+      };
+      const warningPresentationDefaults = {
+        monochrome: 0,
+        invert: 0,
+        focus: 0,
+        pulse: 0,
+        exposure: 0,
+        coreExposure: 0,
+        aperture: 36,
+        saturation: 1,
+        contrast: 1,
+        brightness: 1,
+        centerX: 50,
+        centerY: 50,
+        crossOpacity: 0,
+        rayProgress: 0,
+        rayBreath: 1,
+        coreScale: 0.2,
+        coreOpacity: 0,
+        ringProgress: 0,
+        ringOpacity: 0,
+        shardProgress: 0,
+        shardOpacity: 0,
+        sparkOpacity: 0,
+        sparkDistance: 0,
+        strobe: 0,
+        scale: 0.7,
+        rotation: 0,
+        shakeX: 0,
+        shakeY: 0
+      };
+
       let warningWarmupScheduled = false;
       let warningWarmupHandle = 0;
       let warningWarmupUsesIdleCallback = false;
       let warningWarmupReleaseFrame = 0;
+      let warningWarmupReleaseResolve = null;
       let warningWarmupForceRequested = false;
       const warningWarmupState = {
         css: reducedMotion,
@@ -4928,9 +5116,112 @@ const gateStyle = [
         spaceLens: reducedMotion,
         titleLens: reducedMotion
       };
+      const warningWarmupPending = {
+        css: false,
+        singularity: false,
+        spaceLens: false,
+        titleLens: false
+      };
+      const warningWarmupGeneration = {
+        css: 0,
+        singularity: 0,
+        spaceLens: 0,
+        titleLens: 0
+      };
       const isWarningWarmupComplete = () => Object.values(warningWarmupState).every(Boolean);
+      const hasWarningWarmupPending = () => Object.values(warningWarmupPending).some(Boolean);
       const syncWarningWarmupState = () => {
         gate.dataset.releaseWarmup = isWarningWarmupComplete() ? "ready" : "pending";
+      };
+      const cancelWarningWarmupSchedule = () => {
+        if (!warningWarmupScheduled || !warningWarmupHandle) return;
+        if (warningWarmupUsesIdleCallback && "cancelIdleCallback" in window) {
+          window.cancelIdleCallback(warningWarmupHandle);
+        } else {
+          window.clearTimeout(warningWarmupHandle);
+        }
+        warningWarmupHandle = 0;
+        warningWarmupScheduled = false;
+      };
+      const invalidateWarningWarmupTask = (key) => {
+        warningWarmupGeneration[key] += 1;
+        warningWarmupPending[key] = false;
+        warningWarmupState[key] = false;
+        syncWarningWarmupState();
+      };
+      const settleWarningWarmupTask = (key, generation, succeeded, force) => {
+        if (disposed || generation !== warningWarmupGeneration[key]) return;
+        warningWarmupPending[key] = false;
+        if (succeeded) warningWarmupState[key] = true;
+        syncWarningWarmupState();
+        if (isWarningWarmupComplete()) {
+          warningWarmupForceRequested = false;
+          return;
+        }
+        scheduleWarningWarmup(force || warningWarmupForceRequested);
+      };
+      const finishWarningPresentationWarmup = (completed, forceRestore = false) => {
+        if (warningWarmupReleaseFrame) window.cancelAnimationFrame(warningWarmupReleaseFrame);
+        warningWarmupReleaseFrame = 0;
+        if (
+          forceRestore
+          || (!warningPresentationActive && burstProgress < crossStart - 0.03)
+        ) {
+          writeWarningPresentationStyles(warningPresentationDefaults);
+        }
+        gate.classList.remove("is-warning-prewarm");
+        const resolve = warningWarmupReleaseResolve;
+        warningWarmupReleaseResolve = null;
+        resolve?.(completed);
+      };
+      const warmWarningPresentationStyles = () => {
+        if (warningWarmupReleaseResolve || warningWarmupReleaseFrame) {
+          finishWarningPresentationWarmup(false, true);
+        }
+        return new Promise((resolve) => {
+          warningWarmupReleaseResolve = resolve;
+          writeWarningPresentationStyles({
+            monochrome: 0.64,
+            invert: 0,
+            focus: 0.72,
+            pulse: 0.82,
+            exposure: 0.9,
+            coreExposure: 1.28,
+            aperture: 18,
+            saturation: 0.38,
+            contrast: 1.34,
+            brightness: 1.12,
+            centerX: 52,
+            centerY: 48,
+            crossOpacity: 0.86,
+            rayProgress: 0.92,
+            rayBreath: 1.08,
+            coreScale: 0.92,
+            coreOpacity: 0.9,
+            ringProgress: 0.68,
+            ringOpacity: 0.72,
+            shardProgress: 0.82,
+            shardOpacity: 0.68,
+            sparkOpacity: 0.78,
+            sparkDistance: 118,
+            strobe: 0.82,
+            scale: 1,
+            rotation: 128,
+            shakeX: 0.3,
+            shakeY: -0.2
+          });
+          gate.classList.add("is-warning-prewarm");
+          gate.getBoundingClientRect();
+          warningWarmupReleaseFrame = window.requestAnimationFrame(() => {
+            if (disposed) {
+              finishWarningPresentationWarmup(false, true);
+              return;
+            }
+            warningWarmupReleaseFrame = window.requestAnimationFrame(() => {
+              finishWarningPresentationWarmup(true);
+            });
+          });
+        });
       };
       const runWarningWarmup = () => {
         warningWarmupHandle = 0;
@@ -4940,59 +5231,56 @@ const gateStyle = [
         if (disposed || !gate.isConnected) return;
         if (reducedMotion || pageMode !== "gate" || document.visibilityState !== "visible") return;
         if (warningPresentationActive || burstProgress >= crossStart - 0.03) return;
-        let performedTask = false;
+        if (hasWarningWarmupPending()) return;
 
         if (!warningWarmupState.css) {
-          warningWarmupState.css = true;
-          performedTask = true;
-          if (warningWarmupReleaseFrame) window.cancelAnimationFrame(warningWarmupReleaseFrame);
-          gate.classList.add("is-warning-prewarm");
-          gate.getBoundingClientRect();
-          warningWarmupReleaseFrame = window.requestAnimationFrame(() => {
-            if (disposed) return;
-            warningWarmupReleaseFrame = window.requestAnimationFrame(() => {
-              warningWarmupReleaseFrame = 0;
-              if (!disposed) gate.classList.remove("is-warning-prewarm");
-            });
-          });
+          const generation = warningWarmupGeneration.css;
+          warningWarmupPending.css = true;
+          warmWarningPresentationStyles()
+            .then(
+              (succeeded) => settleWarningWarmupTask("css", generation, succeeded !== false, force),
+              () => settleWarningWarmupTask("css", generation, false, force)
+            );
         } else if (!warningWarmupState.singularity) {
-          warningWarmupState.singularity = true;
-          performedTask = true;
-          const mobile = gate.clientWidth < 640;
-          ensureSingularityFieldBuffer(mobile ? 80 : 108);
-          if (singularityWarmupContext) {
-            singularityWarmupContext.setTransform(1, 0, 0, 1, 0, 0);
-            singularityWarmupContext.clearRect(0, 0, 4, 4);
-            paintSingularityField(singularityWarmupContext, performance.now(), {
-              mobile,
-              quality: 1,
-              activity: 0.72,
-              opacity: 0.72,
-              radius: 12,
-              gravity: 0.68,
-              shadowQuality: 1,
-              compression: 0.36
-            });
-            singularityWarmupContext.clearRect(0, 0, 4, 4);
-            singularityFieldLastPaintTimestamp = 0;
-          }
+          const generation = warningWarmupGeneration.singularity;
+          warningWarmupPending.singularity = true;
+          warmFullSizeBurstCanvas()
+            .then(
+              (succeeded) => settleWarningWarmupTask("singularity", generation, succeeded !== false, force),
+              () => settleWarningWarmupTask("singularity", generation, false, force)
+            );
         } else if (!warningWarmupState.spaceLens && spaceLensRenderer) {
-          warningWarmupState.spaceLens = true;
-          performedTask = true;
-          spaceLensRenderer.warm?.();
+          const generation = warningWarmupGeneration.spaceLens;
+          const renderer = spaceLensRenderer;
+          warningWarmupPending.spaceLens = true;
+          Promise.resolve(renderer.warm?.())
+            .then((succeeded) => {
+              if (renderer !== spaceLensRenderer) return;
+              settleWarningWarmupTask("spaceLens", generation, succeeded !== false, force);
+            }, () => {
+              if (renderer !== spaceLensRenderer) return;
+              settleWarningWarmupTask("spaceLens", generation, false, force);
+            });
         } else if (!warningWarmupState.titleLens && titleLensRenderer) {
-          warningWarmupState.titleLens = true;
-          performedTask = true;
-          titleLensRenderer.warm?.();
+          const generation = warningWarmupGeneration.titleLens;
+          const renderer = titleLensRenderer;
+          warningWarmupPending.titleLens = true;
+          Promise.resolve(renderer.warm?.())
+            .then((succeeded) => {
+              if (renderer !== titleLensRenderer) return;
+              settleWarningWarmupTask("titleLens", generation, succeeded !== false, force);
+            }, () => {
+              if (renderer !== titleLensRenderer) return;
+              settleWarningWarmupTask("titleLens", generation, false, force);
+            });
         }
-
-        syncWarningWarmupState();
-        if (!isWarningWarmupComplete() && performedTask) scheduleWarningWarmup(force);
       };
       const scheduleWarningWarmup = (force = false) => {
-        if (force) warningWarmupForceRequested = true;
         if (disposed || reducedMotion || pageMode !== "gate") return;
         if (isWarningWarmupComplete()) return;
+        if (force) warningWarmupForceRequested = true;
+        if (hasWarningWarmupPending()) return;
+        if (force && warningWarmupScheduled) cancelWarningWarmupSchedule();
         if (warningWarmupScheduled) return;
         warningWarmupScheduled = true;
         if ("requestIdleCallback" in window) {
@@ -5007,8 +5295,7 @@ const gateStyle = [
 
       const startSpaceLens = () => {
         if (disposed || !spaceLensCanvas || reducedMotion) return;
-        warningWarmupState.spaceLens = false;
-        syncWarningWarmupState();
+        invalidateWarningWarmupTask("spaceLens");
         const generation = ++spaceLensInitGeneration;
         spaceLensCanvas.dataset.state = "loading";
         createSpaceLensRenderer().then((renderer) => {
@@ -5018,6 +5305,7 @@ const gateStyle = [
           }
           spaceLensRenderer = renderer;
           warningWarmupState.spaceLens = !renderer;
+          warningWarmupPending.spaceLens = false;
           syncWarningWarmupState();
           spaceLensCanvas.dataset.state = renderer ? "ready" : "fallback";
           scheduleWarningWarmup();
@@ -5028,8 +5316,7 @@ const gateStyle = [
         event.preventDefault();
         spaceLensInitGeneration += 1;
         spaceLensRenderer = null;
-        warningWarmupState.spaceLens = false;
-        syncWarningWarmupState();
+        invalidateWarningWarmupTask("spaceLens");
         spaceLensCanvas.style.opacity = "0";
         spaceLensCanvas.dataset.state = "lost";
       }, { passive: false, signal });
@@ -5040,8 +5327,7 @@ const gateStyle = [
 
       const startTitleLens = () => {
         if (disposed || !titleLensCanvas || reducedMotion) return;
-        warningWarmupState.titleLens = false;
-        syncWarningWarmupState();
+        invalidateWarningWarmupTask("titleLens");
         const generation = ++titleLensInitGeneration;
         titleLensCanvas.dataset.state = "loading";
         const renderer = createTitleLensRenderer();
@@ -5051,6 +5337,7 @@ const gateStyle = [
         }
         titleLensRenderer = renderer;
         warningWarmupState.titleLens = !renderer;
+        warningWarmupPending.titleLens = false;
         titleFontSignature = readTitleFontSignature();
         syncWarningWarmupState();
         titleLensCanvas.dataset.state = renderer ? "ready" : "fallback";
@@ -5061,8 +5348,7 @@ const gateStyle = [
         event.preventDefault();
         titleLensInitGeneration += 1;
         titleLensRenderer = null;
-        warningWarmupState.titleLens = false;
-        syncWarningWarmupState();
+        invalidateWarningWarmupTask("titleLens");
         titleLensCanvas.style.opacity = "0";
         titleLensCanvas.dataset.state = "lost";
         gate.style.setProperty("--kisara-title-source-opacity", "1");
@@ -5077,11 +5363,10 @@ const gateStyle = [
         if (nextFontSignature === titleFontSignature) return;
         titleFontSignature = nextFontSignature;
         if (!titleLensRenderer) return;
-        warningWarmupState.titleLens = false;
+        invalidateWarningWarmupTask("titleLens");
         titleLensRenderer?.refresh();
         resizeTitleChains(true);
         resizeTitleDataCanvas(true);
-        syncWarningWarmupState();
         scheduleWarningWarmup();
       });
 
@@ -5632,6 +5917,165 @@ const gateStyle = [
         }
         context.restore();
         return true;
+      };
+
+      const paintBurstWarmupStep = (context, timestamp, width, height, step) => {
+        const originX = width * 0.52;
+        const originY = height * 0.48;
+        const shortSide = Math.min(width, height);
+        const coreRadius = shortSide * 0.105;
+        const diskRadiusX = coreRadius * 3.15;
+        const diskRadiusY = coreRadius * 0.58;
+        context.save();
+        context.globalCompositeOperation = "lighter";
+
+        if (step === 0) {
+          const fieldGlow = context.createRadialGradient(
+            originX,
+            originY,
+            coreRadius * 0.35,
+            originX,
+            originY,
+            shortSide * 0.44
+          );
+          fieldGlow.addColorStop(0, "rgba(255, 76, 137, 0.24)");
+          fieldGlow.addColorStop(0.32, "rgba(255, 76, 137, 0.1)");
+          fieldGlow.addColorStop(0.68, "rgba(126, 168, 255, 0.045)");
+          fieldGlow.addColorStop(1, "rgba(126, 168, 255, 0)");
+          context.globalAlpha = 0.0025;
+          context.fillStyle = fieldGlow;
+          context.fillRect(0, 0, width, height);
+
+          context.translate(originX, originY);
+          context.rotate(-0.18);
+          const diskGradient = context.createLinearGradient(-diskRadiusX, 0, diskRadiusX, 0);
+          diskGradient.addColorStop(0, "rgba(126, 168, 255, 0)");
+          diskGradient.addColorStop(0.2, "rgba(156, 194, 255, 0.42)");
+          diskGradient.addColorStop(0.48, "rgba(255, 87, 143, 0.88)");
+          diskGradient.addColorStop(0.58, "rgba(255, 244, 249, 0.98)");
+          diskGradient.addColorStop(0.82, "rgba(255, 94, 146, 0.56)");
+          diskGradient.addColorStop(1, "rgba(255, 94, 146, 0)");
+          for (let band = 0; band < 5; band += 1) {
+            context.globalAlpha = 0.0018 + band * 0.00035;
+            context.strokeStyle = diskGradient;
+            context.lineWidth = 3.2 + (5 - band) * 1.8;
+            context.shadowColor = band < 2
+              ? "rgba(145, 187, 255, 0.82)"
+              : "rgba(255, 72, 132, 0.94)";
+            context.shadowBlur = 13 + (5 - band) * 5;
+            context.beginPath();
+            context.ellipse(
+              0,
+              0,
+              diskRadiusX * (0.9 + band * 0.036),
+              diskRadiusY * (0.82 + band * 0.058),
+              0,
+              0,
+              Math.PI * 2
+            );
+            context.stroke();
+          }
+        } else if (step === 1) {
+          context.translate(originX, originY);
+          paintSingularityField(context, timestamp, {
+            mobile: width < 640,
+            quality: 1,
+            activity: 1.08,
+            opacity: 0.006,
+            radius: coreRadius,
+            gravity: 0.9,
+            shadowQuality: 1,
+            compression: 0.64
+          });
+        } else {
+          context.translate(originX, originY);
+          context.rotate(-0.18);
+          context.globalAlpha = 0.003;
+          context.strokeStyle = "rgba(255, 122, 169, 0.9)";
+          context.shadowColor = "rgba(255, 72, 132, 0.92)";
+          context.shadowBlur = 24;
+          for (let lens = 0; lens < 4; lens += 1) {
+            context.lineWidth = 1.4 + lens * 0.8;
+            context.beginPath();
+            context.ellipse(
+              0,
+              0,
+              diskRadiusX * (0.72 + lens * 0.12),
+              diskRadiusY * (0.8 + lens * 0.16),
+              0,
+              lens % 2 === 0 ? 0 : Math.PI,
+              lens % 2 === 0 ? Math.PI : Math.PI * 2
+            );
+            context.stroke();
+          }
+          for (let stream = 0; stream < 6; stream += 1) {
+            const angle = stream / 6 * Math.PI * 2;
+            context.beginPath();
+            context.moveTo(Math.cos(angle) * coreRadius * 0.8, Math.sin(angle) * coreRadius * 0.5);
+            context.bezierCurveTo(
+              Math.cos(angle + 0.42) * coreRadius * 1.8,
+              Math.sin(angle + 0.42) * coreRadius * 1.1,
+              Math.cos(angle - 0.28) * coreRadius * 2.7,
+              Math.sin(angle - 0.28) * coreRadius * 1.55,
+              Math.cos(angle) * coreRadius * 3.4,
+              Math.sin(angle) * coreRadius * 1.85
+            );
+            context.stroke();
+          }
+        }
+        context.restore();
+      };
+
+      const finishBurstWarmup = (completed = true) => {
+        if (burstWarmupCompletionFrame) window.cancelAnimationFrame(burstWarmupCompletionFrame);
+        if (burstWarmupTimeout) window.clearTimeout(burstWarmupTimeout);
+        burstWarmupCompletionFrame = 0;
+        burstWarmupTimeout = 0;
+        burstWarmupStep = -1;
+        singularityFieldLastPaintTimestamp = 0;
+        const resolve = burstWarmupResolve;
+        burstWarmupResolve = null;
+        burstWarmupPromise = null;
+        resolve?.(completed);
+      };
+
+      const warmFullSizeBurstCanvas = () => {
+        if (!burstCanvas || !burstContext || !energyContext || pageMode !== "gate") {
+          return Promise.resolve(false);
+        }
+        if (burstWarmupPromise) return burstWarmupPromise;
+        burstWarmupStep = 0;
+        burstWarmupPromise = new Promise((resolve) => {
+          burstWarmupResolve = resolve;
+        });
+        const promise = burstWarmupPromise;
+        burstWarmupTimeout = window.setTimeout(() => {
+          finishBurstWarmup(false);
+        }, 1200);
+        startEnergyAnimation();
+        if (!energyLoopActive) finishBurstWarmup(false);
+        return promise;
+      };
+
+      const advanceBurstWarmup = (context, timestamp, width, height) => {
+        if (burstWarmupStep < 0) return;
+        paintBurstWarmupStep(context, timestamp, width, height, burstWarmupStep);
+        burstWarmupStep += 1;
+        if (burstWarmupStep <= 2) return;
+        burstWarmupStep = -1;
+        burstWarmupCompletionFrame = window.requestAnimationFrame(() => {
+          burstWarmupCompletionFrame = window.requestAnimationFrame(() => {
+            finishBurstWarmup(true);
+          });
+        });
+      };
+
+      const cancelBurstWarmup = () => {
+        if (burstWarmupCompletionFrame) window.cancelAnimationFrame(burstWarmupCompletionFrame);
+        if (burstWarmupPromise) {
+          singularityFieldLastPaintTimestamp = 0;
+          finishBurstWarmup(false);
+        }
       };
 
       const drawScreenEnergy = (timestamp) => {
@@ -7183,6 +7627,7 @@ const gateStyle = [
         }
 
         context.restore();
+        advanceBurstWarmup(context, timestamp, width, height);
       };
 
       const updateBurstPresentation = (timestamp, advanceCharge = true) => {
@@ -7868,48 +8313,44 @@ const gateStyle = [
         gate.style.setProperty("--kisara-impact-vignette", impactVignette.toFixed(3));
         gate.style.setProperty("--kisara-impact-scale", impactScale.toFixed(4));
         if (warningPresentationVisible || warningPresentationActive) {
-          gate.style.setProperty("--kisara-warning-monochrome", warningMonochrome.toFixed(3));
-          gate.style.setProperty("--kisara-warning-invert", warningInvert.toFixed(3));
-          gate.style.setProperty("--kisara-warning-focus", warningFocus.toFixed(3));
-          gate.style.setProperty("--kisara-warning-pulse", warningPulse.toFixed(3));
-          gate.style.setProperty("--kisara-warning-exposure", warningExposure.toFixed(3));
-          gate.style.setProperty("--kisara-warning-core-exposure", warningCoreExposure.toFixed(3));
-          gate.style.setProperty("--kisara-warning-aperture", `${warningAperture.toFixed(2)}%`);
-          gate.style.setProperty("--kisara-warning-saturation", (1 - warningMonochrome * 0.98).toFixed(3));
-          gate.style.setProperty(
-            "--kisara-warning-contrast",
-            (1
+          writeWarningPresentationStyles({
+            monochrome: warningMonochrome,
+            invert: warningInvert,
+            focus: warningFocus,
+            pulse: warningPulse,
+            exposure: warningExposure,
+            coreExposure: warningCoreExposure,
+            aperture: warningAperture,
+            saturation: 1 - warningMonochrome * 0.98,
+            contrast: 1
               + warningMonochrome * 0.28
               + warningPulse * 0.05
               + warningExposure * 0.24
-              + warningInvert * 0.72).toFixed(3)
-          );
-          gate.style.setProperty(
-            "--kisara-warning-brightness",
-            (1
+              + warningInvert * 0.72,
+            brightness: 1
               - warningMonochrome * 0.38
               + warningExposure * 0.58
               + warningInvert * 0.06
-              + warningPulse * 0.01).toFixed(3)
-          );
-          gate.style.setProperty("--kisara-warning-center-x", `${(clamp(warpOriginX / gateWidth, 0, 1) * 100).toFixed(2)}%`);
-          gate.style.setProperty("--kisara-warning-center-y", `${(clamp(warpOriginY / Math.max(1, gateHeight), 0, 1) * 100).toFixed(2)}%`);
-          gate.style.setProperty("--kisara-cross-opacity", crossOpacity.toFixed(3));
-          gate.style.setProperty("--kisara-cross-ray-progress", crossRayProgress.toFixed(4));
-          gate.style.setProperty("--kisara-cross-ray-breath", crossRayBreath.toFixed(3));
-          gate.style.setProperty("--kisara-cross-core-scale", crossCoreScale.toFixed(3));
-          gate.style.setProperty("--kisara-cross-core-opacity", crossCoreOpacity.toFixed(3));
-          gate.style.setProperty("--kisara-cross-ring-progress", crossRingProgress.toFixed(3));
-          gate.style.setProperty("--kisara-cross-ring-opacity", crossRingOpacity.toFixed(3));
-          gate.style.setProperty("--kisara-cross-shard-progress", crossShardProgress.toFixed(4));
-          gate.style.setProperty("--kisara-cross-shard-opacity", crossShardOpacity.toFixed(3));
-          gate.style.setProperty("--kisara-cross-spark-opacity", crossSparkOpacity.toFixed(3));
-          gate.style.setProperty("--kisara-cross-spark-distance", `${crossSparkDistance.toFixed(3)}px`);
-          gate.style.setProperty("--kisara-cross-strobe", crossStrobe.toFixed(3));
-          gate.style.setProperty("--kisara-cross-scale", crossScale.toFixed(3));
-          gate.style.setProperty("--kisara-cross-rotation", `${crossRotation.toFixed(3)}deg`);
-          gate.style.setProperty("--kisara-cross-shake-x", `${crossShakeX.toFixed(3)}px`);
-          gate.style.setProperty("--kisara-cross-shake-y", `${crossShakeY.toFixed(3)}px`);
+              + warningPulse * 0.01,
+            centerX: clamp(warpOriginX / gateWidth, 0, 1) * 100,
+            centerY: clamp(warpOriginY / Math.max(1, gateHeight), 0, 1) * 100,
+            crossOpacity,
+            rayProgress: crossRayProgress,
+            rayBreath: crossRayBreath,
+            coreScale: crossCoreScale,
+            coreOpacity: crossCoreOpacity,
+            ringProgress: crossRingProgress,
+            ringOpacity: crossRingOpacity,
+            shardProgress: crossShardProgress,
+            shardOpacity: crossShardOpacity,
+            sparkOpacity: crossSparkOpacity,
+            sparkDistance: crossSparkDistance,
+            strobe: crossStrobe,
+            scale: crossScale,
+            rotation: crossRotation,
+            shakeX: crossShakeX,
+            shakeY: crossShakeY
+          });
           warningPresentationActive = warningPresentationVisible;
         }
         crossPresentationActive = crossPresentationVisible;
@@ -11078,6 +11519,8 @@ const gateStyle = [
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
         if (energyFrame) window.cancelAnimationFrame(energyFrame);
         if (energyTimer) window.clearTimeout(energyTimer);
+        cancelBurstWarmup();
+        finishWarningPresentationWarmup(false, true);
         animationFrame = 0;
         energyFrame = 0;
         energyTimer = 0;
@@ -11104,7 +11547,6 @@ const gateStyle = [
         releaseRewindVeil = 0;
         warningPresentationActive = false;
         crossPresentationActive = false;
-        gate.classList.remove("is-warning-prewarm");
         chargeIntroProgress = 0;
         chargeIntroActive = false;
         chargeIntroComplete = false;
@@ -11545,6 +11987,8 @@ const gateStyle = [
       const cleanup = () => {
         if (disposed) return;
         disposed = true;
+        cancelBurstWarmup();
+        finishWarningPresentationWarmup(false, true);
         gate.removeAttribute("data-bound");
         gate.removeAttribute("data-binding");
         deactivateOpeningBridgePortal();
@@ -11575,7 +12019,6 @@ const gateStyle = [
             window.clearTimeout(warningWarmupHandle);
           }
         }
-        if (warningWarmupReleaseFrame) window.cancelAnimationFrame(warningWarmupReleaseFrame);
         openingEdgeResizeFrame = 0;
         openingEdgeRenderHandle = 0;
         openingEdgeRenderQueue.length = 0;
@@ -11595,7 +12038,6 @@ const gateStyle = [
         warningWarmupReleaseFrame = 0;
         warningWarmupScheduled = false;
         warningWarmupForceRequested = false;
-        gate.classList.remove("is-warning-prewarm");
         energyLoopActive = false;
         setOrientationEnabled(false);
         stopPostReleaseAnimation();
