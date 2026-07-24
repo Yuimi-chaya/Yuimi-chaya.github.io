@@ -36,7 +36,7 @@ const gamePresentation = {
 ---
 
 <KisaraLayout title="Games | Kisara" description="Yuimi Lab 的小游戏收藏。">
-  <section class="kisara-game-hero" data-kisara-game-hero data-intro-state="idle" aria-labelledby="kisara-game-hero-title">
+  <section class="kisara-game-hero" data-kisara-game-hero data-intro-state="idle" data-image-state="loading" aria-labelledby="kisara-game-hero-title">
     <div class="kisara-game-hero-media">
       <img
         src="/themes/kisara/assets/game-night-hero.png"
@@ -243,19 +243,30 @@ const gamePresentation = {
         hero.dataset.introState = "complete";
       };
 
-      const playHeroIntro = async () => {
+      const playHeroIntro = () => {
         if (!(hero instanceof HTMLElement)) return;
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          hero.dataset.imageState = "ready";
           finishHeroIntro();
           return;
         }
 
         hero.dataset.introState = "idle";
         const image = hero.querySelector(".kisara-game-hero-media img");
-        if (image instanceof HTMLImageElement && !image.complete) {
-          await image.decode().catch(() => undefined);
+        if (image instanceof HTMLImageElement) {
+          if (image.complete) {
+            hero.dataset.imageState = "ready";
+          } else {
+            const markImageReady = () => {
+              if (!signal.aborted) hero.dataset.imageState = "ready";
+            };
+            hero.dataset.imageState = "loading";
+            image.addEventListener("load", markImageReady, { once: true, signal });
+            image.addEventListener("error", markImageReady, { once: true, signal });
+            void image.decode().then(markImageReady).catch(() => undefined);
+          }
         }
-        if (signal.aborted) return;
+
         void hero.offsetWidth;
         requestAnimationFrame(() => {
           if (signal.aborted) return;
@@ -264,7 +275,7 @@ const gamePresentation = {
         });
       };
 
-      void playHeroIntro();
+      playHeroIntro();
       const root = document.querySelector("[data-kisara-arcade]");
       if (!(root instanceof HTMLElement)) return;
       const selectors = Array.from(root.querySelectorAll("[data-game-select]"));
