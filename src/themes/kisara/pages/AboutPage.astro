@@ -20,128 +20,228 @@ const techPresentation = {
   astrbot: { icon: "tabler:terminal-2", code: "BOT" }
 } as const;
 
-const interestGroups = [
-  { key: "anime", label: "ANIME", title: "喜欢看的番剧", note: "故事、角色和那些看完以后还会留在脑子里的情绪。", items: animeFavorites },
-  { key: "xp", label: "XP", title: "角色属性偏好", note: "不绑定某一个角色，但看到这些关键词通常会多停两秒。", items: xpFavorites },
-  { key: "games", label: "GAMES", title: "喜欢的游戏", note: "夜之城、竞技场和为了再准一点而反复打开的练枪软件。", items: favoriteGames }
+const scenes = [
+  { key: "profile", label: "PROFILE", title: "档案" },
+  { key: "tech", label: "TECH", title: "技术线" },
+  { key: "anime", label: "ANIME", title: "番剧" },
+  { key: "xp", label: "XP", title: "角色属性" },
+  { key: "games", label: "GAMES", title: "游戏" },
+  { key: "pulse", label: "PULSE", title: "当前电波" }
 ] as const;
 ---
 
 <KisaraLayout title="Me | Kisara" description="关于喝益胃与 Yuimi Lab。">
-  <section class="kisara-me" data-kisara-me>
-    <div class="kisara-me-intro">
-      <aside class="kisara-me-spine">
-        <div class="kisara-me-spine-inner">
-          <figure>
-            <img src="/themes/kisara/assets/profile.jpg" alt="喝益胃 / Yuimi-chaya 的头像" width="640" height="640" decoding="async" />
-            <span aria-hidden="true"><i></i></span>
-          </figure>
-          <p class="kisara-me-handle">@{profileIdentity.handle}</p>
-          <h1>{profileIdentity.displayName}</h1>
-          <p class="kisara-me-bio">{profileIdentity.bio}</p>
-
-          <ul class="kisara-me-status">
-            {profileStatus.map((status, index) => <li><span>0{index + 1}</span>{status}</li>)}
-          </ul>
-
-          <nav aria-label="Yuimi 社交链接">
-            <a href={profileIdentity.github} target="_blank" rel="noreferrer">
-              <Icon name="tabler:brand-github" aria-hidden="true" /><span>GITHUB</span><i>↗</i>
-            </a>
-            <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer">
-              <Icon name="tabler:brand-bilibili" aria-hidden="true" /><span>BILIBILI</span><i>↗</i>
-            </a>
-          </nav>
-        </div>
-      </aside>
-
-      <header class="kisara-me-heading">
-        <p><span>06</span> CONTRACTOR DOSSIER / ME</p>
-        <h2>Not a resume.<br /><em>A signal map.</em></h2>
-        <div>
-          <p>二次元技术宅，兴趣驱动型折腾人。喜欢研究有意思的小东西，也喜欢让技术页面保留一点角色感和玩具感。</p>
-          <dl>
-            <div><dt>SPACE</dt><dd>{profileIdentity.siteName}</dd></div>
-            <div><dt>MODE</dt><dd>ANIME × CODE</dd></div>
-            <div><dt>STATUS</dt><dd>INTEREST DRIVEN</dd></div>
-          </dl>
-        </div>
-      </header>
+  <section class="kisara-me" data-kisara-me data-active-scene="0" aria-label="Yuimi-chaya 个人档案">
+    <div class="kisara-me-ambient" aria-hidden="true">
+      <i></i><i></i><i></i>
     </div>
 
-    <div class="kisara-me-dossier">
-      <section class="kisara-me-tech">
-        <header>
-          <div><p>TECHNICAL LINES / 01</p><h3>Tools in orbit.</h3></div>
-          <p>不做熟练度百分比，只记录正在用、正在学、以及还想继续做下去的方向。</p>
-        </header>
-        <div class="kisara-me-tech-list">
-          {profileTech.map((tech, index) => (
-            <article>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <div class="kisara-me-tech-icon"><Icon name={techPresentation[tech.key].icon} aria-hidden="true" /></div>
-              <div><h4>{tech.name}</h4><p>{tech.note}</p></div>
-              <strong>{techPresentation[tech.key].code}</strong>
-              <i aria-hidden="true"></i>
-            </article>
-          ))}
-        </div>
-      </section>
+    <div class="kisara-me-hud" aria-hidden="true">
+      <span data-me-current-number>01</span>
+      <i></i>
+      <strong data-me-current-label>PROFILE</strong>
+    </div>
 
-      <section class="kisara-me-interests">
-        <header>
-          <div><p>INTEREST INDEX / 02</p><h3>Things I keep close.</h3></div>
-          <div class="kisara-me-interest-tabs" role="tablist" aria-label="兴趣分类">
-            {interestGroups.map((group, index) => (
-              <button
-                type="button"
-                role="tab"
-                data-interest-tab={group.key}
-                aria-selected={index === 0 ? "true" : "false"}
-                aria-controls={`kisara-interest-${group.key}`}
-              >
-                <span>0{index + 1}</span>{group.label}
-              </button>
-            ))}
+    <div class="kisara-me-stage" data-me-stage>
+      <article
+        class="kisara-me-scene kisara-me-profile"
+        data-me-scene
+        data-scene-position="active"
+        data-scene-name="档案"
+        aria-hidden="false"
+      >
+        <div class="kisara-me-profile-grid">
+          <aside class="kisara-me-profile-card">
+            <figure>
+              <img src="/themes/kisara/assets/profile.jpg" alt="喝益胃 / Yuimi-chaya 的头像" width="640" height="640" decoding="async" />
+              <span aria-hidden="true"><i></i></span>
+            </figure>
+            <div class="kisara-me-profile-name">
+              <p>@{profileIdentity.handle}</p>
+              <h1>{profileIdentity.displayName}</h1>
+              <small>{profileIdentity.siteName} / CONTRACTOR 06</small>
+            </div>
+            <nav aria-label="Yuimi 社交链接">
+              <a href={profileIdentity.github} target="_blank" rel="noreferrer">
+                <Icon name="tabler:brand-github" aria-hidden="true" /><span>GITHUB</span><i>↗</i>
+              </a>
+              <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer">
+                <Icon name="tabler:brand-bilibili" aria-hidden="true" /><span>BILIBILI</span><i>↗</i>
+              </a>
+            </nav>
+          </aside>
+
+          <div class="kisara-me-profile-copy">
+            <p class="kisara-me-eyebrow"><span>00</span> CONTRACTOR DOSSIER / ME</p>
+            <h2>Not a resume.<br /><em>A signal map.</em></h2>
+            <p class="kisara-me-lead">二次元技术宅，兴趣驱动型折腾人。喜欢研究有意思的小东西，也喜欢让技术页面保留一点角色感和玩具感。</p>
+            <ul class="kisara-me-status">
+              {profileStatus.map((status, index) => <li><span>0{index + 1}</span><i aria-hidden="true"></i>{status}</li>)}
+            </ul>
+            <dl class="kisara-me-facts">
+              <div><dt>SPACE</dt><dd>{profileIdentity.siteName}</dd></div>
+              <div><dt>MODE</dt><dd>ANIME × CODE</dd></div>
+              <div><dt>STATUS</dt><dd>INTEREST DRIVEN</dd></div>
+            </dl>
           </div>
-        </header>
-
-        <div class="kisara-me-interest-panels">
-          {interestGroups.map((group, groupIndex) => (
-            <article
-              id={`kisara-interest-${group.key}`}
-              role="tabpanel"
-              data-interest-panel={group.key}
-              hidden={groupIndex !== 0}
-            >
-              <div class="kisara-me-interest-copy">
-                <p>INDEX / 0{groupIndex + 1}</p>
-                <h4>{group.title}</h4>
-                <p>{group.note}</p>
-              </div>
-              <ol>
-                {group.items.map((item, index) => (
-                  <li>
-                    <span>{String(index + 1).padStart(2, "0")}</span>
-                    <div><strong>{item.title}</strong><small>{item.subtitle}</small></div>
-                    <i aria-hidden="true"></i>
-                  </li>
-                ))}
-              </ol>
-            </article>
-          ))}
         </div>
-      </section>
+      </article>
 
-      <section class="kisara-me-pulse">
-        <header><p>LIVE PULSE / 03</p><h3>Still transmitting.</h3></header>
-        <ol>
-          {currentSignals.map((signal, index) => (
-            <li><span>0{index + 1}</span><small>{signal.label}</small><p>{signal.text}</p></li>
-          ))}
-        </ol>
-      </section>
+      <article
+        class="kisara-me-scene kisara-me-tech"
+        data-me-scene
+        data-scene-position="after"
+        data-scene-name="技术线"
+        aria-hidden="true"
+        inert
+      >
+        <div class="kisara-me-chapter">
+          <header class="kisara-me-chapter-heading">
+            <p class="kisara-me-eyebrow"><span>01</span> TECHNICAL LINES</p>
+            <h2>Tools in orbit.</h2>
+            <p>不做熟练度百分比，只记录正在用、正在学，以及还想继续做下去的方向。</p>
+          </header>
+          <ol class="kisara-me-tech-list">
+            {profileTech.map((tech, index) => (
+              <li>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <div class="kisara-me-tech-icon"><Icon name={techPresentation[tech.key].icon} aria-hidden="true" /></div>
+                <div><h3>{tech.name}</h3><p>{tech.note}</p></div>
+                <strong>{techPresentation[tech.key].code}</strong>
+                <i aria-hidden="true"></i>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </article>
+
+      <article
+        class="kisara-me-scene kisara-me-anime"
+        data-me-scene
+        data-scene-position="after"
+        data-scene-name="番剧"
+        aria-hidden="true"
+        inert
+      >
+        <div class="kisara-me-chapter kisara-me-interest-chapter">
+          <header class="kisara-me-chapter-heading">
+            <p class="kisara-me-eyebrow"><span>02</span> ANIME ARCHIVE</p>
+            <h2>Stories that stayed.</h2>
+            <p>故事、角色和那些看完以后还会留在脑子里的情绪。</p>
+          </header>
+          <ol class="kisara-me-anime-list">
+            {animeFavorites.map((anime, index) => (
+              <li>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <div><strong>{anime.title}</strong><small>{anime.subtitle}</small></div>
+                <i aria-hidden="true"></i>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </article>
+
+      <article
+        class="kisara-me-scene kisara-me-xp"
+        data-me-scene
+        data-scene-position="after"
+        data-scene-name="角色属性"
+        aria-hidden="true"
+        inert
+      >
+        <div class="kisara-me-chapter kisara-me-xp-chapter">
+          <header class="kisara-me-chapter-heading">
+            <p class="kisara-me-eyebrow"><span>03</span> CHARACTER BIAS</p>
+            <h2>Weak signals.<br /><em>Strong preference.</em></h2>
+            <p>不绑定某一个角色，但看到这些关键词通常会多停两秒。</p>
+          </header>
+          <ol class="kisara-me-xp-list">
+            {xpFavorites.map((item, index) => (
+              <li>
+                <span>0{index + 1}</span>
+                <strong>{item.title}</strong>
+                <small>{item.subtitle}</small>
+                <i aria-hidden="true"></i>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </article>
+
+      <article
+        class="kisara-me-scene kisara-me-games"
+        data-me-scene
+        data-scene-position="after"
+        data-scene-name="游戏"
+        aria-hidden="true"
+        inert
+      >
+        <div class="kisara-me-chapter kisara-me-games-chapter">
+          <header class="kisara-me-chapter-heading">
+            <p class="kisara-me-eyebrow"><span>04</span> PLAY RECORD</p>
+            <h2>After-hours lobby.</h2>
+            <p>夜之城、竞技场，以及为了再准一点而反复打开的练枪软件。</p>
+          </header>
+          <ol class="kisara-me-game-list">
+            {favoriteGames.map((game, index) => (
+              <li>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <div><strong>{game.title}</strong><small>{game.subtitle}</small></div>
+                <i aria-hidden="true"><b></b></i>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </article>
+
+      <article
+        class="kisara-me-scene kisara-me-pulse"
+        data-me-scene
+        data-scene-position="after"
+        data-scene-name="当前电波"
+        aria-hidden="true"
+        inert
+      >
+        <div class="kisara-me-chapter kisara-me-pulse-chapter">
+          <header class="kisara-me-chapter-heading">
+            <p class="kisara-me-eyebrow"><span>05</span> LIVE PULSE</p>
+            <h2>Still transmitting.</h2>
+            <p>现在没有宏大计划，只有几条还在持续发亮的兴趣信号。</p>
+          </header>
+          <ol class="kisara-me-pulse-list">
+            {currentSignals.map((signal, index) => (
+              <li><span>0{index + 1}</span><small>{signal.label}</small><p>{signal.text}</p><i aria-hidden="true"></i></li>
+            ))}
+          </ol>
+          <footer class="kisara-me-signoff">
+            <span>END OF DOSSIER / CHANNEL 03</span>
+            <strong>YUIMI LAB</strong>
+            <p>--- Yuimi-chaya/GPT in Codex</p>
+          </footer>
+        </div>
+      </article>
     </div>
+
+    <nav class="kisara-me-rail" data-me-rail aria-label="个人档案章节">
+      <span class="kisara-me-rail-track" aria-hidden="true"><i data-me-rail-progress></i></span>
+      <div>
+        {scenes.map((scene, index) => (
+          <button
+            type="button"
+            data-me-target={index}
+            aria-label={`切换到${scene.title}`}
+            aria-current={index === 0 ? "step" : undefined}
+          >
+            <span>{scene.label}</span><i aria-hidden="true"></i>
+          </button>
+        ))}
+      </div>
+    </nav>
+
+    <div class="kisara-me-switch-cue" aria-hidden="true">
+      <span>SCROLL / SWIPE</span><i></i><small>切换档案章节</small>
+    </div>
+    <p class="kisara-me-announcer" data-me-announcer aria-live="polite">第 1 章，共 {scenes.length} 章：档案</p>
   </section>
 
   <script is:inline data-astro-rerun>
@@ -149,25 +249,160 @@ const interestGroups = [
       window.__yuimiKisaraInnerCleanup?.();
       const lifecycle = new AbortController();
       const signal = lifecycle.signal;
+      const root = document.querySelector("[data-kisara-me]");
+      let transitionTimer = 0;
+      let edgeTimer = 0;
+
       const cleanup = () => {
+        window.clearTimeout(transitionTimer);
+        window.clearTimeout(edgeTimer);
         lifecycle.abort();
+        document.documentElement.classList.remove("kisara-me-locked");
+        document.body.classList.remove("kisara-me-page");
         if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
       };
+
       window.__yuimiKisaraInnerCleanup = cleanup;
       document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
-      const root = document.querySelector("[data-kisara-me]");
-      if (!root) return;
-      const tabs = Array.from(root.querySelectorAll("[data-interest-tab]"));
-      const panels = Array.from(root.querySelectorAll("[data-interest-panel]"));
+      if (!(root instanceof HTMLElement)) return;
 
-      tabs.forEach((tab) => tab.addEventListener("click", () => {
-        if (!(tab instanceof HTMLElement)) return;
-        const key = tab.dataset.interestTab;
-        tabs.forEach((item) => item.setAttribute("aria-selected", String(item === tab)));
-        panels.forEach((panel) => {
-          if (panel instanceof HTMLElement) panel.hidden = panel.dataset.interestPanel !== key;
+      const scenes = Array.from(root.querySelectorAll("[data-me-scene]"));
+      const markers = Array.from(root.querySelectorAll("[data-me-target]"));
+      const currentNumber = root.querySelector("[data-me-current-number]");
+      const currentLabel = root.querySelector("[data-me-current-label]");
+      const announcer = root.querySelector("[data-me-announcer]");
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let activeIndex = 0;
+      let wheelBuffer = 0;
+      let lastWheelAt = 0;
+      let blockedUntil = 0;
+      let touchStartY = null;
+      let touchStartX = null;
+
+      document.documentElement.classList.add("kisara-me-locked");
+      document.body.classList.add("kisara-me-page");
+      window.scrollTo(0, 0);
+
+      const setActiveScene = (nextIndex, instant = false) => {
+        const boundedIndex = Math.max(0, Math.min(scenes.length - 1, nextIndex));
+        if (boundedIndex === activeIndex && !instant) return false;
+
+        const previousIndex = activeIndex;
+        activeIndex = boundedIndex;
+        root.dataset.direction = boundedIndex >= previousIndex ? "next" : "previous";
+        root.dataset.activeScene = String(boundedIndex);
+        root.classList.toggle("is-switching", !instant && !reduceMotion);
+
+        scenes.forEach((scene, index) => {
+          if (!(scene instanceof HTMLElement)) return;
+          const isActive = index === boundedIndex;
+          scene.dataset.scenePosition = isActive ? "active" : index < boundedIndex ? "before" : "after";
+          scene.setAttribute("aria-hidden", String(!isActive));
+          scene.inert = !isActive;
         });
+
+        markers.forEach((marker, index) => {
+          if (!(marker instanceof HTMLElement)) return;
+          if (index === boundedIndex) marker.setAttribute("aria-current", "step");
+          else marker.removeAttribute("aria-current");
+        });
+
+        const scene = scenes[boundedIndex];
+        const sceneName = scene instanceof HTMLElement ? scene.dataset.sceneName || "档案" : "档案";
+        const label = markers[boundedIndex]?.querySelector("span")?.textContent || "PROFILE";
+        if (currentNumber) currentNumber.textContent = String(boundedIndex + 1).padStart(2, "0");
+        if (currentLabel) currentLabel.textContent = label;
+        if (announcer) announcer.textContent = `第 ${boundedIndex + 1} 章，共 ${scenes.length} 章：${sceneName}`;
+        const progress = scenes.length > 1 ? boundedIndex / (scenes.length - 1) : 0;
+        root.style.setProperty("--me-progress", String(progress));
+
+        window.clearTimeout(transitionTimer);
+        if (instant || reduceMotion) root.classList.remove("is-switching");
+        else transitionTimer = window.setTimeout(() => root.classList.remove("is-switching"), 680);
+        return true;
+      };
+
+      const nudgeEdge = (direction) => {
+        root.dataset.edge = direction < 0 ? "start" : "end";
+        window.clearTimeout(edgeTimer);
+        edgeTimer = window.setTimeout(() => delete root.dataset.edge, 320);
+      };
+
+      const stepScene = (direction) => {
+        const nextIndex = activeIndex + direction;
+        if (nextIndex < 0 || nextIndex >= scenes.length) {
+          nudgeEdge(direction);
+          return false;
+        }
+        return setActiveScene(nextIndex);
+      };
+
+      const shouldIgnoreInput = (target) => target instanceof Element && Boolean(target.closest(
+        "[data-kisara-context-menu], [data-kisara-theme-panel], .kisara-audio-player"
+      ));
+
+      window.addEventListener("wheel", (event) => {
+        if (event.ctrlKey || shouldIgnoreInput(event.target)) return;
+        event.preventDefault();
+
+        const now = performance.now();
+        if (now - lastWheelAt > 180) wheelBuffer = 0;
+        lastWheelAt = now;
+        if (now < blockedUntil) return;
+
+        const delta = event.deltaY * (event.deltaMode === 1 ? 18 : event.deltaMode === 2 ? window.innerHeight : 1);
+        if (!delta) return;
+        if (wheelBuffer && Math.sign(wheelBuffer) !== Math.sign(delta)) wheelBuffer = 0;
+        wheelBuffer += delta;
+        if (Math.abs(wheelBuffer) < 38) return;
+
+        const direction = wheelBuffer > 0 ? 1 : -1;
+        wheelBuffer = 0;
+        if (stepScene(direction)) blockedUntil = now + (reduceMotion ? 180 : 620);
+      }, { passive: false, signal });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.defaultPrevented || shouldIgnoreInput(event.target)) return;
+        if (event.target instanceof Element && event.target.closest("a, button, input, textarea, select")) return;
+
+        let nextIndex = null;
+        if (["ArrowDown", "PageDown", " "].includes(event.key)) nextIndex = activeIndex + 1;
+        if (["ArrowUp", "PageUp"].includes(event.key)) nextIndex = activeIndex - 1;
+        if (event.key === "Home") nextIndex = 0;
+        if (event.key === "End") nextIndex = scenes.length - 1;
+        if (nextIndex === null) return;
+        event.preventDefault();
+        setActiveScene(nextIndex);
+      }, { signal });
+
+      root.addEventListener("pointerdown", (event) => {
+        if (event.pointerType !== "touch" || shouldIgnoreInput(event.target)) return;
+        touchStartY = event.clientY;
+        touchStartX = event.clientX;
+      }, { signal });
+
+      root.addEventListener("pointerup", (event) => {
+        if (event.pointerType !== "touch" || touchStartY === null || touchStartX === null) return;
+        const deltaY = event.clientY - touchStartY;
+        const deltaX = event.clientX - touchStartX;
+        touchStartY = null;
+        touchStartX = null;
+        if (Math.abs(deltaY) < 46 || Math.abs(deltaY) <= Math.abs(deltaX)) return;
+        stepScene(deltaY < 0 ? 1 : -1);
+      }, { signal });
+
+      root.addEventListener("pointercancel", () => {
+        touchStartY = null;
+        touchStartX = null;
+      }, { signal });
+
+      markers.forEach((marker) => marker.addEventListener("click", () => {
+        if (!(marker instanceof HTMLElement)) return;
+        const target = Number(marker.dataset.meTarget);
+        if (Number.isFinite(target)) setActiveScene(target);
       }, { signal }));
+
+      setActiveScene(0, true);
     })();
   </script>
 </KisaraLayout>
