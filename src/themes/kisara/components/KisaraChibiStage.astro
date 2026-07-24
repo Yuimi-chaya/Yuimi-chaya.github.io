@@ -179,10 +179,47 @@ const characters = [
     border: 0;
     background: transparent;
     transform: translate3d(var(--chibi-x), var(--chibi-y), 0);
+    isolation: isolate;
     touch-action: none;
     cursor: grab;
     opacity: 0;
     will-change: transform;
+  }
+
+  .kisara-chibi::before,
+  .kisara-chibi::after {
+    position: absolute;
+    content: "";
+    pointer-events: none;
+    opacity: 0;
+    transition:
+      opacity 220ms ease,
+      transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .kisara-chibi::before {
+    z-index: 0;
+    inset: 8% -3% 4%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 58%, rgba(var(--chibi-acrylic), 0.24), rgba(var(--chibi-acrylic), 0.07) 46%, transparent 72%);
+    filter: blur(7px);
+    transform: scale(0.76, 0.88);
+  }
+
+  .kisara-chibi::after {
+    z-index: 4;
+    top: 50%;
+    left: 50%;
+    width: auto;
+    height: 84%;
+    aspect-ratio: 1;
+    border-right: 2px solid rgba(var(--chibi-acrylic), 0.62);
+    border-left: 2px solid rgba(var(--chibi-acrylic), 0.62);
+    border-radius: 50%;
+    filter: drop-shadow(0 0 5px rgba(var(--chibi-acrylic), 0.4));
+    -webkit-mask-image: linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
+    mask-image: linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
+    transform: translate(-50%, -50%) scale(0.78);
   }
 
   .kisara-chibi[data-chibi="kisara"] {
@@ -226,8 +263,23 @@ const characters = [
     outline: none;
   }
 
+  .kisara-chibi:focus-visible::before,
+  .kisara-chibi:focus-visible::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .kisara-chibi:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
   .kisara-chibi:focus-visible .kisara-chibi-figure {
-    filter: drop-shadow(0 0 13px rgba(255, 117, 151, 0.8));
+    transform: translateY(-7px) scale(1.035);
+    filter:
+      drop-shadow(0 18px 13px rgba(0, 0, 20, 0.38))
+      drop-shadow(0 0 1.2px rgba(4, 7, 27, 0.58))
+      drop-shadow(0 0 10px rgba(var(--chibi-acrylic), 0.48));
   }
 
   .kisara-chibi-figure {
@@ -242,6 +294,9 @@ const characters = [
       drop-shadow(0 15px 12px rgba(0, 0, 20, 0.34))
       drop-shadow(0 0 1.15px rgba(4, 7, 27, 0.62))
       drop-shadow(0 0 2.5px rgba(var(--chibi-acrylic), 0.09));
+    transition:
+      transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
+      filter 240ms ease;
     will-change: transform, filter;
   }
 
@@ -298,6 +353,32 @@ const characters = [
     opacity: 0.42;
     filter: blur(7px);
     transform: scaleX(0.54);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .kisara-chibi:hover:not(.is-dragging)::before,
+    .kisara-chibi:hover:not(.is-dragging)::before {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .kisara-chibi:hover:not(.is-dragging)::after {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .kisara-chibi:hover:not(.is-dragging) .kisara-chibi-figure {
+      transform: translateY(-7px) scale(1.035);
+      filter:
+        drop-shadow(0 18px 13px rgba(0, 0, 20, 0.38))
+        drop-shadow(0 0 1.2px rgba(4, 7, 27, 0.58))
+        drop-shadow(0 0 10px rgba(var(--chibi-acrylic), 0.48));
+    }
+
+    .kisara-chibi:hover:not(.is-dragging) .kisara-chibi-shadow {
+      opacity: 0.68;
+      transform: scaleX(0.62);
+    }
   }
 
   .kisara-chibi-bubble {
@@ -544,7 +625,6 @@ const characters = [
     };
 
     const randomItem = (items) => items[Math.floor(Math.random() * items.length)];
-    const canonicalIds = (ids) => characterOrder.filter((id) => ids.includes(id));
     const sceneKey = (ids) => [...ids].sort().join("|");
 
     const dimensions = (id) => {
@@ -577,6 +657,35 @@ const characters = [
       const point = state.get(id) || { x: 0, y: 0 };
       const { width, height } = dimensions(id);
       return { x: point.x + width / 2, y: point.y + height / 2 };
+    };
+
+    const boundsOf = (ids) => {
+      const bounds = ids.reduce((result, id) => {
+        const point = state.get(id) || { x: 0, y: 0 };
+        const { width, height } = dimensions(id);
+        result.left = Math.min(result.left, point.x);
+        result.right = Math.max(result.right, point.x + width);
+        result.top = Math.min(result.top, point.y);
+        result.bottom = Math.max(result.bottom, point.y + height);
+        return result;
+      }, { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
+
+      if (!Number.isFinite(bounds.left)) {
+        return {
+          left: root.clientWidth / 2,
+          right: root.clientWidth / 2,
+          top: root.clientHeight / 2,
+          bottom: root.clientHeight / 2,
+          centerX: root.clientWidth / 2,
+          centerY: root.clientHeight / 2,
+        };
+      }
+
+      return {
+        ...bounds,
+        centerX: (bounds.left + bounds.right) / 2,
+        centerY: (bounds.top + bounds.bottom) / 2,
+      };
     };
 
     const removeFromGroups = (id) => {
@@ -693,21 +802,33 @@ const characters = [
       lastStageSize = { width, height };
     };
 
-    const layoutGroup = (ids, anchor) => {
-      const ordered = canonicalIds(ids);
+    const layoutGroup = (ids, placement) => {
+      const ordered = [...new Set(ids)].filter((id) => nodes.has(id));
       const items = ordered.map((id) => ({ id, ...dimensions(id) }));
       const stageWidth = root.clientWidth;
       const stageHeight = root.clientHeight;
       const maxWidth = Math.max(...items.map((item) => item.width));
       const maxHeight = Math.max(...items.map((item) => item.height));
-      const useGrid = stageWidth < 660 && items.length >= 3;
+      const anchor = placement.anchor;
+      const useGrid =
+        (stageWidth < 660 && items.length >= 3) ||
+        (stageWidth < 760 && items.length >= 4);
 
       if (!useGrid) {
         const gap = 14;
         const totalWidth = items.reduce((sum, item) => sum + item.width, 0) + gap * (items.length - 1);
-        const startX = Math.min(Math.max(12, anchor.x - totalWidth / 2), Math.max(12, stageWidth - totalWidth - 12));
+        const preferredStartX = Number.isFinite(placement.startX)
+          ? placement.startX
+          : anchor.x - totalWidth / 2;
+        const startX = Math.min(
+          Math.max(12, preferredStartX),
+          Math.max(12, stageWidth - totalWidth - 12)
+        );
+        const preferredBaseline = Number.isFinite(placement.baseline)
+          ? placement.baseline
+          : anchor.y + maxHeight * 0.47;
         const baseline = Math.min(
-          Math.max(maxHeight + 54, anchor.y + maxHeight * 0.47),
+          Math.max(maxHeight + 54, preferredBaseline),
           stageHeight - 30
         );
         let cursor = startX;
@@ -770,13 +891,27 @@ const characters = [
       }
 
       const existing = groupFor(target.id) || [target.id];
-      const members = canonicalIds([...new Set([...existing, id])]);
+      const existingBounds = boundsOf(existing);
+      const actorCenter = centerOf(id);
+      const horizontalDelta = actorCenter.x - existingBounds.centerX;
+      const leftRoom = existingBounds.left - 12;
+      const rightRoom = root.clientWidth - existingBounds.right - 12;
+      const placeOnLeft = Math.abs(horizontalDelta) < 12
+        ? leftRoom > rightRoom
+        : horizontalDelta < 0;
+      const members = placeOnLeft ? [id, ...existing] : [...existing, id];
+      const preferredStartX = placeOnLeft
+        ? existingBounds.left - dimensions(id).width - 14
+        : existingBounds.left;
       groups.splice(0, groups.length, ...groups.filter((group) => !group.some((member) => members.includes(member))));
       groups.push(members);
-      const actorCenter = centerOf(id);
       layoutGroup(members, {
-        x: (target.center.x + actorCenter.x) / 2,
-        y: (target.center.y + actorCenter.y) / 2,
+        anchor: {
+          x: existingBounds.centerX,
+          y: existingBounds.centerY,
+        },
+        startX: preferredStartX,
+        baseline: existingBounds.bottom,
       });
       schedule(() => playScene(members), 360);
     };
