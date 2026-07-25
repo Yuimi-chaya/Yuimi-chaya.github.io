@@ -133,10 +133,34 @@ const channelLinks = [
   { index: "03", label: "ENTER PLAY", note: "短暂切进小游戏", href: getThemePath("kisara", "/games/") },
   { index: "04", label: "TRACE YUIMI", note: "翻阅关于我的注脚", href: getThemePath("kisara", "/about/") }
 ] as const;
-const signalPresentation = [
-  { code: "LEARN", icon: "tabler:sparkles", accent: "blue" },
-  { code: "BUILD", icon: "tabler:flask-2", accent: "pink" },
-  { code: "TUNE", icon: "tabler:activity-heartbeat", accent: "violet" }
+const fridgeDiscoveries = [
+  {
+    code: "LEARN",
+    zone: "冷藏上层",
+    temperature: "04°C",
+    title: "一盒还没学完的 UE5",
+    detail: currentSignals[0]?.text ?? "",
+    label: currentSignals[0]?.label ?? "正在学习",
+    icon: "tabler:sparkles"
+  },
+  {
+    code: "BUILD",
+    zone: "保鲜中层",
+    temperature: "06°C",
+    title: "一罐正在发酵的 AstrBot",
+    detail: currentSignals[1]?.text ?? "",
+    label: currentSignals[1]?.label ?? "最近在折腾",
+    icon: "tabler:flask-2"
+  },
+  {
+    code: "TUNE",
+    zone: "冰箱门侧",
+    temperature: "02°C",
+    title: "一包可爱过量的呈现方式",
+    detail: currentSignals[2]?.text ?? "",
+    label: currentSignals[2]?.label ?? "今日电波",
+    icon: "tabler:activity-heartbeat"
+  }
 ] as const;
 const ambientParticles = [
   { x: 7, y: 21, driftX: 88, driftY: -54, size: 3.2, duration: 18.4, delay: -4.8, opacity: 0.46, hue: 338 },
@@ -392,39 +416,223 @@ const gateStyle = [
     </div>
   </section>
 
-  <section class="kisara-signal-deck" aria-labelledby="kisara-signal-title">
-    <div class="kisara-content-shell">
-      <header class="kisara-home-band-heading">
-        <div>
-          <p class="kisara-section-index">LIVE SIGNALS / 002</p>
-          <h2 id="kisara-signal-title">Current pulse.</h2>
-        </div>
-        <p>不用仪表盘汇报人生，只留三条现在确实还在发热的信号。</p>
-        <div class="kisara-home-frequency" aria-hidden="true"><span>CH.03</span><i></i><i></i><i></i><i></i></div>
-      </header>
-      <div class="kisara-signal-stage">
-        <div class="kisara-signal-axis" aria-hidden="true">
-          <span>LIVE</span>
-          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-          <strong>NOW</strong>
-        </div>
-        <div class="kisara-signal-stream">
-        {currentSignals.map((signal, index) => (
-          <article class={`is-${signalPresentation[index]?.accent ?? "blue"}`} style={`--signal-order: ${index};`}>
-            <div class="kisara-signal-pulse" aria-hidden="true">
-              <span><Icon name={signalPresentation[index]?.icon ?? "tabler:activity-heartbeat"} /></span>
-              <i></i>
-            </div>
-            <div>
-              <small>0{index + 1} / {signalPresentation[index]?.code ?? "LIVE"} / {signal.label}</small>
-              <h3>{signal.text}</h3>
-            </div>
-          </article>
-        ))}
-        </div>
+  <div class="kisara-home-transition is-memory-to-fridge" aria-hidden="true"><span></span><i></i><i></i></div>
+
+  <section class="kisara-fridge-deck" aria-labelledby="kisara-fridge-title">
+    <kisara-fridge-scene class="kisara-fridge-scene" data-active-index="0">
+      <div class="kisara-fridge-media">
+        <img
+          src="/themes/kisara/assets/fridge-discovery-002.webp"
+          alt="木更打开冰箱，从冰箱内部向里张望"
+          width="1528"
+          height="860"
+          loading="lazy"
+          decoding="async"
+        />
+        <span class="kisara-fridge-light" aria-hidden="true"></span>
+        <span class="kisara-fridge-scan" aria-hidden="true"><i></i></span>
+        <span class="kisara-fridge-mist" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="kisara-fridge-shade" aria-hidden="true"></span>
       </div>
-    </div>
+
+      <div class="kisara-content-shell kisara-fridge-content">
+        <header class="kisara-fridge-overlay-heading">
+          <p class="kisara-section-index">REFRIGERATOR LOG / 002</p>
+          <div class="kisara-fridge-findings-status">
+            <span data-fridge-status>SEALED</span>
+            <small>INTERIOR / 04°C</small>
+          </div>
+        </header>
+
+        <div class="kisara-fridge-findings">
+          <p class="kisara-fridge-findings-kicker">AFTER OPENING THE DOOR</p>
+          <h2 id="kisara-fridge-title" class="kisara-fridge-findings-title">
+            <span>打开冰箱，</span>
+            <strong data-fridge-title>发现{fridgeDiscoveries[0].title}。</strong>
+          </h2>
+          <p class="kisara-fridge-findings-copy">没有严谨的库存管理，只有一些正在学习、发酵，以及明显放得太可爱的东西。</p>
+
+          <div class="kisara-fridge-detail" aria-live="polite">
+            <small data-fridge-meta>{fridgeDiscoveries[0].label} / {fridgeDiscoveries[0].temperature}</small>
+            <strong data-fridge-detail>{fridgeDiscoveries[0].detail}</strong>
+          </div>
+
+          <div class="kisara-fridge-inventory" aria-label="冰箱里的发现">
+            {fridgeDiscoveries.map((discovery, index) => (
+              <button
+                type="button"
+                data-fridge-item
+                data-fridge-index={index}
+                data-fridge-title={`发现${discovery.title}。`}
+                data-fridge-detail={discovery.detail}
+                data-fridge-meta={`${discovery.label} / ${discovery.temperature}`}
+                aria-pressed={index === 0 ? "true" : "false"}
+                style={`--fridge-order: ${index};`}
+              >
+                <span>0{index + 1}</span>
+                <div><small>{discovery.zone} / {discovery.code}</small><strong>{discovery.title}</strong></div>
+                <i aria-hidden="true"><Icon name={discovery.icon} /></i>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button class="kisara-fridge-replay" type="button" data-fridge-replay aria-label="重新播放冰箱显影" title="重新播放冰箱显影">
+          <Icon name="tabler:refresh" aria-hidden="true" />
+        </button>
+      </div>
+    </kisara-fridge-scene>
   </section>
+
+  <script>
+    if (!customElements.get("kisara-fridge-scene")) {
+      class KisaraFridgeScene extends HTMLElement {
+        controller: AbortController | null = null;
+        observer: IntersectionObserver | null = null;
+        resetScene: (() => void) | null = null;
+
+        resetPresentation() {
+          this.resetScene?.();
+        }
+
+        connectedCallback() {
+          this.controller?.abort();
+          const controller = new AbortController();
+          this.controller = controller;
+          const { signal } = controller;
+          const items = Array.from(this.querySelectorAll<HTMLButtonElement>("[data-fridge-item]"));
+          const replay = this.querySelector<HTMLButtonElement>("[data-fridge-replay]");
+          const image = this.querySelector<HTMLImageElement>(".kisara-fridge-media > img");
+          const status = this.querySelector<HTMLElement>("[data-fridge-status]");
+          const title = this.querySelector<HTMLElement>("[data-fridge-title]");
+          const detail = this.querySelector<HTMLElement>("[data-fridge-detail]");
+          const meta = this.querySelector<HTMLElement>("[data-fridge-meta]");
+          const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+          if (!items.length || !title || !detail || !meta) return;
+
+          let visible = false;
+          let decoded = !image || (image.complete && image.naturalWidth > 0);
+          let startFrame = 0;
+          let openTimer = 0;
+          let detailAnimation: Animation | null = null;
+
+          const clearPlayback = () => {
+            if (startFrame) cancelAnimationFrame(startFrame);
+            startFrame = 0;
+            if (openTimer) window.clearTimeout(openTimer);
+            openTimer = 0;
+            detailAnimation?.cancel();
+            detailAnimation = null;
+          };
+
+          const setActive = (nextIndex: number, animate = true) => {
+            const boundedIndex = Math.max(0, Math.min(items.length - 1, nextIndex));
+            const nextItem = items[boundedIndex];
+            this.dataset.activeIndex = String(boundedIndex);
+            items.forEach((item, index) => item.setAttribute("aria-pressed", index === boundedIndex ? "true" : "false"));
+            title.textContent = nextItem.dataset.fridgeTitle ?? "发现了一些不该还在保鲜期里的东西。";
+            detail.textContent = nextItem.dataset.fridgeDetail ?? "";
+            meta.textContent = nextItem.dataset.fridgeMeta ?? "";
+
+            if (animate && !reducedMotion && typeof detail.animate === "function") {
+              detailAnimation?.cancel();
+              detailAnimation = detail.animate([
+                { opacity: 0.18, transform: "translateY(8px)", filter: "blur(3px)" },
+                { opacity: 1, transform: "translateY(0)", filter: "blur(0)" }
+              ], { duration: 360, easing: "cubic-bezier(0.18, 0.78, 0.2, 1)" });
+            }
+          };
+
+          const finishOpening = () => {
+            openTimer = 0;
+            this.classList.remove("is-fridge-opening");
+            this.classList.add("is-fridge-open");
+            if (status) status.textContent = "OPEN / 04°C";
+          };
+
+          const startOpening = () => {
+            if (!visible || !decoded || this.classList.contains("is-fridge-opening") || this.classList.contains("is-fridge-open")) return;
+            this.observer?.disconnect();
+            this.observer = null;
+            if (reducedMotion) {
+              this.classList.add("is-fridge-open");
+              if (status) status.textContent = "OPEN / 04°C";
+              return;
+            }
+            if (status) status.textContent = "OPENING";
+            startFrame = requestAnimationFrame(() => {
+              startFrame = 0;
+              if (signal.aborted) return;
+              this.classList.add("is-fridge-opening");
+              openTimer = window.setTimeout(finishOpening, 1380);
+            });
+          };
+
+          const armOpening = () => {
+            clearPlayback();
+            this.observer?.disconnect();
+            this.observer = null;
+            visible = false;
+            this.dataset.fridgeBound = "true";
+            this.classList.remove("is-fridge-opening", "is-fridge-open");
+            if (status) status.textContent = "SEALED";
+            setActive(0, false);
+
+            if (reducedMotion) {
+              visible = true;
+              startOpening();
+              return;
+            }
+            if ("IntersectionObserver" in window) {
+              this.observer = new IntersectionObserver((entries) => {
+                if (!entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.18)) return;
+                visible = true;
+                startOpening();
+              }, { threshold: [0.18, 0.42], rootMargin: "4% 0px 4%" });
+              this.observer.observe(this);
+            } else {
+              visible = true;
+              startOpening();
+            }
+          };
+
+          const finishDecode = async () => {
+            if (!image) return;
+            try {
+              if (typeof image.decode === "function") await image.decode();
+            } catch {
+              // A completed image can still render if decode() is interrupted by navigation.
+            }
+            if (signal.aborted || !image.complete || image.naturalWidth <= 0) return;
+            decoded = true;
+            startOpening();
+          };
+
+          items.forEach((item, index) => item.addEventListener("click", () => setActive(index), { signal }));
+          replay?.addEventListener("click", armOpening, { signal });
+          if (image && !decoded) image.addEventListener("load", () => void finishDecode(), { once: true, signal });
+          else if (image) void finishDecode();
+
+          this.resetScene = armOpening;
+          signal.addEventListener("abort", clearPlayback, { once: true });
+          armOpening();
+        }
+
+        disconnectedCallback() {
+          this.controller?.abort();
+          this.controller = null;
+          this.observer?.disconnect();
+          this.observer = null;
+          this.resetScene = null;
+        }
+      }
+
+      customElements.define("kisara-fridge-scene", KisaraFridgeScene);
+    }
+  </script>
+
+  <div class="kisara-home-transition is-fridge-to-event" aria-hidden="true"><span></span><i></i><i></i></div>
 
   <section class="kisara-home-projects" aria-labelledby="kisara-project-title">
     <div class="kisara-content-shell">
@@ -553,6 +761,8 @@ const gateStyle = [
       </kisara-clue-scene>
     </div>
   </section>
+
+  <div class="kisara-home-transition is-event-to-latest" aria-hidden="true"><span></span><i></i><i></i></div>
 
   <script>
     if (!customElements.get("kisara-clue-scene")) {
@@ -767,6 +977,8 @@ const gateStyle = [
     </div>
   </section>
 
+  <div class="kisara-home-transition is-latest-to-footer" aria-hidden="true"><span></span><i></i><i></i></div>
+
   <script>
     const scheduleKisaraHome = () => {
       window.__yuimiKisaraHomeSchedule = scheduleKisaraHome;
@@ -946,6 +1158,7 @@ const gateStyle = [
       const cue = gate.querySelector("[data-kisara-cue]");
       const motionToggle = gate.querySelector("[data-kisara-motion-toggle]");
       const skip = gate.querySelector("[data-kisara-skip]");
+      const fridgeScene = document.querySelector("kisara-fridge-scene");
       const eventScene = document.querySelector("kisara-clue-scene");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const openingMemory = opening instanceof HTMLElement
@@ -1357,6 +1570,10 @@ const gateStyle = [
         openingMemoryInkResizeObserver.observe(openingMemoryVisual);
       }
       let openingMemoryReplayResetPending = false;
+      const resetFridgeScenePresentation = () => {
+        const resettableScene = fridgeScene as (HTMLElement & { resetPresentation?: () => void }) | null;
+        resettableScene?.resetPresentation?.();
+      };
       const resetEventScenePresentation = () => {
         const resettableScene = eventScene as (HTMLElement & { resetPresentation?: () => void }) | null;
         resettableScene?.resetPresentation?.();
@@ -1372,6 +1589,7 @@ const gateStyle = [
         return true;
       };
       const requestHomeSectionReplayReset = () => {
+        resetFridgeScenePresentation();
         resetEventScenePresentation();
         openingMemoryReplayResetPending = true;
         resetOpeningMemoryWhenCovered();

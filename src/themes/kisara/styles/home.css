@@ -2495,7 +2495,7 @@
   color: var(--kisara-memory-wine);
 }
 
-.kisara-signal-deck,
+.kisara-fridge-deck,
 .kisara-home-projects,
 .kisara-latest {
   position: relative;
@@ -2506,15 +2506,41 @@
   padding: 132px 0 142px;
 }
 
-.kisara-signal-deck {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 500px;
+.kisara-fridge-deck {
+  --fridge-ink: #263340;
+  --fridge-muted: #657481;
+  --fridge-cold: #8ba8ba;
+  --fridge-pink: #cf5879;
+  color: var(--fridge-ink);
+  background:
+    radial-gradient(circle at 73% 19%, rgba(255, 255, 255, 0.94), transparent 23%),
+    radial-gradient(circle at 12% 76%, rgba(157, 181, 194, 0.18), transparent 31%),
+    linear-gradient(90deg, rgba(77, 100, 117, 0.035) 1px, transparent 1px) 0 0 / 88px 100%,
+    linear-gradient(180deg, #dfe5e9 0%, #edf1f4 48%, #d5dee6 100%);
 }
 
-.kisara-signal-deck {
+.kisara-fridge-deck::before,
+.kisara-fridge-deck::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.kisara-fridge-deck::before {
+  inset: 0;
   background:
-    linear-gradient(90deg, rgba(145, 177, 255, 0.035) 1px, transparent 1px) 0 0 / 72px 100%,
-    #0b102b;
+    linear-gradient(108deg, transparent 0 43%, rgba(255, 255, 255, 0.48) 43.1% 43.35%, transparent 43.5%),
+    radial-gradient(ellipse 36% 18% at 76% 7%, rgba(255, 255, 255, 0.42), transparent 72%);
+  opacity: 0.72;
+}
+
+.kisara-fridge-deck::after {
+  top: 0;
+  right: 7%;
+  width: min(36vw, 520px);
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(111, 143, 162, 0.5), rgba(210, 91, 128, 0.42), transparent);
 }
 
 .kisara-home-projects {
@@ -2552,6 +2578,137 @@
 .kisara-latest {
   color: #171a32;
   background: #dbe2ec;
+}
+
+.kisara-home-transition {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+  width: 100%;
+  height: clamp(96px, 10vw, 156px);
+  margin-block: -1px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.kisara-home-transition::before,
+.kisara-home-transition::after,
+.kisara-home-transition > span,
+.kisara-home-transition > i {
+  content: "";
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.kisara-home-transition.is-memory-to-fridge {
+  background: linear-gradient(180deg, #e4d8d1 0%, #e1dede 44%, #dfe5e9 100%);
+}
+
+.kisara-home-transition.is-memory-to-fridge::before {
+  inset: -30% 6% 24% 34%;
+  background: radial-gradient(ellipse, rgba(255, 244, 231, 0.62), transparent 70%);
+  filter: blur(18px);
+}
+
+.kisara-home-transition.is-memory-to-fridge > span {
+  right: 8%;
+  bottom: 12%;
+  left: 12%;
+  height: 34%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(158, 180, 191, 0.28), transparent 72%);
+  filter: blur(11px);
+}
+
+.kisara-home-transition.is-memory-to-fridge > i:first-of-type {
+  top: 9%;
+  right: 18%;
+  width: 1px;
+  height: 56%;
+  background: linear-gradient(180deg, transparent, rgba(121, 145, 158, 0.26), transparent);
+  transform: rotate(13deg);
+}
+
+.kisara-home-transition.is-memory-to-fridge > i:last-of-type {
+  top: 26%;
+  right: 26%;
+  width: 2px;
+  height: 34%;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+  transform: rotate(13deg);
+}
+
+.kisara-home-transition.is-fridge-to-event {
+  background:
+    radial-gradient(ellipse 46% 80% at 74% 12%, rgba(255, 255, 255, 0.46), transparent 72%),
+    linear-gradient(180deg, #d5dee6 0%, #e4e5eb 48%, #f3e9f1 100%);
+}
+
+.kisara-home-transition.is-fridge-to-event::before {
+  inset: 10% -8% 8% 38%;
+  background: linear-gradient(112deg, transparent 0 44%, rgba(196, 74, 120, 0.14) 44.2% 45%, transparent 45.2%);
+  filter: blur(5px);
+}
+
+.kisara-home-transition.is-fridge-to-event > span {
+  right: 9%;
+  bottom: 7%;
+  width: 42%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(164, 69, 108, 0.34), transparent);
+}
+
+.kisara-home-transition.is-event-to-latest {
+  height: clamp(82px, 8vw, 126px);
+  background:
+    radial-gradient(circle at 16% 12%, rgba(255, 151, 190, 0.12), transparent 32%),
+    linear-gradient(180deg, #dce5f4 0%, #dce3ef 46%, #dbe2ec 100%);
+}
+
+.kisara-home-transition.is-event-to-latest::before {
+  inset: 20% 7%;
+  background:
+    linear-gradient(90deg, transparent, rgba(65, 78, 120, 0.1) 18%, transparent 18.2% 62%, rgba(181, 47, 97, 0.1) 62.2%, transparent);
+  filter: blur(4px);
+}
+
+.kisara-home-transition.is-event-to-latest > i:first-of-type {
+  top: 26%;
+  right: 18%;
+  width: 24%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(181, 47, 97, 0.24));
+}
+
+.kisara-home-transition.is-latest-to-footer {
+  height: clamp(150px, 15vw, 230px);
+  background:
+    radial-gradient(ellipse 62% 38% at 50% 12%, rgba(220, 229, 240, 0.72), transparent 74%),
+    linear-gradient(180deg, #dbe2ec 0%, #9ba9bb 24%, #48546a 56%, #151a31 82%, #070a1c 100%);
+}
+
+.kisara-home-transition.is-latest-to-footer::before {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 58%;
+  background:
+    linear-gradient(90deg, transparent 0 8%, rgba(255, 115, 148, 0.06) 8.2% 8.6%, transparent 8.8% 62%, rgba(142, 169, 230, 0.08) 62.2% 62.7%, transparent 63%),
+    linear-gradient(180deg, transparent, rgba(5, 8, 24, 0.56));
+}
+
+.kisara-home-transition.is-latest-to-footer > span {
+  right: 9%;
+  bottom: 24%;
+  left: 9%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 98, 134, 0.24), rgba(132, 160, 222, 0.2), transparent);
+  box-shadow: 0 0 20px rgba(119, 145, 213, 0.12);
+}
+
+.kisara-main + .kisara-footer {
+  margin-top: -1px;
+  border-top-color: transparent;
 }
 
 .kisara-home-band-heading {
@@ -2656,150 +2813,471 @@
   color: #b91845;
 }
 
-.kisara-home-frequency {
+.kisara-fridge-deck {
+  min-height: clamp(760px, 100svh, 980px);
+  padding: 0;
+  background: #20282e;
+}
+
+.kisara-fridge-scene {
+  position: relative;
+  display: block;
+  min-height: inherit;
+  overflow: hidden;
+  isolation: isolate;
+  color: #f4f7f8;
+}
+
+.kisara-fridge-media,
+.kisara-fridge-media > img,
+.kisara-fridge-light,
+.kisara-fridge-scan,
+.kisara-fridge-mist,
+.kisara-fridge-shade {
+  position: absolute;
+  inset: 0;
+}
+
+.kisara-fridge-media {
+  z-index: 0;
+  overflow: hidden;
+  background: #1d252b;
+}
+
+.kisara-fridge-media > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 50%;
+  filter: saturate(0.92) contrast(1.03) brightness(0.9);
+  transform: scale(1.012);
+  transform-origin: 51% 48%;
+  transition:
+    filter 1380ms cubic-bezier(0.16, 0.76, 0.2, 1),
+    transform 1700ms cubic-bezier(0.16, 0.76, 0.2, 1);
+}
+
+.kisara-fridge-scene[data-fridge-bound="true"]:not(.is-fridge-opening):not(.is-fridge-open) .kisara-fridge-media > img {
+  filter: saturate(0.55) contrast(0.88) brightness(0.34) blur(13px);
+  transform: scale(1.1);
+}
+
+.kisara-fridge-shade {
+  z-index: 4;
+  background:
+    linear-gradient(90deg, rgba(8, 13, 17, 0.82) 0%, rgba(11, 16, 21, 0.58) 24%, rgba(12, 17, 22, 0.1) 55%, rgba(10, 15, 20, 0.08) 100%),
+    linear-gradient(180deg, rgba(8, 12, 16, 0.5) 0%, transparent 31%, transparent 48%, rgba(7, 11, 16, 0.82) 100%);
+  pointer-events: none;
+  transition: opacity 1.1s ease 240ms;
+}
+
+.kisara-fridge-scene[data-fridge-bound="true"]:not(.is-fridge-opening):not(.is-fridge-open) .kisara-fridge-shade {
+  opacity: 0.84;
+}
+
+.kisara-fridge-light {
+  z-index: 2;
+  background: radial-gradient(ellipse 48% 64% at 51% 36%, rgba(255, 255, 255, 0.88), rgba(227, 241, 247, 0.2) 52%, transparent 78%);
+  opacity: 0;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.kisara-fridge-scene.is-fridge-opening .kisara-fridge-light {
+  animation: kisara-fridge-light-on 1.38s cubic-bezier(0.16, 0.78, 0.2, 1) both;
+}
+
+.kisara-fridge-scene.is-fridge-open .kisara-fridge-light {
+  opacity: 0.11;
+}
+
+@keyframes kisara-fridge-light-on {
+  0% { opacity: 0; }
+  16% { opacity: 0.84; }
+  35% { opacity: 0.38; }
+  56% { opacity: 0.58; }
+  100% { opacity: 0.11; }
+}
+
+.kisara-fridge-scan {
+  z-index: 3;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.kisara-fridge-scan i {
+  position: absolute;
+  top: -6%;
+  bottom: -6%;
+  left: -12%;
+  width: 11%;
+  background: linear-gradient(90deg, transparent, rgba(230, 249, 255, 0.36), rgba(255, 203, 223, 0.16), transparent);
+  filter: blur(8px);
+  transform: skewX(-7deg);
+}
+
+.kisara-fridge-scene.is-fridge-opening .kisara-fridge-scan {
+  opacity: 1;
+}
+
+.kisara-fridge-scene.is-fridge-opening .kisara-fridge-scan i {
+  animation: kisara-fridge-scan 1.24s cubic-bezier(0.18, 0.72, 0.2, 1) 100ms both;
+}
+
+@keyframes kisara-fridge-scan {
+  from { transform: translateX(0) skewX(-7deg); }
+  to { transform: translateX(1040%) skewX(-7deg); }
+}
+
+.kisara-fridge-mist {
+  z-index: 5;
+  top: auto;
+  right: -6%;
+  bottom: -10%;
+  left: -6%;
+  height: 38%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.kisara-fridge-mist i {
+  position: absolute;
+  bottom: -20%;
+  width: 48%;
+  height: 86%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(235, 247, 251, 0.66), rgba(218, 234, 241, 0.17) 49%, transparent 75%);
+  filter: blur(24px);
+  opacity: 0;
+}
+
+.kisara-fridge-mist i:nth-child(1) { left: -3%; }
+.kisara-fridge-mist i:nth-child(2) { left: 29%; width: 58%; }
+.kisara-fridge-mist i:nth-child(3) { right: -4%; width: 45%; }
+
+.kisara-fridge-scene.is-fridge-opening .kisara-fridge-mist i {
+  animation: kisara-fridge-mist-release 1.8s cubic-bezier(0.16, 0.72, 0.2, 1) both;
+}
+
+.kisara-fridge-scene.is-fridge-opening .kisara-fridge-mist i:nth-child(2) { animation-delay: 90ms; }
+.kisara-fridge-scene.is-fridge-opening .kisara-fridge-mist i:nth-child(3) { animation-delay: 170ms; }
+
+.kisara-fridge-scene.is-fridge-open .kisara-fridge-mist i {
+  opacity: 0.1;
+  transform: translate3d(0, -18%, 0) scale(1.1);
+}
+
+@keyframes kisara-fridge-mist-release {
+  0% { opacity: 0; transform: translate3d(0, 38%, 0) scale(0.7); }
+  36% { opacity: 0.62; }
+  100% { opacity: 0.1; transform: translate3d(0, -18%, 0) scale(1.1); }
+}
+
+.kisara-fridge-content {
+  position: relative;
+  z-index: 7;
   display: flex;
-  align-items: end;
-  gap: 4px;
-  height: 34px;
-  color: #91b1ff;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: inherit;
+  padding-top: clamp(112px, 14vh, 150px);
+  padding-bottom: clamp(48px, 7vh, 72px);
+}
+
+.kisara-fridge-overlay-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  align-items: start;
+  opacity: 1;
+  transition: opacity 520ms ease 300ms, transform 680ms cubic-bezier(0.18, 0.78, 0.2, 1) 300ms;
+}
+
+.kisara-fridge-overlay-heading .kisara-section-index {
+  color: #ffc7d8;
+  text-shadow: 0 2px 12px rgba(17, 21, 25, 0.66);
+}
+
+.kisara-fridge-findings-status {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  color: rgba(235, 244, 247, 0.66);
+  text-shadow: 0 2px 9px rgba(10, 14, 18, 0.58);
+  font: 800 0.58rem/1 "Courier New", Courier, monospace;
+}
+
+.kisara-fridge-findings-status span {
+  color: #ffabc4;
+}
+
+.kisara-fridge-findings-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d9edf4;
+  box-shadow: 0 0 12px rgba(216, 240, 248, 0.7);
+}
+
+.kisara-fridge-findings {
+  position: relative;
+  width: min(100%, 1080px);
+  margin-top: auto;
+  padding-left: clamp(18px, 2vw, 30px);
+  opacity: 1;
+  transition: opacity 620ms ease 420ms, transform 820ms cubic-bezier(0.18, 0.78, 0.2, 1) 420ms;
+}
+
+.kisara-fridge-findings::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(255, 181, 203, 0.82), rgba(186, 222, 234, 0.42), transparent 82%);
+  box-shadow: 0 0 14px rgba(255, 147, 181, 0.14);
+}
+
+.kisara-fridge-scene[data-fridge-bound="true"]:not(.is-fridge-opening):not(.is-fridge-open) :is(.kisara-fridge-overlay-heading, .kisara-fridge-findings) {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.kisara-fridge-findings-kicker {
+  margin: 0;
+  color: rgba(222, 239, 245, 0.72);
+  text-shadow: 0 2px 10px rgba(6, 10, 14, 0.66);
   font: 800 0.62rem/1 "Courier New", Courier, monospace;
 }
 
-.kisara-home-frequency span {
-  align-self: center;
-  margin-right: 8px;
+.kisara-fridge-findings-title {
+  max-width: 700px;
+  margin: 16px 0 0;
+  color: #f8fbfc;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3.1rem, 5.7vw, 5.8rem);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: 0;
+  text-shadow: 0 4px 24px rgba(6, 10, 14, 0.58);
 }
 
-.kisara-home-frequency i {
-  width: 3px;
-  height: 9px;
-  background: currentColor;
-  box-shadow: 0 0 9px rgba(145, 177, 255, 0.42);
-  animation: kisara-home-frequency 1.05s ease-in-out infinite alternate;
+.kisara-fridge-findings-title span,
+.kisara-fridge-findings-title strong {
+  display: block;
 }
 
-.kisara-home-frequency i:nth-child(3) { height: 18px; animation-delay: -320ms; }
-.kisara-home-frequency i:nth-child(4) { height: 27px; animation-delay: -640ms; }
-.kisara-home-frequency i:nth-child(5) { height: 14px; animation-delay: -180ms; }
-
-@keyframes kisara-home-frequency {
-  to { transform: scaleY(0.42); opacity: 0.48; }
+.kisara-fridge-findings-title strong {
+  margin-top: 8px;
+  color: #ffb4ca;
+  font-weight: 500;
 }
 
-.kisara-signal-stage {
+.kisara-fridge-findings-copy {
+  max-width: 590px;
+  margin: 20px 0 0;
+  color: rgba(232, 241, 244, 0.78);
+  font-size: 0.9rem;
+  line-height: 1.78;
+  text-shadow: 0 2px 10px rgba(6, 10, 14, 0.62);
+}
+
+.kisara-fridge-detail {
   display: grid;
-  grid-template-columns: 82px minmax(0, 1fr);
-  border-block: 1px solid rgba(145, 177, 255, 0.26);
+  gap: 8px;
+  max-width: 640px;
+  min-height: 74px;
+  margin-top: 20px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(255, 178, 202, 0.48);
 }
 
-.kisara-signal-axis {
-  display: grid;
-  grid-template-rows: auto repeat(9, 1fr) auto;
-  align-items: center;
-  min-height: 330px;
-  padding: 24px 20px;
-  color: rgba(145, 177, 255, 0.62);
-  border-right: 1px solid rgba(145, 177, 255, 0.22);
-  font: 800 0.6rem/1 "Courier New", Courier, monospace;
+.kisara-fridge-detail small {
+  color: #ffb1c8;
+  font: 800 0.58rem/1 "Courier New", Courier, monospace;
 }
 
-.kisara-signal-axis i {
-  width: 22px;
-  height: 1px;
-  background: currentColor;
+.kisara-fridge-detail strong {
+  color: rgba(235, 244, 247, 0.86);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.65;
+  text-shadow: 0 2px 8px rgba(7, 11, 15, 0.58);
 }
 
-.kisara-signal-axis i:nth-of-type(3n) { width: 36px; color: #ff7891; }
-.kisara-signal-axis strong { color: #ff7891; font-size: inherit; }
-
-.kisara-signal-stream {
+.kisara-fridge-inventory {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 1040px;
+  margin-top: 28px;
+  border-block: 1px solid rgba(221, 238, 244, 0.18);
 }
 
-.kisara-signal-stream article {
-  --signal-color: #91b1ff;
+.kisara-fridge-inventory button {
   position: relative;
   display: grid;
-  align-content: space-between;
-  min-height: 330px;
-  padding: 34px clamp(24px, 3vw, 42px) 42px;
-  border-right: 1px solid rgba(145, 177, 255, 0.2);
-}
-
-.kisara-signal-stream article:last-child { border-right: 0; }
-.kisara-signal-stream article.is-pink { --signal-color: #ff7891; }
-.kisara-signal-stream article.is-violet { --signal-color: #c29cff; }
-
-.kisara-signal-pulse {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: 28px minmax(0, 1fr) 34px;
+  gap: 12px;
   align-items: center;
-  gap: 16px;
-  color: var(--signal-color);
+  min-width: 0;
+  min-height: 78px;
+  padding: 13px 16px;
+  color: rgba(226, 239, 244, 0.7);
+  border: 0;
+  border-right: 1px solid rgba(221, 238, 244, 0.14);
+  background: rgba(9, 16, 21, 0.12);
+  text-align: left;
+  opacity: 1;
+  backdrop-filter: blur(5px);
+  cursor: pointer;
+  transition: color 220ms ease, background 220ms ease, opacity 420ms ease, transform 320ms cubic-bezier(0.18, 0.78, 0.2, 1);
 }
 
-.kisara-signal-pulse span {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid color-mix(in srgb, var(--signal-color) 52%, transparent);
-  transform: rotate(45deg);
-  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), background 220ms ease;
+.kisara-fridge-inventory button:last-child {
+  border-right: 0;
 }
 
-.kisara-signal-pulse svg {
-  width: 19px;
-  height: 19px;
-  transform: rotate(-45deg);
+.kisara-fridge-scene[data-fridge-bound="true"]:not(.is-fridge-opening):not(.is-fridge-open) .kisara-fridge-inventory button {
+  opacity: 0;
+  transform: translateY(18px);
 }
 
-.kisara-signal-pulse > i {
-  position: relative;
-  height: 1px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--signal-color) 24%, transparent);
+.kisara-fridge-scene:is(.is-fridge-opening, .is-fridge-open) .kisara-fridge-inventory button {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: calc(600ms + var(--fridge-order) * 100ms);
 }
 
-.kisara-signal-pulse > i::after {
+.kisara-fridge-inventory button::after {
   content: "";
   position: absolute;
-  inset: 0 auto 0 -34%;
-  width: 34%;
-  background: linear-gradient(90deg, transparent, var(--signal-color), transparent);
-  animation: kisara-signal-sweep 2.2s ease-in-out calc(var(--signal-order) * -420ms) infinite;
+  right: 14px;
+  bottom: -1px;
+  left: 14px;
+  height: 2px;
+  background: linear-gradient(90deg, #8db4c4, #ff9dbb);
+  opacity: 0;
+  transform: scaleX(0.2);
+  transform-origin: left;
+  transition: opacity 180ms ease, transform 260ms ease;
 }
 
-@keyframes kisara-signal-sweep {
-  0%, 18% { transform: translateX(0); opacity: 0; }
-  32% { opacity: 1; }
-  72%, 100% { transform: translateX(400%); opacity: 0; }
+.kisara-fridge-inventory button > span {
+  color: rgba(210, 231, 238, 0.56);
+  font: 800 0.56rem/1 "Courier New", Courier, monospace;
 }
 
-.kisara-signal-stream small {
-  color: var(--signal-color);
-  font: 800 0.65rem/1.4 "Courier New", Courier, monospace;
+.kisara-fridge-inventory button > div {
+  min-width: 0;
 }
 
-.kisara-signal-stream h3 {
-  max-width: 330px;
-  margin: 18px 0 0;
-  color: #f8f5ff;
-  font-size: 1.08rem;
-  line-height: 1.78;
-  letter-spacing: 0;
-  transition: transform 220ms ease, color 220ms ease;
+.kisara-fridge-inventory button small,
+.kisara-fridge-inventory button strong {
+  display: block;
 }
 
-.kisara-signal-stream article:hover .kisara-signal-pulse span {
-  background: color-mix(in srgb, var(--signal-color) 15%, transparent);
-  transform: rotate(135deg) scale(1.06);
+.kisara-fridge-inventory button small {
+  color: rgba(212, 231, 238, 0.58);
+  font: 800 0.51rem/1.3 "Courier New", Courier, monospace;
 }
 
-.kisara-signal-stream article:hover h3 {
+.kisara-fridge-inventory button strong {
+  margin-top: 7px;
+  overflow: hidden;
+  color: rgba(244, 248, 249, 0.82);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kisara-fridge-inventory button > i {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: #c7dfe7;
+  border: 1px solid rgba(214, 236, 243, 0.22);
+  border-radius: 50%;
+  font-style: normal;
+  transition: color 180ms ease, border-color 180ms ease, transform 220ms ease;
+}
+
+.kisara-fridge-inventory button > i svg {
+  width: 15px;
+  height: 15px;
+}
+
+.kisara-fridge-inventory button:hover,
+.kisara-fridge-inventory button:focus-visible,
+.kisara-fridge-inventory button[aria-pressed="true"] {
   color: #fff;
-  transform: translateY(-5px);
+  background: rgba(20, 31, 38, 0.3);
+  outline: none;
+}
+
+.kisara-fridge-inventory button[aria-pressed="true"]::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.kisara-fridge-inventory button[aria-pressed="true"] strong {
+  color: #ffc0d3;
+}
+
+.kisara-fridge-inventory button:is(:hover, :focus-visible, [aria-pressed="true"]) > i {
+  color: #ffb4ca;
+  border-color: rgba(255, 180, 202, 0.5);
+  transform: translateY(-2px);
+}
+
+.kisara-fridge-replay {
+  position: absolute;
+  top: clamp(166px, 21vh, 214px);
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  color: rgba(230, 242, 246, 0.78);
+  border: 1px solid rgba(221, 239, 245, 0.26);
+  border-radius: 50%;
+  background: rgba(10, 17, 22, 0.2);
+  opacity: 0;
+  transform: translateY(8px);
+  backdrop-filter: blur(7px);
+  cursor: pointer;
+  pointer-events: none;
+  transition: opacity 260ms ease, transform 260ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.kisara-fridge-replay svg {
+  width: 17px;
+  height: 17px;
+  transition: transform 360ms cubic-bezier(0.18, 0.76, 0.2, 1);
+}
+
+.kisara-fridge-scene.is-fridge-open .kisara-fridge-replay {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.kisara-fridge-replay:hover,
+.kisara-fridge-replay:focus-visible {
+  color: #ffb4ca;
+  border-color: rgba(255, 180, 202, 0.5);
+  outline: none;
+}
+
+.kisara-fridge-replay:hover svg,
+.kisara-fridge-replay:focus-visible svg {
+  transform: rotate(-180deg);
 }
 
 .kisara-event-scene {
@@ -3931,8 +4409,6 @@ html.kisara-event-modal-open {
     margin-left: clamp(28px, 6vw, 64px);
   }
 
-  .kisara-signal-deck { contain-intrinsic-size: auto 880px; }
-
   .kisara-home-band-heading {
     grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
   }
@@ -3946,11 +4422,9 @@ html.kisara-event-modal-open {
     max-width: 620px;
   }
 
-  .kisara-home-frequency { display: none; }
-
-  .kisara-signal-stream { grid-template-columns: 1fr; }
-  .kisara-signal-stream article { min-height: 220px; border-right: 0; border-bottom: 1px solid rgba(145, 177, 255, 0.2); }
-  .kisara-signal-stream article:last-child { border-bottom: 0; }
+  .kisara-fridge-findings {
+    width: min(100%, 920px);
+  }
 
   .kisara-event-board {
     grid-template-columns: 1fr;
@@ -4059,11 +4533,10 @@ html.kisara-event-modal-open {
     min-height: 58px;
   }
 
-  .kisara-signal-deck,
   .kisara-home-projects,
   .kisara-latest { padding: 92px 0 104px; }
 
-  .kisara-signal-deck { contain-intrinsic-size: auto 980px; }
+  .kisara-fridge-deck { padding: 0; }
 
   .kisara-home-band-heading,
   .kisara-home-band-heading.is-lab-heading,
@@ -4078,6 +4551,99 @@ html.kisara-event-modal-open {
   .kisara-home-band-heading h2 { font-size: 3rem; }
   .kisara-home-band-heading > p { max-width: none; }
   .kisara-home-band-heading .kisara-section-link { width: max-content; }
+
+  .kisara-home-transition {
+    height: 92px;
+  }
+
+  .kisara-home-transition.is-event-to-latest {
+    height: 72px;
+  }
+
+  .kisara-home-transition.is-latest-to-footer {
+    height: 148px;
+  }
+
+  .kisara-fridge-deck,
+  .kisara-fridge-scene {
+    min-height: 940px;
+  }
+
+  .kisara-fridge-media > img {
+    object-position: 54% 50%;
+  }
+
+  .kisara-fridge-shade {
+    background:
+      linear-gradient(180deg, rgba(7, 11, 15, 0.68) 0%, rgba(8, 12, 16, 0.16) 28%, transparent 42%, rgba(7, 11, 16, 0.9) 72%, #070b10 100%),
+      linear-gradient(90deg, rgba(8, 12, 16, 0.26), transparent 70%);
+  }
+
+  .kisara-fridge-content {
+    min-height: 940px;
+    padding-top: 92px;
+    padding-bottom: 34px;
+  }
+
+  .kisara-fridge-overlay-heading {
+    align-items: flex-start;
+  }
+
+  .kisara-fridge-findings {
+    width: 100%;
+    padding-left: 20px;
+  }
+
+  .kisara-fridge-findings-title {
+    max-width: 100%;
+    font-size: clamp(2.5rem, 11.5vw, 3.65rem);
+  }
+
+  .kisara-fridge-findings-status {
+    align-items: start;
+  }
+
+  .kisara-fridge-findings-status small {
+    max-width: 150px;
+    text-align: right;
+    line-height: 1.45;
+  }
+
+  .kisara-fridge-findings-copy {
+    max-width: 92%;
+    font-size: 0.84rem;
+  }
+
+  .kisara-fridge-detail {
+    max-width: 94%;
+    min-height: 92px;
+  }
+
+  .kisara-fridge-inventory {
+    grid-template-columns: 1fr;
+    margin-top: 18px;
+  }
+
+  .kisara-fridge-inventory button {
+    grid-template-columns: 28px minmax(0, 1fr) 34px;
+    gap: 10px;
+    min-height: 62px;
+    padding: 10px 8px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(221, 238, 244, 0.12);
+  }
+
+  .kisara-fridge-inventory button:last-child { border-bottom: 0; }
+
+  .kisara-fridge-inventory button > i {
+    width: 32px;
+    height: 32px;
+  }
+
+  .kisara-fridge-replay {
+    top: 148px;
+    right: 2px;
+  }
 
   .kisara-event-heading-note {
     padding-left: 14px;
@@ -4249,12 +4815,6 @@ html.kisara-event-modal-open {
     width: 100%;
   }
 
-  .kisara-signal-stage { grid-template-columns: 46px minmax(0, 1fr); }
-  .kisara-signal-axis { min-height: 650px; padding: 20px 10px; }
-  .kisara-signal-axis i { width: 12px; }
-  .kisara-signal-axis i:nth-of-type(3n) { width: 24px; }
-  .kisara-signal-stream article { min-height: 215px; padding: 28px 20px 34px; }
-
   .kisara-transmission-shelf { width: min(100% - 32px, 1180px); }
   .kisara-transmission-shelf > a { grid-template-columns: 104px minmax(0, 1fr); gap: 18px; padding: 26px 4px; }
   .kisara-transmission-copy p { -webkit-line-clamp: 2; font-size: 0.86rem; }
@@ -4262,6 +4822,44 @@ html.kisara-event-modal-open {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .kisara-fridge-scan,
+  .kisara-fridge-mist {
+    display: none;
+  }
+
+  .kisara-fridge-media > img,
+  .kisara-fridge-shade,
+  .kisara-fridge-light,
+  .kisara-fridge-overlay-heading,
+  .kisara-fridge-findings,
+  .kisara-fridge-inventory button,
+  .kisara-fridge-replay {
+    animation: none;
+    transition: none;
+  }
+
+  .kisara-fridge-media > img,
+  .kisara-fridge-scene[data-fridge-bound="true"]:not(.is-fridge-opening):not(.is-fridge-open) .kisara-fridge-media > img {
+    filter: saturate(0.92) contrast(1.03) brightness(0.9);
+    transform: scale(1.012);
+  }
+
+  .kisara-fridge-light {
+    opacity: 0.11;
+  }
+
+  .kisara-fridge-overlay-heading,
+  .kisara-fridge-findings,
+  .kisara-fridge-inventory button,
+  .kisara-fridge-replay {
+    opacity: 1;
+    transform: none;
+  }
+
+  .kisara-fridge-replay {
+    pointer-events: auto;
+  }
+
   .kisara-opening-memory-image,
   .kisara-opening.is-memory-armed .kisara-opening-memory-image,
   .kisara-opening.is-memory-revealed .kisara-opening-memory-image {
