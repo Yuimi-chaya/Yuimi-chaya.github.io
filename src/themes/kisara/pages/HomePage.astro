@@ -419,9 +419,11 @@ const gateStyle = [
   <div class="kisara-home-transition is-memory-to-fridge" aria-hidden="true"><span></span><i></i><i></i></div>
 
   <section class="kisara-fridge-deck" aria-labelledby="kisara-fridge-title">
-    <kisara-fridge-scene class="kisara-fridge-scene" data-active-index="0">
+    <kisara-fridge-scene class="kisara-fridge-scene" data-active-index="0" data-fridge-bound="true">
       <div class="kisara-fridge-media">
         <img
+          class="kisara-fridge-image"
+          data-fridge-image
           src="/themes/kisara/assets/fridge-discovery-002.webp"
           alt="木更打开冰箱，从冰箱内部向里张望"
           width="1528"
@@ -429,10 +431,20 @@ const gateStyle = [
           loading="lazy"
           decoding="async"
         />
+        <img
+          class="kisara-fridge-veil-image"
+          data-fridge-image
+          src="/themes/kisara/assets/fridge-discovery-002-veil.webp"
+          alt=""
+          width="1528"
+          height="860"
+          loading="lazy"
+          decoding="async"
+          aria-hidden="true"
+        />
         <span class="kisara-fridge-light" aria-hidden="true"></span>
-        <span class="kisara-fridge-scan" aria-hidden="true"><i></i></span>
-        <span class="kisara-fridge-mist" aria-hidden="true"><i></i><i></i><i></i></span>
         <span class="kisara-fridge-shade" aria-hidden="true"></span>
+        <span class="kisara-fridge-curtain" aria-hidden="true"></span>
       </div>
 
       <div class="kisara-content-shell kisara-fridge-content">
@@ -440,7 +452,7 @@ const gateStyle = [
           <p class="kisara-section-index">REFRIGERATOR LOG / 002</p>
           <div class="kisara-fridge-findings-status">
             <span data-fridge-status>SEALED</span>
-            <small>INTERIOR / 04°C</small>
+            <small>KISARA / HOME LOG</small>
           </div>
         </header>
 
@@ -502,7 +514,7 @@ const gateStyle = [
           const { signal } = controller;
           const items = Array.from(this.querySelectorAll<HTMLButtonElement>("[data-fridge-item]"));
           const replay = this.querySelector<HTMLButtonElement>("[data-fridge-replay]");
-          const image = this.querySelector<HTMLImageElement>(".kisara-fridge-media > img");
+          const images = Array.from(this.querySelectorAll<HTMLImageElement>("[data-fridge-image]"));
           const status = this.querySelector<HTMLElement>("[data-fridge-status]");
           const title = this.querySelector<HTMLElement>("[data-fridge-title]");
           const detail = this.querySelector<HTMLElement>("[data-fridge-detail]");
@@ -512,7 +524,7 @@ const gateStyle = [
           if (!items.length || !title || !detail || !meta) return;
 
           let visible = false;
-          let decoded = !image || (image.complete && image.naturalWidth > 0);
+          let decoded = images.every((image) => image.complete && image.naturalWidth > 0);
           let startFrame = 0;
           let openTimer = 0;
           let detailAnimation: Animation | null = null;
@@ -556,6 +568,7 @@ const gateStyle = [
             this.observer?.disconnect();
             this.observer = null;
             if (reducedMotion) {
+              this.classList.remove("is-fridge-resetting");
               this.classList.add("is-fridge-open");
               if (status) status.textContent = "OPEN / 04°C";
               return;
@@ -564,8 +577,9 @@ const gateStyle = [
             startFrame = requestAnimationFrame(() => {
               startFrame = 0;
               if (signal.aborted) return;
+              this.classList.remove("is-fridge-resetting");
               this.classList.add("is-fridge-opening");
-              openTimer = window.setTimeout(finishOpening, 1380);
+              openTimer = window.setTimeout(finishOpening, 2500);
             });
           };
 
@@ -575,9 +589,11 @@ const gateStyle = [
             this.observer = null;
             visible = false;
             this.dataset.fridgeBound = "true";
+            this.classList.add("is-fridge-resetting");
             this.classList.remove("is-fridge-opening", "is-fridge-open");
             if (status) status.textContent = "SEALED";
             setActive(0, false);
+            void this.offsetWidth;
 
             if (reducedMotion) {
               visible = true;
@@ -598,21 +614,23 @@ const gateStyle = [
           };
 
           const finishDecode = async () => {
-            if (!image) return;
-            try {
-              if (typeof image.decode === "function") await image.decode();
-            } catch {
-              // A completed image can still render if decode() is interrupted by navigation.
-            }
-            if (signal.aborted || !image.complete || image.naturalWidth <= 0) return;
+            if (!images.length) return;
+            await Promise.all(images.map(async (image) => {
+              try {
+                if (typeof image.decode === "function") await image.decode();
+              } catch {
+                // A completed image can still render if decode() is interrupted by navigation.
+              }
+            }));
+            if (signal.aborted || images.some((image) => !image.complete || image.naturalWidth <= 0)) return;
             decoded = true;
             startOpening();
           };
 
           items.forEach((item, index) => item.addEventListener("click", () => setActive(index), { signal }));
           replay?.addEventListener("click", armOpening, { signal });
-          if (image && !decoded) image.addEventListener("load", () => void finishDecode(), { once: true, signal });
-          else if (image) void finishDecode();
+          if (!decoded) images.forEach((image) => image.addEventListener("load", () => void finishDecode(), { once: true, signal }));
+          void finishDecode();
 
           this.resetScene = armOpening;
           signal.addEventListener("abort", clearPlayback, { once: true });
