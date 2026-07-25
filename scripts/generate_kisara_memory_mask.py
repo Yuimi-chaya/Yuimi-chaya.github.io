@@ -202,6 +202,7 @@ def build_mask(width: int, height: int) -> Image.Image:
     alpha = np.minimum.reduce((alpha_left, alpha_top, alpha_right, alpha_bottom))
 
     extensions = draw_ink_extensions(rng, width, height, right_curve, bottom_curve)
+    extensions *= np.power(alpha_bottom, 0.58)
     alpha = 1.0 - (1.0 - alpha) * (1.0 - extensions)
 
     lower_left_fade = (
