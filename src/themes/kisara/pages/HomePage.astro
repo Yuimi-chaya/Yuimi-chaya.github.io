@@ -318,30 +318,54 @@ const gateStyle = [
       </span>
     </div>
     <div class="kisara-opening-inner">
-      <p class="kisara-section-index">AFTER THE SIGNATURE / 001</p>
-      <div class="kisara-opening-heading">
-        <h2 id="kisara-opening-title">After the contract.</h2>
-        <span>CHANNEL 03 / CONNECTED</span>
-      </div>
-      <div class="kisara-opening-grid">
-        <div class="kisara-opening-copy">
-          <p>这里不再继续重复首屏的演出，而是把视觉、交互与技术记录接到同一条契约线上。</p>
-          <div class="kisara-contractor-line">
-            <span>CONTRACTOR</span>
-            <strong>{profileIdentity.displayName} / {profileIdentity.handle}</strong>
-            <small>兴趣驱动型折腾人 · 喜欢把技术做得有一点可爱</small>
-          </div>
+      <header class="kisara-opening-heading">
+        <div>
+          <p class="kisara-section-index">MEMORY AFTERGLOW / 001</p>
+          <h2 id="kisara-opening-title">What sunset kept.</h2>
         </div>
-        <nav class="kisara-channel-links" aria-label="Kisara theme shortcuts">
-          {channelLinks.map((item) => (
-            <a href={item.href}>
-              <span>{item.index}</span>
-              <Icon name={item.icon} aria-hidden="true" />
-              <div><strong>{item.label}</strong><small>{item.note}</small></div>
-              <i aria-hidden="true">↗</i>
-            </a>
-          ))}
-        </nav>
+        <div class="kisara-opening-heading-note">
+          <span>17:42 / A PAGE LEFT OPEN</span>
+          <p>黄昏留下的，不一定是答案，也可能只是某个舍不得翻过去的瞬间。</p>
+        </div>
+      </header>
+      <div class="kisara-opening-grid">
+        <figure class="kisara-opening-memory" data-kisara-opening-memory>
+          <div class="kisara-opening-memory-visual">
+            <img
+              src="/themes/kisara/assets/opening-memory-001.webp"
+              alt="黄昏中，木更隔着人影安静望来的旧日片段"
+              width="1800"
+              height="1013"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="kisara-opening-memory-wash" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i>
+            </span>
+            <span class="kisara-opening-memory-ripple is-near" aria-hidden="true"></span>
+            <span class="kisara-opening-memory-ripple is-far" aria-hidden="true"></span>
+          </div>
+          <figcaption><span>图 01</span> 黄昏把旧日的轮廓，留在墙边。</figcaption>
+        </figure>
+        <div class="kisara-opening-copy">
+          <p class="kisara-opening-copy-lead">有些记忆没有消失，只是在光线暗下去以后，慢慢失去了清楚的边缘。</p>
+          <p class="kisara-opening-copy-body">这里收下那些没有说完的话，也把技术、动画和下一次想做的小东西，像书页里的批注一样留在身边。</p>
+          <div class="kisara-contractor-line">
+            <span>MEMORY KEEPER</span>
+            <strong>{profileIdentity.displayName} / {profileIdentity.handle}</strong>
+            <small>兴趣驱动型折腾人 · 也收藏一些舍不得忘掉的瞬间</small>
+          </div>
+          <nav class="kisara-channel-links" aria-label="Kisara theme shortcuts">
+            {channelLinks.map((item) => (
+              <a href={item.href}>
+                <span>{item.index}</span>
+                <Icon name={item.icon} aria-hidden="true" />
+                <div><strong>{item.label}</strong><small>{item.note}</small></div>
+                <i aria-hidden="true">↗</i>
+              </a>
+            ))}
+          </nav>
+        </div>
       </div>
     </div>
   </section>
@@ -619,6 +643,31 @@ const gateStyle = [
       const motionToggle = gate.querySelector("[data-kisara-motion-toggle]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const openingMemory = opening instanceof HTMLElement
+        ? opening.querySelector("[data-kisara-opening-memory]")
+        : null;
+      let openingMemoryObserver = null;
+      const revealOpeningMemory = () => {
+        if (!(opening instanceof HTMLElement)) return;
+        opening.classList.add("is-memory-revealed");
+        openingMemoryObserver?.disconnect();
+        openingMemoryObserver = null;
+      };
+      if (opening instanceof HTMLElement && openingMemory instanceof HTMLElement && !reducedMotion) {
+        opening.classList.add("is-memory-armed");
+        if (typeof IntersectionObserver === "function") {
+          openingMemoryObserver = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.18)) {
+              revealOpeningMemory();
+            }
+          }, { threshold: [0.18, 0.36], rootMargin: "0px 0px -8%" });
+          window.requestAnimationFrame(() => {
+            if (!disposed && openingMemoryObserver) openingMemoryObserver.observe(openingMemory);
+          });
+        } else {
+          window.requestAnimationFrame(revealOpeningMemory);
+        }
+      }
       let openingEdgeState = {};
       let openingEdgeFlareState = { opacity: 0, filter: "none", shift: 0 };
       let lockedOpeningEdgeState = null;
@@ -11993,6 +12042,9 @@ const gateStyle = [
         gate.removeAttribute("data-binding");
         deactivateOpeningBridgePortal();
         lifecycle.abort();
+        openingMemoryObserver?.disconnect();
+        openingMemoryObserver = null;
+        opening?.classList.remove("is-memory-armed", "is-memory-revealed");
         sceneDecodeGeneration += 1;
         sceneImageWarmers.clear();
         spaceLensInitGeneration += 1;
