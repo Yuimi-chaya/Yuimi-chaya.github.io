@@ -2176,23 +2176,19 @@
 }
 
 .kisara-opening-memory-visual {
+  --kisara-memory-source-height: 112%;
+  --kisara-memory-source-top: -4%;
   position: relative;
   isolation: isolate;
   overflow: visible;
   aspect-ratio: 1.28;
 }
 
-.kisara-opening-memory img {
-  position: relative;
-  z-index: 2;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: left center;
-  filter: saturate(0.82) contrast(0.96) sepia(0.16) brightness(0.985);
-  transform: scale(1.02);
-  transform-origin: 24% 48%;
+.kisara-opening-memory-core {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  overflow: hidden;
   -webkit-mask-image: url("/themes/kisara/assets/opening-memory-ink-mask.png");
   -webkit-mask-position: center;
   -webkit-mask-repeat: no-repeat;
@@ -2203,14 +2199,31 @@
   mask-size: 100% 100%;
 }
 
-.kisara-opening.is-memory-armed .kisara-opening-memory img {
-  opacity: 0.36;
-  filter: blur(18px) saturate(0.56) contrast(0.9) sepia(0.3) brightness(0.98);
-  transform: scale(1.085) translate3d(-1.2%, 0.6%, 0);
-  will-change: opacity, filter, transform;
+.kisara-opening-memory-image {
+  position: absolute;
+  top: var(--kisara-memory-source-top);
+  left: 0;
+  display: block;
+  width: auto;
+  max-width: none;
+  height: var(--kisara-memory-source-height);
+  object-fit: contain;
+  object-position: left top;
+  pointer-events: none;
 }
 
-.kisara-opening.is-memory-revealed .kisara-opening-memory img {
+.kisara-opening-memory-image {
+  z-index: 1;
+  filter: saturate(0.82) contrast(0.96) sepia(0.16) brightness(0.985);
+}
+
+.kisara-opening.is-memory-armed .kisara-opening-memory-image {
+  opacity: 0.36;
+  filter: blur(18px) saturate(0.56) contrast(0.9) sepia(0.3) brightness(0.98);
+  will-change: opacity, filter;
+}
+
+.kisara-opening.is-memory-revealed .kisara-opening-memory-image {
   animation: kisara-memory-image-develop 2.35s cubic-bezier(0.2, 0.72, 0.18, 1) both;
 }
 
@@ -2218,7 +2231,6 @@
   0% {
     opacity: 0.36;
     filter: blur(18px) saturate(0.56) contrast(0.9) sepia(0.3) brightness(0.98);
-    transform: scale(1.085) translate3d(-1.2%, 0.6%, 0);
   }
   38% {
     opacity: 0.72;
@@ -2231,114 +2243,45 @@
   100% {
     opacity: 1;
     filter: blur(0) saturate(0.82) contrast(0.96) sepia(0.16) brightness(0.985);
-    transform: scale(1.02) translate3d(0, 0, 0);
   }
 }
 
-.kisara-opening-memory-bleed {
+.kisara-opening-memory-source {
   position: absolute;
-  z-index: 1;
-  display: block;
-  opacity: 0.2;
-  background-image: url("/themes/kisara/assets/opening-memory-001.webp");
-  background-repeat: no-repeat;
-  filter: blur(22px) saturate(0.68) contrast(0.88) sepia(0.16);
-  mix-blend-mode: multiply;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
   pointer-events: none;
 }
 
-.kisara-opening-memory-bleed.is-right {
-  top: 3%;
-  right: -22%;
-  bottom: -2%;
-  left: 50%;
-  background-position: right center;
-  background-size: auto 108%;
-  -webkit-mask-image: url("/themes/kisara/assets/opening-memory-ink-mask.png");
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-image: url("/themes/kisara/assets/opening-memory-ink-mask.png");
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: 100% 100%;
-}
-
-.kisara-opening-memory-bleed.is-bottom {
-  top: 60%;
-  right: 3%;
-  bottom: -25%;
-  left: -6%;
-  opacity: 0.16;
-  background-position: left bottom;
-  background-size: 120% auto;
-  filter: blur(24px) saturate(0.66) contrast(0.86) sepia(0.2);
-  -webkit-mask-image: url("/themes/kisara/assets/opening-memory-ink-mask.png");
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-image: url("/themes/kisara/assets/opening-memory-ink-mask.png");
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: 100% 100%;
-}
-
-.kisara-opening.is-memory-armed .kisara-opening-memory-bleed {
+.kisara-opening-memory-ink-canvas {
+  position: absolute;
+  z-index: 2;
+  top: var(--kisara-memory-source-top);
+  left: 0;
+  display: block;
+  width: auto;
+  max-width: none;
+  height: var(--kisara-memory-source-height);
   opacity: 0;
-  will-change: opacity, filter, clip-path;
+  filter: saturate(0.68) contrast(0.9) sepia(0.18) brightness(0.99);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  transition: opacity 320ms ease-out;
 }
 
-.kisara-opening.is-memory-blooming .kisara-opening-memory-bleed.is-right {
-  animation: kisara-memory-bleed-right 2.15s cubic-bezier(0.16, 0.78, 0.18, 1) both;
+.kisara-opening.is-memory-armed .kisara-opening-memory-ink-canvas {
+  opacity: 0;
+  will-change: opacity;
 }
 
-.kisara-opening.is-memory-blooming .kisara-opening-memory-bleed.is-bottom {
-  animation: kisara-memory-bleed-bottom 2.3s cubic-bezier(0.16, 0.78, 0.18, 1) 180ms both;
-}
-
-@keyframes kisara-memory-bleed-right {
-  0% {
-    opacity: 0;
-    filter: blur(36px) saturate(0.54) contrast(0.82) sepia(0.24);
-    clip-path: polygon(0 0, 0 0, 0 16%, 0 33%, 0 50%, 0 67%, 0 84%, 0 100%, 0 100%, 0 0);
-  }
-  20% {
-    opacity: 0.05;
-  }
-  66% {
-    opacity: 0.3;
-    filter: blur(21px) saturate(0.72) contrast(0.9) sepia(0.17);
-    clip-path: polygon(0 0, 80% 0, 72% 16%, 88% 33%, 74% 50%, 92% 67%, 79% 84%, 86% 100%, 0 100%, 0 0);
-  }
-  100% {
-    opacity: 0.2;
-    filter: blur(22px) saturate(0.68) contrast(0.88) sepia(0.16);
-    clip-path: polygon(0 0, 100% 0, 100% 16%, 100% 33%, 100% 50%, 100% 67%, 100% 84%, 100% 100%, 0 100%, 0 0);
-  }
-}
-
-@keyframes kisara-memory-bleed-bottom {
-  0% {
-    opacity: 0;
-    filter: blur(38px) saturate(0.5) contrast(0.8) sepia(0.26);
-    clip-path: polygon(0 0, 100% 0, 100% 0, 84% 0, 67% 0, 50% 0, 33% 0, 16% 0, 0 0, 0 0);
-  }
-  22% {
-    opacity: 0.04;
-  }
-  68% {
-    opacity: 0.24;
-    filter: blur(23px) saturate(0.7) contrast(0.88) sepia(0.2);
-    clip-path: polygon(0 0, 100% 0, 100% 80%, 84% 72%, 67% 88%, 50% 76%, 33% 92%, 16% 78%, 0 86%, 0 0);
-  }
-  100% {
-    opacity: 0.16;
-    filter: blur(24px) saturate(0.66) contrast(0.86) sepia(0.2);
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 84% 100%, 67% 100%, 50% 100%, 33% 100%, 16% 100%, 0 100%, 0 0);
-  }
+.kisara-opening.is-memory-blooming .kisara-opening-memory-ink-canvas {
+  opacity: 0.68;
 }
 
 .kisara-opening-memory figcaption {
+  position: relative;
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2381,6 +2324,8 @@
 }
 
 .kisara-opening-copy {
+  position: relative;
+  z-index: 5;
   min-width: 0;
   padding-top: 8px;
 }
@@ -3056,21 +3001,9 @@
   }
 
   .kisara-opening-memory-visual {
+    --kisara-memory-source-height: 108%;
+    --kisara-memory-source-top: -3%;
     aspect-ratio: 1.08;
-  }
-
-  .kisara-opening-memory img {
-    object-position: 8% center;
-  }
-
-  .kisara-opening-memory-bleed.is-right {
-    right: -12%;
-    left: 48%;
-  }
-
-  .kisara-opening-memory-bleed.is-bottom {
-    right: 2%;
-    bottom: -18%;
   }
 
   .kisara-opening-memory figcaption {
@@ -3141,32 +3074,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kisara-opening.is-memory-armed .kisara-opening-memory img,
-  .kisara-opening.is-memory-revealed .kisara-opening-memory img {
+  .kisara-opening-memory-image,
+  .kisara-opening.is-memory-armed .kisara-opening-memory-image,
+  .kisara-opening.is-memory-revealed .kisara-opening-memory-image {
     opacity: 1;
     filter: saturate(0.82) contrast(0.96) sepia(0.16) brightness(0.985);
-    transform: scale(1.02);
     animation: none;
   }
 
-  .kisara-opening.is-memory-armed .kisara-opening-memory-bleed,
-  .kisara-opening.is-memory-revealed .kisara-opening-memory-bleed {
-    animation: none;
-  }
-
-  .kisara-opening.is-memory-armed .kisara-opening-memory-bleed.is-right,
-  .kisara-opening.is-memory-revealed .kisara-opening-memory-bleed.is-right {
-    opacity: 0.2;
-    filter: blur(22px) saturate(0.68) contrast(0.88) sepia(0.16);
-    clip-path: none;
-    transform: none;
-  }
-
-  .kisara-opening.is-memory-armed .kisara-opening-memory-bleed.is-bottom,
-  .kisara-opening.is-memory-revealed .kisara-opening-memory-bleed.is-bottom {
-    opacity: 0.16;
-    filter: blur(24px) saturate(0.66) contrast(0.86) sepia(0.2);
-    clip-path: none;
-    transform: none;
+  .kisara-opening-memory-ink-canvas,
+  .kisara-opening.is-memory-blooming .kisara-opening-memory-ink-canvas {
+    opacity: 0.68;
+    transition: none;
   }
 }

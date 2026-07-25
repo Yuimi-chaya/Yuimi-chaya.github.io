@@ -332,15 +332,35 @@ const gateStyle = [
         <figure class="kisara-opening-memory" data-kisara-opening-memory>
           <div class="kisara-opening-memory-visual">
             <img
+              class="kisara-opening-memory-source"
+              data-kisara-memory-source
               src="/themes/kisara/assets/opening-memory-001.webp"
-              alt="黄昏中，木更隔着人影安静望来的旧日片段"
+              alt=""
               width="1800"
               height="1013"
               loading="lazy"
               decoding="async"
+              aria-hidden="true"
             />
-            <span class="kisara-opening-memory-bleed is-right" aria-hidden="true"></span>
-            <span class="kisara-opening-memory-bleed is-bottom" aria-hidden="true"></span>
+            <canvas
+              class="kisara-opening-memory-ink-canvas"
+              data-kisara-memory-ink-canvas
+              width="960"
+              height="540"
+              aria-hidden="true"
+            ></canvas>
+            <span class="kisara-opening-memory-core">
+              <img
+                class="kisara-opening-memory-image"
+                data-kisara-opening-image
+                src="/themes/kisara/assets/opening-memory-001.webp"
+                alt="黄昏中，木更隔着人影安静望来的旧日片段"
+                width="1800"
+                height="1013"
+                loading="lazy"
+                decoding="async"
+              />
+            </span>
           </div>
           <figcaption><span>图 01</span> 黄昏把旧日的轮廓，留在墙边。</figcaption>
         </figure>
@@ -644,15 +664,315 @@ const gateStyle = [
         ? opening.querySelector("[data-kisara-opening-memory]")
         : null;
       const openingMemoryImage = openingMemory instanceof HTMLElement
-        ? openingMemory.querySelector("img")
+        ? openingMemory.querySelector("[data-kisara-opening-image]")
         : null;
+      const openingMemoryVisual = openingMemory instanceof HTMLElement
+        ? openingMemory.querySelector(".kisara-opening-memory-visual")
+        : null;
+      const openingMemorySource = openingMemory instanceof HTMLElement
+        ? openingMemory.querySelector("[data-kisara-memory-source]")
+        : null;
+      const openingMemoryInkCanvas = openingMemory instanceof HTMLElement
+        ? openingMemory.querySelector("[data-kisara-memory-ink-canvas]")
+        : null;
+      const openingMemoryInkContext = openingMemoryInkCanvas instanceof HTMLCanvasElement
+        ? openingMemoryInkCanvas.getContext("2d", { alpha: true })
+        : null;
+      const openingMemoryMaskCanvas = document.createElement("canvas");
+      const openingMemoryMaskContext = openingMemoryMaskCanvas.getContext("2d", { alpha: true });
+      openingMemoryMaskCanvas.width = openingMemoryInkCanvas instanceof HTMLCanvasElement
+        ? openingMemoryInkCanvas.width
+        : 960;
+      openingMemoryMaskCanvas.height = openingMemoryInkCanvas instanceof HTMLCanvasElement
+        ? openingMemoryInkCanvas.height
+        : 540;
+      let openingMemoryInkFrame = 0;
+      let openingMemoryInkLastPaint = 0;
+      let openingMemoryInkProgress = 0;
+      let openingMemoryInkGeneration = 0;
+      let openingMemoryInkStarted = false;
+      let openingMemoryInkNodes = [];
+      let openingMemoryInkResizeObserver = null;
+      let openingMemoryInkGeometry = null;
+
+      const createMemoryInkRandom = (seed) => {
+        let value = seed >>> 0;
+        return () => {
+          value += 0x6d2b79f5;
+          let result = value;
+          result = Math.imul(result ^ (result >>> 15), result | 1);
+          result ^= result + Math.imul(result ^ (result >>> 7), result | 61);
+          return ((result ^ (result >>> 14)) >>> 0) / 4294967296;
+        };
+      };
+
+      const createMemoryInkBrush = (seed) => {
+        const brush = document.createElement("canvas");
+        brush.width = 96;
+        brush.height = 96;
+        const context = brush.getContext("2d", { alpha: true });
+        if (!context) return brush;
+        const random = createMemoryInkRandom(seed);
+        context.clearRect(0, 0, brush.width, brush.height);
+        for (let index = 0; index < 20; index += 1) {
+          const angle = random() * Math.PI * 2;
+          const distance = Math.pow(random(), 0.72) * 18;
+          const x = 48 + Math.cos(angle) * distance;
+          const y = 48 + Math.sin(angle) * distance;
+          const radius = 18 + random() * 23;
+          const gradient = context.createRadialGradient(x, y, radius * 0.08, x, y, radius);
+          gradient.addColorStop(0, `rgba(255,255,255,${(0.22 + random() * 0.2).toFixed(3)})`);
+          gradient.addColorStop(0.46, `rgba(255,255,255,${(0.14 + random() * 0.16).toFixed(3)})`);
+          gradient.addColorStop(0.78, `rgba(255,255,255,${(0.035 + random() * 0.055).toFixed(3)})`);
+          gradient.addColorStop(1, "rgba(255,255,255,0)");
+          context.fillStyle = gradient;
+          context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+        }
+        return brush;
+      };
+
+      const openingMemoryInkBrushes = [
+        createMemoryInkBrush(3107),
+        createMemoryInkBrush(8219),
+        createMemoryInkBrush(14503),
+        createMemoryInkBrush(22637),
+        createMemoryInkBrush(41047),
+        createMemoryInkBrush(65537)
+      ];
+
+      const measureOpeningMemoryInk = () => {
+        if (
+          !(openingMemoryVisual instanceof HTMLElement)
+          || !(openingMemoryInkCanvas instanceof HTMLCanvasElement)
+        ) return null;
+        const visualRect = openingMemoryVisual.getBoundingClientRect();
+        const canvasRect = openingMemoryInkCanvas.getBoundingClientRect();
+        if (visualRect.width <= 0 || canvasRect.width <= 0 || canvasRect.height <= 0) return null;
+        return {
+          width: openingMemoryInkCanvas.width,
+          height: openingMemoryInkCanvas.height,
+          coreRight: openingMemoryInkCanvas.width * ((visualRect.right - canvasRect.left) / canvasRect.width),
+          coreBottom: openingMemoryInkCanvas.height * ((visualRect.bottom - canvasRect.top) / canvasRect.height)
+        };
+      };
+
+      const buildOpeningMemoryInk = () => {
+        const geometry = measureOpeningMemoryInk();
+        if (!geometry) return false;
+        openingMemoryInkGeometry = geometry;
+        const { width, height, coreRight, coreBottom } = geometry;
+        const random = createMemoryInkRandom(20260725);
+        const nodes = [];
+        const addField = ({
+          seedX,
+          seedY,
+          direction,
+          spread,
+          reachX,
+          reachY,
+          count,
+          birthStart,
+          birthEnd,
+          radiusMin,
+          radiusMax
+        }) => {
+          for (let index = 0; index < count; index += 1) {
+            const distance = Math.pow(random(), 0.64);
+            const angle = direction
+              + (random() - 0.5) * spread
+              + Math.sin(index * 1.71 + seedY * 0.01) * 0.075;
+            const edgeNoise = (random() - 0.5) * (8 + distance * 14);
+            const x = seedX + Math.cos(angle) * reachX * distance + edgeNoise;
+            const y = seedY + Math.sin(angle) * reachY * distance + edgeNoise * 0.42;
+            if (x < -20 || x > width + 20 || y < -20 || y > height + 20) continue;
+            const radius = radiusMin + random() * (radiusMax - radiusMin);
+            nodes.push({
+              x,
+              y,
+              radiusX: radius * (0.82 + random() * 0.55),
+              radiusY: radius * (0.72 + random() * 0.62),
+              rotation: (random() - 0.5) * 0.9,
+              birth: Math.min(0.94, birthStart + (birthEnd - birthStart) * distance + random() * 0.055),
+              growth: 0.11 + random() * 0.14,
+              alpha: (0.38 + random() * 0.34) * (1 - distance * 0.28),
+              brush: Math.floor(random() * openingMemoryInkBrushes.length)
+            });
+          }
+        };
+
+        addField({
+          seedX: coreRight - 6,
+          seedY: coreBottom * 0.42,
+          direction: 0.08,
+          spread: 2.05,
+          reachX: width * 0.27,
+          reachY: height * 0.34,
+          count: 118,
+          birthStart: 0,
+          birthEnd: 0.82,
+          radiusMin: 12,
+          radiusMax: 34
+        });
+        addField({
+          seedX: coreRight - 9,
+          seedY: coreBottom * 0.72,
+          direction: 0.48,
+          spread: 1.72,
+          reachX: width * 0.24,
+          reachY: height * 0.28,
+          count: 94,
+          birthStart: 0.07,
+          birthEnd: 0.88,
+          radiusMin: 12,
+          radiusMax: 32
+        });
+        addField({
+          seedX: coreRight * 0.5,
+          seedY: coreBottom - 5,
+          direction: Math.PI / 2,
+          spread: 2.3,
+          reachX: width * 0.31,
+          reachY: height * 0.17,
+          count: 104,
+          birthStart: 0.11,
+          birthEnd: 0.9,
+          radiusMin: 11,
+          radiusMax: 30
+        });
+        addField({
+          seedX: coreRight * 0.76,
+          seedY: coreBottom - 7,
+          direction: 1.08,
+          spread: 1.9,
+          reachX: width * 0.22,
+          reachY: height * 0.18,
+          count: 72,
+          birthStart: 0.18,
+          birthEnd: 0.92,
+          radiusMin: 10,
+          radiusMax: 27
+        });
+        openingMemoryInkNodes = nodes.sort((left, right) => left.birth - right.birth);
+        return true;
+      };
+
+      const renderOpeningMemoryInk = (progressValue) => {
+        if (
+          !(openingMemoryInkCanvas instanceof HTMLCanvasElement)
+          || !(openingMemorySource instanceof HTMLImageElement)
+          || !openingMemoryInkContext
+          || !openingMemoryMaskContext
+          || openingMemorySource.naturalWidth <= 0
+        ) return;
+        if (!openingMemoryInkGeometry && !buildOpeningMemoryInk()) return;
+        const width = openingMemoryInkCanvas.width;
+        const height = openingMemoryInkCanvas.height;
+        const progress = clamp(progressValue, 0, 1);
+        openingMemoryMaskContext.clearRect(0, 0, width, height);
+        for (const node of openingMemoryInkNodes) {
+          if (node.birth > progress) break;
+          const age = clamp((progress - node.birth) / node.growth, 0, 1);
+          const growth = 0.22 + (1 - Math.pow(1 - age, 2.4)) * 0.78;
+          const brush = openingMemoryInkBrushes[node.brush];
+          openingMemoryMaskContext.save();
+          openingMemoryMaskContext.translate(node.x, node.y);
+          openingMemoryMaskContext.rotate(node.rotation);
+          openingMemoryMaskContext.globalAlpha = node.alpha * (0.24 + age * 0.76);
+          openingMemoryMaskContext.drawImage(
+            brush,
+            -node.radiusX * growth,
+            -node.radiusY * growth,
+            node.radiusX * growth * 2,
+            node.radiusY * growth * 2
+          );
+          openingMemoryMaskContext.restore();
+        }
+
+        openingMemoryInkContext.clearRect(0, 0, width, height);
+        openingMemoryInkContext.globalCompositeOperation = "source-over";
+        openingMemoryInkContext.drawImage(openingMemorySource, 0, 0, width, height);
+        openingMemoryInkContext.globalCompositeOperation = "destination-in";
+        openingMemoryInkContext.drawImage(openingMemoryMaskCanvas, 0, 0);
+        const horizontalEdgeFade = openingMemoryInkContext.createLinearGradient(0, 0, width, 0);
+        horizontalEdgeFade.addColorStop(0, "rgba(0,0,0,0)");
+        horizontalEdgeFade.addColorStop(0.045, "rgba(0,0,0,0.58)");
+        horizontalEdgeFade.addColorStop(0.085, "rgba(0,0,0,1)");
+        horizontalEdgeFade.addColorStop(0.8, "rgba(0,0,0,1)");
+        horizontalEdgeFade.addColorStop(0.89, "rgba(0,0,0,0.72)");
+        horizontalEdgeFade.addColorStop(0.955, "rgba(0,0,0,0.16)");
+        horizontalEdgeFade.addColorStop(1, "rgba(0,0,0,0)");
+        openingMemoryInkContext.fillStyle = horizontalEdgeFade;
+        openingMemoryInkContext.fillRect(0, 0, width, height);
+        const verticalEdgeFade = openingMemoryInkContext.createLinearGradient(0, 0, 0, height);
+        verticalEdgeFade.addColorStop(0, "rgba(0,0,0,0)");
+        verticalEdgeFade.addColorStop(0.05, "rgba(0,0,0,0.72)");
+        verticalEdgeFade.addColorStop(0.09, "rgba(0,0,0,1)");
+        verticalEdgeFade.addColorStop(0.9, "rgba(0,0,0,1)");
+        verticalEdgeFade.addColorStop(0.95, "rgba(0,0,0,0.48)");
+        verticalEdgeFade.addColorStop(1, "rgba(0,0,0,0)");
+        openingMemoryInkContext.fillStyle = verticalEdgeFade;
+        openingMemoryInkContext.fillRect(0, 0, width, height);
+        openingMemoryInkContext.globalCompositeOperation = "source-over";
+      };
+
+      const prepareOpeningMemoryInk = () => {
+        if (!(openingMemorySource instanceof HTMLImageElement)) return Promise.resolve(false);
+        if (openingMemorySource.complete && openingMemorySource.naturalWidth > 0) {
+          return Promise.resolve(true);
+        }
+        if (typeof openingMemorySource.decode === "function") {
+          return openingMemorySource.decode().then(() => true).catch(() => false);
+        }
+        return new Promise((resolve) => {
+          openingMemorySource.addEventListener("load", () => resolve(true), { once: true, signal });
+          openingMemorySource.addEventListener("error", () => resolve(false), { once: true, signal });
+        });
+      };
+
+      const playOpeningMemoryInk = async (instant = false) => {
+        const generation = ++openingMemoryInkGeneration;
+        const ready = await prepareOpeningMemoryInk();
+        if (!ready || disposed || generation !== openingMemoryInkGeneration) return;
+        openingMemoryInkStarted = true;
+        openingMemoryInkProgress = instant ? 1 : 0;
+        buildOpeningMemoryInk();
+        if (instant) {
+          renderOpeningMemoryInk(1);
+          return;
+        }
+        if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
+        const startedAt = performance.now();
+        const duration = 2450;
+        const paint = (timestamp) => {
+          if (disposed || generation !== openingMemoryInkGeneration) return;
+          if (timestamp - openingMemoryInkLastPaint < 24 && openingMemoryInkProgress < 1) {
+            openingMemoryInkFrame = window.requestAnimationFrame(paint);
+            return;
+          }
+          openingMemoryInkLastPaint = timestamp;
+          const linear = clamp((timestamp - startedAt) / duration, 0, 1);
+          openingMemoryInkProgress = 1 - Math.pow(1 - linear, 2.15);
+          renderOpeningMemoryInk(openingMemoryInkProgress);
+          if (linear < 1) {
+            openingMemoryInkFrame = window.requestAnimationFrame(paint);
+          } else {
+            openingMemoryInkFrame = 0;
+            openingMemoryInkProgress = 1;
+            renderOpeningMemoryInk(1);
+          }
+        };
+        openingMemoryInkFrame = window.requestAnimationFrame(paint);
+      };
+
       let openingMemoryObserver = null;
       let openingMemoryBloomTimer = 0;
       const startOpeningMemoryBloom = () => {
         if (!(opening instanceof HTMLElement) || disposed) return;
+        if (opening.classList.contains("is-memory-blooming")) return;
         if (openingMemoryBloomTimer) window.clearTimeout(openingMemoryBloomTimer);
         openingMemoryBloomTimer = 0;
         opening.classList.add("is-memory-blooming");
+        playOpeningMemoryInk(false);
       };
       const revealOpeningMemory = () => {
         if (!(opening instanceof HTMLElement)) return;
@@ -679,6 +999,18 @@ const gateStyle = [
         } else {
           window.requestAnimationFrame(revealOpeningMemory);
         }
+      } else if (opening instanceof HTMLElement && openingMemory instanceof HTMLElement) {
+        opening.classList.add("is-memory-blooming");
+        playOpeningMemoryInk(true);
+      }
+      if (openingMemoryVisual instanceof HTMLElement && typeof ResizeObserver === "function") {
+        openingMemoryInkResizeObserver = new ResizeObserver(() => {
+          openingMemoryInkGeometry = null;
+          if (!openingMemoryInkStarted) return;
+          buildOpeningMemoryInk();
+          renderOpeningMemoryInk(openingMemoryInkProgress);
+        });
+        openingMemoryInkResizeObserver.observe(openingMemoryVisual);
       }
       let openingEdgeState = {};
       let openingEdgeFlareState = { opacity: 0, filter: "none", shift: 0 };
@@ -12056,6 +12388,11 @@ const gateStyle = [
         lifecycle.abort();
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
+        openingMemoryInkGeneration += 1;
+        if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
+        openingMemoryInkFrame = 0;
+        openingMemoryInkResizeObserver?.disconnect();
+        openingMemoryInkResizeObserver = null;
         if (openingMemoryBloomTimer) window.clearTimeout(openingMemoryBloomTimer);
         openingMemoryBloomTimer = 0;
         opening?.classList.remove("is-memory-armed", "is-memory-revealed", "is-memory-blooming");
