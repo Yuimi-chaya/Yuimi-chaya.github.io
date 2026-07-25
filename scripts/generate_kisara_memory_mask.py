@@ -9,6 +9,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "public" / "themes" / "kisara" / "assets" / "opening-memory-ink-mask.png"
+DEFAULT_GRAIN_OUTPUT = ROOT / "public" / "themes" / "kisara" / "assets" / "opening-memory-grain.webp"
 DEFAULT_WIDTH = 1280
 DEFAULT_HEIGHT = 1000
 SEED = 20260725
@@ -221,17 +222,58 @@ def build_mask(width: int, height: int) -> Image.Image:
     return Image.fromarray(rgba, mode="RGBA")
 
 
+def build_grain(size: int = 384) -> Image.Image:
+    rng = np.random.default_rng(SEED + 103)
+    fine = rng.random((size, size), dtype=np.float32)
+    coarse = resized_noise(rng, size, size, 12, 12)
+    density = fine * 0.68 + coarse * 0.32
+    alpha = np.clip((density - 0.34) * 26.0, 0.0, 18.0)
+
+    speckles = rng.random((size, size)) > 0.985
+    alpha[speckles] += rng.uniform(8.0, 22.0, int(speckles.sum()))
+    alpha = np.clip(alpha, 0.0, 30.0).astype(np.uint8)
+
+    scratches = Image.new("L", (size, size), 0)
+    draw = ImageDraw.Draw(scratches)
+    for _ in range(16):
+        x = int(rng.uniform(0, size))
+        y = int(rng.uniform(0, size))
+        length = int(rng.uniform(size * 0.08, size * 0.34))
+        draw.line(
+            (x, y, x + int(rng.normal(0, 2.2)), min(size, y + length)),
+            fill=int(rng.uniform(5, 14)),
+            width=1,
+        )
+    scratch_alpha = np.asarray(
+        scratches.filter(ImageFilter.GaussianBlur(0.45)),
+        dtype=np.uint8,
+    )
+    alpha = np.maximum(alpha, scratch_alpha)
+
+    rgba = np.empty((size, size, 4), dtype=np.uint8)
+    rgba[..., 0] = 91
+    rgba[..., 1] = 66
+    rgba[..., 2] = 62
+    rgba[..., 3] = alpha
+    return Image.fromarray(rgba, mode="RGBA")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate the Kisara 001 ink-edge mask.")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--grain-output", type=Path, default=DEFAULT_GRAIN_OUTPUT)
     parser.add_argument("--width", type=int, default=DEFAULT_WIDTH)
     parser.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
     args = parser.parse_args()
 
     output = args.output.resolve()
+    grain_output = args.grain_output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
+    grain_output.parent.mkdir(parents=True, exist_ok=True)
     build_mask(args.width, args.height).save(output, optimize=True)
+    build_grain().save(grain_output, "WEBP", quality=72, method=6, exact=True)
     print(f"Wrote {output} ({args.width}x{args.height})")
+    print(f"Wrote {grain_output} (384x384)")
 
 
 if __name__ == "__main__":
