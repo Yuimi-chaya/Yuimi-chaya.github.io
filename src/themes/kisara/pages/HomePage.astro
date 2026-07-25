@@ -3,7 +3,7 @@ import KisaraLayout from "../layouts/KisaraLayout.astro";
 import homeStylesheet from "../styles/home.css?url";
 import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
-import { currentSignals, profileIdentity } from "@/core/data/profile";
+import { currentSignals } from "@/core/data/profile";
 import { projectEntries } from "@/core/data/projects";
 import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
@@ -128,10 +128,10 @@ const openingEdgeScenes = [
   }
 ].filter((scene) => scene.image);
 const channelLinks = [
-  { index: "01", label: "READ THE LOG", note: "开发与部署记录", href: getThemePath("kisara", "/blog/"), icon: "tabler:book-2" },
-  { index: "02", label: "OPEN THE LAB", note: "项目与互动实验", href: getThemePath("kisara", "/projects/"), icon: "tabler:flask-2" },
-  { index: "03", label: "ENTER PLAY", note: "短暂切进小游戏", href: getThemePath("kisara", "/games/"), icon: "tabler:device-gamepad-2" },
-  { index: "04", label: "TRACE YUIMI", note: "读取契约者资料", href: getThemePath("kisara", "/about/"), icon: "tabler:user-scan" }
+  { index: "01", label: "READ THE LOG", note: "开发与部署记录", href: getThemePath("kisara", "/blog/") },
+  { index: "02", label: "OPEN THE LAB", note: "项目与互动实验", href: getThemePath("kisara", "/projects/") },
+  { index: "03", label: "ENTER PLAY", note: "短暂切进小游戏", href: getThemePath("kisara", "/games/") },
+  { index: "04", label: "TRACE YUIMI", note: "翻阅关于我的注脚", href: getThemePath("kisara", "/about/") }
 ] as const;
 const signalPresentation = [
   { code: "LEARN", icon: "tabler:sparkles", accent: "blue" },
@@ -365,22 +365,34 @@ const gateStyle = [
           <figcaption><span>图 01</span> 黄昏把旧日的轮廓，留在墙边。</figcaption>
         </figure>
         <div class="kisara-opening-copy">
-          <p class="kisara-opening-copy-lead">有些记忆没有消失，只是在光线暗下去以后，慢慢失去了清楚的边缘。</p>
-          <p class="kisara-opening-copy-body">这里收下那些没有说完的话，也把技术、动画和下一次想做的小东西，像书页里的批注一样留在身边。</p>
-          <div class="kisara-contractor-line">
-            <span>MEMORY KEEPER</span>
-            <strong>{profileIdentity.displayName} / {profileIdentity.handle}</strong>
-            <small>兴趣驱动型折腾人 · 也收藏一些舍不得忘掉的瞬间</small>
+          <div class="kisara-opening-lesson">
+            <div class="kisara-opening-lesson-meta">
+              <span>课文 · 节选</span>
+              <i aria-hidden="true">一</i>
+            </div>
+            <div class="kisara-opening-lesson-body">
+              <p class="kisara-opening-copy-lead">有些记忆没有消失，只是在光线暗下去以后，慢慢失去了清楚的边缘。</p>
+              <p class="kisara-opening-copy-body">这里收下那些没有说完的话，也把技术、动画和下一次想做的小东西，像书页里的批注一样留在身边。</p>
+              <p class="kisara-opening-copy-body">等到某一天再次翻到这一页，模糊的轮廓或许会替我们记住，当时的风、黄昏，以及没有说出口的下一句。</p>
+            </div>
+            <aside class="kisara-opening-margin-note" aria-label="课文旁批">
+              <span>旁批</span>
+              <p>记忆会褪色，留下来的往往不是答案，而是仍愿意回头看的那一瞬。</p>
+            </aside>
           </div>
           <nav class="kisara-channel-links" aria-label="Kisara theme shortcuts">
-            {channelLinks.map((item) => (
-              <a href={item.href}>
-                <span>{item.index}</span>
-                <Icon name={item.icon} aria-hidden="true" />
-                <div><strong>{item.label}</strong><small>{item.note}</small></div>
-                <i aria-hidden="true">↗</i>
-              </a>
-            ))}
+            <div class="kisara-channel-links-heading">
+              <span>课后延伸</span>
+              <small>顺着页边，继续往下读。</small>
+            </div>
+            <div class="kisara-channel-links-index">
+              {channelLinks.map((item) => (
+                <a href={item.href}>
+                  <span>〔{item.index}〕</span>
+                  <div><strong>{item.note}</strong><small>{item.label}</small></div>
+                </a>
+              ))}
+            </div>
           </nav>
         </div>
       </div>
@@ -786,11 +798,16 @@ const gateStyle = [
             const y = seedY + Math.sin(angle) * reachY * distance + edgeNoise * 0.42;
             if (x < -20 || x > width + 20 || y < -20 || y > height + 20) continue;
             const radius = radiusMin + random() * (radiusMax - radiusMin);
+            const radiusX = radius * (0.82 + random() * 0.55);
+            const radiusY = radius * (0.72 + random() * 0.62);
+            const reachesLowerLeft = y + radiusY > coreBottom * 0.68
+              && x - radiusX < width * 0.18;
+            if (reachesLowerLeft) continue;
             nodes.push({
               x,
               y,
-              radiusX: radius * (0.82 + random() * 0.55),
-              radiusY: radius * (0.72 + random() * 0.62),
+              radiusX,
+              radiusY,
               rotation: (random() - 0.5) * 0.9,
               birth: Math.min(0.94, birthStart + (birthEnd - birthStart) * distance + random() * 0.055),
               growth: 0.11 + random() * 0.14,
@@ -894,9 +911,7 @@ const gateStyle = [
         openingMemoryInkContext.globalCompositeOperation = "destination-in";
         openingMemoryInkContext.drawImage(openingMemoryMaskCanvas, 0, 0);
         const horizontalEdgeFade = openingMemoryInkContext.createLinearGradient(0, 0, width, 0);
-        horizontalEdgeFade.addColorStop(0, "rgba(0,0,0,0)");
-        horizontalEdgeFade.addColorStop(0.045, "rgba(0,0,0,0.58)");
-        horizontalEdgeFade.addColorStop(0.085, "rgba(0,0,0,1)");
+        horizontalEdgeFade.addColorStop(0, "rgba(0,0,0,1)");
         horizontalEdgeFade.addColorStop(0.8, "rgba(0,0,0,1)");
         horizontalEdgeFade.addColorStop(0.89, "rgba(0,0,0,0.72)");
         horizontalEdgeFade.addColorStop(0.955, "rgba(0,0,0,0.16)");
@@ -904,9 +919,7 @@ const gateStyle = [
         openingMemoryInkContext.fillStyle = horizontalEdgeFade;
         openingMemoryInkContext.fillRect(0, 0, width, height);
         const verticalEdgeFade = openingMemoryInkContext.createLinearGradient(0, 0, 0, height);
-        verticalEdgeFade.addColorStop(0, "rgba(0,0,0,0)");
-        verticalEdgeFade.addColorStop(0.05, "rgba(0,0,0,0.72)");
-        verticalEdgeFade.addColorStop(0.09, "rgba(0,0,0,1)");
+        verticalEdgeFade.addColorStop(0, "rgba(0,0,0,1)");
         verticalEdgeFade.addColorStop(0.9, "rgba(0,0,0,1)");
         verticalEdgeFade.addColorStop(0.95, "rgba(0,0,0,0.48)");
         verticalEdgeFade.addColorStop(1, "rgba(0,0,0,0)");

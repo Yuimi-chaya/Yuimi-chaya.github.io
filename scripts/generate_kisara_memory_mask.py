@@ -94,7 +94,7 @@ def draw_ink_extensions(
         )
 
     for _ in range(32):
-        x = int(rng.uniform(0.03, 0.9) * width)
+        x = int(rng.uniform(0.2, 0.9) * width)
         edge_y = int(bottom_edge[x] * height)
         drift = int(rng.normal(0, width * 0.024))
         sink = int(rng.uniform(0.012, 0.065) * height)
@@ -203,6 +203,12 @@ def build_mask(width: int, height: int) -> Image.Image:
 
     extensions = draw_ink_extensions(rng, width, height, right_curve, bottom_curve)
     alpha = 1.0 - (1.0 - alpha) * (1.0 - extensions)
+
+    lower_left_fade = (
+        (1.0 - smoothstep(0.11, 0.3, x))
+        * smoothstep(0.64, 0.94, y)
+    )
+    alpha *= 1.0 - lower_left_fade * 0.96
 
     notches = draw_edge_notches(rng, width, height, right_curve, bottom_curve)
     edge_band = np.clip(1.0 - np.abs(alpha - 0.5) * 2.25, 0.0, 1.0)
