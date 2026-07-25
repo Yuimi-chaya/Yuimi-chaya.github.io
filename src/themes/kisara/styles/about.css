@@ -30,6 +30,26 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
   background: rgba(10, 14, 43, 0.9);
   -webkit-backdrop-filter: blur(14px) saturate(1.12);
   backdrop-filter: blur(14px) saturate(1.12);
+  transition: opacity 420ms ease, transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-header.is-inner-header {
+  opacity: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+}
+
+body[data-kisara-page="about"] .kisara-audio-player {
+  transition: opacity 280ms ease;
+}
+
+body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-audio-player {
+  opacity: 0.12;
+}
+
+body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-audio-player:hover,
+body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-audio-player:focus-within {
+  opacity: 0.9;
 }
 
 .kisara-me {
@@ -80,6 +100,7 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
 .kisara-me[data-active-scene="3"] { --me-accent: #8c4ca8; --me-accent-soft: rgba(140, 76, 168, 0.14); }
 .kisara-me[data-active-scene="4"] { --me-accent: #315b88; --me-accent-soft: rgba(49, 91, 136, 0.14); }
 .kisara-me[data-active-scene="5"] { --me-accent: #c33b5e; --me-accent-soft: rgba(195, 59, 94, 0.14); }
+.kisara-me[data-active-scene="6"] { --me-accent: #e34d82; --me-accent-soft: rgba(227, 77, 130, 0.16); }
 
 .kisara-me[data-direction="previous"]::after {
   transform: skewX(-8deg) translateX(-2.2vw);
@@ -143,6 +164,7 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
   color: #727a98;
   font: 800 0.6rem/1 "Courier New", Courier, monospace;
   pointer-events: none;
+  transition: opacity 320ms ease;
 }
 
 .kisara-me-hud > span {
@@ -641,6 +663,89 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
 .kisara-me-signoff strong { color: rgba(23, 27, 57, 0.16); font: 400 clamp(2.5rem, 5vw, 5.8rem)/0.7 Georgia, "Times New Roman", serif; }
 .kisara-me-signoff p { margin: 0; color: #747b95; font: 700 0.6rem/1 "Courier New", Courier, monospace; }
 
+.kisara-me-scene.kisara-me-epilogue {
+  inset: -70px 0 0;
+  padding: 0;
+  background: #f7f4f7;
+}
+
+.kisara-me-epilogue-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: #f7f4f7;
+  box-shadow: none;
+}
+
+.kisara-me-epilogue-image {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  filter: blur(15px) brightness(1.2) saturate(0.82);
+  transform: scale(1.035);
+  transition:
+    opacity 560ms ease 80ms,
+    filter 1100ms cubic-bezier(0.2, 0.76, 0.2, 1) 90ms,
+    transform 1350ms cubic-bezier(0.16, 0.82, 0.24, 1) 70ms;
+}
+
+.kisara-me-epilogue-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 43%, rgba(255, 255, 255, 0.78), rgba(255, 239, 246, 0.22) 34%, transparent 68%);
+}
+
+.kisara-me-epilogue-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 50%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.kisara-me-epilogue-frame figcaption {
+  display: none;
+}
+
+.kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-image {
+  opacity: 1;
+  filter: none;
+  transform: scale(1);
+}
+
+.kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-image::after {
+  animation: kisara-me-epilogue-exposure 1250ms cubic-bezier(0.18, 0.76, 0.22, 1) both;
+}
+
+.kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-image img {
+  animation: kisara-me-epilogue-breathe 10s ease-in-out 1400ms infinite alternate;
+}
+
+.kisara-me[data-active-scene="6"] .kisara-me-ambient,
+.kisara-me[data-active-scene="6"] .kisara-me-hud,
+.kisara-me[data-active-scene="6"] .kisara-me-switch-cue {
+  opacity: 0;
+}
+
+.kisara-me[data-active-scene="6"] .kisara-me-rail {
+  opacity: 0.06;
+}
+
+.kisara-me[data-active-scene="6"] .kisara-me-rail:hover,
+.kisara-me[data-active-scene="6"] .kisara-me-rail:focus-within {
+  opacity: 0.82;
+}
+
 .kisara-me-rail {
   position: absolute;
   z-index: 14;
@@ -651,6 +756,7 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
   gap: 10px;
   align-items: stretch;
   transform: translateY(-45%);
+  transition: opacity 260ms ease;
 }
 
 .kisara-me-rail-track {
@@ -730,6 +836,7 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
   color: #777f9b;
   font: 800 0.55rem/1 "Courier New", Courier, monospace;
   pointer-events: none;
+  transition: opacity 260ms ease;
 }
 
 .kisara-me-switch-cue > i {
@@ -774,6 +881,17 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
 @keyframes kisara-me-edge {
   0%, 100% { margin-top: 0; }
   45% { margin-top: -5px; }
+}
+
+@keyframes kisara-me-epilogue-exposure {
+  0% { opacity: 0.82; }
+  48% { opacity: 0.3; }
+  100% { opacity: 0; }
+}
+
+@keyframes kisara-me-epilogue-breathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.012); }
 }
 
 @media (max-width: 1050px) {
@@ -836,7 +954,7 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
   }
   .kisara-me-rail-track { width: 100%; height: 1px; margin: 0; }
   .kisara-me-rail-track i { transform: scaleX(var(--me-progress)); transform-origin: left; }
-  .kisara-me-rail > div { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; }
+  .kisara-me-rail > div { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0; }
   .kisara-me-rail button { display: grid; grid-template-columns: 1fr; justify-items: center; min-height: 26px; }
   .kisara-me-rail button > span { display: none; }
   .kisara-me-rail button:hover,
@@ -844,6 +962,54 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
   .kisara-me-rail button[aria-current="step"] { transform: translateY(-2px); }
   .kisara-me-switch-cue { right: 26px; bottom: 54px; grid-template-columns: auto 42px; }
   .kisara-me-switch-cue small { display: none; }
+  .kisara-me-epilogue {
+    inset: -70px 0 0;
+    padding: 0;
+    background: #f7f4f7;
+  }
+  .kisara-me-epilogue-frame {
+    width: 100%;
+    height: 100%;
+    box-shadow: none;
+  }
+  .kisara-me-epilogue-image {
+    position: absolute;
+  }
+  .kisara-me-epilogue-image img {
+    object-fit: cover;
+    object-position: 50% 36%;
+  }
+  .kisara-me-epilogue-frame figcaption {
+    position: absolute;
+    z-index: 2;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    gap: 5px;
+    padding: 76px 24px 78px;
+    color: #35263c;
+    background: linear-gradient(180deg, transparent, rgba(253, 248, 251, 0.76) 42%, rgba(248, 238, 245, 0.94));
+  }
+  .kisara-me-epilogue-frame figcaption::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 24px;
+    width: 44px;
+    height: 2px;
+    background: var(--me-accent);
+  }
+  .kisara-me-epilogue-frame figcaption span,
+  .kisara-me-epilogue-frame figcaption small {
+    font: 800 0.55rem/1.4 "Courier New", Courier, monospace;
+  }
+  .kisara-me-epilogue-frame figcaption span { color: var(--me-accent); }
+  .kisara-me-epilogue-frame figcaption strong {
+    color: #241b29;
+    font: 400 clamp(1.35rem, 6vw, 1.8rem)/1.2 Georgia, "Yu Mincho", serif;
+  }
+  .kisara-me-epilogue-frame figcaption small { color: #8e7b8e; }
 }
 
 @media (max-width: 600px) {
@@ -884,6 +1050,8 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
   .kisara-me-signoff strong { font-size: 2.8rem; }
   .kisara-me-signoff p { display: none; }
   .kisara-me-switch-cue { display: none; }
+  .kisara-me-epilogue-frame figcaption { padding: 72px 20px 76px; }
+  .kisara-me-epilogue-frame figcaption::before { left: 20px; }
 }
 
 @media (max-height: 720px) and (min-width: 801px) {
@@ -943,5 +1111,12 @@ body[data-kisara-page="about"] .kisara-header.is-inner-header {
   .kisara-me[data-edge="start"] .kisara-me-rail,
   .kisara-me[data-edge="end"] .kisara-me-rail {
     animation: none;
+  }
+
+  .kisara-me-epilogue-image,
+  .kisara-me-epilogue-image::after,
+  .kisara-me-epilogue-image img {
+    animation: none !important;
+    transition: none;
   }
 }
