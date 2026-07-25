@@ -4,14 +4,12 @@ import homeStylesheet from "../styles/home.css?url";
 import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
 import { currentSignals } from "@/core/data/profile";
-import { projectEntries } from "@/core/data/projects";
 import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 const posts = (await getPublishedPosts()).slice(0, 3);
-const featuredProjects = projectEntries.slice(0, 3);
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
   month: "2-digit",
@@ -138,13 +136,6 @@ const signalPresentation = [
   { code: "BUILD", icon: "tabler:flask-2", accent: "pink" },
   { code: "TUNE", icon: "tabler:activity-heartbeat", accent: "violet" }
 ] as const;
-const projectPresentation: Record<string, { icon: string; code: string }> = {
-  astrbot: { icon: "tabler:terminal-2", code: "BOT" },
-  unity: { icon: "tabler:device-gamepad-2", code: "PLAY" },
-  blender: { icon: "tabler:sparkles", code: "FORM" },
-  ue5: { icon: "tabler:flask-2", code: "SCENE" },
-  mmd: { icon: "tabler:movie", code: "MOTION" }
-};
 const ambientParticles = [
   { x: 7, y: 21, driftX: 88, driftY: -54, size: 3.2, duration: 18.4, delay: -4.8, opacity: 0.46, hue: 338 },
   { x: 15, y: 73, driftX: 64, driftY: -92, size: 2.1, duration: 21.7, delay: -13.2, opacity: 0.34, hue: 346 },
@@ -437,35 +428,228 @@ const gateStyle = [
     <div class="kisara-content-shell">
       <header class="kisara-home-band-heading is-lab-heading">
         <div>
-          <p class="kisara-section-index">ACTIVE LAB / 003</p>
-          <h2 id="kisara-project-title">Work in motion.</h2>
+          <p class="kisara-section-index">CASE FILE / EVENT 003</p>
+          <h2 id="kisara-project-title">A clue in the frame.</h2>
         </div>
-        <a class="kisara-section-link" href={getThemePath("kisara", "/projects/")}>VIEW ALL WORKS <span>↗</span></a>
+        <div class="kisara-event-heading-note">
+          <span>LIMITED INVESTIGATION</span>
+          <p>不要急着翻页。照片里有一个人，并不属于快门按下的那一刻。</p>
+        </div>
+        <a class="kisara-section-link" href={getThemePath("kisara", "/projects/")}>OPEN WORKS <span>↗</span></a>
       </header>
-      <div class="kisara-lab-runway">
-        <div class="kisara-lab-index" aria-hidden="true"><span>ACTIVE</span><strong>03</strong><small>LAB CHANNELS</small></div>
-        <div class="kisara-project-tracks">
-        {featuredProjects.map((project, index) => (
-          <a href={getThemePath("kisara", "/projects/")} style={`--track-order: ${index};`}>
-            <span class="kisara-project-track-icon" aria-hidden="true">
-              <Icon name={projectPresentation[project.line]?.icon ?? "tabler:flask-2"} />
-            </span>
-            <div class="kisara-project-track-copy">
-              <small>{project.type} / {project.status}</small>
-              <h3>{project.title}</h3>
-              <p>{project.summary}</p>
+      <kisara-clue-scene class="kisara-event-scene" data-state="idle">
+        <div class="kisara-event-board">
+          <div class="kisara-event-photo-panel">
+            <div class="kisara-event-photo-meta">
+              <span>ARCHIVE PHOTO / NO. 0317</span>
+              <strong>异常影像调查</strong>
             </div>
-            <div class="kisara-project-track-signal">
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <i aria-hidden="true"></i>
-              <strong>{projectPresentation[project.line]?.code ?? project.line.toUpperCase()}</strong>
+            <div class="kisara-event-photo">
+              <div class="kisara-event-photo-echo" aria-hidden="true"></div>
+              <img
+                src="/themes/kisara/assets/picture.png"
+                alt="一张被胶带重新拼贴过的合照"
+                width="1518"
+                height="1422"
+                loading="lazy"
+                decoding="async"
+              />
+              <div class="kisara-event-photo-grade" aria-hidden="true"></div>
+              <div class="kisara-event-scan-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+              <button class="kisara-event-hotspot" type="button" data-event-hotspot aria-label="调查照片中被胶带固定的异常人物">
+                <span class="kisara-event-hotspot-radar" aria-hidden="true"><i></i><i></i></span>
+                <strong>?</strong>
+              </button>
+
+              <svg class="kisara-event-clue-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M 54 46 C 60 46 61 32 70 32" pathLength="1"></path>
+                <circle cx="70" cy="32" r="0.8"></circle>
+              </svg>
+
+              <button class="kisara-event-clue" type="button" data-event-clue aria-label="打开线索：被贴进合照的人">
+                <span>CLUE 01</span>
+                <strong>被贴进合照的人</strong>
+                <small data-event-clue-action>点击读取档案</small>
+              </button>
             </div>
-          </a>
-        ))}
+            <div class="kisara-event-photo-caption">
+              <span>SCENE 01</span>
+              <p>胶带留下了人为干预的痕迹。先找到它，再决定要不要把这段记忆收进档案。</p>
+            </div>
+          </div>
+
+          <aside class="kisara-event-brief" aria-label="活动调查信息">
+            <div class="kisara-event-brief-status">
+              <span>INVESTIGATION</span>
+              <strong data-event-status>未发现</strong>
+            </div>
+            <p class="kisara-event-brief-kicker">SIDE STORY / MEMORY TRACE</p>
+            <h3>那一天的合照，后来被谁悄悄改写了？</h3>
+            <p class="kisara-event-brief-copy">把视线留在不自然的胶带附近。真正的线索不会主动开口，但会回应一次足够认真的触碰。</p>
+
+            <ol class="kisara-event-objectives">
+              <li class="is-active"><span>01</span><div><strong>寻找异常点</strong><small>观察被重新贴入照片的人物</small></div></li>
+              <li><span>02</span><div><strong>读取隐藏线索</strong><small>沿着标记展开记忆档案</small></div></li>
+              <li><span>03</span><div><strong>收下章节物品</strong><small>将发现保存至 Yuimi Lab</small></div></li>
+            </ol>
+
+            <div class="kisara-event-progress">
+              <div><span>CLUE PROGRESS</span><strong data-event-progress>00 / 01</strong></div>
+              <i aria-hidden="true"><b></b></i>
+            </div>
+
+            <a class="kisara-event-work-link" href={getThemePath("kisara", "/projects/")}>
+              <span><Icon name="tabler:flask-2" /></span>
+              <div><small>AFTER THE STORY</small><strong>前往制作工坊</strong></div>
+              <i aria-hidden="true">↗</i>
+            </a>
+          </aside>
         </div>
-      </div>
+
+        <div class="kisara-event-command" aria-live="polite">
+          <span>调查指令</span>
+          <strong data-event-command>在照片中寻找闪烁的异常点</strong>
+          <i aria-hidden="true"></i>
+          <small>EVENT OPEN / NO DEADLINE</small>
+        </div>
+
+        <dialog class="kisara-event-reward" data-event-reward aria-labelledby="kisara-event-reward-title">
+          <div class="kisara-event-reward-shell">
+            <button class="kisara-event-reward-close" type="button" data-event-close aria-label="关闭解锁弹窗">
+              <Icon name="tabler:x" />
+            </button>
+            <div class="kisara-event-reward-burst" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="kisara-event-reward-heading">
+              <span>NEW</span>
+              <div><small>MEMORY ARCHIVE UPDATED</small><strong>CHAPTER UNLOCKED</strong></div>
+            </div>
+            <div class="kisara-event-reward-content">
+              <figure>
+                <div><img src="/themes/kisara/assets/win.png" alt="木更与绫乃的章节插图" width="676" height="601" decoding="async" /></div>
+                <figcaption>EVENT MEMORY / ITEM 01</figcaption>
+              </figure>
+              <div class="kisara-event-reward-copy">
+                <p>获得记忆物品</p>
+                <h3 id="kisara-event-reward-title">心之备用钥匙</h3>
+                <span aria-hidden="true"></span>
+                <strong>「并肩留下的片刻」</strong>
+                <blockquote>照片没有证明过去从未改变，只证明有人认真地把想留下的人，贴回了记忆里。</blockquote>
+                <button type="button" data-event-claim><Icon name="tabler:archive" />收入档案</button>
+              </div>
+            </div>
+          </div>
+        </dialog>
+      </kisara-clue-scene>
     </div>
   </section>
+
+  <script>
+    if (!customElements.get("kisara-clue-scene")) {
+      class KisaraClueScene extends HTMLElement {
+        controller: AbortController | null = null;
+        reward: HTMLDialogElement | null = null;
+
+        connectedCallback() {
+          this.controller?.abort();
+          const controller = new AbortController();
+          this.controller = controller;
+          const { signal } = controller;
+          const hotspot = this.querySelector<HTMLButtonElement>("[data-event-hotspot]");
+          const clue = this.querySelector<HTMLButtonElement>("[data-event-clue]");
+          const reward = this.querySelector<HTMLDialogElement>("[data-event-reward]");
+          const closeButton = this.querySelector<HTMLButtonElement>("[data-event-close]");
+          const claimButton = this.querySelector<HTMLButtonElement>("[data-event-claim]");
+          const progress = this.querySelector<HTMLElement>("[data-event-progress]");
+          const status = this.querySelector<HTMLElement>("[data-event-status]");
+          const command = this.querySelector<HTMLElement>("[data-event-command]");
+          const clueAction = this.querySelector<HTMLElement>("[data-event-clue-action]");
+
+          if (!hotspot || !clue || !reward || !closeButton || !claimButton) return;
+          this.reward = reward;
+
+          const copy = {
+            idle: {
+              progress: "00 / 01",
+              status: "未发现",
+              command: "在照片中寻找闪烁的异常点",
+              action: "点击读取档案"
+            },
+            traced: {
+              progress: "01 / 01",
+              status: "线索已显现",
+              command: "沿着延伸线，打开新出现的线索",
+              action: "点击读取档案"
+            },
+            solved: {
+              progress: "01 / 01",
+              status: "已收入档案",
+              command: "章节已解锁，可以再次打开线索回看",
+              action: "回看已解锁章节"
+            }
+          } as const;
+
+          const setState = (nextState: keyof typeof copy) => {
+            this.dataset.state = nextState;
+            const nextCopy = copy[nextState];
+            if (progress) progress.textContent = nextCopy.progress;
+            if (status) status.textContent = nextCopy.status;
+            if (command) command.textContent = nextCopy.command;
+            if (clueAction) clueAction.textContent = nextCopy.action;
+            clue.setAttribute("aria-label", nextState === "solved" ? "回看已解锁章节：心之备用钥匙" : "打开线索：被贴进合照的人");
+          };
+
+          const releaseScroll = () => {
+            document.documentElement.classList.remove("kisara-event-modal-open");
+            delete reward.dataset.ready;
+          };
+
+          const closeReward = () => {
+            if (reward.open) reward.close();
+            else reward.removeAttribute("open");
+            releaseScroll();
+          };
+
+          const openReward = () => {
+            if (!reward.isConnected || reward.open) return;
+            document.documentElement.classList.add("kisara-event-modal-open");
+            if (typeof reward.showModal === "function") reward.showModal();
+            else reward.setAttribute("open", "");
+            requestAnimationFrame(() => {
+              if (reward.open) reward.dataset.ready = "true";
+            });
+          };
+
+          hotspot.addEventListener("click", () => {
+            if (this.dataset.state === "idle") setState("traced");
+          }, { signal });
+
+          clue.addEventListener("click", openReward, { signal });
+          closeButton.addEventListener("click", closeReward, { signal });
+          claimButton.addEventListener("click", () => {
+            setState("solved");
+            closeReward();
+          }, { signal });
+          reward.addEventListener("close", releaseScroll, { signal });
+          reward.addEventListener("click", (event) => {
+            if (event.target === reward) closeReward();
+          }, { signal });
+
+          setState("idle");
+        }
+
+        disconnectedCallback() {
+          this.controller?.abort();
+          this.controller = null;
+          if (this.reward?.open) this.reward.close();
+          this.reward = null;
+          document.documentElement.classList.remove("kisara-event-modal-open");
+        }
+      }
+
+      customElements.define("kisara-clue-scene", KisaraClueScene);
+    }
+  </script>
 
   <section class="kisara-latest" aria-labelledby="kisara-latest-title">
     <header class="kisara-home-band-heading is-transmission-heading">
