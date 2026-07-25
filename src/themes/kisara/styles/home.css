@@ -2849,15 +2849,7 @@
 }
 
 .kisara-event-photo-panel::after {
-  content: "";
-  position: absolute;
-  z-index: 3;
-  top: 0;
-  right: -1px;
-  width: 80px;
-  height: 100%;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(231, 231, 245, 0.82) 72%, #e7e7f5 100%);
+  content: none;
 }
 
 .kisara-event-photo-meta {
@@ -2891,18 +2883,11 @@
   align-self: center;
   width: 100%;
   aspect-ratio: 1518 / 1422;
-  overflow: visible;
-}
-
-.kisara-event-photo-echo {
-  position: absolute;
-  inset: -3%;
-  opacity: 0.58;
-  background: url("/themes/kisara/assets/picture.png") center / cover no-repeat;
-  filter: blur(28px) saturate(0.82) brightness(0.86);
-  transform: scale(1.035);
-  -webkit-mask-image: radial-gradient(ellipse 82% 82% at 48% 49%, #000 44%, rgba(0, 0, 0, 0.62) 70%, transparent 100%);
-  mask-image: radial-gradient(ellipse 82% 82% at 48% 49%, #000 44%, rgba(0, 0, 0, 0.62) 70%, transparent 100%);
+  overflow: hidden;
+  background: #070b1d;
+  box-shadow:
+    0 0 0 1px rgba(218, 229, 255, 0.24),
+    0 16px 34px rgba(18, 23, 56, 0.22);
 }
 
 .kisara-event-photo > img {
@@ -2913,14 +2898,7 @@
   height: 100%;
   object-fit: contain;
   filter: saturate(0.88) contrast(1.04) brightness(1.03);
-  -webkit-mask-image:
-    linear-gradient(90deg, transparent 0%, #000 4.5%, #000 91%, transparent 100%),
-    linear-gradient(180deg, transparent 0%, #000 3.5%, #000 94%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(90deg, transparent 0%, #000 4.5%, #000 91%, transparent 100%),
-    linear-gradient(180deg, transparent 0%, #000 3.5%, #000 94%, transparent 100%);
-  mask-composite: intersect;
+  transform-origin: 54% 46%;
 }
 
 .kisara-event-photo-grade {
@@ -2928,11 +2906,91 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 54% 47%, transparent 0 24%, rgba(11, 26, 70, 0.04) 52%, rgba(20, 24, 64, 0.28) 100%),
-    linear-gradient(135deg, rgba(84, 111, 202, 0.13), transparent 46%, rgba(226, 92, 145, 0.12));
-  mix-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(ellipse 86% 86% at 48% 49%, #000 64%, transparent 100%);
-  mask-image: radial-gradient(ellipse 86% 86% at 48% 49%, #000 64%, transparent 100%);
+    linear-gradient(135deg, rgba(84, 111, 202, 0.09), transparent 48%, rgba(226, 92, 145, 0.08));
+  mix-blend-mode: soft-light;
+}
+
+.kisara-event-lens-vignette {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 82% 80% at 51% 49%, transparent 0 62%, rgba(7, 13, 36, 0.08) 78%, rgba(4, 8, 27, 0.38) 100%),
+    linear-gradient(90deg, rgba(91, 126, 219, 0.08), transparent 14% 86%, rgba(220, 63, 120, 0.07));
+  box-shadow:
+    inset 0 0 0 1px rgba(224, 232, 255, 0.18),
+    inset 0 0 30px rgba(2, 6, 24, 0.22);
+}
+
+.kisara-event-focus-frame {
+  position: absolute;
+  z-index: 7;
+  top: 46%;
+  left: 54%;
+  width: 24%;
+  aspect-ratio: 1.5;
+  opacity: 0.38;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.kisara-event-focus-frame i {
+  position: absolute;
+  width: 24%;
+  height: 34%;
+  color: rgba(239, 244, 255, 0.72);
+  border-color: currentColor;
+  filter: drop-shadow(0 0 4px rgba(116, 151, 239, 0.5));
+}
+
+.kisara-event-focus-frame i:nth-child(1) { top: 0; left: 0; border-top: 1px solid; border-left: 1px solid; }
+.kisara-event-focus-frame i:nth-child(2) { top: 0; right: 0; border-top: 1px solid; border-right: 1px solid; }
+.kisara-event-focus-frame i:nth-child(3) { right: 0; bottom: 0; border-right: 1px solid; border-bottom: 1px solid; }
+.kisara-event-focus-frame i:nth-child(4) { bottom: 0; left: 0; border-bottom: 1px solid; border-left: 1px solid; }
+
+.kisara-event-camera-hud {
+  position: absolute;
+  z-index: 7;
+  inset: 7.4% 8.4%;
+  color: rgba(235, 241, 255, 0.74);
+  text-shadow: 0 1px 4px rgba(3, 7, 24, 0.72);
+  pointer-events: none;
+  font: 700 0.52rem/1 "Courier New", Courier, monospace;
+}
+
+.kisara-event-camera-hud > span {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kisara-event-camera-hud > span:nth-child(1) { top: 0; left: 0; }
+.kisara-event-camera-hud > span:nth-child(2) { top: 0; right: 0; }
+.kisara-event-camera-hud > span:nth-child(3) { bottom: 0; left: 0; }
+.kisara-event-camera-hud > span:nth-child(4) { right: 0; bottom: 0; }
+
+.kisara-event-camera-hud .is-recording i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ff4f79;
+  box-shadow: 0 0 8px rgba(255, 62, 111, 0.86);
+  animation: kisara-event-camera-record 1.2s steps(1, end) infinite;
+}
+
+.kisara-event-scene.is-camera-focusing .kisara-event-photo > img {
+  animation: kisara-event-camera-focus 1.65s cubic-bezier(0.16, 0.82, 0.22, 1) both;
+}
+
+.kisara-event-scene.is-camera-focusing .kisara-event-focus-frame {
+  animation: kisara-event-camera-reticle 1.65s cubic-bezier(0.16, 0.82, 0.22, 1) both;
+}
+
+.kisara-event-scene.is-camera-focusing .kisara-event-camera-hud {
+  animation: kisara-event-camera-hud-in 1.25s ease-out 260ms both;
 }
 
 .kisara-event-scan-corners {
@@ -3092,7 +3150,7 @@
 .kisara-event-clue {
   position: absolute;
   z-index: 9;
-  top: 20%;
+  top: 55%;
   right: 3.5%;
   display: grid;
   gap: 5px;
@@ -3106,7 +3164,7 @@
   box-shadow: 0 12px 26px rgba(27, 35, 80, 0.28), inset 3px 0 var(--event-pink);
   clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
   opacity: 0;
-  transform: translate3d(18px, -10px, 0) scale(0.92);
+  transform: translate3d(18px, 10px, 0) scale(0.92);
   pointer-events: none;
   cursor: pointer;
   transition: opacity 260ms ease 560ms, transform 440ms cubic-bezier(0.16, 0.88, 0.25, 1.18) 540ms, filter 180ms ease;
@@ -3670,6 +3728,48 @@ html.kisara-event-modal-open {
   to { transform: rotate(360deg); }
 }
 
+@keyframes kisara-event-camera-focus {
+  0% {
+    filter: blur(17px) saturate(0.54) contrast(0.9) brightness(0.74);
+    transform: scale(1.11);
+  }
+  52% {
+    filter: blur(4.6px) saturate(0.76) contrast(0.98) brightness(0.92);
+    transform: scale(1.038);
+  }
+  76% {
+    filter: blur(0.45px) saturate(0.9) contrast(1.05) brightness(1.035);
+    transform: scale(1.006);
+  }
+  87% {
+    filter: blur(1.1px) saturate(0.86) contrast(1.02) brightness(1.01);
+    transform: scale(1.012);
+  }
+  100% {
+    filter: blur(0) saturate(0.88) contrast(1.04) brightness(1.03);
+    transform: scale(1);
+  }
+}
+
+@keyframes kisara-event-camera-reticle {
+  0% { width: 43%; opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+  34% { opacity: 0.72; }
+  72% { width: 21%; opacity: 0.92; transform: translate(-50%, -50%) scale(0.94); }
+  84% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+  100% { width: 24%; opacity: 0.38; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes kisara-event-camera-hud-in {
+  0% { opacity: 0; filter: blur(4px); }
+  64% { opacity: 0.86; filter: blur(0); }
+  100% { opacity: 1; filter: blur(0); }
+}
+
+@keyframes kisara-event-camera-record {
+  0%, 48% { opacity: 1; }
+  49%, 100% { opacity: 0.26; }
+}
+
 @keyframes kisara-event-reward-spin {
   to { transform: rotate(360deg); }
 }
@@ -3852,15 +3952,6 @@ html.kisara-event-modal-open {
     padding: 28px 20px 24px;
   }
 
-  .kisara-event-photo-panel::after {
-    top: auto;
-    right: 0;
-    bottom: -1px;
-    width: 100%;
-    height: 86px;
-    background: linear-gradient(180deg, transparent, rgba(237, 236, 248, 0.88) 76%, #edeef8 100%);
-  }
-
   .kisara-event-photo-meta,
   .kisara-event-photo-caption {
     padding-right: 18px;
@@ -4019,12 +4110,21 @@ html.kisara-event-modal-open {
     height: 22px;
   }
 
+  .kisara-event-camera-hud {
+    inset: 8% 8.5%;
+    font-size: 0.43rem;
+  }
+
+  .kisara-event-focus-frame {
+    width: 26%;
+  }
+
   .kisara-event-hotspot {
     width: 54px;
   }
 
   .kisara-event-clue {
-    top: 14%;
+    top: 55%;
     right: 2%;
     width: 43%;
     min-width: 0;
@@ -4172,8 +4272,15 @@ html.kisara-event-modal-open {
 
   .kisara-event-hotspot::before,
   .kisara-event-hotspot::after,
+  .kisara-event-camera-hud .is-recording i,
   .kisara-event-reward-burst::before,
   .kisara-event-reward[data-ready="true"] .kisara-event-reward-content figure > div::after {
+    animation: none;
+  }
+
+  .kisara-event-scene.is-camera-focusing .kisara-event-photo > img,
+  .kisara-event-scene.is-camera-focusing .kisara-event-focus-frame,
+  .kisara-event-scene.is-camera-focusing .kisara-event-camera-hud {
     animation: none;
   }
 

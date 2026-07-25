@@ -445,7 +445,6 @@ const gateStyle = [
               <strong>异常影像调查</strong>
             </div>
             <div class="kisara-event-photo">
-              <div class="kisara-event-photo-echo" aria-hidden="true"></div>
               <img
                 src="/themes/kisara/assets/picture.png"
                 alt="一张被胶带重新拼贴过的合照"
@@ -455,6 +454,14 @@ const gateStyle = [
                 decoding="async"
               />
               <div class="kisara-event-photo-grade" aria-hidden="true"></div>
+              <div class="kisara-event-lens-vignette" aria-hidden="true"></div>
+              <div class="kisara-event-focus-frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+              <div class="kisara-event-camera-hud" aria-hidden="true">
+                <span class="is-recording"><i></i>REC 00:03:17</span>
+                <span>50mm / F2.8 / ISO 640</span>
+                <span>AF-C</span>
+                <span>1/125</span>
+              </div>
               <div class="kisara-event-scan-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 
               <button class="kisara-event-hotspot" type="button" data-event-hotspot aria-label="调查照片中被胶带固定的异常人物">
@@ -463,8 +470,8 @@ const gateStyle = [
               </button>
 
               <svg class="kisara-event-clue-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M 54 46 C 60 46 61 32 70 32" pathLength="1"></path>
-                <circle cx="70" cy="32" r="0.8"></circle>
+                <path d="M 54 46 C 60 46 61 60 70 60" pathLength="1"></path>
+                <circle cx="70" cy="60" r="0.8"></circle>
               </svg>
 
               <button class="kisara-event-clue" type="button" data-event-clue aria-label="打开线索：被贴进合照的人">
@@ -549,6 +556,7 @@ const gateStyle = [
       class KisaraClueScene extends HTMLElement {
         controller: AbortController | null = null;
         reward: HTMLDialogElement | null = null;
+        cameraObserver: IntersectionObserver | null = null;
 
         connectedCallback() {
           this.controller?.abort();
@@ -564,9 +572,40 @@ const gateStyle = [
           const status = this.querySelector<HTMLElement>("[data-event-status]");
           const command = this.querySelector<HTMLElement>("[data-event-command]");
           const clueAction = this.querySelector<HTMLElement>("[data-event-clue-action]");
+          const eventImage = this.querySelector<HTMLImageElement>(".kisara-event-photo > img");
 
           if (!hotspot || !clue || !reward || !closeButton || !claimButton) return;
           this.reward = reward;
+          this.cameraObserver?.disconnect();
+          this.classList.remove("is-camera-focusing");
+
+          let cameraVisible = false;
+          let cameraLoaded = Boolean(eventImage?.complete && eventImage.naturalWidth > 0);
+          const startCameraFocus = () => {
+            if (!cameraVisible || !cameraLoaded || this.classList.contains("is-camera-focusing")) return;
+            requestAnimationFrame(() => this.classList.add("is-camera-focusing"));
+            this.cameraObserver?.disconnect();
+            this.cameraObserver = null;
+          };
+
+          if (eventImage && !cameraLoaded) {
+            eventImage.addEventListener("load", () => {
+              cameraLoaded = true;
+              startCameraFocus();
+            }, { once: true, signal });
+          }
+
+          if ("IntersectionObserver" in window) {
+            this.cameraObserver = new IntersectionObserver((entries) => {
+              if (!entries.some((entry) => entry.isIntersecting)) return;
+              cameraVisible = true;
+              startCameraFocus();
+            }, { threshold: 0.2 });
+            this.cameraObserver.observe(this);
+          } else {
+            cameraVisible = true;
+            startCameraFocus();
+          }
 
           const copy = {
             idle: {
@@ -641,6 +680,8 @@ const gateStyle = [
         disconnectedCallback() {
           this.controller?.abort();
           this.controller = null;
+          this.cameraObserver?.disconnect();
+          this.cameraObserver = null;
           if (this.reward?.open) this.reward.close();
           this.reward = null;
           document.documentElement.classList.remove("kisara-event-modal-open");
