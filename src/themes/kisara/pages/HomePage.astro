@@ -560,6 +560,11 @@ const gateStyle = [
         controller: AbortController | null = null;
         reward: HTMLDialogElement | null = null;
         cameraObserver: IntersectionObserver | null = null;
+        resetScene: (() => void) | null = null;
+
+        resetPresentation() {
+          this.resetScene?.();
+        }
 
         connectedCallback() {
           this.controller?.abort();
@@ -579,14 +584,23 @@ const gateStyle = [
 
           if (!hotspot || !clue || !reward || !closeButton || !claimButton) return;
           this.reward = reward;
-          this.cameraObserver?.disconnect();
-          this.classList.remove("is-camera-focusing");
 
           let cameraVisible = false;
           let cameraDecoded = !eventImage;
+          let cameraFocusFrame = 0;
           const startCameraFocus = () => {
-            if (!cameraVisible || !cameraDecoded || this.classList.contains("is-camera-focusing")) return;
-            requestAnimationFrame(() => this.classList.add("is-camera-focusing"));
+            if (
+              !cameraVisible
+              || !cameraDecoded
+              || cameraFocusFrame
+              || this.classList.contains("is-camera-focusing")
+            ) return;
+            cameraFocusFrame = requestAnimationFrame(() => {
+              cameraFocusFrame = 0;
+              if (!signal.aborted && cameraVisible && cameraDecoded) {
+                this.classList.add("is-camera-focusing");
+              }
+            });
             this.cameraObserver?.disconnect();
             this.cameraObserver = null;
           };
@@ -603,21 +617,30 @@ const gateStyle = [
             startCameraFocus();
           };
 
+          const armCameraFocus = () => {
+            this.cameraObserver?.disconnect();
+            this.cameraObserver = null;
+            if (cameraFocusFrame) cancelAnimationFrame(cameraFocusFrame);
+            cameraFocusFrame = 0;
+            cameraVisible = false;
+            this.classList.remove("is-camera-focusing");
+
+            if ("IntersectionObserver" in window) {
+              this.cameraObserver = new IntersectionObserver((entries) => {
+                if (!entries.some((entry) => entry.isIntersecting)) return;
+                cameraVisible = true;
+                startCameraFocus();
+              }, { rootMargin: "12% 0px 12% 0px", threshold: 0.01 });
+              this.cameraObserver.observe(this);
+            } else {
+              cameraVisible = true;
+              startCameraFocus();
+            }
+          };
+
           if (eventImage) {
             if (eventImage.complete && eventImage.naturalWidth > 0) void finishCameraDecode();
             else eventImage.addEventListener("load", () => void finishCameraDecode(), { once: true, signal });
-          }
-
-          if ("IntersectionObserver" in window) {
-            this.cameraObserver = new IntersectionObserver((entries) => {
-              if (!entries.some((entry) => entry.isIntersecting)) return;
-              cameraVisible = true;
-              startCameraFocus();
-            }, { rootMargin: "12% 0px 12% 0px", threshold: 0.01 });
-            this.cameraObserver.observe(this);
-          } else {
-            cameraVisible = true;
-            startCameraFocus();
           }
 
           const copy = {
@@ -687,7 +710,17 @@ const gateStyle = [
             if (event.target === reward) closeReward();
           }, { signal });
 
+          this.resetScene = () => {
+            closeReward();
+            setState("idle");
+            armCameraFocus();
+          };
+          signal.addEventListener("abort", () => {
+            if (cameraFocusFrame) cancelAnimationFrame(cameraFocusFrame);
+            cameraFocusFrame = 0;
+          }, { once: true });
           setState("idle");
+          armCameraFocus();
         }
 
         disconnectedCallback() {
@@ -695,6 +728,7 @@ const gateStyle = [
           this.controller = null;
           this.cameraObserver?.disconnect();
           this.cameraObserver = null;
+          this.resetScene = null;
           if (this.reward?.open) this.reward.close();
           this.reward = null;
           document.documentElement.classList.remove("kisara-event-modal-open");
@@ -912,6 +946,7 @@ const gateStyle = [
       const cue = gate.querySelector("[data-kisara-cue]");
       const motionToggle = gate.querySelector("[data-kisara-motion-toggle]");
       const skip = gate.querySelector("[data-kisara-skip]");
+      const eventScene = document.querySelector("kisara-clue-scene");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const openingMemory = opening instanceof HTMLElement
         ? opening.querySelector("[data-kisara-opening-memory]")
@@ -1219,6 +1254,7 @@ const gateStyle = [
       };
 
       let openingMemoryObserver = null;
+      let openingMemoryRevealArmFrame = 0;
       let openingMemoryBloomTimer = 0;
       const startOpeningMemoryBloom = () => {
         if (!(opening instanceof HTMLElement) || disposed) return;
@@ -1232,27 +1268,81 @@ const gateStyle = [
         if (!(opening instanceof HTMLElement)) return;
         if (opening.classList.contains("is-memory-revealed")) return;
         opening.classList.add("is-memory-revealed");
+        if (openingMemoryRevealArmFrame) window.cancelAnimationFrame(openingMemoryRevealArmFrame);
+        openingMemoryRevealArmFrame = 0;
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
         openingMemoryBloomTimer = window.setTimeout(startOpeningMemoryBloom, 2600);
       };
-      if (opening instanceof HTMLElement && openingMemory instanceof HTMLElement && !reducedMotion) {
-        opening.classList.add("is-memory-armed");
-        openingMemoryImage?.addEventListener("animationend", (event) => {
-          if (event.animationName === "kisara-memory-image-develop") startOpeningMemoryBloom();
-        }, { signal });
+      const armOpeningMemoryReveal = () => {
+        if (
+          !(opening instanceof HTMLElement)
+          || !(openingMemory instanceof HTMLElement)
+          || reducedMotion
+          || disposed
+        ) return;
+        openingMemoryObserver?.disconnect();
+        openingMemoryObserver = null;
+        if (openingMemoryRevealArmFrame) window.cancelAnimationFrame(openingMemoryRevealArmFrame);
+        openingMemoryRevealArmFrame = 0;
         if (typeof IntersectionObserver === "function") {
           openingMemoryObserver = new IntersectionObserver((entries) => {
             if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.18)) {
               revealOpeningMemory();
             }
           }, { threshold: [0.18, 0.36], rootMargin: "0px 0px -8%" });
-          window.requestAnimationFrame(() => {
+          openingMemoryRevealArmFrame = window.requestAnimationFrame(() => {
+            openingMemoryRevealArmFrame = 0;
             if (!disposed && openingMemoryObserver) openingMemoryObserver.observe(openingMemory);
           });
         } else {
-          window.requestAnimationFrame(revealOpeningMemory);
+          openingMemoryRevealArmFrame = window.requestAnimationFrame(() => {
+            openingMemoryRevealArmFrame = 0;
+            if (!disposed) revealOpeningMemory();
+          });
         }
+      };
+      const resetOpeningMemoryPresentation = () => {
+        if (
+          !(opening instanceof HTMLElement)
+          || !(openingMemory instanceof HTMLElement)
+          || reducedMotion
+          || disposed
+        ) return;
+        openingMemoryObserver?.disconnect();
+        openingMemoryObserver = null;
+        if (openingMemoryRevealArmFrame) window.cancelAnimationFrame(openingMemoryRevealArmFrame);
+        openingMemoryRevealArmFrame = 0;
+        if (openingMemoryBloomTimer) window.clearTimeout(openingMemoryBloomTimer);
+        openingMemoryBloomTimer = 0;
+        openingMemoryInkGeneration += 1;
+        if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
+        openingMemoryInkFrame = 0;
+        openingMemoryInkLastPaint = 0;
+        openingMemoryInkProgress = 0;
+        openingMemoryInkStarted = false;
+        openingMemoryInkContext?.clearRect(
+          0,
+          0,
+          openingMemoryInkCanvas instanceof HTMLCanvasElement ? openingMemoryInkCanvas.width : 0,
+          openingMemoryInkCanvas instanceof HTMLCanvasElement ? openingMemoryInkCanvas.height : 0
+        );
+        openingMemoryMaskContext?.clearRect(
+          0,
+          0,
+          openingMemoryMaskCanvas.width,
+          openingMemoryMaskCanvas.height
+        );
+        opening.classList.remove("is-memory-revealed", "is-memory-blooming");
+        opening.classList.add("is-memory-armed");
+        armOpeningMemoryReveal();
+      };
+      if (opening instanceof HTMLElement && openingMemory instanceof HTMLElement && !reducedMotion) {
+        opening.classList.add("is-memory-armed");
+        openingMemoryImage?.addEventListener("animationend", (event) => {
+          if (event.animationName === "kisara-memory-image-develop") startOpeningMemoryBloom();
+        }, { signal });
+        armOpeningMemoryReveal();
       } else if (opening instanceof HTMLElement && openingMemory instanceof HTMLElement) {
         opening.classList.add("is-memory-blooming");
         playOpeningMemoryInk(true);
@@ -1266,6 +1356,29 @@ const gateStyle = [
         });
         openingMemoryInkResizeObserver.observe(openingMemoryVisual);
       }
+      let openingMemoryReplayResetPending = false;
+      const resetEventScenePresentation = () => {
+        const resettableScene = eventScene as (HTMLElement & { resetPresentation?: () => void }) | null;
+        resettableScene?.resetPresentation?.();
+      };
+      const resetOpeningMemoryWhenCovered = (force = false) => {
+        if (!openingMemoryReplayResetPending) return false;
+        if (!force && opening instanceof HTMLElement) {
+          const openingRect = opening.getBoundingClientRect();
+          if (openingRect.top < window.innerHeight - 2) return false;
+        }
+        resetOpeningMemoryPresentation();
+        openingMemoryReplayResetPending = false;
+        return true;
+      };
+      const requestHomeSectionReplayReset = () => {
+        resetEventScenePresentation();
+        openingMemoryReplayResetPending = true;
+        resetOpeningMemoryWhenCovered();
+      };
+      const finishHomeSectionReplayReset = () => {
+        resetOpeningMemoryWhenCovered(true);
+      };
       let openingEdgeState = {};
       let openingEdgeFlareState = { opacity: 0, filter: "none", shift: 0 };
       let lockedOpeningEdgeState = null;
@@ -12306,6 +12419,7 @@ const gateStyle = [
       };
 
       const completeGateReturn = () => {
+        finishHomeSectionReplayReset();
         gateVisualResetPending = false;
         deactivateOpeningBridgePortal();
         releaseOpeningEdgeState();
@@ -12334,6 +12448,7 @@ const gateStyle = [
         const returnRailStart = getDocumentScrollProgress();
         gateVisualResetPending = false;
         activateOpeningBridgePortal();
+        requestHomeSectionReplayReset();
         publishGateRailState({
           active: true,
           progress: returnRailStart,
@@ -12344,6 +12459,7 @@ const gateStyle = [
         const started = smoothScrollTo(0, () => {
           completeGateReturn();
         }, (journeyProgress) => {
+          resetOpeningMemoryWhenCovered();
           publishGateRailState({
             active: true,
             progress: returnRailStart * (1 - journeyProgress),
@@ -12642,6 +12758,8 @@ const gateStyle = [
         lifecycle.abort();
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
+        if (openingMemoryRevealArmFrame) window.cancelAnimationFrame(openingMemoryRevealArmFrame);
+        openingMemoryRevealArmFrame = 0;
         openingMemoryInkGeneration += 1;
         if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
         openingMemoryInkFrame = 0;
