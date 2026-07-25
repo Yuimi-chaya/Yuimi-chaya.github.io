@@ -643,15 +643,30 @@ const gateStyle = [
       const openingMemory = opening instanceof HTMLElement
         ? opening.querySelector("[data-kisara-opening-memory]")
         : null;
+      const openingMemoryImage = openingMemory instanceof HTMLElement
+        ? openingMemory.querySelector("img")
+        : null;
       let openingMemoryObserver = null;
+      let openingMemoryBloomTimer = 0;
+      const startOpeningMemoryBloom = () => {
+        if (!(opening instanceof HTMLElement) || disposed) return;
+        if (openingMemoryBloomTimer) window.clearTimeout(openingMemoryBloomTimer);
+        openingMemoryBloomTimer = 0;
+        opening.classList.add("is-memory-blooming");
+      };
       const revealOpeningMemory = () => {
         if (!(opening instanceof HTMLElement)) return;
+        if (opening.classList.contains("is-memory-revealed")) return;
         opening.classList.add("is-memory-revealed");
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
+        openingMemoryBloomTimer = window.setTimeout(startOpeningMemoryBloom, 2600);
       };
       if (opening instanceof HTMLElement && openingMemory instanceof HTMLElement && !reducedMotion) {
         opening.classList.add("is-memory-armed");
+        openingMemoryImage?.addEventListener("animationend", (event) => {
+          if (event.animationName === "kisara-memory-image-develop") startOpeningMemoryBloom();
+        }, { signal });
         if (typeof IntersectionObserver === "function") {
           openingMemoryObserver = new IntersectionObserver((entries) => {
             if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.18)) {
@@ -12041,7 +12056,9 @@ const gateStyle = [
         lifecycle.abort();
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
-        opening?.classList.remove("is-memory-armed", "is-memory-revealed");
+        if (openingMemoryBloomTimer) window.clearTimeout(openingMemoryBloomTimer);
+        openingMemoryBloomTimer = 0;
+        opening?.classList.remove("is-memory-armed", "is-memory-revealed", "is-memory-blooming");
         sceneDecodeGeneration += 1;
         sceneImageWarmers.clear();
         spaceLensInitGeneration += 1;
