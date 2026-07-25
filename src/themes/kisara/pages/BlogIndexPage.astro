@@ -5,45 +5,13 @@ import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
 import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
-import { existsSync } from "node:fs";
-import path from "node:path";
-import sharp from "sharp";
+import { getKisaraCoverPresentation } from "../lib/coverPresentation";
 
 const posts = await getPublishedPosts();
 const categories = Array.from(new Set(posts.map((post) => post.data.category)));
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" });
 
-const coverFocus: Record<string, string> = {
-  "/blog-covers/cover-08.webp": "50% 30%"
-};
-
-const coverPresentation = new Map(await Promise.all(posts.map(async (post) => {
-  const cover = post.data.cover;
-  const fallback = {
-    fit: "portrait" as const,
-    width: 700,
-    height: 990,
-    position: coverFocus[cover ?? ""] ?? "50% 32%"
-  };
-  if (!cover?.startsWith("/")) return [post.id, fallback] as const;
-
-  const sourcePath = path.join(process.cwd(), "public", cover.replace(/^\/+/, ""));
-  if (!existsSync(sourcePath)) return [post.id, fallback] as const;
-
-  try {
-    const metadata = await sharp(sourcePath).metadata();
-    const width = metadata.width ?? fallback.width;
-    const height = metadata.height ?? fallback.height;
-    return [post.id, {
-      fit: width / Math.max(1, height) >= 0.85 ? "crop" as const : "portrait" as const,
-      width,
-      height,
-      position: coverFocus[cover] ?? "50% 32%"
-    }] as const;
-  } catch {
-    return [post.id, fallback] as const;
-  }
-})));
+const coverPresentation = await getKisaraCoverPresentation(posts);
 ---
 
 <KisaraLayout title="Blog | Kisara" description="Yuimi Lab 的文章记录。" stylesheets={[blogStylesheet]}>

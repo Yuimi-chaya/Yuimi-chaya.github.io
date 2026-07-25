@@ -10,6 +10,12 @@ const characters = [
 ---
 
 <section class="kisara-chibi-stage" data-kisara-chibi-stage aria-label="Q 版角色互动舞台">
+  <div class="kisara-chibi-city" aria-hidden="true">
+    <span class="kisara-chibi-city-copy"><b>BAYRON CITY</b><small>CONTRACT STAGE / CHANNEL 03</small></span>
+    <i class="kisara-chibi-skyline is-back"></i>
+    <i class="kisara-chibi-skyline is-front"></i>
+    <span class="kisara-chibi-beacon"><i></i></span>
+  </div>
   <div class="kisara-chibi-ambient" aria-hidden="true">
     <i></i><i></i><i></i>
   </div>
@@ -53,6 +59,7 @@ const characters = [
     margin-inline: auto;
     overflow: clip;
     isolation: isolate;
+    background: linear-gradient(180deg, rgba(18, 24, 58, 0.12), transparent 42%, rgba(3, 6, 24, 0.2));
     user-select: none;
     -webkit-user-select: none;
   }
@@ -63,11 +70,8 @@ const characters = [
     inset: 4% 3% 1%;
     content: "";
     background:
-      radial-gradient(circle at 18% 76%, rgba(255, 105, 146, 0.12), transparent 22%),
-      radial-gradient(circle at 45% 74%, rgba(121, 155, 255, 0.11), transparent 24%),
-      radial-gradient(circle at 72% 77%, rgba(255, 211, 129, 0.085), transparent 20%),
-      radial-gradient(circle at 88% 73%, rgba(159, 129, 255, 0.1), transparent 21%);
-    filter: blur(7px);
+      linear-gradient(116deg, transparent 15%, rgba(255, 105, 146, 0.055) 15.2%, transparent 15.7% 47%, rgba(121, 155, 255, 0.05) 47.2%, transparent 47.7% 78%, rgba(255, 211, 129, 0.04) 78.2%, transparent 78.7%),
+      linear-gradient(180deg, transparent 52%, rgba(94, 114, 192, 0.035));
     transition: background 500ms ease;
   }
 
@@ -81,6 +85,142 @@ const characters = [
     content: "";
     background: linear-gradient(90deg, transparent, rgba(255, 103, 137, 0.58) 18%, rgba(141, 170, 255, 0.38) 52%, rgba(255, 103, 137, 0.58) 82%, transparent);
     box-shadow: 0 0 18px rgba(var(--scene-accent), 0.28);
+  }
+
+  .kisara-chibi-city {
+    position: absolute;
+    z-index: -2;
+    inset: 3% 2% 9%;
+    overflow: hidden;
+    color: #91b1ff;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(180deg, transparent, #000 8%, #000 95%, transparent);
+    mask-image: linear-gradient(180deg, transparent, #000 8%, #000 95%, transparent);
+  }
+
+  .kisara-chibi-city::before,
+  .kisara-chibi-city::after {
+    position: absolute;
+    content: "";
+    pointer-events: none;
+  }
+
+  .kisara-chibi-city::before {
+    right: 0;
+    bottom: 22%;
+    left: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(145, 177, 255, 0.24) 18%, rgba(255, 94, 137, 0.4) 52%, rgba(145, 177, 255, 0.24) 82%, transparent);
+    box-shadow: 0 0 24px rgba(255, 73, 105, 0.12);
+  }
+
+  .kisara-chibi-city::after {
+    inset: 6% 0 20%;
+    opacity: 0.24;
+    background:
+      linear-gradient(rgba(145, 177, 255, 0.08) 1px, transparent 1px) 0 0 / 100% 48px,
+      linear-gradient(90deg, rgba(145, 177, 255, 0.06) 1px, transparent 1px) 0 0 / 64px 100%;
+    -webkit-mask-image: linear-gradient(180deg, #000, transparent 86%);
+    mask-image: linear-gradient(180deg, #000, transparent 86%);
+  }
+
+  .kisara-chibi-city-copy {
+    position: absolute;
+    z-index: 0;
+    top: 7%;
+    left: 2.5%;
+    display: grid;
+    gap: 7px;
+    color: rgba(168, 184, 239, 0.38);
+    font: 800 0.55rem/1 "Courier New", Courier, monospace;
+  }
+
+  .kisara-chibi-city-copy b {
+    color: rgba(130, 151, 220, 0.075);
+    font: 400 clamp(4.8rem, 10vw, 8.6rem)/0.78 Georgia, "Times New Roman", serif;
+  }
+
+  .kisara-chibi-city-copy small {
+    padding-left: 5px;
+    font: inherit;
+  }
+
+  .kisara-chibi-skyline {
+    position: absolute;
+    right: -1%;
+    bottom: 3%;
+    left: -1%;
+    display: block;
+    transform-origin: bottom;
+  }
+
+  .kisara-chibi-skyline::after {
+    position: absolute;
+    inset: 18% 0 7%;
+    content: "";
+    opacity: 0.34;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 17px, rgba(205, 218, 255, 0.34) 17px 19px, transparent 19px 36px),
+      repeating-linear-gradient(180deg, transparent 0 15px, rgba(255, 111, 151, 0.24) 15px 17px, transparent 17px 32px);
+    mix-blend-mode: screen;
+  }
+
+  .kisara-chibi-skyline.is-back {
+    height: 31%;
+    opacity: 0.52;
+    background: linear-gradient(180deg, #1e2857, #0b1029);
+    clip-path: polygon(0 100%, 0 63%, 4% 63%, 4% 39%, 8% 39%, 8% 70%, 13% 70%, 13% 27%, 17% 27%, 17% 58%, 23% 58%, 23% 44%, 29% 44%, 29% 73%, 34% 73%, 34% 31%, 39% 31%, 39% 64%, 45% 64%, 45% 19%, 49% 19%, 49% 67%, 56% 67%, 56% 38%, 61% 38%, 61% 72%, 67% 72%, 67% 26%, 72% 26%, 72% 61%, 78% 61%, 78% 41%, 83% 41%, 83% 69%, 89% 69%, 89% 30%, 94% 30%, 94% 58%, 100% 58%, 100% 100%);
+  }
+
+  .kisara-chibi-skyline.is-front {
+    height: 22%;
+    opacity: 0.82;
+    background: linear-gradient(180deg, #11183a, #070a1c);
+    clip-path: polygon(0 100%, 0 54%, 6% 54%, 6% 23%, 11% 23%, 11% 68%, 19% 68%, 19% 39%, 26% 39%, 26% 74%, 34% 74%, 34% 17%, 40% 17%, 40% 61%, 49% 61%, 49% 34%, 56% 34%, 56% 72%, 64% 72%, 64% 24%, 70% 24%, 70% 58%, 78% 58%, 78% 31%, 85% 31%, 85% 69%, 92% 69%, 92% 20%, 97% 20%, 97% 56%, 100% 56%, 100% 100%);
+  }
+
+  .kisara-chibi-beacon {
+    position: absolute;
+    z-index: 1;
+    right: 15%;
+    bottom: 23%;
+    width: 1px;
+    height: 33%;
+    background: linear-gradient(180deg, rgba(255, 88, 132, 0.7), rgba(145, 177, 255, 0.18) 62%, transparent);
+  }
+
+  .kisara-chibi-beacon::before,
+  .kisara-chibi-beacon::after {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    content: "";
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .kisara-chibi-beacon::before {
+    width: 7px;
+    height: 7px;
+    background: #ff5b82;
+    box-shadow: 0 0 12px rgba(255, 73, 105, 0.82);
+    animation: kisara-chibi-beacon 1.8s ease-in-out infinite;
+  }
+
+  .kisara-chibi-beacon::after {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255, 104, 143, 0.22);
+    animation: kisara-chibi-beacon-ring 2.8s ease-out infinite;
+  }
+
+  .kisara-chibi-beacon > i {
+    position: absolute;
+    top: 31%;
+    left: -23px;
+    width: 47px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(145, 177, 255, 0.32), transparent);
   }
 
   .kisara-chibi-ambient {
@@ -471,6 +611,17 @@ const characters = [
     100% { opacity: 1; transform: translate(-50%, 0) scale(1) rotate(0); }
   }
 
+  @keyframes kisara-chibi-beacon {
+    0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.76); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  @keyframes kisara-chibi-beacon-ring {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.36); }
+    28% { opacity: 0.66; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+  }
+
   @media (max-width: 720px) {
     .kisara-chibi-stage {
       min-height: 610px;
@@ -488,6 +639,14 @@ const characters = [
       left: 2%;
       height: 18%;
     }
+
+    .kisara-chibi-city { inset: 2% 0 7%; }
+    .kisara-chibi-city-copy { top: 5%; left: 3%; }
+    .kisara-chibi-city-copy b { font-size: clamp(3.8rem, 20vw, 5.8rem); }
+    .kisara-chibi-city-copy small { display: none; }
+    .kisara-chibi-skyline.is-back { height: 23%; }
+    .kisara-chibi-skyline.is-front { height: 16%; }
+    .kisara-chibi-beacon { display: none; }
 
     .kisara-chibi-reset {
       top: 10px;
@@ -513,7 +672,9 @@ const characters = [
     .kisara-chibi-figure,
     .kisara-chibi-bubble,
     .kisara-chibi-reset,
-    .kisara-chibi-reset :global(svg) {
+    .kisara-chibi-reset :global(svg),
+    .kisara-chibi-beacon::before,
+    .kisara-chibi-beacon::after {
       animation-duration: 1ms !important;
       transition-duration: 1ms !important;
     }

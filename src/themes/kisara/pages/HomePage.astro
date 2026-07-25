@@ -8,8 +8,10 @@ import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { getKisaraCoverPresentation } from "../lib/coverPresentation";
 
 const posts = (await getPublishedPosts()).slice(0, 3);
+const coverPresentation = await getKisaraCoverPresentation(posts);
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
   month: "2-digit",
@@ -446,12 +448,13 @@ const gateStyle = [
             </div>
             <div class="kisara-event-photo">
               <img
-                src="/themes/kisara/assets/picture.png"
+                src="/themes/kisara/assets/picture.webp"
                 alt="一张被胶带重新拼贴过的合照"
-                width="1518"
+                width="1516"
                 height="1422"
-                loading="lazy"
+                loading="eager"
                 decoding="async"
+                fetchpriority="low"
               />
               <div class="kisara-event-photo-grade" aria-hidden="true"></div>
               <div class="kisara-event-lens-vignette" aria-hidden="true"></div>
@@ -580,19 +583,29 @@ const gateStyle = [
           this.classList.remove("is-camera-focusing");
 
           let cameraVisible = false;
-          let cameraLoaded = Boolean(eventImage?.complete && eventImage.naturalWidth > 0);
+          let cameraDecoded = !eventImage;
           const startCameraFocus = () => {
-            if (!cameraVisible || !cameraLoaded || this.classList.contains("is-camera-focusing")) return;
+            if (!cameraVisible || !cameraDecoded || this.classList.contains("is-camera-focusing")) return;
             requestAnimationFrame(() => this.classList.add("is-camera-focusing"));
             this.cameraObserver?.disconnect();
             this.cameraObserver = null;
           };
 
-          if (eventImage && !cameraLoaded) {
-            eventImage.addEventListener("load", () => {
-              cameraLoaded = true;
-              startCameraFocus();
-            }, { once: true, signal });
+          const finishCameraDecode = async () => {
+            if (!eventImage) return;
+            try {
+              if (typeof eventImage.decode === "function") await eventImage.decode();
+            } catch {
+              // A completed image can still render when decode() is interrupted by navigation.
+            }
+            if (signal.aborted || !eventImage.complete || eventImage.naturalWidth <= 0) return;
+            cameraDecoded = true;
+            startCameraFocus();
+          };
+
+          if (eventImage) {
+            if (eventImage.complete && eventImage.naturalWidth > 0) void finishCameraDecode();
+            else eventImage.addEventListener("load", () => void finishCameraDecode(), { once: true, signal });
           }
 
           if ("IntersectionObserver" in window) {
@@ -600,7 +613,7 @@ const gateStyle = [
               if (!entries.some((entry) => entry.isIntersecting)) return;
               cameraVisible = true;
               startCameraFocus();
-            }, { threshold: 0.2 });
+            }, { rootMargin: "12% 0px 12% 0px", threshold: 0.01 });
             this.cameraObserver.observe(this);
           } else {
             cameraVisible = true;
@@ -701,10 +714,12 @@ const gateStyle = [
       <a class="kisara-section-link" href={getThemePath("kisara", "/blog/")}>OPEN ARCHIVE <span>↗</span></a>
     </header>
     <div class="kisara-transmission-shelf">
-      {posts.map((post, index) => (
-        <a href={getThemePath("kisara", `/blog/${post.id}/`)} style={`--transmission-order: ${index}; --transmission-cover: ${post.data.cover ? `url("${post.data.cover}")` : "none"};`}>
-          <figure>
-            {post.data.cover ? <img src={post.data.cover} alt="" width="700" height="990" loading="lazy" decoding="async" /> : <span>{String(index + 1).padStart(2, "0")}</span>}
+      {posts.map((post, index) => {
+        const cover = coverPresentation.get(post.id);
+        return (
+        <a href={getThemePath("kisara", `/blog/${post.id}/`)} style={`--transmission-order: ${index}; --transmission-cover: ${post.data.cover ? `url("${post.data.cover}")` : "none"}; --transmission-cover-position: ${cover?.position ?? "50% 32%"};`}>
+          <figure data-cover-fit={cover?.fit ?? "portrait"}>
+            {post.data.cover ? <img src={post.data.cover} alt="" width={cover?.width ?? 700} height={cover?.height ?? 990} loading="lazy" decoding="async" /> : <span>{String(index + 1).padStart(2, "0")}</span>}
           </figure>
           <div class="kisara-transmission-copy">
             <small>{categoryLabel[post.data.category]} / <time datetime={post.data.pubDate.toISOString()}>{dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}</time></small>
@@ -713,7 +728,8 @@ const gateStyle = [
             <span>READ SIGNAL <i aria-hidden="true">↗</i></span>
           </div>
         </a>
-      ))}
+        );
+      })}
     </div>
   </section>
 
