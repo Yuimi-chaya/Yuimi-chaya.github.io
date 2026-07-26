@@ -1535,7 +1535,7 @@ const gateStyle = [
         openingMemoryRevealArmFrame = 0;
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
-        openingMemoryBloomTimer = window.setTimeout(startOpeningMemoryBloom, 2050);
+        openingMemoryBloomTimer = window.setTimeout(startOpeningMemoryBloom, 1700);
       };
       const armOpeningMemoryReveal = () => {
         if (
@@ -2316,6 +2316,8 @@ const gateStyle = [
       let gateReturnResetFrame = 0;
       let layoutResizeFrame = 0;
       let restoreSyncTimer = 0;
+      let openingBridgeRecoveryFrame = 0;
+      let openingBridgeRecoveryPending = restoredBelowGate;
       let restoreWindowOpen = true;
       let gateVisualResetPending = false;
       let homeSectionInputGuardUntil = 0;
@@ -12563,6 +12565,59 @@ const gateStyle = [
         return Math.max(1, Math.round((openingRect?.top ?? gate.getBoundingClientRect().height) + window.scrollY));
       };
 
+      const isOpeningStopCurrent = () => {
+        if (!(opening instanceof HTMLElement) || pageMode !== "next") return false;
+        const tolerance = clamp(window.innerHeight * 0.08, 24, 88);
+        const openingRect = opening.getBoundingClientRect();
+        return Math.abs(window.scrollY - getNextPageTop()) <= tolerance
+          || (Math.abs(openingRect.top) <= tolerance && openingRect.bottom > tolerance * 2);
+      };
+
+      const activateFreshOpeningBridge = () => {
+        deactivateOpeningBridgePortal();
+        gate.classList.remove("is-opening-bridge-live");
+        opening?.classList.remove("is-opening-bridge-live");
+        if (opening instanceof HTMLElement) void opening.offsetHeight;
+        const activated = activateOpeningBridgePortal();
+        if (!activated) return false;
+        openingEdgeLiveSyncTimestamp = 0;
+        primeCurrentOpeningEdgeTextures();
+        openingBridgeRecoveryPending = false;
+        return true;
+      };
+
+      const restoreOpeningBridgePresentation = () => {
+        if (
+          disposed
+          || scrollFrame
+          || scrollTransitionDirection !== "idle"
+        ) return false;
+        if (pageMode !== "next") {
+          openingBridgeRecoveryPending = false;
+          return false;
+        }
+        if (isOpeningStopCurrent()) return activateFreshOpeningBridge();
+
+        deactivateOpeningBridgePortal();
+        gateVisualResetPending = false;
+        releaseOpeningEdgeState();
+        resetGateState();
+        lockOpeningEdgeState();
+        scheduleOpeningEdgeTextureRefresh();
+        openingBridgeRecoveryPending = false;
+        return false;
+      };
+
+      const scheduleOpeningBridgeRecovery = () => {
+        if (openingBridgeRecoveryFrame) window.cancelAnimationFrame(openingBridgeRecoveryFrame);
+        openingBridgeRecoveryFrame = window.requestAnimationFrame(() => {
+          openingBridgeRecoveryFrame = window.requestAnimationFrame(() => {
+            openingBridgeRecoveryFrame = 0;
+            restoreOpeningBridgePresentation();
+          });
+        });
+      };
+
       const getReturnToGateThreshold = () => {
         const edgeHeight = openingEdge instanceof HTMLElement
           ? openingEdge.offsetHeight
@@ -12923,11 +12978,16 @@ const gateStyle = [
         const destination = getHomeSectionTop(stop.element);
         const direction = destination >= window.scrollY ? "section-forward" : "section-return";
         const restoresOpeningBridge = stop.element === opening
-          && direction === "section-return"
-          && !openingBridgePortalActive;
-        if (restoresOpeningBridge) activateOpeningBridgePortal();
+          && direction === "section-return";
+        if (restoresOpeningBridge) {
+          if (openingBridgeRecoveryPending) restoreOpeningBridgePresentation();
+          activateFreshOpeningBridge();
+        }
         const started = smoothScrollTo(destination, () => {
           lastObservedScrollY = window.scrollY;
+          if (stop.element === opening && openingBridgeRecoveryPending) {
+            activateFreshOpeningBridge();
+          }
           if (stop.element !== opening && openingBridgePortalActive) {
             if (gateVisualResetPending) finalizeGateResetForNextPage();
             else deactivateOpeningBridgePortal();
@@ -13333,6 +13393,9 @@ const gateStyle = [
       }
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "hidden") {
+          if (pageMode === "next") openingBridgeRecoveryPending = true;
+          if (openingBridgeRecoveryFrame) window.cancelAnimationFrame(openingBridgeRecoveryFrame);
+          openingBridgeRecoveryFrame = 0;
           if (energyFrame) window.cancelAnimationFrame(energyFrame);
           if (energyTimer) window.clearTimeout(energyTimer);
           energyFrame = 0;
@@ -13354,6 +13417,7 @@ const gateStyle = [
         startEnergyAnimation();
         startPostReleaseAnimation();
         scheduleWarningWarmup(true);
+        scheduleOpeningBridgeRecovery();
       }, { signal });
 
       const cleanup = () => {
@@ -13396,6 +13460,7 @@ const gateStyle = [
         if (layoutResizeFrame) window.cancelAnimationFrame(layoutResizeFrame);
         if (energyTimer) window.clearTimeout(energyTimer);
         if (restoreSyncTimer) window.clearTimeout(restoreSyncTimer);
+        if (openingBridgeRecoveryFrame) window.cancelAnimationFrame(openingBridgeRecoveryFrame);
         if (homeSectionWheelTimer) window.clearTimeout(homeSectionWheelTimer);
         if (homeGateReturnTimer) window.clearTimeout(homeGateReturnTimer);
         if (warningWarmupHandle) {
@@ -13420,6 +13485,7 @@ const gateStyle = [
         layoutResizeFrame = 0;
         energyTimer = 0;
         restoreSyncTimer = 0;
+        openingBridgeRecoveryFrame = 0;
         homeSectionWheelTimer = 0;
         homeGateReturnTimer = 0;
         opening?.classList.remove("is-gate-return-armed");
@@ -13448,6 +13514,7 @@ const gateStyle = [
       gate.removeAttribute("data-kisara-runtime-retries");
       window.__yuimiKisaraHomeBootController?.markReady?.();
       scheduleWarningWarmup();
+      scheduleOpeningBridgeRecovery();
       const syncRestoredPosition = () => {
         if (!restoreWindowOpen || scrollFrame || pageMode !== "gate" || window.scrollY <= 2) return;
         pageMode = "next";
@@ -13480,6 +13547,8 @@ const gateStyle = [
         returnToGate();
       };
       window.addEventListener("pageshow", syncRestoredPosition, { signal });
+      window.addEventListener("pageshow", scheduleOpeningBridgeRecovery, { signal });
+      window.addEventListener("focus", scheduleOpeningBridgeRecovery, { signal });
       window.addEventListener("scroll", syncRestoredPosition, { passive: true, signal });
       window.addEventListener("scroll", syncGateModeFromScroll, { passive: true, signal });
       window.addEventListener("scroll", syncDeferredGateReset, { passive: true, signal });
