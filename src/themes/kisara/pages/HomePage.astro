@@ -2330,6 +2330,7 @@ const gateStyle = [
       let restoreSyncTimer = 0;
       let openingBridgeRecoveryFrame = 0;
       let openingBridgeRecoveryPending = restoredBelowGate;
+      let openingBridgeResumeLive = false;
       let restoreWindowOpen = true;
       let gateVisualResetPending = false;
       let homeSectionInputGuardUntil = 0;
@@ -12619,11 +12620,7 @@ const gateStyle = [
           || (Math.abs(openingRect.top) <= tolerance && openingRect.bottom > tolerance * 2);
       };
 
-      const activateFreshOpeningBridge = () => {
-        deactivateOpeningBridgePortal();
-        gate.classList.remove("is-opening-bridge-live");
-        opening?.classList.remove("is-opening-bridge-live");
-        if (opening instanceof HTMLElement) void opening.offsetHeight;
+      const restoreLiveOpeningBridge = () => {
         const activated = activateOpeningBridgePortal();
         if (!activated) return false;
         openingEdgeLiveSyncTimestamp = 0;
@@ -12632,9 +12629,19 @@ const gateStyle = [
         return true;
       };
 
+      const activateFreshOpeningBridge = () => {
+        deactivateOpeningBridgePortal();
+        gate.classList.remove("is-opening-bridge-live");
+        opening?.classList.remove("is-opening-bridge-live");
+        if (opening instanceof HTMLElement) void opening.offsetHeight;
+        return restoreLiveOpeningBridge();
+      };
+
       const restoreOpeningBridgePresentation = () => {
         if (
-          disposed
+          !openingBridgeRecoveryPending
+          || document.visibilityState === "hidden"
+          || disposed
           || scrollFrame
           || scrollTransitionDirection !== "idle"
         ) return false;
@@ -12642,7 +12649,7 @@ const gateStyle = [
           openingBridgeRecoveryPending = false;
           return false;
         }
-        if (isOpeningStopCurrent()) return activateFreshOpeningBridge();
+        if (isOpeningStopCurrent()) return restoreLiveOpeningBridge();
 
         deactivateOpeningBridgePortal();
         gateVisualResetPending = false;
@@ -12655,10 +12662,16 @@ const gateStyle = [
       };
 
       const scheduleOpeningBridgeRecovery = () => {
+        if (!openingBridgeRecoveryPending || document.visibilityState === "hidden") return;
         if (openingBridgeRecoveryFrame) window.cancelAnimationFrame(openingBridgeRecoveryFrame);
         openingBridgeRecoveryFrame = window.requestAnimationFrame(() => {
+          if (!openingBridgeRecoveryPending || document.visibilityState === "hidden") {
+            openingBridgeRecoveryFrame = 0;
+            return;
+          }
           openingBridgeRecoveryFrame = window.requestAnimationFrame(() => {
             openingBridgeRecoveryFrame = 0;
+            if (!openingBridgeRecoveryPending || document.visibilityState === "hidden") return;
             restoreOpeningBridgePresentation();
           });
         });
@@ -13439,6 +13452,8 @@ const gateStyle = [
       }
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "hidden") {
+          openingBridgeResumeLive = openingBridgePortalActive
+            || (pageMode === "next" && isOpeningStopCurrent());
           if (pageMode === "next") openingBridgeRecoveryPending = true;
           if (openingBridgeRecoveryFrame) window.cancelAnimationFrame(openingBridgeRecoveryFrame);
           openingBridgeRecoveryFrame = 0;
@@ -13460,10 +13475,12 @@ const gateStyle = [
           gate.style.setProperty("--kisara-title-source-opacity", "1");
           return;
         }
+        const keptLiveBridge = openingBridgeResumeLive && restoreLiveOpeningBridge();
+        openingBridgeResumeLive = false;
         startEnergyAnimation();
         startPostReleaseAnimation();
         scheduleWarningWarmup(true);
-        scheduleOpeningBridgeRecovery();
+        if (!keptLiveBridge) scheduleOpeningBridgeRecovery();
       }, { signal });
 
       const cleanup = () => {
@@ -13532,6 +13549,7 @@ const gateStyle = [
         energyTimer = 0;
         restoreSyncTimer = 0;
         openingBridgeRecoveryFrame = 0;
+        openingBridgeResumeLive = false;
         homeSectionWheelTimer = 0;
         homeGateReturnTimer = 0;
         opening?.classList.remove("is-gate-return-armed");
