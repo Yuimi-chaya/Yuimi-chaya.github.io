@@ -2958,7 +2958,10 @@
 .kisara-fridge-media {
   z-index: 0;
   overflow: hidden;
-  background: #020304;
+  background:
+    #020304
+    url("/themes/kisara/assets/fridge-discovery-002.webp")
+    center / cover no-repeat;
 }
 
 .kisara-fridge-media > img {
@@ -5220,7 +5223,69 @@ html.kisara-event-modal-open {
   animation-play-state: paused;
 }
 
-html[data-yuimi-performance="mobile"] .kisara-ambient-particles i:nth-child(n + 9),
-html[data-yuimi-performance="lite"] .kisara-ambient-particles i:nth-child(n + 6) {
+html[data-yuimi-performance="mobile"] .kisara-ambient-particles i:nth-child(n + 5),
+html[data-yuimi-performance="lite"] .kisara-ambient-particles i:nth-child(n + 4) {
   display: none;
+}
+
+@media (max-width: 820px), (pointer: coarse) {
+  .kisara-gate-auto,
+  .kisara-gate-skip {
+    z-index: 12;
+    bottom: max(78px, calc(58px + env(safe-area-inset-bottom)));
+  }
+
+  .kisara-gate-auto {
+    right: 64px;
+  }
+
+  .kisara-gate-skip {
+    right: 24px;
+  }
+
+  .kisara-scroll-cue {
+    bottom: max(112px, calc(92px + env(safe-area-inset-bottom)));
+  }
+
+  .kisara-title-chain-canvas {
+    -webkit-mask-image: none;
+    mask-image: none;
+    will-change: opacity;
+  }
+
+  .kisara-title-chain-canvas-back {
+    filter: saturate(0.82) brightness(0.72);
+  }
+
+  .kisara-title-chain-canvas-front {
+    filter: saturate(0.92) contrast(1.08);
+  }
+
+  .kisara-gate-scene-slot {
+    will-change: opacity, transform;
+  }
+
+  .kisara-opening.is-memory-armed .kisara-opening-memory-image {
+    will-change: opacity;
+  }
+
+  .kisara-ambient-particles i {
+    box-shadow: 0 0 calc(var(--kisara-particle-size) * 2.8) hsla(var(--kisara-particle-hue), 100%, 72%, 0.52);
+  }
+
+  .kisara-ambient-particles i::after {
+    display: none;
+  }
+
+  .kisara-gate-skip::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  .kisara-event-scene:not([data-scene-visible="true"]) .kisara-event-camera-hud .is-recording i,
+  .kisara-event-scene:not([data-scene-visible="true"]) .kisara-event-hotspot::before,
+  .kisara-event-scene:not([data-scene-visible="true"]) .kisara-event-hotspot::after,
+  .kisara-event-reward:not([open]) .kisara-event-reward-burst::before {
+    animation-play-state: paused;
+  }
 }

@@ -862,17 +862,20 @@ const gateStyle = [
             if (cameraFocusFrame) cancelAnimationFrame(cameraFocusFrame);
             cameraFocusFrame = 0;
             cameraVisible = false;
+            delete this.dataset.sceneVisible;
             this.classList.remove("is-camera-focusing");
 
             if ("IntersectionObserver" in window) {
               this.cameraObserver = new IntersectionObserver((entries) => {
                 if (!entries.some((entry) => entry.isIntersecting)) return;
                 cameraVisible = true;
+                this.dataset.sceneVisible = "true";
                 startCameraFocus();
               }, { rootMargin: "12% 0px 12% 0px", threshold: 0.01 });
               this.cameraObserver.observe(this);
             } else {
               cameraVisible = true;
+              this.dataset.sceneVisible = "true";
               startCameraFocus();
             }
           };
@@ -1061,6 +1064,22 @@ const gateStyle = [
       const lifecycle = new AbortController();
       const signal = lifecycle.signal;
       let disposed = false;
+      const runtimeStyleCache = new WeakMap<Element, Map<string, string>>();
+      const setRuntimeStyle = (
+        element: Element | null | undefined,
+        property: string,
+        value: string
+      ) => {
+        if (!(element instanceof HTMLElement)) return;
+        let values = runtimeStyleCache.get(element);
+        if (!values) {
+          values = new Map();
+          runtimeStyleCache.set(element, values);
+        }
+        if (values.get(property) === value) return;
+        values.set(property, value);
+        element.style.setProperty(property, value);
+      };
 
       const energyCanvas = gate.querySelector("[data-kisara-energy]");
       const energyContext = energyCanvas?.getContext("2d");
@@ -1129,11 +1148,28 @@ const gateStyle = [
         ).then(() => {
           if (disposed || generation !== sceneDecodeGeneration) return;
           record.status = "ready";
+          gate.dispatchEvent(new CustomEvent("kisara:scene-ready"));
         }).catch(() => {
           if (disposed || generation !== sceneDecodeGeneration) return;
-          record.status = "failed";
+          record.status = record.image.complete && record.image.naturalWidth > 0
+            ? "ready"
+            : "failed";
+          gate.dispatchEvent(new CustomEvent("kisara:scene-ready"));
         });
         return record.promise;
+      };
+      const isSceneImageReady = (scene) => {
+        const record = scene?.id ? sceneImageWarmers.get(scene.id) : null;
+        if (!record || record.status === "failed") return true;
+        if (
+          record.status === "ready"
+          || (record.image.complete && record.image.naturalWidth > 0)
+        ) {
+          record.status = "ready";
+          return true;
+        }
+        warmSceneImage(scene);
+        return false;
       };
       const warmSceneImagesForProgress = (fill, intro) => {
         if (fill >= 0.08) warmSceneImage(memorySceneRecords[2]);
@@ -1221,6 +1257,14 @@ const gateStyle = [
           ? 1000 / 30
           : 0;
       const mobileCanvasRatio = litePerformance ? 0.9 : 1;
+      const quantizeRuntimeValue = (value, mobileStep, liteStep = mobileStep) => {
+        const step = litePerformance
+          ? liteStep
+          : mobilePerformance
+            ? mobileStep
+            : 0;
+        return step > 0 ? Math.round(value / step) * step : value;
+      };
       const openingMemory = opening instanceof HTMLElement
         ? opening.querySelector("[data-kisara-opening-memory]")
         : null;
@@ -2202,6 +2246,7 @@ const gateStyle = [
       let chargeIntroReversing = false;
       let animationFrame = 0;
       let lastFrameTime = 0;
+      let lastAnimationPaintTimestamp = 0;
       let touchY = null;
       let touchId = null;
       let gateWheelDirection = 0;
@@ -2551,6 +2596,12 @@ const gateStyle = [
       };
       const syncSceneSlots = (presentations) => {
         let activePresentations = presentations.filter((presentation) => presentation.opacity > 0.00005);
+        const pendingPresentations = activePresentations.filter(
+          (presentation) => !isSceneImageReady(presentation)
+        );
+        if (pendingPresentations.length > 0) {
+          return;
+        }
         if (activePresentations.length > sceneSlotRecords.length) {
           if (!sceneSlotOverflowWarned) {
             sceneSlotOverflowWarned = true;
@@ -2592,14 +2643,27 @@ const gateStyle = [
           const bladeBlur = presentation.bladeBlur ?? 0;
           const bladeBrightness = presentation.bladeBrightness ?? 1;
           const bladeScale = presentation.bladeScale ?? 1;
+          const renderedBlur = presentation.kind === "memory" && mobilePerformance
+            ? (litePerformance ? 0.8 : 1.25)
+            : quantizeRuntimeValue(
+                presentation.blur + (presentation.kind === "memory" ? 0 : bladeBlur),
+                0.5,
+                0.75
+              );
+          const renderedBrightness = quantizeRuntimeValue(bladeBrightness, 0.01, 0.02);
+          const renderedShiftX = quantizeRuntimeValue(presentation.shiftX, 0.35, 0.5);
+          const renderedShiftY = quantizeRuntimeValue(presentation.shiftY, 0.35, 0.5);
+          const renderedScale = quantizeRuntimeValue(presentation.scale, 0.0015, 0.002);
+          const renderedBladeScale = quantizeRuntimeValue(bladeScale, 0.0015, 0.002);
+          const renderedOpacity = quantizeRuntimeValue(presentation.opacity, 0.008, 0.012);
           const filter = presentation.kind === "memory"
-            ? `blur(calc(${presentation.blur.toFixed(3)}px + var(--kisara-performance-blur))) saturate(${presentation.saturation}) brightness(${presentation.brightness}) contrast(1.035)`
-            : `blur(calc(${(presentation.blur + bladeBlur).toFixed(3)}px + var(--kisara-performance-blur))) saturate(${presentation.saturation}) brightness(${presentation.brightness}) brightness(${bladeBrightness.toFixed(4)}) contrast(1.025)`;
+            ? `blur(calc(${renderedBlur.toFixed(3)}px + var(--kisara-performance-blur))) saturate(${presentation.saturation}) brightness(${presentation.brightness}) contrast(1.035)`
+            : `blur(calc(${renderedBlur.toFixed(3)}px + var(--kisara-performance-blur))) saturate(${presentation.saturation}) brightness(${presentation.brightness}) brightness(${renderedBrightness.toFixed(4)}) contrast(1.025)`;
           const transform = presentation.kind === "memory"
-            ? `translate3d(${presentation.shiftX.toFixed(3)}px, ${presentation.shiftY.toFixed(3)}px, 0) scale(${presentation.scale.toFixed(5)}) scale(var(--kisara-gravity-scale))`
-            : `translate3d(calc(${presentation.shiftX.toFixed(3)}px + var(--kisara-base-shift-x)), calc(${presentation.shiftY.toFixed(3)}px + var(--kisara-base-shift-y)), 0) scale(${presentation.scale.toFixed(5)}) scale(${bladeScale.toFixed(5)}) scale(var(--kisara-gravity-scale))`;
+            ? `translate3d(${renderedShiftX.toFixed(3)}px, ${renderedShiftY.toFixed(3)}px, 0) scale(${renderedScale.toFixed(5)}) scale(var(--kisara-gravity-scale))`
+            : `translate3d(calc(${renderedShiftX.toFixed(3)}px + var(--kisara-base-shift-x)), calc(${renderedShiftY.toFixed(3)}px + var(--kisara-base-shift-y)), 0) scale(${renderedScale.toFixed(5)}) scale(${renderedBladeScale.toFixed(5)}) scale(var(--kisara-gravity-scale))`;
           setSceneSlotStyle(slot, "z-index", String(presentation.order + 1));
-          setSceneSlotStyle(slot, "opacity", presentation.opacity.toFixed(4));
+          setSceneSlotStyle(slot, "opacity", renderedOpacity.toFixed(4));
           setSceneSlotStyle(slot, "filter", filter);
           setSceneSlotStyle(slot, "transform", transform);
         });
@@ -2779,9 +2843,9 @@ const gateStyle = [
         const memoryFlash = transitionProximity * transitionEnergy * 0.34;
         const memoryHaze = memoryEnvelope * (0.045 + strongestScene * 0.045);
         const memoryFlareShift = clamp(velocity * 155, -1, 1) * 10;
-        gate.style.setProperty("--kisara-memory-flash", memoryFlash.toFixed(4));
-        gate.style.setProperty("--kisara-memory-haze", memoryHaze.toFixed(4));
-        gate.style.setProperty("--kisara-memory-flare-shift", `${memoryFlareShift.toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-memory-flash", memoryFlash.toFixed(4));
+        setRuntimeStyle(gate, "--kisara-memory-haze", memoryHaze.toFixed(4));
+        setRuntimeStyle(gate, "--kisara-memory-flare-shift", `${memoryFlareShift.toFixed(3)}px`);
 
         const handoff = computeSceneHandoff();
         const finalScenePresentations = scenePresentations.map((presentation) => {
@@ -9303,54 +9367,57 @@ const gateStyle = [
           && burst <= 0.001
           && !chargeIntroActive
           && !chargeIntroComplete;
-        meterShell?.style.setProperty("--kisara-beam-shake-x", `${shakeX.toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-shake-y", `${shakeY.toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-anchor-x", `${beamAnchorX.toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-anchor-y", `${beamAnchorY.toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-lift", `${beamLift.toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-expansion", beamScaleY.toFixed(4));
-        meterShell?.style.setProperty("--kisara-beam-scale-x", beamScaleX.toFixed(4));
-        meterShell?.style.setProperty("--kisara-beam-scale-y", beamScaleY.toFixed(4));
-        meterShell?.style.setProperty("--kisara-beam-angle", `${beamAngle.toFixed(3)}deg`);
-        gate.style.setProperty("--kisara-title-vivid", titleVivid.toFixed(4));
-        gate.style.setProperty("--kisara-tide-energy-opacity", tideEnergyOpacity.toFixed(4));
-        gate.style.setProperty("--kisara-tide-brightness", tideBrightness.toFixed(4));
-        gate.style.setProperty("--kisara-tide-saturation", tideSaturation.toFixed(4));
-        gate.style.setProperty("--kisara-scene-camera-x", `${sceneCameraX.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-scene-camera-y", `${sceneCameraY.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-scene-camera-scale", sceneCameraScale.toFixed(5));
+        setRuntimeStyle(meterShell, "--kisara-beam-shake-x", `${quantizeRuntimeValue(shakeX, 0.15, 0.22).toFixed(3)}px`);
+        setRuntimeStyle(meterShell, "--kisara-beam-shake-y", `${quantizeRuntimeValue(shakeY, 0.15, 0.22).toFixed(3)}px`);
+        setRuntimeStyle(meterShell, "--kisara-beam-anchor-x", `${quantizeRuntimeValue(beamAnchorX, 0.15, 0.22).toFixed(3)}px`);
+        setRuntimeStyle(meterShell, "--kisara-beam-anchor-y", `${quantizeRuntimeValue(beamAnchorY, 0.15, 0.22).toFixed(3)}px`);
+        setRuntimeStyle(meterShell, "--kisara-beam-lift", `${quantizeRuntimeValue(beamLift, 0.15, 0.22).toFixed(3)}px`);
+        setRuntimeStyle(meterShell, "--kisara-beam-expansion", quantizeRuntimeValue(beamScaleY, 0.003, 0.0045).toFixed(4));
+        setRuntimeStyle(meterShell, "--kisara-beam-scale-x", quantizeRuntimeValue(beamScaleX, 0.003, 0.0045).toFixed(4));
+        setRuntimeStyle(meterShell, "--kisara-beam-scale-y", quantizeRuntimeValue(beamScaleY, 0.003, 0.0045).toFixed(4));
+        setRuntimeStyle(meterShell, "--kisara-beam-angle", `${quantizeRuntimeValue(beamAngle, 0.15, 0.22).toFixed(3)}deg`);
+        setRuntimeStyle(gate, "--kisara-title-vivid", quantizeRuntimeValue(titleVivid, 0.008, 0.012).toFixed(4));
+        setRuntimeStyle(gate, "--kisara-tide-energy-opacity", quantizeRuntimeValue(tideEnergyOpacity, 0.008, 0.012).toFixed(4));
+        setRuntimeStyle(gate, "--kisara-tide-brightness", quantizeRuntimeValue(tideBrightness, 0.008, 0.012).toFixed(4));
+        setRuntimeStyle(gate, "--kisara-tide-saturation", quantizeRuntimeValue(tideSaturation, 0.008, 0.012).toFixed(4));
+        setRuntimeStyle(gate, "--kisara-scene-camera-x", `${quantizeRuntimeValue(sceneCameraX, 0.2, 0.3).toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-scene-camera-y", `${quantizeRuntimeValue(sceneCameraY, 0.2, 0.3).toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-scene-camera-scale", quantizeRuntimeValue(sceneCameraScale, 0.0015, 0.002).toFixed(5));
         if (normalChargeFrame) return;
-        meterShell?.style.setProperty("--kisara-beam-opacity", beamOpacity.toFixed(3));
-        meterShell?.style.setProperty("--kisara-beam-glow", `${(pressure * 12 + detonationRush * 45).toFixed(3)}px`);
-        meterShell?.style.setProperty("--kisara-beam-brightness", (1 + pressure * 0.16 + detonationRush * 0.62).toFixed(3));
-        gate.style.setProperty("--kisara-enchant-progress", introEnchant.toFixed(4));
-        gate.style.setProperty("--kisara-enchant-opacity", enchantOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-enchant-pulse", enchantPulse.toFixed(3));
-        gate.style.setProperty("--kisara-enchant-flow", `${enchantFlow.toFixed(3)}%`);
-        gate.style.setProperty("--kisara-title-impact-x", `${introKickX.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-title-impact-y", `${introKickY.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-performance-blur", `${performanceBlur.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-release-rewind", releaseRewindVeil.toFixed(4));
-        gate.style.setProperty("--kisara-release-pressure", releaseVisualPressure.toFixed(4));
-        gate.style.setProperty("--kisara-screen-shake-x", `${screenShakeX.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-screen-shake-y", `${screenShakeY.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-base-shift-x", `${(-gravityDriftX).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-base-shift-y", `${(-gravityDriftY).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-fight-shift-x", `${(gravityDriftX * 1.65).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-fight-shift-y", `${(gravityDriftY * 1.45).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-gravity-scale", gravityScale.toFixed(4));
-        gate.style.setProperty("--kisara-title-blur", `${titleBlur.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-reconstruction-center-x", `${(warpOriginX + 24).toFixed(3)}px`);
-        gate.style.setProperty("--kisara-reconstruction-center-y", `${(warpOriginY + 24).toFixed(3)}px`);
-        gate.style.setProperty(
+        setRuntimeStyle(meterShell, "--kisara-beam-opacity", beamOpacity.toFixed(3));
+        setRuntimeStyle(meterShell, "--kisara-beam-glow", `${(pressure * 12 + detonationRush * 45).toFixed(3)}px`);
+        setRuntimeStyle(meterShell, "--kisara-beam-brightness", (1 + pressure * 0.16 + detonationRush * 0.62).toFixed(3));
+        setRuntimeStyle(gate, "--kisara-enchant-progress", introEnchant.toFixed(4));
+        setRuntimeStyle(gate, "--kisara-enchant-opacity", enchantOpacity.toFixed(3));
+        setRuntimeStyle(gate, "--kisara-enchant-pulse", enchantPulse.toFixed(3));
+        setRuntimeStyle(gate, "--kisara-enchant-flow", `${enchantFlow.toFixed(3)}%`);
+        setRuntimeStyle(gate, "--kisara-title-impact-x", `${introKickX.toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-title-impact-y", `${introKickY.toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-performance-blur", `${performanceBlur.toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-release-rewind", releaseRewindVeil.toFixed(4));
+        setRuntimeStyle(gate, "--kisara-release-pressure", releaseVisualPressure.toFixed(4));
+        setRuntimeStyle(gate, "--kisara-screen-shake-x", `${screenShakeX.toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-screen-shake-y", `${screenShakeY.toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-base-shift-x", `${(-gravityDriftX).toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-base-shift-y", `${(-gravityDriftY).toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-fight-shift-x", `${(gravityDriftX * 1.65).toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-fight-shift-y", `${(gravityDriftY * 1.45).toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-gravity-scale", gravityScale.toFixed(4));
+        setRuntimeStyle(gate, "--kisara-title-blur", `${titleBlur.toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-reconstruction-center-x", `${(warpOriginX + 24).toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-reconstruction-center-y", `${(warpOriginY + 24).toFixed(3)}px`);
+        setRuntimeStyle(
+          gate,
           "--kisara-reconstruction-inner-radius",
           `${reconstructionInnerRadius.toFixed(3)}px`
         );
-        gate.style.setProperty(
+        setRuntimeStyle(
+          gate,
           "--kisara-reconstruction-outer-radius",
           `${reconstructionOuterRadius.toFixed(3)}px`
         );
-        gate.style.setProperty(
+        setRuntimeStyle(
+          gate,
           "--kisara-reconstruction-wash-opacity",
           reconstructionWashOpacity.toFixed(3)
         );
@@ -9400,10 +9467,10 @@ const gateStyle = [
             });
           }
         }
-        gate.style.setProperty("--kisara-chromatic-shift", `${chromaticShift.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-impact-flash", impactFlash.toFixed(3));
-        gate.style.setProperty("--kisara-impact-vignette", impactVignette.toFixed(3));
-        gate.style.setProperty("--kisara-impact-scale", impactScale.toFixed(4));
+        setRuntimeStyle(gate, "--kisara-chromatic-shift", `${chromaticShift.toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-impact-flash", impactFlash.toFixed(3));
+        setRuntimeStyle(gate, "--kisara-impact-vignette", impactVignette.toFixed(3));
+        setRuntimeStyle(gate, "--kisara-impact-scale", impactScale.toFixed(4));
         if (warningPresentationVisible || warningPresentationActive) {
           writeWarningPresentationStyles({
             monochrome: warningMonochrome,
@@ -9501,7 +9568,7 @@ const gateStyle = [
           rotation: -0.02,
           breakT: 0.18,
           desktopLinks: 52,
-          mobileLinks: 32,
+          mobileLinks: 20,
           linkScale: 0.98,
           entryOverscan: 0.16,
           entryBend: -0.06
@@ -9520,7 +9587,7 @@ const gateStyle = [
           xShift: -0.006,
           breakT: 0.5,
           desktopLinksPerSegment: 8,
-          mobileLinksPerSegment: 5,
+          mobileLinksPerSegment: 3,
           linkScale: 0.96,
           entryOverscan: 0.14,
           entryBend: 0.09
@@ -9539,7 +9606,7 @@ const gateStyle = [
           xShift: 0.008,
           breakT: 0.44,
           desktopLinksPerSegment: 7,
-          mobileLinksPerSegment: 5,
+          mobileLinksPerSegment: 3,
           linkScale: 0.82,
           entryOverscan: 0.14,
           entryBend: -0.08
@@ -9680,6 +9747,7 @@ const gateStyle = [
 
         if (definition.type === "frame") {
           const layout = chainGlyphLayout;
+          const mobileGeometry = mobilePerformance || box.width < 420;
           const glyphWidth = layout.textRight > layout.textLeft
             ? layout.textRight - layout.textLeft
             : box.width;
@@ -9689,8 +9757,10 @@ const gateStyle = [
           const frameCenterX = layout.centerX || centerX;
           const frameCenterY = layout.centerY || centerY;
           const radiusX = glyphWidth * definition.radiusX
+            * (mobileGeometry ? 1.04 : 1)
             * (1 - scrollTension * 0.004);
           const radiusY = glyphHeight * definition.radiusY
+            * (mobileGeometry ? 2.6 : 1)
             * (1 - scrollTension * 0.006);
           const angle = definition.phase + definition.direction * unit * fullTurn;
           const rotationCosine = Math.cos(definition.rotation);
@@ -9864,7 +9934,12 @@ const gateStyle = [
       };
 
       const getChainLinkDimensions = (definition) => {
-        const linkUnit = clamp(chainTitleBox.height * 0.108, 8.4, 16.8) * definition.linkScale;
+        const mobileGeometry = mobilePerformance || chainTitleBox.width < 420;
+        const linkUnit = clamp(
+          chainTitleBox.height * (mobileGeometry ? 0.122 : 0.108),
+          mobileGeometry ? 9.2 : 8.4,
+          mobileGeometry ? 15.8 : 16.8
+        ) * definition.linkScale;
         return {
           width: linkUnit * 1.82,
           height: linkUnit * 1.02
@@ -9881,7 +9956,9 @@ const gateStyle = [
         const cached = chainLinkUnitCache.get(cacheKey);
         if (cached) return cached;
         const spacingPath = resolveTitleChainPath(definition, 0, 0);
-        const sampleCount = definition.type === "frame" ? 180 : 140;
+        const sampleCount = definition.type === "frame"
+          ? (isMobile ? 110 : 180)
+          : (isMobile ? 88 : 140);
         const samples = [];
         let totalLength = 0;
         let previous = sampleTitleChain(definition, spacingPath, 0, 0, 0, 0);
@@ -9904,8 +9981,8 @@ const gateStyle = [
 
         const dimensions = getChainLinkDimensions(definition);
         const spacingFactor = definition.type === "frame"
-          ? (isMobile ? 0.64 : 0.64)
-          : (isMobile ? 0.64 : 0.6);
+          ? (isMobile ? 1.04 : 0.64)
+          : (isMobile ? 0.98 : 0.6);
         const desiredCount = Math.round(totalLength / (dimensions.width * spacingFactor));
         const minimum = definition.type === "frame"
           ? (isMobile ? definition.mobileLinks : definition.desktopLinks)
@@ -9913,8 +9990,8 @@ const gateStyle = [
               ? definition.mobileLinksPerSegment
               : definition.desktopLinksPerSegment) * spacingPath.segmentCount + 1;
         const maximum = definition.type === "frame"
-          ? (isMobile ? 82 : 110)
-          : (isMobile ? 62 : 86);
+          ? (isMobile ? 28 : 110)
+          : (isMobile ? 22 : 86);
         let linkCount = Math.round(clamp(desiredCount, minimum, maximum));
         if (definition.type === "frame" && linkCount % 2 !== 0) {
           linkCount += linkCount < maximum ? 1 : -1;
@@ -9998,8 +10075,9 @@ const gateStyle = [
         ].join(":");
         const cached = chainLinkSpriteCache.get(cacheKey);
         if (cached) return cached;
-        const spriteScale = 2.4;
-        const padding = isFront ? 12 : 10;
+        const simplifiedChain = mobilePerformance || chainTitleBox.width < 420;
+        const spriteScale = simplifiedChain ? 1.55 : 2.4;
+        const padding = simplifiedChain ? (isFront ? 8 : 7) : (isFront ? 12 : 10);
         const width = dimensions.width + padding * 2;
         const height = dimensions.height + padding * 2;
         const canvas = document.createElement("canvas");
@@ -10010,15 +10088,18 @@ const gateStyle = [
         context.setTransform(spriteScale, 0, 0, spriteScale, width * spriteScale * 0.5, height * spriteScale * 0.5);
         context.lineCap = "round";
         context.lineJoin = "round";
-        const detailedMetal = isFront && arcPart === "near";
+        const detailedMetal = !simplifiedChain && isFront && arcPart === "near";
         const variantUnit = variant / 2;
         const toneShift = variantUnit - 0.5;
         const nearUsesLowerArc = parity === 0;
         const lowerArc = [-Math.PI * 0.08, Math.PI * 1.08];
         const upperArc = [Math.PI * 0.92, Math.PI * 2.08];
-        const [arcStart, arcEnd] = arcPart === "near"
-          ? (nearUsesLowerArc ? lowerArc : upperArc)
-          : (nearUsesLowerArc ? upperArc : lowerArc);
+        const [arcStart, arcEnd] = arcPart === "full"
+          ? [0, fullTurn]
+          : arcPart === "near"
+            ? (nearUsesLowerArc ? lowerArc : upperArc)
+            : (nearUsesLowerArc ? upperArc : lowerArc);
+        const prominentArc = arcPart !== "far";
         const metal = context.createLinearGradient(
           0,
           -dimensions.height * 0.62,
@@ -10045,7 +10126,7 @@ const gateStyle = [
           metal.addColorStop(1, `hsla(${212 + toneShift * 4}, 14%, ${64 + variantUnit * 7}%, 0.98)`);
         }
 
-        context.globalAlpha = arcPart === "near" ? 0.96 : 0.72;
+        context.globalAlpha = prominentArc ? 0.96 : 0.72;
         context.strokeStyle = "rgba(3,4,13,0.98)";
         context.lineWidth = (isFront ? 5.7 : 5.05) * (0.95 + variantUnit * 0.08);
         context.shadowColor = "rgba(1,2,11,0.9)";
@@ -10054,7 +10135,7 @@ const gateStyle = [
         context.ellipse(0, 0, dimensions.width * 0.5, dimensions.height * 0.5, 0, arcStart, arcEnd);
         context.stroke();
 
-        context.globalAlpha = arcPart === "near" ? 1 : 0.8;
+        context.globalAlpha = prominentArc ? 1 : 0.8;
         context.strokeStyle = metal;
         context.lineWidth = (isFront ? 3.45 : 3) * (0.96 + variantUnit * 0.07);
         context.shadowColor = hot ? "rgba(255,76,122,0.24)" : "rgba(124,157,211,0.15)";
@@ -10064,7 +10145,7 @@ const gateStyle = [
         context.stroke();
 
         context.globalCompositeOperation = "multiply";
-        context.globalAlpha = arcPart === "near" ? 0.74 : 0.52;
+        context.globalAlpha = prominentArc ? 0.74 : 0.52;
         context.strokeStyle = hot ? "rgba(41,3,18,0.92)" : "rgba(5,10,24,0.9)";
         context.lineWidth = 0.94 + variantUnit * 0.18;
         context.shadowBlur = 0;
@@ -10161,6 +10242,7 @@ const gateStyle = [
         lengthScale = 1
       ) => {
         if (alpha <= 0.002) return;
+        const simplifiedChain = mobilePerformance || chainTitleBox.width < 420;
         const parity = linkIndex % 2;
         const edgeOn = parity === 1;
         const frameDepth = Number.isFinite(sample.depth) ? sample.depth : 0;
@@ -10215,7 +10297,7 @@ const gateStyle = [
         );
         context.scale(horizontalScale, verticalScale);
         context.imageSmoothingEnabled = true;
-        if (edgeOn) {
+        if (edgeOn && !simplifiedChain) {
           const dimensions = getChainLinkDimensions(definition);
           const nearUsesLowerArc = parity === 0;
           const lowerArc = [-Math.PI * 0.08, Math.PI * 1.08];
@@ -10317,6 +10399,24 @@ const gateStyle = [
       };
 
       const drawChainLayer = (context, records, isFront) => {
+        if (mobilePerformance || chainTitleBox.width < 420) {
+          for (const record of records) {
+            drawChainLinkArc(
+              context,
+              record.sample,
+              record.linkIndex,
+              record.definition,
+              record.alpha,
+              record.heat,
+              isFront,
+              record.arcMode === "full" ? "full" : record.arcMode,
+              record.rotationOffset,
+              record.scale,
+              record.lengthScale
+            );
+          }
+          return;
+        }
         const passes = [
           { arcPart: "far", edgeOn: false },
           { arcPart: "far", edgeOn: true },
@@ -11193,7 +11293,7 @@ const gateStyle = [
           context.setTransform(chainPixelRatio, 0, 0, chainPixelRatio, 0, 0);
         }
 
-        const isMobile = chainTitleBox.width < 360;
+        const isMobile = mobilePerformance || chainTitleBox.width < 420;
         const releaseFade = phaseProgress(intro, 0.84, 0.985);
         const layerRecords = { back: [], front: [] };
         const shatterRecords = [];
@@ -11217,7 +11317,17 @@ const gateStyle = [
         };
 
         for (const definition of chainDefinitions) {
-          const build = phaseProgress(fill, definition.buildStart, definition.buildEnd);
+          const buildStart = isMobile && definition.type === "weave"
+            ? definition.id === 1
+              ? 0.22
+              : 0.56
+            : definition.buildStart;
+          const buildEnd = isMobile && definition.type === "weave"
+            ? definition.id === 1
+              ? 0.82
+              : 1
+            : definition.buildEnd;
+          const build = phaseProgress(fill, buildStart, buildEnd);
           if (build <= 0.001) continue;
           const path = resolveTitleChainPath(definition, fill, intro);
           const spacing = buildTitleChainLinkUnits(definition, isMobile);
@@ -12173,33 +12283,36 @@ const gateStyle = [
           : Math.min(0.74, 0.38 + Math.sin(fill * Math.PI) * 0.1 + Math.abs(velocity) * 24);
         const boundaryOffset = clamp(velocity * 320, -1.45, 1.45);
 
-        gate.style.setProperty("--kisara-fill", `${(fill * 100).toFixed(3)}%`);
-        gate.style.setProperty("--kisara-burst-progress", `${(burstProgress * 100).toFixed(3)}%`);
-        gate.style.setProperty("--kisara-gloss-position", `${glossPosition.toFixed(3)}%`);
-        gate.style.setProperty("--kisara-gloss-opacity", glossOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-tide-opacity", tideVisible ? "1" : "0");
-        gate.style.setProperty("--kisara-boundary-opacity", boundaryOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-boundary-offset", `${boundaryOffset.toFixed(3)}%`);
-        gate.style.setProperty("--kisara-bg-blur", `${baseSceneBlur.toFixed(3)}px`);
-        gate.style.setProperty("--kisara-bg-opacity", baseSceneOpacity.toFixed(3));
-        gate.style.setProperty("--kisara-bg-saturation", baseSceneSaturation.toFixed(3));
-        gate.style.setProperty("--kisara-bg-brightness", baseSceneBrightness.toFixed(3));
-        gate.style.setProperty("--kisara-fight-opacity", (fightVisible * 0.985).toFixed(3));
-        gate.style.setProperty("--kisara-fight-blur", `${fightBlur.toFixed(3)}px`);
-        gate.style.setProperty(
+        setRuntimeStyle(gate, "--kisara-fill", `${(fill * 100).toFixed(3)}%`);
+        setRuntimeStyle(gate, "--kisara-burst-progress", `${(burstProgress * 100).toFixed(3)}%`);
+        setRuntimeStyle(gate, "--kisara-gloss-position", `${quantizeRuntimeValue(glossPosition, 0.12, 0.18).toFixed(3)}%`);
+        setRuntimeStyle(gate, "--kisara-gloss-opacity", quantizeRuntimeValue(glossOpacity, 0.01, 0.015).toFixed(3));
+        setRuntimeStyle(gate, "--kisara-tide-opacity", tideVisible ? "1" : "0");
+        setRuntimeStyle(gate, "--kisara-boundary-opacity", quantizeRuntimeValue(boundaryOpacity, 0.01, 0.015).toFixed(3));
+        setRuntimeStyle(gate, "--kisara-boundary-offset", `${quantizeRuntimeValue(boundaryOffset, 0.05, 0.08).toFixed(3)}%`);
+        setRuntimeStyle(gate, "--kisara-bg-blur", `${quantizeRuntimeValue(baseSceneBlur, 0.5, 0.75).toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-bg-opacity", quantizeRuntimeValue(baseSceneOpacity, 0.01, 0.015).toFixed(3));
+        setRuntimeStyle(gate, "--kisara-bg-saturation", quantizeRuntimeValue(baseSceneSaturation, 0.01, 0.015).toFixed(3));
+        setRuntimeStyle(gate, "--kisara-bg-brightness", quantizeRuntimeValue(baseSceneBrightness, 0.01, 0.015).toFixed(3));
+        setRuntimeStyle(gate, "--kisara-fight-opacity", quantizeRuntimeValue(fightVisible * 0.985, 0.01, 0.015).toFixed(3));
+        setRuntimeStyle(gate, "--kisara-fight-blur", `${quantizeRuntimeValue(fightBlur, 0.5, 0.75).toFixed(3)}px`);
+        setRuntimeStyle(
+          gate,
           "--kisara-fight-scale",
-          (1.012 - fightSettle * 0.012).toFixed(4)
+          quantizeRuntimeValue(1.012 - fightSettle * 0.012, 0.0015, 0.002).toFixed(4)
         );
-        gate.style.setProperty(
+        setRuntimeStyle(
+          gate,
           "--kisara-fight-saturation",
-          fightSaturation.toFixed(3)
+          quantizeRuntimeValue(fightSaturation, 0.01, 0.015).toFixed(3)
         );
-        gate.style.setProperty(
+        setRuntimeStyle(
+          gate,
           "--kisara-fight-brightness",
-          fightBrightness.toFixed(3)
+          quantizeRuntimeValue(fightBrightness, 0.01, 0.015).toFixed(3)
         );
-        gate.style.setProperty("--kisara-fight-handoff-x", "0px");
-        gate.style.setProperty("--kisara-fight-handoff-y", "0px");
+        setRuntimeStyle(gate, "--kisara-fight-handoff-x", "0px");
+        setRuntimeStyle(gate, "--kisara-fight-handoff-y", "0px");
         energyProgress = fill;
         if (!energyLoopActive || reducedMotion) {
           updateBurstPresentation(performance.now(), false);
@@ -12475,6 +12588,15 @@ const gateStyle = [
       const animate = (timestamp) => {
         animationFrame = 0;
         if (disposed || !gate.isConnected) return;
+        if (
+          mobileFrameInterval > 0
+          && lastAnimationPaintTimestamp > 0
+          && timestamp - lastAnimationPaintTimestamp < mobileFrameInterval
+        ) {
+          animationFrame = window.requestAnimationFrame(animate);
+          return;
+        }
+        lastAnimationPaintTimestamp = timestamp;
         const frameRatio = lastFrameTime
           ? clamp((timestamp - lastFrameTime) / 16.667, 0.5, 3)
           : 1;
@@ -12592,6 +12714,7 @@ const gateStyle = [
           burstProgress = targetBurstProgress;
           burstVelocity = 0;
           lastFrameTime = 0;
+          lastAnimationPaintTimestamp = 0;
           render();
           return;
         }
@@ -12603,6 +12726,7 @@ const gateStyle = [
       const startAnimation = () => {
         if (!animationFrame) {
           lastFrameTime = 0;
+          lastAnimationPaintTimestamp = 0;
           animationFrame = window.requestAnimationFrame(animate);
         }
       };
@@ -13382,6 +13506,11 @@ const gateStyle = [
         postReleaseTargetX = 0;
         postReleaseTargetY = 0;
       }, { passive: true, signal });
+
+      gate.addEventListener("kisara:scene-ready", () => {
+        render();
+        startEnergyAnimation();
+      }, { signal });
 
       autoPlay?.addEventListener("click", () => {
         startHeroAutoplay();
