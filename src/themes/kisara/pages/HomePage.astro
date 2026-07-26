@@ -310,6 +310,7 @@ const gateStyle = [
   <section
     id="kisara-opening"
     class="kisara-opening"
+    data-kisara-home-stop="001"
     aria-labelledby="kisara-opening-title"
   >
     <div class="kisara-opening-edge" aria-hidden="true">
@@ -418,7 +419,7 @@ const gateStyle = [
 
   <div class="kisara-home-transition is-memory-to-fridge" aria-hidden="true"><span></span><i></i><i></i></div>
 
-  <section class="kisara-fridge-deck" aria-labelledby="kisara-fridge-title">
+  <section class="kisara-fridge-deck" data-kisara-home-stop="002" aria-labelledby="kisara-fridge-title">
     <kisara-fridge-scene class="kisara-fridge-scene" data-active-index="0" data-fridge-bound="true">
       <div class="kisara-fridge-media">
         <img
@@ -652,7 +653,7 @@ const gateStyle = [
 
   <div class="kisara-home-transition is-fridge-to-event" aria-hidden="true"><span></span><i></i><i></i></div>
 
-  <section class="kisara-home-projects" aria-labelledby="kisara-project-title">
+  <section class="kisara-home-projects" data-kisara-home-stop="003" aria-labelledby="kisara-project-title">
     <div class="kisara-content-shell">
       <header class="kisara-home-band-heading is-lab-heading">
         <div>
@@ -967,7 +968,7 @@ const gateStyle = [
     }
   </script>
 
-  <section class="kisara-latest" aria-labelledby="kisara-latest-title">
+  <section class="kisara-latest" data-kisara-home-stop="004" aria-labelledby="kisara-latest-title">
     <header class="kisara-home-band-heading is-transmission-heading">
       <div>
         <p class="kisara-section-index">RECENT TRANSMISSIONS / 004</p>
@@ -2263,6 +2264,14 @@ const gateStyle = [
       };
       let titleFontSignature = "";
       let pageMode = restoredBelowGate ? "next" : "gate";
+      const homeSectionSnapMedia = window.matchMedia("(min-width: 981px) and (hover: hover)");
+      const homeSectionStops = [
+        opening,
+        document.querySelector('[data-kisara-home-stop="002"]'),
+        document.querySelector('[data-kisara-home-stop="003"]'),
+        document.querySelector('[data-kisara-home-stop="004"]'),
+        document.querySelector(".kisara-footer")
+      ].filter((element) => element instanceof HTMLElement);
       let scrollFrame = 0;
       let scrollTransitionSerial = 0;
       let activeScrollTransition = 0;
@@ -2276,6 +2285,14 @@ const gateStyle = [
       let restoreSyncTimer = 0;
       let restoreWindowOpen = true;
       let gateVisualResetPending = false;
+      let homeSectionInputGuardUntil = 0;
+      let homeSectionWheelAccumulator = 0;
+      let homeSectionWheelLastTimestamp = 0;
+      let homeSectionWheelGestureSerial = 0;
+      let homeSectionWheelTimer = 0;
+      let homeGateReturnArmed = false;
+      let homeGateReturnGestureSerial = -1;
+      let homeGateReturnTimer = 0;
       let poseTimestamp = 0;
       let poseClock = 0;
       let poseAtRest = true;
@@ -12456,7 +12473,13 @@ const gateStyle = [
         return true;
       };
 
-      const smoothScrollTo = (target, onComplete, onProgress, direction = "idle") => {
+      const smoothScrollTo = (
+        target,
+        onComplete,
+        onProgress,
+        direction = "idle",
+        motionProfile = "gate"
+      ) => {
         if (scrollFrame || scrollTransitionDirection !== "idle") return false;
         const destination = Math.max(0, target);
         if (reducedMotion) {
@@ -12477,9 +12500,14 @@ const gateStyle = [
         let velocity = 0;
         let lastTimestamp = performance.now();
         const initialDistance = Math.max(1, Math.abs(destination - current));
-        const stiffness = 38;
-        const dampingForce = 11.8;
-        const maxVelocity = clamp(Math.abs(destination - current) * 2.4, 620, 1900);
+        const sectionMotion = motionProfile === "section";
+        const stiffness = sectionMotion ? 31 : 38;
+        const dampingForce = sectionMotion ? 11 : 11.8;
+        const maxVelocity = clamp(
+          Math.abs(destination - current) * (sectionMotion ? 2.8 : 2.4),
+          sectionMotion ? 760 : 620,
+          sectionMotion ? 2400 : 1900
+        );
 
         const finish = () => {
           if (activeScrollTransition !== transitionId) return;
@@ -12655,6 +12683,7 @@ const gateStyle = [
       };
 
       const completeGateReturn = () => {
+        clearHomeGateReturnArm();
         finishHomeSectionReplayReset();
         gateVisualResetPending = false;
         deactivateOpeningBridgePortal();
@@ -12679,6 +12708,7 @@ const gateStyle = [
 
       const returnToGate = () => {
         if (scrollTransitionDirection === "return") return;
+        clearHomeGateReturnArm();
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
         pageMode = "snap";
         const returnRailStart = getDocumentScrollProgress();
@@ -12705,6 +12735,153 @@ const gateStyle = [
           });
         }, "return");
         if (!started) completeGateReturn();
+      };
+
+      const clearHomeGateReturnArm = () => {
+        homeGateReturnArmed = false;
+        homeGateReturnGestureSerial = -1;
+        if (homeGateReturnTimer) window.clearTimeout(homeGateReturnTimer);
+        homeGateReturnTimer = 0;
+        opening?.classList.remove("is-gate-return-armed");
+      };
+
+      const armHomeGateReturn = (gestureSerial = -1) => {
+        clearHomeGateReturnArm();
+        homeGateReturnArmed = true;
+        homeGateReturnGestureSerial = gestureSerial;
+        opening?.classList.add("is-gate-return-armed");
+        homeGateReturnTimer = window.setTimeout(() => {
+          homeGateReturnTimer = 0;
+          homeGateReturnArmed = false;
+          homeGateReturnGestureSerial = -1;
+          opening?.classList.remove("is-gate-return-armed");
+        }, 1600);
+      };
+
+      const isHomeSectionSnapEnabled = () => homeSectionSnapMedia.matches
+        && pageMode === "next"
+        && homeSectionStops.length >= 5
+        && !document.documentElement.classList.contains("kisara-event-modal-open");
+
+      const getHomeSectionTop = (element) => {
+        if (element === opening) return getNextPageTop();
+        const rect = element.getBoundingClientRect();
+        const top = rect.top + window.scrollY;
+        const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        return clamp(Math.round(top), 0, maxScroll);
+      };
+
+      const findHomeSectionTarget = (delta) => {
+        const current = window.scrollY;
+        const tolerance = clamp(window.innerHeight * 0.08, 44, 88);
+        const stops = homeSectionStops.map((element, index) => ({
+          element,
+          index,
+          top: getHomeSectionTop(element)
+        }));
+        if (delta > 0) {
+          return stops.find((stop) => stop.top > current + tolerance) ?? null;
+        }
+        for (let index = stops.length - 1; index >= 0; index -= 1) {
+          if (stops[index].top < current - tolerance) return stops[index];
+        }
+        return null;
+      };
+
+      const smoothScrollToHomeSection = (stop) => {
+        clearHomeGateReturnArm();
+        homeSectionWheelAccumulator = 0;
+        const destination = getHomeSectionTop(stop.element);
+        const direction = destination >= window.scrollY ? "section-forward" : "section-return";
+        const started = smoothScrollTo(destination, () => {
+          lastObservedScrollY = window.scrollY;
+          homeSectionInputGuardUntil = Math.max(
+            performance.now() + 90,
+            homeSectionWheelLastTimestamp + 180
+          );
+        }, undefined, direction, "section");
+        if (!started) return false;
+        return true;
+      };
+
+      const resetHomeSectionWheelGesture = () => {
+        homeSectionWheelAccumulator = 0;
+        homeSectionWheelLastTimestamp = 0;
+        homeSectionWheelTimer = 0;
+      };
+
+      const readHomeSectionWheelDirection = (delta) => {
+        const timestamp = performance.now();
+        if (timestamp - homeSectionWheelLastTimestamp > 170) {
+          homeSectionWheelAccumulator = 0;
+          homeSectionWheelGestureSerial += 1;
+        }
+        homeSectionWheelLastTimestamp = timestamp;
+        if (homeSectionWheelTimer) window.clearTimeout(homeSectionWheelTimer);
+        homeSectionWheelTimer = window.setTimeout(resetHomeSectionWheelGesture, 170);
+
+        if (
+          homeSectionWheelAccumulator !== 0
+          && Math.sign(homeSectionWheelAccumulator) !== Math.sign(delta)
+        ) {
+          homeSectionWheelAccumulator = 0;
+        }
+        homeSectionWheelAccumulator += clamp(delta, -180, 180);
+        const threshold = clamp(window.innerHeight * 0.09, 58, 82);
+        if (Math.abs(homeSectionWheelAccumulator) < threshold) return null;
+
+        const direction = Math.sign(homeSectionWheelAccumulator);
+        homeSectionWheelAccumulator = 0;
+        return { direction, gestureSerial: homeSectionWheelGestureSerial };
+      };
+
+      const holdHomeSectionWheelGesture = () => {
+        homeSectionWheelAccumulator = 0;
+        homeSectionWheelLastTimestamp = performance.now();
+        if (homeSectionWheelTimer) window.clearTimeout(homeSectionWheelTimer);
+        homeSectionWheelTimer = window.setTimeout(resetHomeSectionWheelGesture, 170);
+      };
+
+      const handleHomeSectionInput = (delta, event, inputType) => {
+        if (!isHomeSectionSnapEnabled() || inputType === "touch") return false;
+        if (
+          event.target instanceof Element
+          && event.target.closest("dialog[open], [data-kisara-context-menu]")
+        ) return false;
+
+        event.preventDefault();
+        if (performance.now() < homeSectionInputGuardUntil) {
+          if (inputType === "wheel") {
+            holdHomeSectionWheelGesture();
+            homeSectionInputGuardUntil = performance.now() + 170;
+          }
+          return true;
+        }
+        const intent = inputType === "wheel"
+          ? readHomeSectionWheelDirection(delta)
+          : { direction: Math.sign(delta), gestureSerial: -1 };
+        if (!intent?.direction) return true;
+        const { direction, gestureSerial } = intent;
+
+        const target = findHomeSectionTarget(direction);
+        if (target) {
+          smoothScrollToHomeSection(target);
+          return true;
+        }
+
+        if (direction < 0) {
+          if (homeGateReturnArmed) {
+            if (inputType === "wheel" && gestureSerial === homeGateReturnGestureSerial) return true;
+            clearHomeGateReturnArm();
+            returnToGate();
+          } else {
+            armHomeGateReturn(gestureSerial);
+          }
+          return true;
+        }
+
+        clearHomeGateReturnArm();
+        return true;
       };
 
       const addProgress = (delta) => {
@@ -12784,10 +12961,13 @@ const gateStyle = [
         return event.deltaY;
       };
 
-      const handleDirectionalInput = (delta, event) => {
+      const handleDirectionalInput = (delta, event, inputType = "wheel") => {
         if (delta === 0) return;
         if (scrollFrame || scrollTransitionDirection !== "idle") {
           event.preventDefault();
+          if (inputType === "wheel" && scrollTransitionDirection.startsWith("section")) {
+            holdHomeSectionWheelGesture();
+          }
           if (
             pageMode === "snap"
             && scrollTransitionDirection === "forward"
@@ -12831,6 +13011,7 @@ const gateStyle = [
           addProgress(delta);
           return;
         }
+        if (pageMode === "next" && handleHomeSectionInput(delta, event, inputType)) return;
         if (
           pageMode === "next"
           && delta < 0
@@ -12844,7 +13025,7 @@ const gateStyle = [
       window.addEventListener("wheel", (event) => {
         if (event.ctrlKey || event.metaKey) return;
         const delta = normalizeWheel(event);
-        handleDirectionalInput(delta, event);
+        handleDirectionalInput(delta, event, "wheel");
       }, { passive: false, signal });
 
       window.addEventListener("keydown", (event) => {
@@ -12857,7 +13038,7 @@ const gateStyle = [
         if (["PageUp", "Home"].includes(event.key)) amount = -300;
         if (event.key === " ") amount = event.shiftKey ? -300 : 300;
         if (!amount) return;
-        handleDirectionalInput(amount, event);
+        handleDirectionalInput(amount, event, "keyboard");
       }, { signal });
 
       window.addEventListener("touchstart", (event) => {
@@ -12878,7 +13059,7 @@ const gateStyle = [
         const delta = touchY - nextY;
         touchY = nextY;
         const touchDelta = delta * 2.25;
-        handleDirectionalInput(touchDelta, event);
+        handleDirectionalInput(touchDelta, event, "touch");
       }, { passive: false, signal });
 
       window.addEventListener("touchend", () => {
@@ -13023,6 +13204,8 @@ const gateStyle = [
         if (layoutResizeFrame) window.cancelAnimationFrame(layoutResizeFrame);
         if (energyTimer) window.clearTimeout(energyTimer);
         if (restoreSyncTimer) window.clearTimeout(restoreSyncTimer);
+        if (homeSectionWheelTimer) window.clearTimeout(homeSectionWheelTimer);
+        if (homeGateReturnTimer) window.clearTimeout(homeGateReturnTimer);
         if (warningWarmupHandle) {
           if (warningWarmupUsesIdleCallback && "cancelIdleCallback" in window) {
             window.cancelIdleCallback(warningWarmupHandle);
@@ -13045,6 +13228,9 @@ const gateStyle = [
         layoutResizeFrame = 0;
         energyTimer = 0;
         restoreSyncTimer = 0;
+        homeSectionWheelTimer = 0;
+        homeGateReturnTimer = 0;
+        opening?.classList.remove("is-gate-return-armed");
         warningWarmupHandle = 0;
         warningWarmupReleaseFrame = 0;
         warningWarmupScheduled = false;
