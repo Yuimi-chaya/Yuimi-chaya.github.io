@@ -1504,7 +1504,7 @@ const gateStyle = [
         openingMemoryRevealArmFrame = 0;
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
-        openingMemoryBloomTimer = window.setTimeout(startOpeningMemoryBloom, 2600);
+        openingMemoryBloomTimer = window.setTimeout(startOpeningMemoryBloom, 2050);
       };
       const armOpeningMemoryReveal = () => {
         if (
@@ -12793,14 +12793,25 @@ const gateStyle = [
         homeSectionWheelAccumulator = 0;
         const destination = getHomeSectionTop(stop.element);
         const direction = destination >= window.scrollY ? "section-forward" : "section-return";
+        const restoresOpeningBridge = stop.element === opening
+          && direction === "section-return"
+          && !openingBridgePortalActive;
+        if (restoresOpeningBridge) activateOpeningBridgePortal();
         const started = smoothScrollTo(destination, () => {
           lastObservedScrollY = window.scrollY;
+          if (stop.element !== opening && openingBridgePortalActive) {
+            if (gateVisualResetPending) finalizeGateResetForNextPage();
+            else deactivateOpeningBridgePortal();
+          }
           homeSectionInputGuardUntil = Math.max(
             performance.now() + 90,
             homeSectionWheelLastTimestamp + 180
           );
         }, undefined, direction, "section");
-        if (!started) return false;
+        if (!started) {
+          if (restoresOpeningBridge) deactivateOpeningBridgePortal();
+          return false;
+        }
         return true;
       };
 
