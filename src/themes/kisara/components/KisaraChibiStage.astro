@@ -303,6 +303,7 @@ const characters = [
   .kisara-apple-cutscene {
     --apple-x: 50%;
     --apple-y: 50%;
+    --apple-media-width: clamp(414px, 70%, 830px);
     --apple-direction: 1;
     --apple-entry-x: -42px;
     --apple-exit-x: 24px;
@@ -410,8 +411,8 @@ const characters = [
     top: var(--apple-y);
     left: var(--apple-x);
     display: block;
-    width: clamp(340px, 58%, 680px);
-    max-width: calc(100% - 14px);
+    width: var(--apple-media-width);
+    max-width: none;
     aspect-ratio: 740 / 540;
     opacity: 0;
     transform: translate(-50%, -50%) translateX(var(--apple-entry-x)) scale(0.86);
@@ -1265,17 +1266,22 @@ const characters = [
       const direction = ayanoCenter.x >= kisaraCenter.x ? 1 : -1;
       const midpointX = (kisaraCenter.x + ayanoCenter.x) / 2;
       const midpointY = (kisaraCenter.y + ayanoCenter.y) / 2;
-      const mediaWidth = Math.min(680, Math.max(340, root.clientWidth * 0.58), Math.max(280, root.clientWidth - 14));
+      const compactMinimum = Math.min(414, root.clientWidth * 1.08);
+      const mediaWidth = Math.min(830, Math.max(compactMinimum, root.clientWidth * 0.7));
       const mediaHeight = mediaWidth * 540 / 740;
-      const horizontalMargin = mediaWidth / 2 + 6;
-      const verticalMargin = mediaHeight / 2 + 6;
-      const cutinX = Math.min(Math.max(horizontalMargin, midpointX), Math.max(horizontalMargin, root.clientWidth - horizontalMargin));
-      const cutinY = Math.min(Math.max(verticalMargin, midpointY - 12), Math.max(verticalMargin, root.clientHeight - verticalMargin));
+      const clampMediaCenter = (value, size, available) => {
+        const margin = size / 2 + 6;
+        if (margin * 2 >= available) return available / 2;
+        return Math.min(Math.max(margin, value), available - margin);
+      };
+      const cutinX = clampMediaCenter(midpointX, mediaWidth, root.clientWidth);
+      const cutinY = clampMediaCenter(midpointY - 12, mediaHeight, root.clientHeight);
       const impactX = Math.min(Math.max(46, ayanoCenter.x), root.clientWidth - 46);
       const impactY = Math.min(Math.max(70, ayanoCenter.y), root.clientHeight - 54);
 
       appleCutscene.style.setProperty("--apple-x", `${cutinX}px`);
       appleCutscene.style.setProperty("--apple-y", `${cutinY}px`);
+      appleCutscene.style.setProperty("--apple-media-width", `${mediaWidth}px`);
       appleCutscene.style.setProperty("--apple-direction", `${direction}`);
       appleCutscene.style.setProperty("--apple-entry-x", `${direction > 0 ? -42 : 42}px`);
       appleCutscene.style.setProperty("--apple-exit-x", `${direction > 0 ? 24 : -24}px`);
