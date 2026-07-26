@@ -21,6 +21,31 @@ const characters = [
   </div>
   <div class="kisara-chibi-floor" aria-hidden="true"><span></span></div>
 
+  <div class="kisara-apple-cutscene" data-chibi-apple-cutscene aria-hidden="true">
+    <span class="kisara-apple-wash"></span>
+    <span class="kisara-apple-speedlines"><i></i><i></i><i></i></span>
+    <span class="kisara-apple-media" data-chibi-apple-media>
+      <video
+        data-chibi-apple-video
+        data-src="/themes/kisara/assets/effects/apple-throw.webm"
+        width="740"
+        height="540"
+        muted
+        playsinline
+        preload="none"
+      ></video>
+      <img
+        data-chibi-apple-fallback
+        data-src="/themes/kisara/assets/effects/apple-throw.webp"
+        width="640"
+        height="468"
+        alt=""
+        draggable="false"
+      />
+    </span>
+    <span class="kisara-apple-impact"><i></i></span>
+  </div>
+
   <button
     class="kisara-chibi-reset"
     type="button"
@@ -53,6 +78,15 @@ const characters = [
 <style>
   .kisara-chibi-stage {
     --scene-accent: 255, 91, 126;
+    --apple-throw-wind: -5deg;
+    --apple-throw-release: 7deg;
+    --apple-throw-settle: -2deg;
+    --apple-hit-far: 13px;
+    --apple-hit-return: -5px;
+    --apple-hit-settle: 3px;
+    --apple-hit-tilt: 7deg;
+    --apple-hit-return-tilt: -4deg;
+    --apple-hit-settle-tilt: 2deg;
     position: relative;
     width: min(1240px, 100%);
     min-height: clamp(430px, 48vw, 560px);
@@ -266,6 +300,284 @@ const characters = [
     border-radius: 50%;
   }
 
+  .kisara-apple-cutscene {
+    --apple-x: 50%;
+    --apple-y: 50%;
+    --apple-direction: 1;
+    --apple-entry-x: -42px;
+    --apple-exit-x: 24px;
+    --apple-impact-x: 70%;
+    --apple-impact-y: 56%;
+    position: absolute;
+    z-index: 5;
+    inset: 0;
+    overflow: hidden;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease, visibility 0s linear 900ms;
+  }
+
+  .kisara-apple-cutscene.is-active {
+    visibility: visible;
+    opacity: 1;
+    transition-delay: 0s;
+  }
+
+  .kisara-apple-wash,
+  .kisara-apple-speedlines,
+  .kisara-apple-impact {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .kisara-apple-wash {
+    z-index: 0;
+    opacity: 0;
+    background:
+      radial-gradient(circle at var(--apple-impact-x) var(--apple-impact-y), rgba(255, 226, 236, 0.18), transparent 22%),
+      linear-gradient(112deg, rgba(5, 7, 26, 0.04), rgba(5, 7, 26, 0.46) 44%, rgba(91, 7, 34, 0.22) 74%, rgba(5, 7, 26, 0.08));
+  }
+
+  .kisara-apple-cutscene.is-active .kisara-apple-wash {
+    animation: kisara-apple-wash 940ms ease-out both;
+  }
+
+  .kisara-apple-speedlines {
+    z-index: 1;
+    opacity: 0;
+    overflow: hidden;
+    transform: scaleX(var(--apple-direction));
+    transform-origin: center;
+  }
+
+  .kisara-apple-speedlines::before,
+  .kisara-apple-speedlines::after,
+  .kisara-apple-speedlines > i {
+    position: absolute;
+    content: "";
+    height: 2px;
+    border-radius: 999px;
+    transform-origin: right center;
+    background: linear-gradient(90deg, transparent, rgba(255, 216, 230, 0.2) 22%, rgba(255, 119, 158, 0.88) 72%, transparent);
+    filter: drop-shadow(0 0 7px rgba(255, 73, 105, 0.46));
+  }
+
+  .kisara-apple-speedlines::before {
+    top: 24%;
+    right: -7%;
+    width: 58%;
+    transform: rotate(-11deg);
+  }
+
+  .kisara-apple-speedlines::after {
+    right: -3%;
+    bottom: 23%;
+    width: 48%;
+    transform: rotate(8deg);
+  }
+
+  .kisara-apple-speedlines > i:nth-child(1) {
+    top: 36%;
+    right: 4%;
+    width: 34%;
+    transform: rotate(-5deg);
+  }
+
+  .kisara-apple-speedlines > i:nth-child(2) {
+    top: 51%;
+    right: -5%;
+    width: 66%;
+    height: 3px;
+    transform: rotate(2deg);
+  }
+
+  .kisara-apple-speedlines > i:nth-child(3) {
+    right: 11%;
+    bottom: 34%;
+    width: 28%;
+    transform: rotate(13deg);
+  }
+
+  .kisara-apple-cutscene.is-active .kisara-apple-speedlines {
+    animation: kisara-apple-speedlines 820ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
+  }
+
+  .kisara-apple-media {
+    position: absolute;
+    z-index: 2;
+    top: var(--apple-y);
+    left: var(--apple-x);
+    display: block;
+    width: clamp(340px, 58%, 680px);
+    max-width: calc(100% - 14px);
+    aspect-ratio: 740 / 540;
+    opacity: 0;
+    transform: translate(-50%, -50%) translateX(var(--apple-entry-x)) scale(0.86);
+    transform-origin: center;
+    filter: blur(9px) brightness(1.28) saturate(1.08);
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 0 42%, rgba(0, 0, 0, 0.94) 56%, rgba(0, 0, 0, 0.42) 71%, transparent 88%);
+    mask-image: radial-gradient(ellipse at center, #000 0 42%, rgba(0, 0, 0, 0.94) 56%, rgba(0, 0, 0, 0.42) 71%, transparent 88%);
+    will-change: transform, opacity, filter;
+  }
+
+  .kisara-apple-media video,
+  .kisara-apple-media img {
+    position: absolute;
+    inset: 0;
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: contrast(1.035) saturate(1.06) drop-shadow(0 22px 28px rgba(9, 1, 20, 0.38));
+    transform: scaleX(var(--apple-direction));
+    transform-origin: center;
+  }
+
+  .kisara-apple-cutscene[data-renderer="video"] .kisara-apple-media video,
+  .kisara-apple-cutscene[data-renderer="fallback"] .kisara-apple-media img {
+    display: block;
+  }
+
+  .kisara-apple-cutscene.is-active .kisara-apple-media {
+    animation: kisara-apple-media 840ms cubic-bezier(0.16, 0.82, 0.22, 1) both;
+  }
+
+  .kisara-apple-impact {
+    z-index: 3;
+    top: var(--apple-impact-y);
+    left: var(--apple-impact-x);
+    width: 84px;
+    height: 84px;
+    margin: -42px 0 0 -42px;
+    inset: auto;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(0.25) rotate(-12deg);
+  }
+
+  .kisara-apple-impact::before,
+  .kisara-apple-impact::after,
+  .kisara-apple-impact > i {
+    position: absolute;
+    content: "";
+    pointer-events: none;
+  }
+
+  .kisara-apple-impact::before {
+    inset: 17%;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff 0 9%, #ffdce7 10% 22%, rgba(255, 82, 124, 0.88) 34%, transparent 72%);
+    box-shadow: 0 0 32px rgba(255, 74, 116, 0.82), 0 0 72px rgba(255, 73, 105, 0.38);
+  }
+
+  .kisara-apple-impact::after {
+    inset: -22%;
+    border: 2px solid rgba(255, 206, 221, 0.74);
+    border-radius: 50%;
+    box-shadow: inset 0 0 18px rgba(255, 73, 105, 0.22), 0 0 24px rgba(255, 73, 105, 0.3);
+  }
+
+  .kisara-apple-impact > i {
+    top: 50%;
+    left: 50%;
+    width: 170px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255, 232, 240, 0.95), transparent);
+    box-shadow: 0 -19px 0 -0.5px rgba(255, 132, 165, 0.52), 0 21px 0 -0.5px rgba(255, 132, 165, 0.38);
+    transform: translate(-50%, -50%) rotate(-13deg);
+  }
+
+  .kisara-chibi-stage.is-apple-impact .kisara-apple-impact {
+    animation: kisara-apple-impact 520ms cubic-bezier(0.12, 0.8, 0.2, 1) both;
+  }
+
+  .kisara-chibi-stage[data-apple-playing="true"] .kisara-chibi {
+    pointer-events: none;
+  }
+
+  .kisara-chibi-stage[data-apple-playing="true"] .kisara-chibi.is-apple-focus {
+    z-index: 7;
+  }
+
+  .kisara-chibi-stage[data-apple-playing="true"] .kisara-chibi:not(.is-apple-focus) .kisara-chibi-figure {
+    opacity: 0.34;
+    filter: blur(1.2px) saturate(0.58) brightness(0.66);
+    transform: translateY(4px) scale(0.97);
+  }
+
+  .kisara-chibi.is-apple-throw .kisara-chibi-figure {
+    animation: kisara-chibi-apple-throw 720ms cubic-bezier(0.16, 0.82, 0.24, 1) both;
+  }
+
+  .kisara-chibi.is-apple-hit .kisara-chibi-figure {
+    animation: kisara-chibi-apple-hit 680ms cubic-bezier(0.12, 0.86, 0.2, 1) both;
+  }
+
+  @keyframes kisara-apple-wash {
+    0% { opacity: 0; }
+    18% { opacity: 1; }
+    72% { opacity: 0.88; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes kisara-apple-speedlines {
+    0% { opacity: 0; transform: scaleX(var(--apple-direction)) translateX(-8%); }
+    24% { opacity: 0.2; }
+    54% { opacity: 0.92; }
+    100% { opacity: 0; transform: scaleX(var(--apple-direction)) translateX(13%); }
+  }
+
+  @keyframes kisara-apple-media {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) translateX(var(--apple-entry-x)) scale(0.86) skewX(-2deg);
+      filter: blur(9px) brightness(1.28) saturate(1.08);
+    }
+    14% {
+      opacity: 1;
+      filter: blur(1.5px) brightness(1.06) saturate(1.08);
+    }
+    62% {
+      opacity: 1;
+      transform: translate(-50%, -50%) translateX(0) scale(1);
+      filter: blur(0) brightness(1.02) saturate(1.08);
+    }
+    78% {
+      opacity: 1;
+      filter: blur(0.6px) brightness(1.32) saturate(1.22);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -50%) translateX(var(--apple-exit-x)) scale(1.055);
+      filter: blur(3px) brightness(1.5) saturate(1.22);
+    }
+  }
+
+  @keyframes kisara-apple-impact {
+    0% { opacity: 0; transform: scale(0.2) rotate(-14deg); }
+    24% { opacity: 1; transform: scale(1.12) rotate(0); }
+    54% { opacity: 0.86; transform: scale(1.7) rotate(8deg); }
+    100% { opacity: 0; transform: scale(2.5) rotate(13deg); }
+  }
+
+  @keyframes kisara-chibi-apple-throw {
+    0% { transform: translateY(0) rotate(0) scale(1); }
+    26% { transform: translateY(-6px) rotate(var(--apple-throw-wind)) scale(1.035, 0.98); }
+    54% { transform: translateY(-2px) rotate(var(--apple-throw-release)) scale(0.98, 1.035); }
+    76% { transform: translateY(-4px) rotate(var(--apple-throw-settle)) scale(1.015); }
+    100% { transform: translateY(0) rotate(0) scale(1); }
+  }
+
+  @keyframes kisara-chibi-apple-hit {
+    0% { transform: translate(0, 0) rotate(0) scale(1); }
+    18% { transform: translate(var(--apple-hit-far), -3px) rotate(var(--apple-hit-tilt)) scale(0.96, 1.04); }
+    42% { transform: translate(var(--apple-hit-return), 1px) rotate(var(--apple-hit-return-tilt)) scale(1.03, 0.97); }
+    68% { transform: translate(var(--apple-hit-settle), -2px) rotate(var(--apple-hit-settle-tilt)); }
+    100% { transform: translate(0, 0) rotate(0) scale(1); }
+  }
+
   .kisara-chibi-reset {
     position: absolute;
     z-index: 8;
@@ -436,7 +748,8 @@ const characters = [
       drop-shadow(0 0 2.5px rgba(var(--chibi-acrylic), 0.09));
     transition:
       transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
-      filter 240ms ease;
+      filter 240ms ease,
+      opacity 220ms ease;
     will-change: transform, filter;
   }
 
@@ -673,6 +986,11 @@ const characters = [
     .kisara-chibi-bubble,
     .kisara-chibi-reset,
     .kisara-chibi-reset :global(svg),
+    .kisara-apple-cutscene,
+    .kisara-apple-wash,
+    .kisara-apple-speedlines,
+    .kisara-apple-media,
+    .kisara-apple-impact,
     .kisara-chibi-beacon::before,
     .kisara-chibi-beacon::after {
       animation-duration: 1ms !important;
@@ -696,6 +1014,10 @@ const characters = [
     );
     const resetButton = root.querySelector("[data-chibi-reset]");
     const liveRegion = root.querySelector("[data-chibi-live]");
+    const appleCutscene = root.querySelector("[data-chibi-apple-cutscene]");
+    const appleVideo = root.querySelector("[data-chibi-apple-video]");
+    const appleFallback = root.querySelector("[data-chibi-apple-fallback]");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const characterOrder = ["kisara", "ayano", "shu", "sharon"];
     const nameMap = { kisara: "木更", ayano: "绫乃", shu: "修", sharon: "莎朗" };
     const soloEmoji = {
@@ -767,6 +1089,12 @@ const characters = [
     let frame = 0;
     let lastStageSize = { width: 0, height: 0 };
     let lastCompactLayout = null;
+    let applePairHits = 0;
+    let lastApplePairAt = 0;
+    let appleCooldownUntil = 0;
+    let appleFallbackToken = 0;
+    let appleActive = false;
+    let applePreloadObserver = null;
     let cleaned = false;
 
     const schedule = (callback, delay) => {
@@ -860,13 +1188,14 @@ const characters = [
     const groupFor = (id) => groups.find((group) => group.includes(id));
 
     const animateClass = (node, className, duration = 620) => {
+      if (!(node instanceof HTMLElement)) return;
       node.classList.remove(className);
       void node.offsetWidth;
       node.classList.add(className);
       schedule(() => node.classList.remove(className), duration);
     };
 
-    const setBubble = (id, emoji, duration = 1180) => {
+    const setBubble = (id, emoji, duration = 1180, animateFigure = true) => {
       const node = nodes.get(id);
       const bubble = node?.querySelector("[data-chibi-bubble]");
       if (!(node instanceof HTMLElement) || !(bubble instanceof HTMLElement)) return;
@@ -878,7 +1207,7 @@ const characters = [
       bubble.classList.remove("is-visible");
       void bubble.offsetWidth;
       bubble.classList.add("is-visible");
-      animateClass(node, "is-speaking", 560);
+      if (animateFigure) animateClass(node, "is-speaking", 560);
       if (liveRegion) liveRegion.textContent = `${nameMap[id] || id} ${emoji}`;
 
       const timer = window.setTimeout(() => {
@@ -889,8 +1218,98 @@ const characters = [
       bubbleTimers.set(id, timer);
     };
 
+    const loadAppleVideo = () => {
+      if (!(appleVideo instanceof HTMLVideoElement)) return false;
+      const source = appleVideo.dataset.src;
+      if (!source || !appleVideo.canPlayType('video/webm; codecs="vp9"')) return false;
+      if (!appleVideo.getAttribute("src")) {
+        appleVideo.preload = "auto";
+        appleVideo.src = source;
+        appleVideo.load();
+      }
+      return true;
+    };
+
+    const startAppleMedia = async () => {
+      if (!(appleCutscene instanceof HTMLElement)) return false;
+
+      if (loadAppleVideo() && appleVideo instanceof HTMLVideoElement) {
+        try {
+          appleVideo.pause();
+          if (appleVideo.readyState > 0) appleVideo.currentTime = 0;
+          appleVideo.playbackRate = 0.82;
+          appleCutscene.dataset.renderer = "video";
+          await appleVideo.play();
+          return true;
+        } catch {
+          appleVideo.pause();
+        }
+      }
+
+      if (!(appleFallback instanceof HTMLImageElement) || !appleFallback.dataset.src) return false;
+      appleFallbackToken += 1;
+      appleFallback.src = `${appleFallback.dataset.src}#play-${appleFallbackToken}`;
+      appleCutscene.dataset.renderer = "fallback";
+      try {
+        await appleFallback.decode();
+      } catch {
+        // The first animated frame can still render even when decode() is unavailable.
+      }
+      return true;
+    };
+
+    const configureAppleScene = () => {
+      if (!(appleCutscene instanceof HTMLElement)) return 1;
+      const kisaraCenter = centerOf("kisara");
+      const ayanoCenter = centerOf("ayano");
+      const direction = ayanoCenter.x >= kisaraCenter.x ? 1 : -1;
+      const midpointX = (kisaraCenter.x + ayanoCenter.x) / 2;
+      const midpointY = (kisaraCenter.y + ayanoCenter.y) / 2;
+      const mediaWidth = Math.min(680, Math.max(340, root.clientWidth * 0.58), Math.max(280, root.clientWidth - 14));
+      const mediaHeight = mediaWidth * 540 / 740;
+      const horizontalMargin = mediaWidth / 2 + 6;
+      const verticalMargin = mediaHeight / 2 + 6;
+      const cutinX = Math.min(Math.max(horizontalMargin, midpointX), Math.max(horizontalMargin, root.clientWidth - horizontalMargin));
+      const cutinY = Math.min(Math.max(verticalMargin, midpointY - 12), Math.max(verticalMargin, root.clientHeight - verticalMargin));
+      const impactX = Math.min(Math.max(46, ayanoCenter.x), root.clientWidth - 46);
+      const impactY = Math.min(Math.max(70, ayanoCenter.y), root.clientHeight - 54);
+
+      appleCutscene.style.setProperty("--apple-x", `${cutinX}px`);
+      appleCutscene.style.setProperty("--apple-y", `${cutinY}px`);
+      appleCutscene.style.setProperty("--apple-direction", `${direction}`);
+      appleCutscene.style.setProperty("--apple-entry-x", `${direction > 0 ? -42 : 42}px`);
+      appleCutscene.style.setProperty("--apple-exit-x", `${direction > 0 ? 24 : -24}px`);
+      appleCutscene.style.setProperty("--apple-impact-x", `${impactX}px`);
+      appleCutscene.style.setProperty("--apple-impact-y", `${impactY}px`);
+
+      root.style.setProperty("--apple-throw-wind", direction > 0 ? "-5deg" : "5deg");
+      root.style.setProperty("--apple-throw-release", direction > 0 ? "7deg" : "-7deg");
+      root.style.setProperty("--apple-throw-settle", direction > 0 ? "-2deg" : "2deg");
+      root.style.setProperty("--apple-hit-far", `${direction * 13}px`);
+      root.style.setProperty("--apple-hit-return", `${direction * -5}px`);
+      root.style.setProperty("--apple-hit-settle", `${direction * 3}px`);
+      root.style.setProperty("--apple-hit-tilt", `${direction * 7}deg`);
+      root.style.setProperty("--apple-hit-return-tilt", `${direction * -4}deg`);
+      root.style.setProperty("--apple-hit-settle-tilt", `${direction * 2}deg`);
+      return direction;
+    };
+
+    const clearAppleScene = () => {
+      appleActive = false;
+      root.removeAttribute("data-apple-playing");
+      root.classList.remove("is-apple-impact");
+      appleCutscene?.classList.remove("is-active");
+      appleCutscene?.removeAttribute("data-renderer");
+      nodes.forEach((node) => node.classList.remove("is-apple-focus", "is-apple-throw", "is-apple-hit"));
+      if (appleVideo instanceof HTMLVideoElement) {
+        appleVideo.pause();
+        if (appleVideo.readyState > 0) appleVideo.currentTime = 0;
+      }
+    };
+
     const cancelScene = (hideBubbles = true) => {
       sceneToken += 1;
+      if (appleActive) clearAppleScene();
       timers.forEach((timer) => window.clearTimeout(timer));
       timers.clear();
       if (!hideBubbles) return;
@@ -927,6 +1346,99 @@ const characters = [
           setBubble(speaker, emoji, index === beats.length - 1 ? 1450 : 1120);
         }, 160 + index * 610);
       });
+    };
+
+    const playApplePrelude = () => {
+      cancelScene();
+      const token = sceneToken;
+      const beats = [["kisara", "😤💢"], ["ayano", "😏🍎"], ["kisara", "👀🍎❓"]];
+      root.style.setProperty("--scene-accent", "255, 91, 126");
+      beats.forEach(([speaker, emoji], index) => {
+        schedule(() => {
+          if (token !== sceneToken) return;
+          setBubble(speaker, emoji, index === beats.length - 1 ? 1380 : 1040);
+        }, 120 + index * 520);
+      });
+    };
+
+    const playAppleScene = () => {
+      cancelScene();
+      const token = sceneToken;
+      appleActive = true;
+      configureAppleScene();
+      const kisaraNode = nodes.get("kisara");
+      const ayanoNode = nodes.get("ayano");
+
+      root.dataset.applePlaying = "true";
+      root.style.setProperty("--scene-accent", "255, 73, 105");
+      kisaraNode?.classList.add("is-apple-focus");
+      ayanoNode?.classList.add("is-apple-focus");
+      setBubble("kisara", "😡🍎", 760, false);
+      schedule(() => {
+        if (token !== sceneToken) return;
+        setBubble("ayano", "😳❗", 720, false);
+      }, 120);
+
+      const playImpact = () => {
+        if (token !== sceneToken || !appleActive) return;
+        root.classList.remove("is-apple-impact");
+        void root.offsetWidth;
+        root.classList.add("is-apple-impact");
+        animateClass(ayanoNode, "is-apple-hit", 700);
+        setBubble("ayano", "🍎💫😵‍💫", 1420, false);
+        schedule(() => {
+          if (token !== sceneToken) return;
+          setBubble("kisara", "😤💢", 1240, false);
+        }, 210);
+      };
+
+      if (reducedMotion.matches) {
+        animateClass(kisaraNode, "is-apple-throw", 1);
+        schedule(playImpact, 180);
+        schedule(() => {
+          if (token === sceneToken) clearAppleScene();
+        }, 900);
+        return;
+      }
+
+      schedule(async () => {
+        const mediaReady = await startAppleMedia();
+        if (token !== sceneToken || !appleActive) return;
+
+        if (mediaReady && appleCutscene instanceof HTMLElement) {
+          appleCutscene.classList.remove("is-active");
+          void appleCutscene.offsetWidth;
+          appleCutscene.classList.add("is-active");
+        }
+
+        animateClass(kisaraNode, "is-apple-throw", 760);
+        schedule(playImpact, mediaReady ? 430 : 220);
+        schedule(() => appleCutscene?.classList.remove("is-active"), mediaReady ? 900 : 520);
+        schedule(() => {
+          if (token !== sceneToken) return;
+          clearAppleScene();
+          root.style.setProperty("--scene-accent", "255, 91, 126");
+        }, mediaReady ? 1320 : 920);
+      }, 180);
+    };
+
+    const appleInteractionMode = (actorId, ids) => {
+      const isApplePair = actorId === "kisara" && sceneKey(ids) === "ayano|kisara";
+      if (!isApplePair) {
+        if (actorId === "kisara") applePairHits = 0;
+        return "normal";
+      }
+
+      const now = performance.now();
+      if (now < appleCooldownUntil) return "normal";
+      if (now - lastApplePairAt > 9000) applePairHits = 0;
+      lastApplePairAt = now;
+      applePairHits += 1;
+
+      if (applePairHits < 2) return "prelude";
+      applePairHits = 0;
+      appleCooldownUntil = now + 12000;
+      return "cutscene";
     };
 
     const initialLayout = (animate = false) => {
@@ -1047,6 +1559,7 @@ const characters = [
       animateClass(node, "is-dropped", 620);
       const target = nearestTarget(id);
       if (!target) {
+        if (id === "kisara") applePairHits = 0;
         playSolo(id);
         return;
       }
@@ -1074,7 +1587,12 @@ const characters = [
         startX: preferredStartX,
         baseline: existingBounds.bottom,
       });
-      schedule(() => playScene(members), 360);
+      const appleMode = appleInteractionMode(id, members);
+      schedule(() => {
+        if (appleMode === "cutscene") playAppleScene();
+        else if (appleMode === "prelude") playApplePrelude();
+        else playScene(members);
+      }, 360);
     };
 
     const beginDrag = (event, id) => {
@@ -1142,7 +1660,12 @@ const characters = [
       }, { signal: lifecycle.signal });
     });
 
-    resetButton?.addEventListener("click", () => initialLayout(true), { signal: lifecycle.signal });
+    resetButton?.addEventListener("click", () => {
+      applePairHits = 0;
+      lastApplePairAt = 0;
+      appleCooldownUntil = 0;
+      initialLayout(true);
+    }, { signal: lifecycle.signal });
 
     const resizeObserver = new ResizeObserver(() => {
       const width = root.clientWidth;
@@ -1164,13 +1687,31 @@ const characters = [
     });
     resizeObserver.observe(root);
 
+    if (appleVideo instanceof HTMLVideoElement && "IntersectionObserver" in window) {
+      applePreloadObserver = new IntersectionObserver((entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        loadAppleVideo();
+        applePreloadObserver?.disconnect();
+        applePreloadObserver = null;
+      }, { rootMargin: "600px 0px" });
+      applePreloadObserver.observe(root);
+    }
+
     const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
       if (frame) cancelAnimationFrame(frame);
       clearTimerSet();
+      clearAppleScene();
+      applePreloadObserver?.disconnect();
+      applePreloadObserver = null;
       resizeObserver.disconnect();
       lifecycle.abort();
+      if (appleVideo instanceof HTMLVideoElement) {
+        appleVideo.removeAttribute("src");
+        appleVideo.load();
+      }
+      appleFallback?.removeAttribute("src");
       if (window.__yuimiKisaraChibiCleanup === cleanup) delete window.__yuimiKisaraChibiCleanup;
     };
 
