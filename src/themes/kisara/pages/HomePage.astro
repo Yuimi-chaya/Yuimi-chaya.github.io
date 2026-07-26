@@ -304,6 +304,16 @@ const gateStyle = [
       <Icon name="tabler:activity-heartbeat" aria-hidden="true" />
       <span>体感视差</span>
     </button>
+    <button
+      class="kisara-gate-auto"
+      type="button"
+      data-kisara-auto
+      data-state="idle"
+      aria-label="自动播放首屏演出"
+    >
+      <span class="kisara-gate-auto-mark" aria-hidden="true"></span>
+      <span data-kisara-auto-label>AUTO</span>
+    </button>
     <a class="kisara-gate-skip" href="#kisara-opening" data-kisara-skip>SKIP</a>
   </section>
 
@@ -999,14 +1009,29 @@ const gateStyle = [
   <div class="kisara-home-transition is-latest-to-footer" aria-hidden="true"><span></span><i></i><i></i></div>
 
   <script>
+    const releaseStaleKisaraHomeRuntime = (candidate) => {
+      if (!(candidate instanceof HTMLElement) || candidate.dataset.bound !== "true") return false;
+      const candidateAutoControl = candidate.querySelector("[data-kisara-auto]");
+      if (
+        !(candidateAutoControl instanceof HTMLElement)
+        || candidateAutoControl.dataset.kisaraRuntimeBound === "true"
+      ) return false;
+      window.__yuimiKisaraHomeCleanup?.();
+      candidate.removeAttribute("data-bound");
+      candidate.removeAttribute("data-binding");
+      return true;
+    };
+
     const scheduleKisaraHome = () => {
       window.__yuimiKisaraHomeSchedule = scheduleKisaraHome;
       window.clearTimeout(window.__yuimiKisaraHomeInitTimer);
       const scheduledGate = document.querySelector("[data-kisara-gate]");
       if (!(scheduledGate instanceof HTMLElement)) return;
       if (scheduledGate.dataset.bound === "true") {
-        window.__yuimiKisaraHomeBootController?.markReady?.();
-        return;
+        if (!releaseStaleKisaraHomeRuntime(scheduledGate)) {
+          window.__yuimiKisaraHomeBootController?.markReady?.();
+          return;
+        }
       }
       if (scheduledGate.dataset.binding === "true") return;
       window.__yuimiKisaraHomeInitTimer = window.setTimeout(() => {
@@ -1014,8 +1039,10 @@ const gateStyle = [
         const pendingGate = document.querySelector("[data-kisara-gate]");
         if (!(pendingGate instanceof HTMLElement)) return;
         if (pendingGate.dataset.bound === "true") {
-          window.__yuimiKisaraHomeBootController?.markReady?.();
-          return;
+          if (!releaseStaleKisaraHomeRuntime(pendingGate)) {
+            window.__yuimiKisaraHomeBootController?.markReady?.();
+            return;
+          }
         }
         if (pendingGate.dataset.binding === "true") return;
         window.__yuimiKisaraHomeCleanup?.();
@@ -1024,8 +1051,10 @@ const gateStyle = [
       const gate = document.querySelector("[data-kisara-gate]");
       if (!gate) return;
       if (gate.dataset.bound === "true") {
-        window.__yuimiKisaraHomeBootController?.markReady?.();
-        return;
+        if (!releaseStaleKisaraHomeRuntime(gate)) {
+          window.__yuimiKisaraHomeBootController?.markReady?.();
+          return;
+        }
       }
       if (gate.dataset.binding === "true") return;
       gate.dataset.binding = "true";
@@ -1176,6 +1205,8 @@ const gateStyle = [
       const state = gate.querySelector("[data-kisara-state]");
       const cue = gate.querySelector("[data-kisara-cue]");
       const motionToggle = gate.querySelector("[data-kisara-motion-toggle]");
+      const autoPlay = gate.querySelector("[data-kisara-auto]");
+      const autoPlayLabel = autoPlay?.querySelector("[data-kisara-auto-label]");
       const skip = gate.querySelector("[data-kisara-skip]");
       const fridgeScene = document.querySelector("kisara-fridge-scene");
       const eventScene = document.querySelector("kisara-clue-scene");
@@ -1677,8 +1708,9 @@ const gateStyle = [
       const detonationEnd = 0.972;
       const rainStart = 0.948;
       const rainPeak = 0.989;
-      const releaseFirstAutoplayDuration = 3000;
-      const releaseReplayAutoplayDuration = 1750;
+      const releaseAutoplayDuration = 1850;
+      const heroAutoplayFillDuration = 4600;
+      const heroAutoplayBladeDuration = 850;
       const releaseCrossStartAt = 0.012;
       const releaseCrossBuildEndAt = 0.033;
       const releaseCrossFlashEndAt = 0.05;
@@ -2132,13 +2164,6 @@ const gateStyle = [
       };
       ensureOpeningEdgeSampler(openingEdgeRecordById.get("base"), true);
       window.addEventListener("resize", scheduleOpeningEdgeTextureRefresh, { passive: true, signal });
-      const releaseSessionKey = "yuimi-kisara-release-viewed-v1";
-      let releaseCompletedInTab = false;
-      try {
-        releaseCompletedInTab = window.sessionStorage.getItem(releaseSessionKey) === "1";
-      } catch {
-        releaseCompletedInTab = false;
-      }
       const startsComplete = reducedMotion && !restoredBelowGate;
       let progress = startsComplete ? 1 : 0;
       let targetProgress = progress;
@@ -2148,9 +2173,7 @@ const gateStyle = [
       let burstVelocity = 0;
       let releaseMode = startsComplete ? "complete" : "manual";
       let releaseTimeline = startsComplete ? 1 : 0;
-      let releaseDuration = releaseCompletedInTab
-        ? releaseReplayAutoplayDuration
-        : releaseFirstAutoplayDuration;
+      let releaseDuration = releaseAutoplayDuration;
       let releaseLastTimestamp = 0;
       let releasePlaybackRate = 1;
       let releaseBoost = 0;
@@ -2174,6 +2197,9 @@ const gateStyle = [
       let gateWheelDirection = 0;
       let gateWheelMomentum = 0;
       let gateWheelLastTimestamp = 0;
+      let heroAutoplayActive = false;
+      let heroAutoplayLastTimestamp = 0;
+      let renderedHeroAutoplayState = "";
       let renderedPercent = -1;
       let renderedStage = "";
       let renderedGlitchTick = -1;
@@ -12177,6 +12203,7 @@ const gateStyle = [
           cue.classList.toggle("is-guiding", cueGuided);
           cue.classList.toggle("is-enter-ready", burstComplete && pageMode === "gate");
         }
+        syncHeroAutoplayControl();
       };
 
       const transitionChargeIntro = (nextTarget, timestamp) => {
@@ -12215,15 +12242,6 @@ const gateStyle = [
         transitionChargeIntro(1, timestamp);
       };
 
-      const markReleaseCompletedInTab = () => {
-        releaseCompletedInTab = true;
-        try {
-          window.sessionStorage.setItem(releaseSessionKey, "1");
-        } catch {
-          // Session persistence is optional; the in-memory flag still shortens later runs.
-        }
-      };
-
       const clearReleaseTransientEffects = (timestamp = performance.now()) => {
         orbitEmissionBudget = 0;
         rainEmissionBudget = 0;
@@ -12249,9 +12267,7 @@ const gateStyle = [
       const startReleaseAutoplay = (timestamp, { resume = false } = {}) => {
         if (releaseMode === "forward" || releaseMode === "complete") return;
         releaseMode = "forward";
-        releaseDuration = releaseCompletedInTab
-          ? releaseReplayAutoplayDuration
-          : releaseFirstAutoplayDuration;
+        releaseDuration = releaseAutoplayDuration;
         releaseLastTimestamp = timestamp;
         releasePlaybackRate = 1;
         releaseBoost = 0;
@@ -12313,6 +12329,100 @@ const gateStyle = [
         return true;
       };
 
+      const syncHeroAutoplayControl = () => {
+        if (!(autoPlay instanceof HTMLButtonElement)) return;
+        const nextState = heroAutoplayActive
+          ? "playing"
+          : releaseMode === "complete" && burstProgress >= 0.999
+            ? "replay"
+            : "idle";
+        if (nextState === renderedHeroAutoplayState) return;
+        renderedHeroAutoplayState = nextState;
+        autoPlay.dataset.state = nextState;
+        autoPlay.disabled = nextState === "playing";
+        autoPlay.setAttribute("aria-busy", String(nextState === "playing"));
+        autoPlay.setAttribute(
+          "aria-label",
+          nextState === "playing"
+            ? "首屏演出正在自动播放"
+            : nextState === "replay"
+              ? "重新自动播放首屏演出"
+              : "自动播放首屏演出"
+        );
+        if (autoPlayLabel) {
+          autoPlayLabel.textContent = nextState === "playing"
+            ? "RUNNING"
+            : nextState === "replay"
+              ? "REPLAY"
+              : "AUTO";
+        }
+      };
+
+      const stopHeroAutoplay = () => {
+        heroAutoplayActive = false;
+        heroAutoplayLastTimestamp = 0;
+        syncHeroAutoplayControl();
+      };
+
+      const advanceHeroAutoplay = (timestamp) => {
+        if (!heroAutoplayActive) return;
+        if (pageMode !== "gate") {
+          stopHeroAutoplay();
+          return;
+        }
+        const deltaTime = heroAutoplayLastTimestamp
+          ? clamp(timestamp - heroAutoplayLastTimestamp, 0, 50)
+          : 16.667;
+        heroAutoplayLastTimestamp = timestamp;
+
+        if (releaseMode === "complete") {
+          stopHeroAutoplay();
+          return;
+        }
+        if (releaseMode === "forward" || releaseMode === "rewinding") return;
+        if (releaseMode === "paused") {
+          startReleaseAutoplay(timestamp, { resume: true });
+          return;
+        }
+        if (chargeIntroActive) return;
+        if (!chargeIntroComplete) {
+          targetProgress = clamp(
+            targetProgress + deltaTime / heroAutoplayFillDuration,
+            0,
+            1
+          );
+          return;
+        }
+        targetBurstProgress = clamp(
+          targetBurstProgress
+            + deltaTime / heroAutoplayBladeDuration * glossFadeEnd,
+          0,
+          glossFadeEnd
+        );
+      };
+
+      const startHeroAutoplay = (timestamp = performance.now()) => {
+        if (pageMode !== "gate" || heroAutoplayActive) return;
+        if (releaseMode === "complete") resetGateState();
+        if (reducedMotion) {
+          progress = 1;
+          targetProgress = 1;
+          chargeIntroProgress = 1;
+          chargeIntroComplete = true;
+          burstProgress = 1;
+          targetBurstProgress = 1;
+          releaseMode = "complete";
+          releaseTimeline = 1;
+          render();
+          return;
+        }
+        heroAutoplayActive = true;
+        heroAutoplayLastTimestamp = 0;
+        scheduleWarningWarmup(true);
+        syncHeroAutoplayControl();
+        startAnimation();
+      };
+
       const animate = (timestamp) => {
         animationFrame = 0;
         if (disposed || !gate.isConnected) return;
@@ -12320,6 +12430,7 @@ const gateStyle = [
           ? clamp((timestamp - lastFrameTime) / 16.667, 0.5, 3)
           : 1;
         lastFrameTime = timestamp;
+        advanceHeroAutoplay(timestamp);
         const spring = (targetProgress - progress) * springStrength * frameRatio;
         velocity = (velocity + spring) * Math.pow(damping, frameRatio);
         progress = clamp(progress + velocity * frameRatio, 0, 1);
@@ -12402,7 +12513,7 @@ const gateStyle = [
             releaseBoost = 0;
             releaseVisualPressure = 0;
             burstProgress = 1;
-            markReleaseCompletedInTab();
+            stopHeroAutoplay();
           }
         } else {
           const burstSpring = (targetBurstProgress - burstProgress) * burstSpringStrength * frameRatio;
@@ -12419,7 +12530,8 @@ const gateStyle = [
           }
         }
 
-        const settled = !chargeIntroActive
+        const settled = !heroAutoplayActive
+          && !chargeIntroActive
           && !["forward", "rewinding"].includes(releaseMode)
           && Math.abs(targetProgress - progress) < settleDistance
           && Math.abs(velocity) < settleDistance
@@ -12571,9 +12683,7 @@ const gateStyle = [
         burstVelocity = 0;
         releaseMode = "manual";
         releaseTimeline = 0;
-        releaseDuration = releaseCompletedInTab
-          ? releaseReplayAutoplayDuration
-          : releaseFirstAutoplayDuration;
+        releaseDuration = releaseAutoplayDuration;
         releaseLastTimestamp = 0;
         releasePlaybackRate = 1;
         releaseBoost = 0;
@@ -12595,6 +12705,9 @@ const gateStyle = [
         gateWheelDirection = 0;
         gateWheelMomentum = 0;
         gateWheelLastTimestamp = 0;
+        heroAutoplayActive = false;
+        heroAutoplayLastTimestamp = 0;
+        renderedHeroAutoplayState = "";
         energyProgress = 0;
         poseTimestamp = 0;
         poseClock = 0;
@@ -13057,6 +13170,11 @@ const gateStyle = [
             returnToGate();
             return;
           }
+          if (heroAutoplayActive) {
+            event.preventDefault();
+            if (delta > 0) return;
+            stopHeroAutoplay();
+          }
           if (delta > 0 && isComplete()) {
             event.preventDefault();
             enterNextPage();
@@ -13146,8 +13264,16 @@ const gateStyle = [
         postReleaseTargetY = 0;
       }, { passive: true, signal });
 
+      autoPlay?.addEventListener("click", () => {
+        startHeroAutoplay();
+      }, { signal });
+      if (autoPlay instanceof HTMLElement) {
+        autoPlay.dataset.kisaraRuntimeBound = "true";
+      }
+
       skip?.addEventListener("click", (event) => {
         event.preventDefault();
+        stopHeroAutoplay();
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
         animationFrame = 0;
         lastFrameTime = 0;
@@ -13312,6 +13438,7 @@ const gateStyle = [
         if (window.__yuimiKisaraHomeCleanup === cleanup) {
           window.__yuimiKisaraHomeCleanup = null;
         }
+        autoPlay?.removeAttribute("data-kisara-runtime-bound");
       };
       window.__yuimiKisaraHomeCleanup = cleanup;
 
