@@ -91,6 +91,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     let playbackToken = 0;
     let switchingTrack = false;
     let persistedResumeIntent = false;
+    const persistInterval = document.documentElement.dataset.yuimiPerformance === "full" ? 5 : 10;
 
     let restoredFromStorage = false;
     if (canAdoptBootstrap) {
@@ -381,7 +382,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     });
     audio.addEventListener("timeupdate", () => {
       restoreTime = audio.currentTime;
-      if (Math.abs(audio.currentTime - lastStoredTime) >= 3) persistState();
+      if (Math.abs(audio.currentTime - lastStoredTime) >= persistInterval) persistState();
     });
 
     updateTrackUi();

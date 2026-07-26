@@ -6,6 +6,7 @@ import { ClientRouter } from "astro:transitions";
 import ThemePreferenceGate from "@/core/themes/ThemePreferenceGate.astro";
 import ThemeLongPressMenu from "@/core/themes/ThemeLongPressMenu.astro";
 import ConsoleEasterEgg from "@/core/ConsoleEasterEgg.astro";
+import PerformanceProfile from "@/core/PerformanceProfile.astro";
 import { kagariAssets } from "../assets";
 
 interface Props {
@@ -40,6 +41,7 @@ const themedNotFoundRedirectScript = `(() => {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <PerformanceProfile />
     <meta name="description" content={description} />
     <meta name="theme-color" content="#fff8ec" />
     {
@@ -210,6 +212,7 @@ const themedNotFoundRedirectScript = `(() => {
 
     <script>
       let pigScrollTimer = 0;
+      let pigScrollFrame = 0;
 
       const updatePigScrollbar = () => {
         const pigScrollbar = document.querySelector("[data-pig-scrollbar]");
@@ -230,12 +233,20 @@ const themedNotFoundRedirectScript = `(() => {
         }, 260);
       };
 
-      updatePigScrollbar();
-      window.addEventListener("scroll", updatePigScrollbar, { passive: true });
-      window.addEventListener("resize", updatePigScrollbar);
-      document.addEventListener("astro:page-load", updatePigScrollbar);
-      document.addEventListener("astro:after-swap", updatePigScrollbar);
-      window.addEventListener("pageshow", updatePigScrollbar);
+      const schedulePigScrollbar = () => {
+        if (pigScrollFrame) return;
+        pigScrollFrame = window.requestAnimationFrame(() => {
+          pigScrollFrame = 0;
+          updatePigScrollbar();
+        });
+      };
+
+      schedulePigScrollbar();
+      window.addEventListener("scroll", schedulePigScrollbar, { passive: true });
+      window.addEventListener("resize", schedulePigScrollbar);
+      document.addEventListener("astro:page-load", schedulePigScrollbar);
+      document.addEventListener("astro:after-swap", schedulePigScrollbar);
+      window.addEventListener("pageshow", schedulePigScrollbar);
 
       const padTimer = (value) => String(value).padStart(2, "0");
       const getElapsedParts = (startDate) => {
@@ -270,11 +281,20 @@ const themedNotFoundRedirectScript = `(() => {
         });
       };
 
-      updateFooterTimers();
-      window.setInterval(updateFooterTimers, 1000);
+      let footerTimer = 0;
+      const scheduleFooterTimers = () => {
+        if (footerTimer) window.clearTimeout(footerTimer);
+        footerTimer = 0;
+        if (document.visibilityState !== "visible") return;
+        updateFooterTimers();
+        footerTimer = window.setTimeout(scheduleFooterTimers, 1000);
+      };
+
+      scheduleFooterTimers();
       document.addEventListener("astro:page-load", updateFooterTimers);
       document.addEventListener("astro:after-swap", updateFooterTimers);
       window.addEventListener("pageshow", updateFooterTimers);
+      document.addEventListener("visibilitychange", scheduleFooterTimers);
 
       let toyDockCloseTimer = 0;
       const getToyDock = () => document.querySelector(".toy-dock");

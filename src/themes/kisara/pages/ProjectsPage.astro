@@ -442,6 +442,7 @@ const kitchenCatalog = {
       let suppressClickUntil = 0;
       let pendingPointer = null;
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const precisePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
       const announce = (message, sticky = false) => {
         if (statusOutput) statusOutput.textContent = message;
@@ -951,8 +952,10 @@ const kitchenCatalog = {
       }, { signal });
 
       root.addEventListener("pointermove", (event) => {
-        pendingPointer = { x: event.clientX, y: event.clientY, target: event.target };
-        if (!pointerFrame) {
+        if (precisePointer) {
+          pendingPointer = { x: event.clientX, y: event.clientY, target: event.target };
+        }
+        if (precisePointer && !pointerFrame) {
           pointerFrame = requestAnimationFrame(() => {
             pointerFrame = 0;
             if (!(customPointer instanceof HTMLElement) || !pendingPointer) return;

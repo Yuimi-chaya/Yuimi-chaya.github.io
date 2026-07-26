@@ -1107,9 +1107,9 @@ const gateStyle = [
         const image = new Image();
         image.decoding = "async";
         image.fetchPriority = index < 2 ? "high" : "low";
-        image.src = scene.image;
         return [scene.id, {
           image,
+          source: scene.image,
           status: "idle",
           promise: null
         }];
@@ -1123,6 +1123,7 @@ const gateStyle = [
 
         const generation = sceneDecodeGeneration;
         record.status = "decoding";
+        if (!record.image.src) record.image.src = record.source;
         record.promise = Promise.resolve(
           typeof record.image.decode === "function" ? record.image.decode() : undefined
         ).then(() => {
@@ -1211,6 +1212,15 @@ const gateStyle = [
       const fridgeScene = document.querySelector("kisara-fridge-scene");
       const eventScene = document.querySelector("kisara-clue-scene");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const performanceProfile = document.documentElement.dataset.yuimiPerformance ?? "full";
+      const mobilePerformance = performanceProfile !== "full";
+      const litePerformance = performanceProfile === "lite";
+      const mobileFrameInterval = litePerformance
+        ? 1000 / 24
+        : mobilePerformance
+          ? 1000 / 30
+          : 0;
+      const mobileCanvasRatio = litePerformance ? 0.9 : 1;
       const openingMemory = opening instanceof HTMLElement
         ? opening.querySelector("[data-kisara-opening-memory]")
         : null;
@@ -2245,7 +2255,9 @@ const gateStyle = [
       };
       let meterLayout = { width: 0, height: 0, left: 0, top: 0 };
       let titleLayout = { width: 0, height: 0, left: 0, top: 0 };
-      let renderQuality = 1;
+      const renderQualityFloor = litePerformance ? 0.58 : mobilePerformance ? 0.66 : 0.7;
+      const renderQualityCeiling = litePerformance ? 0.7 : mobilePerformance ? 0.84 : 1;
+      let renderQuality = renderQualityCeiling;
       let renderCostEma = 0;
       let lastQualityAdjustment = 0;
       const singularityFieldCanvas = document.createElement("canvas");
@@ -3592,7 +3604,10 @@ const gateStyle = [
         const titleRect = title.getBoundingClientRect();
         const width = Math.max(1, canvasRect.width);
         const height = Math.max(1, canvasRect.height);
-        const deviceScale = Math.min(window.devicePixelRatio || 1, width < 640 ? 1.12 : 1.28);
+        const deviceScale = Math.min(
+          window.devicePixelRatio || 1,
+          mobilePerformance ? mobileCanvasRatio : width < 640 ? 1.12 : 1.28
+        );
         const pixelRatio = Math.min(deviceScale, 1660 / width, 560 / height);
         const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
         const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
@@ -3669,7 +3684,10 @@ const gateStyle = [
         const rect = titleDataCanvas.getBoundingClientRect();
         const width = Math.max(1, rect.width);
         const height = Math.max(1, rect.height);
-        const deviceScale = Math.min(window.devicePixelRatio || 1, width < 640 ? 1.16 : 1.32);
+        const deviceScale = Math.min(
+          window.devicePixelRatio || 1,
+          mobilePerformance ? mobileCanvasRatio : width < 640 ? 1.16 : 1.32
+        );
         const pixelRatio = Math.min(deviceScale, 1536 / width, 460 / height);
         const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
         const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
@@ -3727,7 +3745,10 @@ const gateStyle = [
         if (!postReleaseCanvas || !postReleaseContext) return;
         const width = Math.max(1, Math.round(gate.clientWidth));
         const height = Math.max(1, Math.round(gate.clientHeight));
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, width < 640 ? 1.18 : 1.45);
+        const pixelRatio = Math.min(
+          window.devicePixelRatio || 1,
+          mobilePerformance ? mobileCanvasRatio : width < 640 ? 1.18 : 1.45
+        );
         const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
         const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
         if (
@@ -4674,7 +4695,15 @@ const gateStyle = [
           || Math.abs(postReleaseTargetY - postReleaseY) > 0.03
           || Boolean(postReleaseJourney)
           || postReleaseFlowWhip > 0.018;
-        const minimumFrameInterval = motionPending ? 1000 / 60 : 1000 / 30;
+        const minimumFrameInterval = mobilePerformance
+          ? motionPending
+            ? mobileFrameInterval
+            : litePerformance
+              ? 1000 / 16
+              : 1000 / 20
+          : motionPending
+            ? 1000 / 60
+            : 1000 / 30;
         if (
           postReleaseLastTimestamp
           && timestamp - postReleaseLastTimestamp < minimumFrameInterval * 0.9
@@ -5391,10 +5420,10 @@ const gateStyle = [
           const rect = spaceLensCanvas.getBoundingClientRect();
           cssWidth = Math.max(1, Math.round(rect.width));
           cssHeight = Math.max(1, Math.round(rect.height));
-          const mobile = cssWidth < 640;
+          const mobile = mobilePerformance || cssWidth < 640;
           const deviceScale = Math.min(window.devicePixelRatio || 1, 1);
-          let renderScale = mobile ? 0.68 : cssWidth < 1000 ? 0.86 : 1;
-          const maxPixels = mobile ? 360000 : 1300000;
+          let renderScale = litePerformance ? 0.52 : mobile ? 0.62 : cssWidth < 1000 ? 0.86 : 1;
+          const maxPixels = litePerformance ? 210000 : mobile ? 290000 : 1300000;
           const estimatedPixels = cssWidth * cssHeight * deviceScale * deviceScale * renderScale * renderScale;
           if (estimatedPixels > maxPixels) renderScale *= Math.sqrt(maxPixels / estimatedPixels);
           const pixelWidth = Math.max(1, Math.round(cssWidth * deviceScale * renderScale));
@@ -5880,7 +5909,10 @@ const gateStyle = [
           const rect = titleLensCanvas.getBoundingClientRect();
           const nextCssWidth = Math.max(1, rect.width);
           const nextCssHeight = Math.max(1, rect.height);
-          const deviceScale = Math.min(window.devicePixelRatio || 1, 1.25);
+          const deviceScale = Math.min(
+            window.devicePixelRatio || 1,
+            litePerformance ? 0.74 : mobilePerformance ? 0.9 : 1.25
+          );
           const nextRenderScale = Math.min(
             deviceScale,
             1536 / nextCssWidth,
@@ -6429,7 +6461,7 @@ const gateStyle = [
           lastSpaceLensPaintTimestamp = 0;
           return;
         }
-        const minimumInterval = gate.clientWidth < 640 ? 1000 / 30 : 1000 / 60;
+        const minimumInterval = mobileFrameInterval || (gate.clientWidth < 640 ? 1000 / 30 : 1000 / 60);
         if (
           lastSpaceLensPaintTimestamp > 0
           && timestamp - lastSpaceLensPaintTimestamp < minimumInterval
@@ -6454,7 +6486,7 @@ const gateStyle = [
           lastTitleLensPaintTimestamp = 0;
           return;
         }
-        const minimumInterval = gate.clientWidth < 640 ? 1000 / 30 : 1000 / 60;
+        const minimumInterval = mobileFrameInterval || (gate.clientWidth < 640 ? 1000 / 30 : 1000 / 60);
         if (
           lastTitleLensPaintTimestamp > 0
           && timestamp - lastTitleLensPaintTimestamp < minimumInterval
@@ -6494,7 +6526,10 @@ const gateStyle = [
         const rect = energyCanvas.getBoundingClientRect();
         const width = Math.max(1, Math.round(rect.width));
         const height = Math.max(1, Math.round(rect.height));
-        const devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        const devicePixelRatio = Math.min(
+          window.devicePixelRatio || 1,
+          mobilePerformance ? mobileCanvasRatio : 2
+        );
         const pixelWidth = Math.max(1, Math.round(width * devicePixelRatio));
         const pixelHeight = Math.max(1, Math.round(height * devicePixelRatio));
         if (energyCanvas.width !== pixelWidth || energyCanvas.height !== pixelHeight) {
@@ -6512,7 +6547,7 @@ const gateStyle = [
         const rect = burstCanvas.getBoundingClientRect();
         const width = Math.max(1, Math.round(rect.width));
         const height = Math.max(1, Math.round(rect.height));
-        const ratioCap = width < 640 ? 1.16 : 1.38;
+        const ratioCap = mobilePerformance ? mobileCanvasRatio : width < 640 ? 1.16 : 1.38;
         const devicePixelRatio = Math.min(window.devicePixelRatio || 1, ratioCap);
         const pixelWidth = Math.max(1, Math.round(width * devicePixelRatio));
         const pixelHeight = Math.max(1, Math.round(height * devicePixelRatio));
@@ -6557,8 +6592,8 @@ const gateStyle = [
         const mobile = burstCanvasWidth > 0 ? burstCanvasWidth < 640 : window.innerWidth < 640;
         const highCost = mobile ? 13.5 : 16.5;
         const lowCost = mobile ? 7.4 : 9.2;
-        if (renderCostEma > highCost && renderQuality > 0.7) {
-          renderQuality = Math.max(0.7, renderQuality - 0.08);
+        if (renderCostEma > highCost && renderQuality > renderQualityFloor) {
+          renderQuality = Math.max(renderQualityFloor, renderQuality - 0.08);
           const width = burstCanvasWidth || window.innerWidth;
           trimParticlePool(
             wakeParticles,
@@ -6580,8 +6615,8 @@ const gateStyle = [
             Math.floor((width < 640 ? 88 : 152) * renderQuality),
             53
           );
-        } else if (renderCostEma < lowCost && renderQuality < 1) {
-          renderQuality = Math.min(1, renderQuality + 0.035);
+        } else if (renderCostEma < lowCost && renderQuality < renderQualityCeiling) {
+          renderQuality = Math.min(renderQualityCeiling, renderQuality + 0.035);
         }
       };
 
@@ -6592,7 +6627,7 @@ const gateStyle = [
           || parameters.opacity <= 0.001
         ) return false;
 
-        const quality = clamp(parameters.quality, 0.7, 1);
+        const quality = clamp(parameters.quality, renderQualityFloor, renderQualityCeiling);
         const activity = clamp(parameters.activity, 0, 1.35);
         const opacity = clamp(parameters.opacity, 0, 1);
         const compression = clamp(parameters.compression, 0, 1);
@@ -6600,13 +6635,15 @@ const gateStyle = [
         const radius = Math.max(5, parameters.radius);
         const time = timestamp / 1000;
         const fieldTargetSize = parameters.mobile
-          ? (quality < 0.8 ? 68 : 80)
+          ? litePerformance
+            ? (quality < 0.66 ? 54 : 62)
+            : (quality < 0.76 ? 64 : 74)
           : (quality < 0.8 ? 88 : 108);
 
         ensureSingularityFieldBuffer(fieldTargetSize);
 
         const minimumInterval = parameters.mobile
-          ? 1000 / 30
+          ? mobileFrameInterval || 1000 / 30
           : quality < 0.8
             ? 1000 / 36
             : 1000 / 45;
@@ -11441,9 +11478,18 @@ const gateStyle = [
           + burstParticles.length
           + rainParticles.length;
         const staticRelease = releaseSettled && residualParticleCount === 0;
-        const minimumFrameInterval = releaseSettled
-          ? (staticRelease ? 72 : 34)
+        const settledFrameInterval = releaseSettled
+          ? staticRelease
+            ? litePerformance
+              ? 180
+              : mobilePerformance
+                ? 140
+                : 96
+            : mobilePerformance
+              ? mobileFrameInterval
+              : 34
           : 0;
+        const minimumFrameInterval = Math.max(mobileFrameInterval, settledFrameInterval);
         if (
           minimumFrameInterval > 0
           && lastEnergyPaintTimestamp > 0
@@ -12771,7 +12817,7 @@ const gateStyle = [
         motionPhases = makeMotionPhases();
         screenParticleTimestamp = 0;
         lastEnergyPaintTimestamp = 0;
-        renderQuality = Math.max(renderQuality, 0.88);
+        renderQuality = Math.min(renderQualityCeiling, Math.max(renderQuality, mobilePerformance ? 0.72 : 0.88));
         renderCostEma = 0;
         lastQualityAdjustment = 0;
         singularityFieldLastPaintTimestamp = 0;
@@ -13625,7 +13671,9 @@ const gateStyle = [
         if (retryScript instanceof HTMLScriptElement) {
           retryScript.onload = null;
           retryScript.onerror = null;
+          retryScript.remove();
         }
+        retryScript = null;
         if (window.__yuimiKisaraRuntimeGuardCleanup === cleanup) {
           window.__yuimiKisaraRuntimeGuardCleanup = null;
         }

@@ -1,0 +1,53 @@
+<script is:inline data-astro-rerun>
+  (() => {
+    window.__yuimiPerformanceProfileCleanup?.();
+
+    const lifecycle = new AbortController();
+    const root = document.documentElement;
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    let resizeTimer = 0;
+
+    const applyProfile = () => {
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+      const compactViewport = window.matchMedia("(max-width: 820px)").matches;
+      const mobile = coarsePointer || compactViewport;
+      const memory = Number(navigator.deviceMemory) || 0;
+      const cores = Number(navigator.hardwareConcurrency) || 0;
+      const effectiveType = String(connection?.effectiveType || "").toLowerCase();
+      const constrainedNetwork = Boolean(connection?.saveData) || /(^|-)2g$/.test(effectiveType);
+      const constrainedDevice = mobile && ((memory > 0 && memory <= 2) || (cores > 0 && cores <= 2));
+      const profile = reducedMotion || constrainedNetwork || constrainedDevice
+        ? "lite"
+        : mobile
+          ? "mobile"
+          : "full";
+
+      root.dataset.yuimiPerformance = profile;
+      root.dataset.yuimiPointer = coarsePointer ? "coarse" : "fine";
+    };
+
+    const scheduleProfileRefresh = () => {
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        resizeTimer = 0;
+        applyProfile();
+      }, 180);
+    };
+
+    applyProfile();
+    window.addEventListener("resize", scheduleProfileRefresh, { passive: true, signal: lifecycle.signal });
+    window.addEventListener("orientationchange", scheduleProfileRefresh, { passive: true, signal: lifecycle.signal });
+    connection?.addEventListener?.("change", applyProfile, { signal: lifecycle.signal });
+
+    const cleanup = () => {
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      resizeTimer = 0;
+      lifecycle.abort();
+      if (window.__yuimiPerformanceProfileCleanup === cleanup) {
+        window.__yuimiPerformanceProfileCleanup = null;
+      }
+    };
+    window.__yuimiPerformanceProfileCleanup = cleanup;
+  })();
+</script>

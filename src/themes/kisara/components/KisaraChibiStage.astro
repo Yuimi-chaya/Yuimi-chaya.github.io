@@ -1000,12 +1000,14 @@ const characters = [
   }
 </style>
 
-<script is:inline data-astro-rerun>
-  (() => {
-    window.__yuimiKisaraChibiCleanup?.();
-
+<script>
+  const initKisaraChibiStage = () => {
     const root = document.querySelector("[data-kisara-chibi-stage]");
     if (!(root instanceof HTMLElement)) return;
+    if (root.dataset.kisaraRuntimeBound === "true") return;
+
+    window.__yuimiKisaraChibiCleanup?.();
+    root.dataset.kisaraRuntimeBound = "true";
 
     const lifecycle = new AbortController();
     const nodes = new Map(
@@ -1019,6 +1021,8 @@ const characters = [
     const appleVideo = root.querySelector("[data-chibi-apple-video]");
     const appleFallback = root.querySelector("[data-chibi-apple-fallback]");
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const preloadAppleMedia = document.documentElement.dataset.yuimiPerformance === "full"
+      && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const characterOrder = ["kisara", "ayano", "shu", "sharon"];
     const nameMap = { kisara: "木更", ayano: "绫乃", shu: "修", sharon: "莎朗" };
     const soloEmoji = {
@@ -1693,7 +1697,7 @@ const characters = [
     });
     resizeObserver.observe(root);
 
-    if (appleVideo instanceof HTMLVideoElement && "IntersectionObserver" in window) {
+    if (preloadAppleMedia && appleVideo instanceof HTMLVideoElement && "IntersectionObserver" in window) {
       applePreloadObserver = new IntersectionObserver((entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         loadAppleVideo();
@@ -1718,11 +1722,15 @@ const characters = [
         appleVideo.load();
       }
       appleFallback?.removeAttribute("src");
+      delete root.dataset.kisaraRuntimeBound;
       if (window.__yuimiKisaraChibiCleanup === cleanup) delete window.__yuimiKisaraChibiCleanup;
     };
 
     window.__yuimiKisaraChibiCleanup = cleanup;
     document.addEventListener("astro:before-swap", cleanup, { once: true, signal: lifecycle.signal });
     requestAnimationFrame(() => initialLayout(false));
-  })();
+  };
+
+  document.addEventListener("astro:page-load", initKisaraChibiStage);
+  initKisaraChibiStage();
 </script>

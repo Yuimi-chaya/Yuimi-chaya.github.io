@@ -411,6 +411,9 @@ const fallingTags = [
       })();
 
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const performanceProfile = document.documentElement.dataset.yuimiPerformance ?? "full";
+      const mobilePerformance = performanceProfile !== "full";
+      const litePerformance = performanceProfile === "lite";
       const pigImage = new Image();
       pigImage.src = "/themes/fuyukawa-kagari/assets/mini-pig-scroll.webp";
       const dateTarget = document.querySelector("[data-home-date]");
@@ -674,24 +677,23 @@ const fallingTags = [
         }
       };
 
+      const homeDateFormatter = new Intl.DateTimeFormat("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        weekday: "long"
+      });
+      const homeTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      });
+
       const updateHomeClock = () => {
         const now = new Date();
-        if (dateTarget) {
-          dateTarget.textContent = new Intl.DateTimeFormat("zh-CN", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            weekday: "long"
-          }).format(now);
-        }
-        if (timeTarget) {
-          timeTarget.textContent = new Intl.DateTimeFormat("zh-CN", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false
-          }).format(now);
-        }
+        if (dateTarget) dateTarget.textContent = homeDateFormatter.format(now);
+        if (timeTarget) timeTarget.textContent = homeTimeFormatter.format(now);
       };
       updateHomeClock();
       const clockTimer = window.setInterval(updateHomeClock, 1000);
@@ -722,6 +724,7 @@ const fallingTags = [
         stageHeight: 1,
         dpr: 1,
         fadeStart: 0,
+        lastPaint: 0,
         visible: true
       };
 
@@ -778,7 +781,8 @@ const fallingTags = [
 
       const resize = () => {
         const rect = stage.getBoundingClientRect();
-        state.dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+        const dprCeiling = litePerformance ? 1 : mobilePerformance ? 1.15 : 2;
+        state.dpr = clamp(window.devicePixelRatio || 1, 1, dprCeiling);
         state.width = Math.max(1, Math.floor(rect.width));
         state.stageHeight = Math.max(1, Math.floor(rect.height));
         state.height = state.stageHeight + 80;
@@ -954,9 +958,20 @@ const fallingTags = [
 
       const tick = (now) => {
         if (!state.visible) {
+          state.raf = 0;
+          return;
+        }
+
+        const minimumFrameInterval = litePerformance
+          ? 1000 / 24
+          : mobilePerformance
+            ? 1000 / 30
+            : 0;
+        if (minimumFrameInterval && state.lastPaint && now - state.lastPaint < minimumFrameInterval) {
           state.raf = window.requestAnimationFrame(tick);
           return;
         }
+        state.lastPaint = now;
 
         const dt = clamp((now - state.lastTime) / 16.67, 0.4, 2.1);
         state.lastTime = now;
@@ -975,7 +990,7 @@ const fallingTags = [
         }
 
         state.bodies.forEach((body) => stepBody(body, dt));
-        for (let i = 0; i < 3; i += 1) collideBodies();
+        for (let i = 0; i < (mobilePerformance ? 2 : 3); i += 1) collideBodies();
 
         if (state.fading) {
           const fade = clamp((now - state.fadeStart) / 5200, 0, 1);
@@ -1050,7 +1065,10 @@ const fallingTags = [
       const onVisibilityChange = () => {
         state.visible = document.visibilityState === "visible";
         state.lastTime = performance.now();
-        if (state.visible && state.started && !state.done && !state.raf) {
+        if (!state.visible) {
+          window.cancelAnimationFrame(state.raf);
+          state.raf = 0;
+        } else if (state.started && !state.done && !state.raf) {
           state.raf = window.requestAnimationFrame(tick);
         }
       };

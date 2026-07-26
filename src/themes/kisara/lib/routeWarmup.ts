@@ -18,6 +18,7 @@ type IdleWindow = Window & {
 };
 
 type ConnectionNavigator = Navigator & {
+  deviceMemory?: number;
   connection?: {
     effectiveType?: string;
     saveData?: boolean;
@@ -41,8 +42,8 @@ declare global {
 }
 
 const KISARA_ROUTE_PREFIX = "/themes/kisara/";
-const MAX_CONCURRENT_WARMUPS = 2;
 const ROUTE_WARM_TTL = 45_000;
+const MAX_AUTOMATIC_WARMUPS = 2;
 const ROUTE_PRIORITY = [
   "/themes/kisara/games/",
   "/themes/kisara/projects/",
@@ -52,11 +53,17 @@ const ROUTE_PRIORITY = [
 const warmups = new Map<string, RouteWarmupEntry>();
 const warmedStylesheets = new Set<string>();
 
-const canWarmRoutes = () => {
+const performanceProfile = () => document.documentElement.dataset.yuimiPerformance ?? "full";
+
+const canWarmRoutes = (automatic = false) => {
   const connection = (navigator as ConnectionNavigator).connection;
   if (!navigator.onLine || connection?.saveData) return false;
-  return !connection?.effectiveType || !/2g/i.test(connection.effectiveType);
+  if (connection?.effectiveType && /2g/i.test(connection.effectiveType)) return false;
+  if (performanceProfile() === "lite") return false;
+  return !automatic || performanceProfile() === "full";
 };
+
+const maxConcurrentWarmups = () => performanceProfile() === "full" ? 2 : 1;
 
 const normalizeRoute = (value: string) => {
   try {
@@ -158,7 +165,8 @@ export const initKisaraRouteWarmup = () => {
     const run = () => {
       idleHandle = 0;
       fallbackTimer = 0;
-      while (activeWarmups < MAX_CONCURRENT_WARMUPS && queue.length) {
+      const concurrency = maxConcurrentWarmups();
+      while (activeWarmups < concurrency && queue.length) {
         const routeUrl = queue.shift();
         if (!routeUrl) break;
         queued.delete(routeUrl);
@@ -190,6 +198,7 @@ export const initKisaraRouteWarmup = () => {
   };
 
   const refresh = () => {
+    if (!canWarmRoutes(true)) return;
     const candidates = Array.from(
       document.querySelectorAll<HTMLAnchorElement>('a[data-kisara-route-warmup="load"][href]')
     ).map((link) => link.href);
@@ -201,10 +210,22 @@ export const initKisaraRouteWarmup = () => {
       return (leftPriority < 0 ? ROUTE_PRIORITY.length : leftPriority)
         - (rightPriority < 0 ? ROUTE_PRIORITY.length : rightPriority);
     });
-    candidates.forEach(enqueue);
+    candidates.slice(0, MAX_AUTOMATIC_WARMUPS).forEach(enqueue);
+  };
+
+  const warmFromIntent = (event: Event) => {
+    if (!canWarmRoutes()) return;
+    const target = event.target instanceof Element ? event.target.closest("a[href]") : null;
+    if (!(target instanceof HTMLAnchorElement)) return;
+    const routeUrl = normalizeRoute(target.href);
+    if (!routeUrl) return;
+    void warmRoute(routeUrl);
   };
 
   document.addEventListener("astro:page-load", refresh, { signal: lifecycle.signal });
+  document.addEventListener("pointerover", warmFromIntent, { passive: true, signal: lifecycle.signal });
+  document.addEventListener("focusin", warmFromIntent, { signal: lifecycle.signal });
+  document.addEventListener("pointerdown", warmFromIntent, { passive: true, signal: lifecycle.signal });
   window.addEventListener("online", refresh, { signal: lifecycle.signal });
 
   const controller: RouteWarmupController = {

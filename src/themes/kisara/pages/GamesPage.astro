@@ -386,7 +386,11 @@ const gamePresentation = {
         if (eject instanceof HTMLButtonElement) eject.hidden = false;
         setLaunchCopy("RESTART", "RELOAD GAME");
       }, { signal });
-      if (stage instanceof HTMLElement && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (
+        stage instanceof HTMLElement
+        && window.matchMedia("(hover: hover) and (pointer: fine)").matches
+        && !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
         stage.addEventListener("pointermove", (event) => {
           const rect = stage.getBoundingClientRect();
           pointerX = Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width - 0.5) * 2));
