@@ -1652,6 +1652,10 @@ const gateStyle = [
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
       const burstDistance = 2250;
+      const gateWheelGestureWindow = 190;
+      const gateWheelBaseGain = 1.08;
+      const gateWheelSustainedGain = 0.92;
+      const bladeWheelGain = 1.28;
       const springStrength = 0.06;
       const burstSpringStrength = 0.038;
       const damping = 0.76;
@@ -1660,7 +1664,7 @@ const gateStyle = [
       const chargeIntroDuration = 2150;
       const chargeHandoffStart = 0.015;
       const chargeHandoffEnd = 0.18;
-      const glossFadeEnd = 0.42;
+      const glossFadeEnd = 0.37;
       const crossStart = 0.46;
       const crossBuildEnd = 0.58;
       const crossFlashEnd = 0.72;
@@ -2167,6 +2171,9 @@ const gateStyle = [
       let lastFrameTime = 0;
       let touchY = null;
       let touchId = null;
+      let gateWheelDirection = 0;
+      let gateWheelMomentum = 0;
+      let gateWheelLastTimestamp = 0;
       let renderedPercent = -1;
       let renderedStage = "";
       let renderedGlitchTick = -1;
@@ -8868,12 +8875,18 @@ const gateStyle = [
           + Math.sin(sceneClock * 0.28 + 0.2) * 0.0065
           + Math.sin(sceneClock * 0.1 + 1.8) * 0.0032
         ) * sceneBreathFade;
+        const bladeHandoffPush = phaseProgress(burst, 0.255, glossFadeEnd)
+          * (1 - phaseProgress(burst, crossBuildEnd, crossEnd));
         const sceneCameraX = cameraBeatOne * -6.5 + cameraBeatTwo * 8.5 + sceneBreathX;
-        const sceneCameraY = cameraBeatOne * -3.2 + cameraBeatTwo * 2.4 + sceneBreathY;
+        const sceneCameraY = cameraBeatOne * -3.2
+          + cameraBeatTwo * 2.4
+          + sceneBreathY
+          - bladeHandoffPush * 2.8;
         const rawSceneCameraScale = (1
           + cameraBeatOne * 0.008
           + cameraBeatTwo * 0.013
-          + releaseVisualPressure * 0.003)
+          + releaseVisualPressure * 0.003
+          + bladeHandoffPush * 0.055)
           * sceneBreathScale;
         const sceneMotionMagnitude = Math.abs(sceneCameraX) + Math.abs(sceneCameraY);
         const sceneOverscanGuard = sceneMotionMagnitude > 0.01 ? 3 : 0;
@@ -12579,6 +12592,9 @@ const gateStyle = [
         chargeIntroTarget = 0;
         chargeIntroTransitionDuration = 0;
         chargeIntroReversing = false;
+        gateWheelDirection = 0;
+        gateWheelMomentum = 0;
+        gateWheelLastTimestamp = 0;
         energyProgress = 0;
         poseTimestamp = 0;
         poseClock = 0;
@@ -12895,9 +12911,45 @@ const gateStyle = [
         return true;
       };
 
+      const shapeGateWheelDelta = (delta, timestamp) => {
+        const magnitude = Math.abs(delta);
+        if (magnitude < 32) {
+          gateWheelDirection = 0;
+          gateWheelMomentum = 0;
+          gateWheelLastTimestamp = timestamp;
+          return delta * 1.04;
+        }
+
+        const direction = Math.sign(delta);
+        const elapsed = gateWheelLastTimestamp > 0
+          ? timestamp - gateWheelLastTimestamp
+          : Number.POSITIVE_INFINITY;
+        const continuesGesture = direction === gateWheelDirection
+          && elapsed <= gateWheelGestureWindow;
+        if (continuesGesture) {
+          const cadence = clamp(1 - elapsed / gateWheelGestureWindow, 0, 1);
+          const impulse = clamp(magnitude / 180, 0, 1);
+          gateWheelMomentum = clamp(
+            gateWheelMomentum * 0.72 + cadence * 0.42 + impulse * 0.12,
+            0,
+            1
+          );
+        } else {
+          gateWheelMomentum = 0.14;
+        }
+        gateWheelDirection = direction;
+        gateWheelLastTimestamp = timestamp;
+
+        const sustainedGain = smoothstep(gateWheelMomentum) * gateWheelSustainedGain;
+        const phaseGain = chargeIntroComplete && releaseMode === "manual"
+          ? bladeWheelGain
+          : 1;
+        return delta * (gateWheelBaseGain + sustainedGain) * phaseGain;
+      };
+
       const addProgress = (delta) => {
         if (["forward", "rewinding", "complete"].includes(releaseMode)) return;
-        const boundedDelta = clamp(delta, -180, 180);
+        const boundedDelta = clamp(delta, -280, 280);
         if (boundedDelta > 0) scheduleWarningWarmup(true);
         const fillComplete = targetProgress >= 0.9995 && progress >= 0.995;
         const burstInProgress = targetBurstProgress > 0.0005 || burstProgress > 0.0005;
@@ -13019,7 +13071,10 @@ const gateStyle = [
           }
           if (!shouldCaptureGate(delta)) return;
           event.preventDefault();
-          addProgress(delta);
+          const gateDelta = inputType === "wheel"
+            ? shapeGateWheelDelta(delta, performance.now())
+            : delta;
+          addProgress(gateDelta);
           return;
         }
         if (pageMode === "next" && handleHomeSectionInput(delta, event, inputType)) return;

@@ -1000,3 +1000,9 @@
 - The `001` memory ink bloom now starts at `2050ms` after reveal instead of `2600ms`, bringing the ink spread into the tail of the image development rather than leaving a long pause.
 - Returning from lower stops to `001` now reactivates the same fixed live gate bridge used by the initial downward handoff instead of substituting a blue fallback gradient. The bridge remains behind `001` while that stop is active, then is finalized or released when section snapping continues to `002`, so both directions share one transition style.
 - Runtime check at `1280x720` measured `003` at about `689px`; the expanded clue panel measured about `108px` wide with roughly `17px` clearance from the SVG line endpoint. `SKIP -> 001`, `002 -> 001`, and the subsequent `001 -> 002` return path all switched bridge classes as expected. `git diff --check`, `npm test` (3/3), and `npm run build` passed; the preview page emitted no warning/error logs.
+
+### 2026-07-26 Kisara hero wheel pacing and blade handoff
+
+- The hero keeps the existing spring-driven chain and memory-image timeline, but discrete mouse-wheel input now receives cadence-sensitive gain. A slow isolated notch stays close to the former precision, while a sustained same-direction roll ramps smoothly toward roughly double input; reversing direction or pausing resets that momentum. Precision trackpad deltas keep a restrained near-1:1 response.
+- The post-enchantment blade phase receives a separate input multiplier, and its manual endpoint moves from `0.42` to `0.37`. This removes most of the visually empty wheel distance after the blade gloss has left the title without shortening the automatic warning/black-hole timeline.
+- The remaining blade-to-autoplay handoff now pushes the scene camera inward by up to about `5.5%` with a slight upward drift, then releases that push across the warning-cross build. The visual remains reversible because it is derived entirely from `burstProgress`.
