@@ -3637,15 +3637,16 @@ html[data-yuimi-performance="lite"] .kisara-event-scene.is-camera-focusing .kisa
   }
 
   .kisara-event-scene[data-camera-mode="desktop"] .kisara-event-photo > img {
-    object-position: 50% var(--kisara-event-camera-y, 24%);
-    filter: blur(var(--kisara-event-camera-blur, 1.8px)) saturate(0.78) contrast(0.98) brightness(0.94);
-    transform: none;
+    object-position: 50% var(--kisara-event-camera-y, 18%);
+    filter: blur(var(--kisara-event-camera-blur, 2.1px)) saturate(0.78) contrast(0.98) brightness(0.94);
+    transform: translate3d(var(--kisara-event-camera-x, 0%), 0, 0) scale(1.12);
+    transform-origin: 50% 50%;
     animation: none;
   }
 
   .kisara-event-scene[data-camera-mode="desktop"].is-camera-moving .kisara-event-photo > img {
     filter: blur(var(--kisara-event-camera-blur, 4px)) saturate(0.72) contrast(0.96) brightness(0.91);
-    will-change: filter;
+    will-change: filter, transform;
   }
 
   .kisara-event-scene[data-camera-mode="desktop"].is-camera-focusing .kisara-event-photo > img {
@@ -3855,7 +3856,9 @@ html[data-yuimi-performance="lite"] .kisara-event-scene.is-camera-focusing .kisa
   width: 100%;
   height: 100%;
   overflow: visible;
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 120ms ease;
 }
 
 .kisara-event-clue-line path,
@@ -3885,6 +3888,11 @@ html[data-yuimi-performance="lite"] .kisara-event-scene.is-camera-focusing .kisa
 .kisara-event-scene[data-state="traced"] .kisara-event-clue-line path,
 .kisara-event-scene[data-state="solved"] .kisara-event-clue-line path {
   stroke-dashoffset: 0;
+}
+
+.kisara-event-scene[data-state="traced"] .kisara-event-clue-line,
+.kisara-event-scene[data-state="solved"] .kisara-event-clue-line {
+  opacity: 1;
 }
 
 .kisara-event-scene[data-state="traced"] .kisara-event-clue-line circle,

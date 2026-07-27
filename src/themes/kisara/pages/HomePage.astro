@@ -882,13 +882,18 @@ const gateStyle = [
           let cameraMissTimer = 0;
           let cameraFocusRun = 0;
           let cameraHasMoved = false;
-          let cameraCurrentY = 24;
-          let cameraTargetY = 24;
+          let cameraCurrentX = 0;
+          let cameraTargetX = 0;
+          let cameraCurrentY = 18;
+          let cameraTargetY = 18;
           let cameraLastFrameAt = 0;
           let cameraLastMoveAt = 0;
-          const cameraMinY = 18;
-          const cameraMaxY = 72;
-          const cameraClueY = 45;
+          const cameraMinY = 16;
+          const cameraMaxY = 74;
+          const cameraHorizontalRange = 4.5;
+          const cameraClueX = -0.45;
+          const cameraClueY = 44.3;
+          const cameraClueXTolerance = 1.35;
           const cameraClueTolerance = 3.2;
 
           const setCameraCopy = (nextStatus: string, nextCommand: string, nextAutofocus: string) => {
@@ -918,25 +923,28 @@ const gateStyle = [
             this.classList.remove("is-camera-moving", "is-camera-focusing", "is-camera-focused", "is-camera-missed");
           };
 
-          const setCameraPosition = (position: number) => {
-            this.style.setProperty("--kisara-event-camera-y", `${position.toFixed(3)}%`);
+          const setCameraPosition = (positionX: number, positionY: number) => {
+            this.style.setProperty("--kisara-event-camera-x", `${positionX.toFixed(3)}%`);
+            this.style.setProperty("--kisara-event-camera-y", `${positionY.toFixed(3)}%`);
           };
 
           const resetDesktopCamera = () => {
             cancelCameraPan();
             cancelCameraSearch();
             cameraHasMoved = false;
-            cameraCurrentY = 24;
-            cameraTargetY = 24;
+            cameraCurrentX = 0;
+            cameraTargetX = 0;
+            cameraCurrentY = 18;
+            cameraTargetY = 18;
             cameraLastMoveAt = 0;
             this.dataset.cameraMode = "desktop";
             delete this.dataset.cameraTarget;
             this.classList.remove("is-camera-ready");
-            this.style.setProperty("--kisara-event-camera-blur", "1.8px");
-            setCameraPosition(cameraCurrentY);
+            this.style.setProperty("--kisara-event-camera-blur", "2.1px");
+            setCameraPosition(cameraCurrentX, cameraCurrentY);
             hotspot.disabled = true;
             hotspot.setAttribute("aria-hidden", "true");
-            setCameraCopy("等待取景", "在相机框内上下移动镜头，停稳后等待自动对焦", "AF-C / READY");
+            setCameraCopy("等待取景", "在相机框内移动镜头，停稳后等待自动对焦", "AF-C / READY");
           };
 
           const resetStaticCamera = () => {
@@ -945,6 +953,7 @@ const gateStyle = [
             delete this.dataset.cameraMode;
             delete this.dataset.cameraTarget;
             this.classList.remove("is-camera-ready");
+            this.style.removeProperty("--kisara-event-camera-x");
             this.style.removeProperty("--kisara-event-camera-y");
             this.style.removeProperty("--kisara-event-camera-blur");
             hotspot.disabled = false;
@@ -1047,7 +1056,10 @@ const gateStyle = [
             ) return;
 
             const focusRun = ++cameraFocusRun;
-            const found = Math.abs(cameraCurrentY - cameraClueY) <= cameraClueTolerance;
+            const found = (
+              Math.abs(cameraCurrentX - cameraClueX) <= cameraClueXTolerance
+              && Math.abs(cameraCurrentY - cameraClueY) <= cameraClueTolerance
+            );
             clearCameraTimers();
             this.classList.remove("is-camera-moving", "is-camera-focused", "is-camera-missed");
             this.classList.add("is-camera-focusing");
@@ -1074,17 +1086,21 @@ const gateStyle = [
 
             const elapsed = cameraLastFrameAt ? Math.min(40, timestamp - cameraLastFrameAt) : 16;
             cameraLastFrameAt = timestamp;
+            const previousX = cameraCurrentX;
             const previousY = cameraCurrentY;
             const blend = 1 - Math.exp(-elapsed / 58);
+            cameraCurrentX += (cameraTargetX - cameraCurrentX) * blend;
             cameraCurrentY += (cameraTargetY - cameraCurrentY) * blend;
+            if (Math.abs(cameraTargetX - cameraCurrentX) < 0.012) cameraCurrentX = cameraTargetX;
             if (Math.abs(cameraTargetY - cameraCurrentY) < 0.018) cameraCurrentY = cameraTargetY;
 
-            const speed = Math.abs(cameraCurrentY - previousY) / Math.max(1, elapsed) * 1000;
-            const blur = Math.min(6.2, 1.65 + speed * 0.052 + Math.abs(cameraTargetY - cameraCurrentY) * 0.075);
-            setCameraPosition(cameraCurrentY);
+            const speed = Math.hypot(cameraCurrentX - previousX, cameraCurrentY - previousY) / Math.max(1, elapsed) * 1000;
+            const distance = Math.hypot(cameraTargetX - cameraCurrentX, (cameraTargetY - cameraCurrentY) * 0.72);
+            const blur = Math.min(6.4, 1.75 + speed * 0.052 + distance * 0.085);
+            setCameraPosition(cameraCurrentX, cameraCurrentY);
             this.style.setProperty("--kisara-event-camera-blur", `${blur.toFixed(2)}px`);
 
-            if (cameraCurrentY !== cameraTargetY) {
+            if (cameraCurrentX !== cameraTargetX || cameraCurrentY !== cameraTargetY) {
               cameraPanFrame = requestAnimationFrame(runCameraPan);
               return;
             }
@@ -1105,14 +1121,16 @@ const gateStyle = [
             ) return;
 
             const bounds = eventPhoto.getBoundingClientRect();
-            if (bounds.height <= 0) return;
-            const ratio = Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height));
-            cameraTargetY = cameraMinY + (cameraMaxY - cameraMinY) * ratio;
+            if (bounds.width <= 0 || bounds.height <= 0) return;
+            const ratioX = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
+            const ratioY = Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height));
+            cameraTargetX = (0.5 - ratioX) * cameraHorizontalRange * 2;
+            cameraTargetY = cameraMinY + (cameraMaxY - cameraMinY) * ratioY;
             cameraLastMoveAt = performance.now();
             cameraHasMoved = true;
             cancelCameraSearch();
             this.classList.add("is-camera-moving");
-            setCameraCopy("镜头移动中", "停稳后将自动对焦并检查画面中心", "AF-C / TRACKING");
+            setCameraCopy("镜头移动中", "停稳后将自动对焦并检查取景中心", "AF-C / TRACKING");
             if (!cameraPanFrame) cameraPanFrame = requestAnimationFrame(runCameraPan);
           };
 
