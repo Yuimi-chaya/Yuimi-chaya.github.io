@@ -877,6 +877,7 @@ const gateStyle = [
           let cameraDecoded = !eventImage;
           let cameraFocusFrame = 0;
           let cameraPanFrame = 0;
+          let cameraSnapFrame = 0;
           let cameraSettleTimer = 0;
           let cameraFocusTimer = 0;
           let cameraMissTimer = 0;
@@ -893,8 +894,10 @@ const gateStyle = [
           const cameraHorizontalRange = 4.5;
           const cameraClueX = -0.45;
           const cameraClueY = 44.3;
-          const cameraClueXTolerance = 1.35;
-          const cameraClueTolerance = 3.2;
+          const cameraClueXTolerance = 3;
+          const cameraClueTolerance = 8.5;
+          const cameraInputInsetX = 0.13;
+          const cameraInputInsetY = 0.1;
 
           const setCameraCopy = (nextStatus: string, nextCommand: string, nextAutofocus: string) => {
             if (status && status.textContent !== nextStatus) status.textContent = nextStatus;
@@ -919,8 +922,10 @@ const gateStyle = [
 
           const cancelCameraSearch = () => {
             cameraFocusRun += 1;
+            if (cameraSnapFrame) cancelAnimationFrame(cameraSnapFrame);
+            cameraSnapFrame = 0;
             clearCameraTimers();
-            this.classList.remove("is-camera-moving", "is-camera-focusing", "is-camera-focused", "is-camera-missed");
+            this.classList.remove("is-camera-moving", "is-camera-focusing", "is-camera-focused", "is-camera-missed", "is-camera-snapping");
           };
 
           const setCameraPosition = (positionX: number, positionY: number) => {
@@ -1022,7 +1027,7 @@ const gateStyle = [
           const finishDesktopFocus = (focusRun: number, found: boolean) => {
             if (signal.aborted || focusRun !== cameraFocusRun || this.dataset.state !== "idle") return;
             cameraFocusTimer = 0;
-            this.classList.remove("is-camera-focusing");
+            this.classList.remove("is-camera-focusing", "is-camera-snapping");
             this.classList.add("is-camera-focused");
             this.style.setProperty("--kisara-event-camera-blur", "0px");
 
@@ -1064,16 +1069,30 @@ const gateStyle = [
             this.classList.remove("is-camera-moving", "is-camera-focused", "is-camera-missed");
             this.classList.add("is-camera-focusing");
             setCameraCopy("自动对焦", "正在扫描镜头中心…", "AF / SEARCHING");
+
+            if (found) {
+              this.classList.add("is-camera-snapping");
+              cameraSnapFrame = requestAnimationFrame(() => {
+                cameraSnapFrame = 0;
+                if (signal.aborted || focusRun !== cameraFocusRun || this.dataset.state !== "idle") return;
+                cameraCurrentX = cameraClueX;
+                cameraTargetX = cameraClueX;
+                cameraCurrentY = cameraClueY;
+                cameraTargetY = cameraClueY;
+                setCameraPosition(cameraCurrentX, cameraCurrentY);
+              });
+            }
+
             cameraFocusTimer = window.setTimeout(() => finishDesktopFocus(focusRun, found), 520);
           };
 
-          const scheduleDesktopFocus = (delay = 150) => {
+          const scheduleDesktopFocus = (delay = 110) => {
             if (!desktopCamera || !cameraHasMoved || this.dataset.cameraTarget === "found") return;
             if (cameraSettleTimer) window.clearTimeout(cameraSettleTimer);
             cameraSettleTimer = window.setTimeout(() => {
               cameraSettleTimer = 0;
-              if (cameraPanFrame || performance.now() - cameraLastMoveAt < 130) {
-                scheduleDesktopFocus(70);
+              if (cameraPanFrame || performance.now() - cameraLastMoveAt < 90) {
+                scheduleDesktopFocus(45);
                 return;
               }
               beginDesktopFocus();
@@ -1088,27 +1107,19 @@ const gateStyle = [
             cameraLastFrameAt = timestamp;
             const previousX = cameraCurrentX;
             const previousY = cameraCurrentY;
-            const blend = 1 - Math.exp(-elapsed / 58);
-            cameraCurrentX += (cameraTargetX - cameraCurrentX) * blend;
-            cameraCurrentY += (cameraTargetY - cameraCurrentY) * blend;
-            if (Math.abs(cameraTargetX - cameraCurrentX) < 0.012) cameraCurrentX = cameraTargetX;
-            if (Math.abs(cameraTargetY - cameraCurrentY) < 0.018) cameraCurrentY = cameraTargetY;
+            cameraCurrentX = cameraTargetX;
+            cameraCurrentY = cameraTargetY;
 
             const speed = Math.hypot(cameraCurrentX - previousX, cameraCurrentY - previousY) / Math.max(1, elapsed) * 1000;
-            const distance = Math.hypot(cameraTargetX - cameraCurrentX, (cameraTargetY - cameraCurrentY) * 0.72);
-            const blur = Math.min(6.4, 1.75 + speed * 0.052 + distance * 0.085);
+            const blur = Math.min(6.4, 1.7 + speed * 0.048);
             setCameraPosition(cameraCurrentX, cameraCurrentY);
             this.style.setProperty("--kisara-event-camera-blur", `${blur.toFixed(2)}px`);
-
-            if (cameraCurrentX !== cameraTargetX || cameraCurrentY !== cameraTargetY) {
-              cameraPanFrame = requestAnimationFrame(runCameraPan);
-              return;
-            }
-
-            cameraLastFrameAt = 0;
-            this.style.setProperty("--kisara-event-camera-blur", "1.7px");
-            scheduleDesktopFocus(Math.max(40, 150 - (performance.now() - cameraLastMoveAt)));
+            scheduleDesktopFocus(Math.max(24, 110 - (performance.now() - cameraLastMoveAt)));
           };
+
+          const normalizeCameraInput = (value: number, inset: number) => (
+            Math.min(1, Math.max(0, (value - inset) / (1 - inset * 2)))
+          );
 
           const handleCameraPointerMove = (event: PointerEvent) => {
             if (
@@ -1122,8 +1133,8 @@ const gateStyle = [
 
             const bounds = eventPhoto.getBoundingClientRect();
             if (bounds.width <= 0 || bounds.height <= 0) return;
-            const ratioX = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
-            const ratioY = Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height));
+            const ratioX = normalizeCameraInput((event.clientX - bounds.left) / bounds.width, cameraInputInsetX);
+            const ratioY = normalizeCameraInput((event.clientY - bounds.top) / bounds.height, cameraInputInsetY);
             cameraTargetX = (0.5 - ratioX) * cameraHorizontalRange * 2;
             cameraTargetY = cameraMinY + (cameraMaxY - cameraMinY) * ratioY;
             cameraLastMoveAt = performance.now();
@@ -1136,7 +1147,10 @@ const gateStyle = [
 
           if (desktopCamera && eventPhoto) {
             eventPhoto.addEventListener("pointermove", handleCameraPointerMove, { signal });
-            eventPhoto.addEventListener("pointerleave", () => scheduleDesktopFocus(80), { signal });
+            eventPhoto.addEventListener("pointerleave", (event) => {
+              handleCameraPointerMove(event);
+              scheduleDesktopFocus(40);
+            }, { signal });
           }
 
           if (eventImage) {
