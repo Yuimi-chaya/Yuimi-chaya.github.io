@@ -52,6 +52,10 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       <Icon name="tabler:chevron-right" />
     </button>
   </div>
+
+  <span class="kisara-audio-secret-hearts" aria-hidden="true">
+    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  </span>
 </div>
 
 <script is:inline define:vars={{ audioConfig }}>
@@ -64,6 +68,12 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     const previous = player?.querySelector("[data-kisara-audio-prev]");
     const next = player?.querySelector("[data-kisara-audio-next]");
     if (!(placeholderAudio instanceof HTMLAudioElement) || !(control instanceof HTMLButtonElement)) return;
+
+    window.__yuimiKisaraAudioLifecycle?.abort();
+    window.__yuimiKisaraSecretAudioController?.abort();
+    const lifecycle = new AbortController();
+    const { signal } = lifecycle;
+    window.__yuimiKisaraAudioLifecycle = lifecycle;
 
     const bootstrap = window.__yuimiKisaraAudioBootstrap;
     const canAdoptBootstrap = bootstrap?.audio instanceof HTMLAudioElement && !bootstrap.claimed;
@@ -108,6 +118,13 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     let persistedResumeIntent = false;
     let unlockNoticeTimer = 0;
     const persistInterval = document.documentElement.dataset.yuimiPerformance === "full" ? 5 : 10;
+
+    signal.addEventListener("abort", () => {
+      loadToken += 1;
+      playbackToken += 1;
+      if (unlockNoticeTimer) window.clearTimeout(unlockNoticeTimer);
+      unlockNoticeTimer = 0;
+    }, { once: true });
 
     let restoredFromStorage = false;
     if (canAdoptBootstrap) {
@@ -167,6 +184,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       const track = activeTrack();
       currentUiState = state;
       control.dataset.state = state;
+      player?.classList.toggle("is-playing", playing);
       control.setAttribute("aria-pressed", String(playing));
       control.setAttribute(
         "aria-label",
@@ -174,16 +192,30 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       );
       control.title = playing ? `暂停主题音乐《${track.title}》` : `播放主题音乐《${track.title}》`;
       if (status) {
-        const position = String(trackIndex + 1).padStart(2, "0");
-        const total = String(tracks.length).padStart(2, "0");
-        status.textContent = `${position} / ${total} · ${stateLabels[state] ?? stateLabels.paused}`;
+        if (isSecretTrack(track)) {
+          status.textContent = `SECRET LINK · ${stateLabels[state] ?? stateLabels.paused}`;
+        } else {
+          const position = String(trackIndex + 1).padStart(2, "0");
+          const total = String(baseTracks.length).padStart(2, "0");
+          status.textContent = `${position} / ${total} · ${stateLabels[state] ?? stateLabels.paused}`;
+        }
       }
     };
 
     const updateTrackUi = () => {
       const track = activeTrack();
-      const previousTrack = tracks[(trackIndex - 1 + tracks.length) % tracks.length];
-      const nextTrack = tracks[(trackIndex + 1) % tracks.length];
+      const secretIndex = tracks.findIndex((candidate) => candidate.id === secretTrack.id);
+      const secretAvailable = secretIndex >= 0;
+      const previousTrack = isSecretTrack(track)
+        ? baseTracks[baseTracks.length - 1]
+        : secretAvailable && trackIndex === 0
+          ? secretTrack
+          : baseTracks[(trackIndex - 1 + baseTracks.length) % baseTracks.length];
+      const nextTrack = isSecretTrack(track)
+        ? baseTracks[0]
+        : secretAvailable && trackIndex === baseTracks.length - 1
+          ? secretTrack
+          : baseTracks[(trackIndex + 1) % baseTracks.length];
       if (title) title.textContent = track.title;
       player?.classList.toggle("is-secret-track", isSecretTrack(track));
       if (previous instanceof HTMLButtonElement) {
@@ -257,19 +289,19 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       setUiState("loading");
       playbackPromise = Promise.resolve(audio.play())
         .then(() => {
-          if (token !== playbackToken) return false;
+          if (signal.aborted || token !== playbackToken) return false;
           autoplayBlocked = false;
           setUiState("playing");
           return true;
         })
         .catch(() => {
-          if (token !== playbackToken) return false;
+          if (signal.aborted || token !== playbackToken) return false;
           autoplayBlocked = !audio.error;
           setUiState(audio.error ? "error" : "blocked");
           return false;
         })
         .finally(() => {
-          if (token === playbackToken) playbackPromise = null;
+          if (!signal.aborted && token === playbackToken) playbackPromise = null;
         });
       return playbackPromise;
     };
@@ -280,20 +312,20 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       setUiState("loading");
       playbackPromise = Promise.resolve(bootstrap.playPromise)
         .then(() => {
-          if (token !== playbackToken) return false;
+          if (signal.aborted || token !== playbackToken) return false;
           const playing = !audio.paused && !audio.ended;
           autoplayBlocked = !playing && !audio.error && Boolean(bootstrap.blocked);
           setUiState(playing ? "playing" : audio.error ? "error" : autoplayBlocked ? "blocked" : "loading");
           return playing;
         })
         .catch(() => {
-          if (token !== playbackToken) return false;
+          if (signal.aborted || token !== playbackToken) return false;
           autoplayBlocked = !audio.error;
           setUiState(audio.error ? "error" : "blocked");
           return false;
         })
         .finally(() => {
-          if (token === playbackToken) playbackPromise = null;
+          if (!signal.aborted && token === playbackToken) playbackPromise = null;
         });
       return true;
     };
@@ -332,7 +364,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       if (shouldPlay && playImmediately) requestPlayback();
 
       const finishLoading = () => {
-        if (token !== loadToken) return;
+        if (signal.aborted || token !== loadToken) return;
         restorePosition(requestedTime);
         switchingTrack = false;
         if (shouldPlay) {
@@ -345,13 +377,30 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       };
 
       if (audio.readyState >= 1) queueMicrotask(finishLoading);
-      else audio.addEventListener("loadedmetadata", finishLoading, { once: true });
+      else audio.addEventListener("loadedmetadata", finishLoading, { once: true, signal });
     };
 
     const stepTrack = (direction) => {
       autoplayBlocked = false;
-      if (isSecretTrack()) enabled = secretSession.normalEnabled !== false;
-      selectTrack(trackIndex + direction, { time: 0, autoplay: enabled });
+      if (isSecretTrack()) {
+        enabled = secretSession.normalEnabled !== false;
+        const nextNormalIndex = direction > 0 ? 0 : baseTracks.length - 1;
+        selectTrack(nextNormalIndex, { time: 0, autoplay: enabled });
+        return;
+      }
+
+      const secretIndex = tracks.findIndex((track) => track.id === secretTrack.id);
+      const entersSecret = secretIndex >= 0 && (
+        (direction > 0 && trackIndex === baseTracks.length - 1)
+        || (direction < 0 && trackIndex === 0)
+      );
+      if (entersSecret) {
+        selectTrack(secretIndex, { time: 0, autoplay: enabled });
+        return;
+      }
+
+      const nextNormalIndex = (trackIndex + direction + baseTracks.length) % baseTracks.length;
+      selectTrack(nextNormalIndex, { time: 0, autoplay: enabled });
     };
 
     const unlockSecretTrack = (event) => {
@@ -365,7 +414,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
         updateTrackUi();
         if (status) {
           if (unlockNoticeTimer) window.clearTimeout(unlockNoticeTimer);
-          status.textContent = `SECRET ${String(tracks.length).padStart(2, "0")} / ${String(tracks.length).padStart(2, "0")} · UNLOCKED`;
+          status.textContent = "SECRET TRACK · UNLOCKED";
           unlockNoticeTimer = window.setTimeout(() => {
             unlockNoticeTimer = 0;
             setUiState(currentUiState);
@@ -388,10 +437,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       }
     };
 
-    window.__yuimiKisaraSecretAudioController?.abort();
-    const secretAudioController = new AbortController();
-    window.__yuimiKisaraSecretAudioController = secretAudioController;
-    window.addEventListener(audioConfig.secretEventName, unlockSecretTrack, { signal: secretAudioController.signal });
+    window.addEventListener(audioConfig.secretEventName, unlockSecretTrack, { signal });
 
     control.addEventListener("click", () => {
       if (audio.paused) {
@@ -417,10 +463,10 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       audio.pause();
       setUiState("paused");
       persistState();
-    });
+    }, { signal });
 
-    previous?.addEventListener("click", () => stepTrack(-1));
-    next?.addEventListener("click", () => stepTrack(1));
+    previous?.addEventListener("click", () => stepTrack(-1), { signal });
+    next?.addEventListener("click", () => stepTrack(1), { signal });
 
     const unlockPlayback = (event) => {
       if (!enabled || !audio.paused) return;
@@ -438,11 +484,11 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       requestPlayback();
     };
 
-    window.addEventListener("pointerdown", unlockPlayback, { passive: true });
-    window.addEventListener("mousedown", unlockPlayback, { passive: true });
-    window.addEventListener("touchend", unlockPlayback, { passive: true });
-    window.addEventListener("click", unlockPlayback, { passive: true });
-    window.addEventListener("keydown", unlockPlayback);
+    window.addEventListener("pointerdown", unlockPlayback, { passive: true, signal });
+    window.addEventListener("mousedown", unlockPlayback, { passive: true, signal });
+    window.addEventListener("touchend", unlockPlayback, { passive: true, signal });
+    window.addEventListener("click", unlockPlayback, { passive: true, signal });
+    window.addEventListener("keydown", unlockPlayback, { signal });
     document.addEventListener("click", (event) => {
       const target = event.target instanceof Element ? event.target : null;
       const link = target?.closest("a[href]");
@@ -450,28 +496,28 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       const destination = new URL(link.href, document.baseURI);
       if (destination.origin !== window.location.origin) return;
       persistState();
-    }, true);
+    }, { capture: true, signal });
     window.addEventListener("pageshow", () => {
       if (enabled && audio.paused && !autoplayBlocked) requestPlayback();
-    });
-    window.addEventListener("pagehide", persistState);
+    }, { signal });
+    window.addEventListener("pagehide", persistState, { signal });
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") persistState();
       else if (enabled && audio.paused && !autoplayBlocked) requestPlayback();
-    });
+    }, { signal });
 
     audio.addEventListener("playing", () => {
       autoplayBlocked = false;
       setUiState("playing");
-    });
+    }, { signal });
     audio.addEventListener("pause", () => {
       if (!switchingTrack) setUiState(enabled ? "loading" : "paused");
-    });
+    }, { signal });
     audio.addEventListener("waiting", () => {
       if (enabled) setUiState("loading");
-    });
-    audio.addEventListener("error", () => setUiState("error"));
+    }, { signal });
+    audio.addEventListener("error", () => setUiState("error"), { signal });
     audio.addEventListener("ended", () => {
       restoreTime = 0;
       if (isSecretTrack()) {
@@ -485,12 +531,12 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
         });
         return;
       }
-      selectTrack(trackIndex + 1, { time: 0, autoplay: true });
-    });
+      selectTrack((trackIndex + 1) % baseTracks.length, { time: 0, autoplay: true });
+    }, { signal });
     audio.addEventListener("timeupdate", () => {
       restoreTime = audio.currentTime;
       if (!isSecretTrack() && Math.abs(audio.currentTime - lastStoredTime) >= persistInterval) persistState();
-    });
+    }, { signal });
 
     updateTrackUi();
     if (isSecretTrack() && audio.currentSrc.includes(secretTrack.src)) {

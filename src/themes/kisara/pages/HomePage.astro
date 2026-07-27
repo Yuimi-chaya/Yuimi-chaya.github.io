@@ -731,6 +731,10 @@ const gateStyle = [
               <span>INVESTIGATION</span>
               <strong data-event-status>未发现</strong>
             </div>
+            <div class="kisara-event-achievement" data-event-achievement role="status" aria-live="polite" aria-hidden="true">
+              <span aria-hidden="true"><i></i></span>
+              <div><small>ACHIEVEMENT UNLOCKED</small><strong>记忆的备份</strong></div>
+            </div>
             <p class="kisara-event-brief-kicker">SIDE STORY / MEMORY TRACE</p>
             <h3>那一天的合照，后来被谁悄悄改写了？</h3>
             <p class="kisara-event-brief-copy">把视线留在不自然的胶带附近。真正的线索不会主动开口，但会回应一次足够认真的触碰。</p>
@@ -823,6 +827,7 @@ const gateStyle = [
           const status = this.querySelector<HTMLElement>("[data-event-status]");
           const command = this.querySelector<HTMLElement>("[data-event-command]");
           const clueAction = this.querySelector<HTMLElement>("[data-event-clue-action]");
+          const achievement = this.querySelector<HTMLElement>("[data-event-achievement]");
           const eventImage = this.querySelector<HTMLImageElement>(".kisara-event-photo > img");
 
           if (!hotspot || !clue || !reward || !closeButton || !playSecretButton || !saveSecretButton) return;
@@ -917,6 +922,7 @@ const gateStyle = [
             if (status) status.textContent = nextCopy.status;
             if (command) command.textContent = nextCopy.command;
             if (clueAction) clueAction.textContent = nextCopy.action;
+            achievement?.setAttribute("aria-hidden", String(nextState !== "solved"));
             clue.setAttribute("aria-label", nextState === "solved" ? "回看已解锁章节：心之备用钥匙" : "打开线索：被贴进合照的人");
           };
 
