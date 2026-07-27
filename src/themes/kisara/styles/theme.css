@@ -1165,28 +1165,30 @@ html[data-yuimi-performance="lite"] :is(
 }
 
 .kisara-audio-player.is-secret-track .kisara-audio-emblem {
+  width: 30px;
   filter: drop-shadow(0 0 7px rgba(255, 54, 147, 0.62));
 }
 
 .kisara-audio-player.is-secret-track .kisara-audio-emblem::before {
-  top: 6px;
-  left: 5px;
-  width: 14px;
-  height: 14px;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
   border: 1px solid rgba(255, 199, 226, 0.88);
-  border-radius: 48% 52% 46% 54%;
+  border-radius: 44% 56% 48% 52%;
   background: radial-gradient(circle at 36% 32%, rgba(255, 229, 242, 0.88), rgba(255, 65, 151, 0.26) 44%, rgba(112, 5, 65, 0.16));
   box-shadow: 0 0 8px rgba(255, 55, 148, 0.82), inset 0 0 5px rgba(255, 218, 235, 0.38);
-  transform: rotate(45deg);
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .kisara-audio-player.is-secret-track .kisara-audio-emblem::after {
-  top: 5px;
-  left: 4px;
-  width: 18px;
-  height: 18px;
-  opacity: 0.62;
-  background: rgba(255, 45, 141, 0.42);
+  top: 50%;
+  left: 50%;
+  width: 27px;
+  height: 27px;
+  opacity: 0.56;
+  background: radial-gradient(circle, rgba(255, 92, 175, 0.5), rgba(255, 45, 141, 0.12) 54%, transparent 74%);
+  transform: translate(-50%, -50%);
 }
 
 .kisara-audio-player.is-secret-track .kisara-audio-icon {
@@ -1208,9 +1210,9 @@ html[data-yuimi-performance="lite"] :is(
 
 .kisara-audio-secret-hearts {
   position: absolute;
-  z-index: 0;
-  top: 20px;
-  left: 18px;
+  z-index: 3;
+  top: 21px;
+  left: 17px;
   width: 1px;
   height: 1px;
   overflow: visible;
@@ -1218,59 +1220,41 @@ html[data-yuimi-performance="lite"] :is(
 }
 
 .kisara-audio-secret-hearts i {
-  --heart-x: 36px;
-  --heart-y: -48px;
-  --heart-mid-x: 14px;
-  --heart-mid-y: -20px;
-  --heart-rotation: 18deg;
+  --heart-rotation: 14deg;
   --heart-scale: 0.9;
   --heart-delay: 0s;
-  --heart-duration: 2.4s;
+  --heart-duration: 2.7s;
   position: absolute;
   top: 0;
   left: 0;
-  width: 7px;
-  height: 7px;
+  width: 11px;
+  height: 10px;
   opacity: 0;
-  border-radius: 1px;
   background: linear-gradient(135deg, #fff4fa, #ff58a6 58%, #b90967);
-  filter: drop-shadow(0 0 4px rgba(255, 50, 145, 0.86));
-  transform: translate3d(0, 0, 0) rotate(-45deg) scale(0.3);
-}
-
-.kisara-audio-secret-hearts i::before,
-.kisara-audio-secret-hearts i::after {
-  content: "";
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: inherit;
-}
-
-.kisara-audio-secret-hearts i::before {
-  top: -48%;
-  left: 0;
-}
-
-.kisara-audio-secret-hearts i::after {
-  top: 0;
-  left: 48%;
+  clip-path: polygon(50% 96%, 42% 88%, 12% 60%, 5% 43%, 6% 27%, 15% 12%, 30% 6%, 42% 10%, 50% 22%, 58% 10%, 70% 6%, 85% 12%, 94% 27%, 95% 43%, 88% 60%, 58% 88%);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'%3E%3Cpath fill='%23000' d='M12 21C10.8 19.9 1 12.2 1 6.4 1 2.9 3.7.5 7 .5c2 0 3.8 1 5 2.6C13.2 1.5 15 .5 17 .5c3.3 0 6 2.4 6 5.9 0 5.8-9.8 13.5-11 14.6Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'%3E%3Cpath fill='%23000' d='M12 21C10.8 19.9 1 12.2 1 6.4 1 2.9 3.7.5 7 .5c2 0 3.8 1 5 2.6C13.2 1.5 15 .5 17 .5c3.3 0 6 2.4 6 5.9 0 5.8-9.8 13.5-11 14.6Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  offset-path: path("M 0 0 C 8 -18 27 -34 46 -61");
+  offset-distance: 0%;
+  offset-rotate: 0deg;
+  filter: drop-shadow(0 0 4px rgba(255, 50, 145, 0.8));
+  transform: rotate(-8deg) scale(0.3);
+  will-change: offset-distance, opacity, transform;
 }
 
 .kisara-audio-player.is-secret-track.is-playing .kisara-audio-secret-hearts i {
   animation: kisara-audio-secret-heart var(--heart-duration) cubic-bezier(0.2, 0.62, 0.24, 1) var(--heart-delay) infinite;
 }
 
-.kisara-audio-secret-hearts i:nth-child(1) { --heart-x: 24px; --heart-y: -48px; --heart-mid-x: 4px; --heart-mid-y: -21px; --heart-delay: -0.3s; }
-.kisara-audio-secret-hearts i:nth-child(2) { --heart-x: 58px; --heart-y: -27px; --heart-mid-x: 22px; --heart-mid-y: -8px; --heart-delay: -1.4s; --heart-scale: 0.72; }
-.kisara-audio-secret-hearts i:nth-child(3) { --heart-x: 72px; --heart-y: -57px; --heart-mid-x: 27px; --heart-mid-y: -17px; --heart-delay: -0.8s; --heart-duration: 2.8s; }
-.kisara-audio-secret-hearts i:nth-child(4) { --heart-x: 7px; --heart-y: -76px; --heart-mid-x: 12px; --heart-mid-y: -28px; --heart-delay: -2s; --heart-scale: 0.66; }
-.kisara-audio-secret-hearts i:nth-child(5) { --heart-x: -27px; --heart-y: -50px; --heart-mid-x: -7px; --heart-mid-y: -18px; --heart-delay: -1.1s; --heart-rotation: -24deg; }
-.kisara-audio-secret-hearts i:nth-child(6) { --heart-x: 37px; --heart-y: -87px; --heart-mid-x: 9px; --heart-mid-y: -33px; --heart-delay: -2.4s; --heart-duration: 3s; --heart-scale: 0.78; }
-.kisara-audio-secret-hearts i:nth-child(7) { --heart-x: 90px; --heart-y: -37px; --heart-mid-x: 35px; --heart-mid-y: -21px; --heart-delay: -1.8s; --heart-scale: 0.58; }
-.kisara-audio-secret-hearts i:nth-child(8) { --heart-x: -39px; --heart-y: -23px; --heart-mid-x: -17px; --heart-mid-y: -16px; --heart-delay: -0.55s; --heart-duration: 2.7s; --heart-rotation: -36deg; --heart-scale: 0.64; }
-.kisara-audio-secret-hearts i:nth-child(9) { --heart-x: 61px; --heart-y: -81px; --heart-mid-x: 31px; --heart-mid-y: -29px; --heart-delay: -2.65s; --heart-duration: 3.2s; --heart-scale: 0.82; }
+.kisara-audio-secret-hearts i:nth-child(1) { --heart-delay: -0.3s; offset-path: path("M 0 0 C 4 -20 16 -38 29 -62"); }
+.kisara-audio-secret-hearts i:nth-child(2) { --heart-delay: -1.55s; --heart-scale: 0.72; offset-path: path("M 0 0 C 17 -9 39 -13 65 -31"); }
+.kisara-audio-secret-hearts i:nth-child(3) { --heart-delay: -0.92s; --heart-duration: 3s; offset-path: path("M 0 0 C 19 -20 45 -35 77 -66"); }
+.kisara-audio-secret-hearts i:nth-child(4) { --heart-delay: -2.18s; --heart-scale: 0.68; offset-path: path("M 0 0 C -3 -24 2 -50 11 -82"); }
+.kisara-audio-secret-hearts i:nth-child(5) { --heart-delay: -1.2s; --heart-rotation: -22deg; offset-path: path("M 0 0 C -15 -15 -25 -35 -32 -61"); }
+.kisara-audio-secret-hearts i:nth-child(6) { --heart-delay: -2.52s; --heart-duration: 3.2s; --heart-scale: 0.8; offset-path: path("M 0 0 C 7 -25 27 -54 50 -91"); }
+.kisara-audio-secret-hearts i:nth-child(7) { --heart-delay: -1.88s; --heart-scale: 0.6; offset-path: path("M 0 0 C 29 -11 61 -20 94 -43"); }
+.kisara-audio-secret-hearts i:nth-child(8) { --heart-delay: -0.62s; --heart-duration: 2.9s; --heart-rotation: -30deg; --heart-scale: 0.66; offset-path: path("M 0 0 C -18 -8 -34 -21 -45 -40"); }
+.kisara-audio-secret-hearts i:nth-child(9) { --heart-delay: -2.82s; --heart-duration: 3.35s; --heart-scale: 0.84; offset-path: path("M 0 0 C 16 -27 43 -56 70 -89"); }
 
 .kisara-audio-control[data-state="playing"]::after {
   opacity: 0.62;
@@ -1588,7 +1572,28 @@ html[data-yuimi-performance="lite"] :is(
 
 .kisara-audio-player.is-secret-track .kisara-audio-control[data-state="playing"] .kisara-audio-emblem::after {
   opacity: 0.7;
-  background: rgba(255, 45, 141, 0.48);
+  background: radial-gradient(circle, rgba(255, 116, 188, 0.56), rgba(255, 45, 141, 0.16) 54%, transparent 74%);
+}
+
+.kisara-audio-player.is-secret-track .kisara-audio-control .kisara-audio-icon {
+  top: 50%;
+  left: 50%;
+}
+
+.kisara-audio-player.is-secret-track .kisara-audio-control .kisara-audio-icon-play {
+  transform: translate(-50%, -50%);
+}
+
+.kisara-audio-player.is-secret-track .kisara-audio-control .kisara-audio-icon-pause {
+  transform: translate(-50%, -50%) scale(0.72);
+}
+
+.kisara-audio-player.is-secret-track .kisara-audio-control[data-state="playing"] .kisara-audio-icon-play {
+  transform: translate(-50%, -50%) scale(0.72);
+}
+
+.kisara-audio-player.is-secret-track .kisara-audio-control[data-state="playing"] .kisara-audio-icon-pause {
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .kisara-audio-player.is-secret-track .kisara-audio-control[data-state="playing"] .kisara-audio-bars i {
@@ -1622,20 +1627,26 @@ html[data-yuimi-performance="lite"] :is(
 }
 
 @keyframes kisara-audio-secret-heart {
-  0%, 8% {
+  0%, 12% {
     opacity: 0;
-    transform: translate3d(0, 0, 0) rotate(-45deg) scale(0.28);
+    offset-distance: 0%;
+    transform: rotate(-8deg) scale(0.26);
   }
-  18% {
-    opacity: 0.9;
+  23% {
+    opacity: 0.94;
   }
-  48% {
-    opacity: 0.72;
-    transform: translate3d(var(--heart-mid-x), var(--heart-mid-y), 0) rotate(-45deg) scale(var(--heart-scale));
+  50% {
+    opacity: 0.78;
+    offset-distance: 48%;
+    transform: rotate(4deg) scale(var(--heart-scale));
+  }
+  76% {
+    opacity: 0.44;
   }
   100% {
     opacity: 0;
-    transform: translate3d(var(--heart-x), var(--heart-y), 0) rotate(calc(-45deg + var(--heart-rotation))) scale(0.2);
+    offset-distance: 100%;
+    transform: rotate(var(--heart-rotation)) scale(0.42);
   }
 }
 
