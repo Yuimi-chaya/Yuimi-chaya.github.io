@@ -13,7 +13,6 @@ export type KisaraCoverPresentation = {
   fit: "portrait" | "crop";
   width: number;
   height: number;
-  aspectRatio: number;
   position: string;
 };
 
@@ -28,7 +27,6 @@ export const getKisaraCoverPresentation = async (posts: readonly CoverEntry[]) =
       fit: "portrait",
       width: 700,
       height: 990,
-      aspectRatio: 0.7,
       position: coverFocus[cover ?? ""] ?? "50% 32%"
     };
     if (!cover?.startsWith("/")) return [post.id, fallback] as const;
@@ -46,7 +44,6 @@ export const getKisaraCoverPresentation = async (posts: readonly CoverEntry[]) =
         fit,
         width,
         height,
-        aspectRatio: fit === "portrait" ? sourceAspectRatio : fallback.aspectRatio,
         position: coverFocus[cover] ?? "50% 32%"
       }] as const;
     } catch {
