@@ -1082,3 +1082,9 @@
 - Superseded the standalone repository-introduction section after human feedback that it repeated the preceding development-note and `AGENTS.md` material.
 - Actual examples from `skills/maintain-development-notes/SKILL.md`, `reference/AGENTS.md`, `references/rule-catalog.md`, and `workflows/ADOPT.md` are now integrated into the existing relevant sections: the complexity gate, verified status vocabulary, canonical-note discovery, stable behavior IDs, semantic policy comparison, and separate write approval.
 - The repository link now closes the `AGENTS.md` discussion instead of opening a separate promotional-looking section. No repository instructions were executed from remote content; those files were used only as article source material.
+
+### 2026-07-27 Codex article final-use file walkthrough
+
+- Human review rejected the previous integration because repository-specific names appeared before the repository was introduced and the prose still focused on adoption machinery rather than the files used after installation.
+- Downloaded repository commit `d8f8614d1b6dab3f6c75784547979b62fc128311` to a temporary review directory and rebuilt the article section from the actual final-use files only: `reference/AGENTS.md`, `skills/maintain-development-notes/SKILL.md`, `skills/maintain-development-notes/references/note-schema.md`, and `skills/maintain-development-notes/agents/openai.yaml`.
+- The new combined section introduces the repository context first, explains all 27 `AGENTS.md` rules, walks every operational section of the Skill, covers all nine note-schema sections, explains each YAML field, and places the repository link only after the four files have been connected. Adoption/update workflow files are intentionally omitted from the article body.
