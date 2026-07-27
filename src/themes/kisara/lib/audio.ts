@@ -15,3 +15,9 @@ export const kisaraAudioTracks = [
   { id: "honki-mode", title: "本気モード", src: "/themes/kisara/audio/honki-mode.mp3" },
   { id: "kioku-no-yukue", title: "記憶の行方", src: "/themes/kisara/audio/kioku-no-yukue.mp3" }
 ] as const;
+
+export const kisaraSecretAudioTrack = {
+  id: "kokoro-spare-key",
+  title: "ココロスペアキー",
+  src: "/themes/kisara/audio/kokoro-spare-key.mp3"
+} as const;

@@ -782,7 +782,10 @@ const gateStyle = [
                 <span aria-hidden="true"></span>
                 <strong>「并肩留下的片刻」</strong>
                 <blockquote>照片没有证明过去从未改变，只证明有人认真地把想留下的人，贴回了记忆里。</blockquote>
-                <button type="button" data-event-claim><Icon name="tabler:archive" />收入档案</button>
+                <div class="kisara-event-reward-actions">
+                  <button type="button" data-event-secret-play><Icon name="tabler:player-play" />立即播放?!</button>
+                  <button class="is-secondary" type="button" data-event-secret-save><Icon name="tabler:archive" />先收下吧</button>
+                </div>
               </div>
             </div>
           </div>
@@ -814,14 +817,15 @@ const gateStyle = [
           const clue = this.querySelector<HTMLButtonElement>("[data-event-clue]");
           const reward = this.querySelector<HTMLDialogElement>("[data-event-reward]");
           const closeButton = this.querySelector<HTMLButtonElement>("[data-event-close]");
-          const claimButton = this.querySelector<HTMLButtonElement>("[data-event-claim]");
+          const playSecretButton = this.querySelector<HTMLButtonElement>("[data-event-secret-play]");
+          const saveSecretButton = this.querySelector<HTMLButtonElement>("[data-event-secret-save]");
           const progress = this.querySelector<HTMLElement>("[data-event-progress]");
           const status = this.querySelector<HTMLElement>("[data-event-status]");
           const command = this.querySelector<HTMLElement>("[data-event-command]");
           const clueAction = this.querySelector<HTMLElement>("[data-event-clue-action]");
           const eventImage = this.querySelector<HTMLImageElement>(".kisara-event-photo > img");
 
-          if (!hotspot || !clue || !reward || !closeButton || !claimButton) return;
+          if (!hotspot || !clue || !reward || !closeButton || !playSecretButton || !saveSecretButton) return;
           this.reward = reward;
 
           let cameraVisible = false;
@@ -943,10 +947,16 @@ const gateStyle = [
 
           clue.addEventListener("click", openReward, { signal });
           closeButton.addEventListener("click", closeReward, { signal });
-          claimButton.addEventListener("click", () => {
+          const completeReward = (autoplay: boolean) => {
             setState("solved");
+            window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio", {
+              detail: { autoplay }
+            }));
             closeReward();
-          }, { signal });
+          };
+
+          playSecretButton.addEventListener("click", () => completeReward(true), { signal });
+          saveSecretButton.addEventListener("click", () => completeReward(false), { signal });
           reward.addEventListener("close", releaseScroll, { signal });
           reward.addEventListener("click", (event) => {
             if (event.target === reward) closeReward();
