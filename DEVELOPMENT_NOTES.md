@@ -1108,3 +1108,9 @@
 - Human screenshots identified the visible horizontal seam at the actual bottom of `001`; an earlier experimental internal radial wash targeted the wrong upper area and was removed.
 - `001` now uses a short `42-56px` bottom overlay that fades directly into `--kisara-memory-paper-deep`. The following memory-to-fridge transition begins with the same `#e4d8d1` color and the same grain opacity, so the section edge no longer switches abruptly while the existing inter-section height and scroll geometry remain unchanged.
 - Desktop browser inspection at `2048x697` confirmed the fade reaches the measured `001` boundary with only the established `3px` overlap. `git diff --check`, `npm test` (3/3), and `npm run build` pass; Astro generated 42 pages and a 43-page Pagefind index. Fine seam perception remains subject to human visual confirmation.
+
+### 2026-07-27 Kisara 002 to 003 lower-glow refinement
+
+- Human review identified the lower white halo inside the `002 -> 003` bridge as too tall; the established `3px` overlap, opaque endpoint seals, and overall bridge height were not the problem and remain unchanged.
+- The base gradient now holds its dark and mid-gray range longer and reaches the light `003` endpoint only near the bottom. The right-side radial glow was moved into the lower half and reduced in opacity/blur, while the full-width bottom mist shrank from `42%` to `20%` height with lower opacity and blur.
+- Browser checks at `1280x720` and `390x844` kept the bridge-to-`003` join continuous and reported zero horizontal overflow. `git diff --check` passes, `npm test` passes 3/3, and `npm run build` passes with 42 Astro pages and a 43-page Pagefind index; final halo thickness remains subject to human visual confirmation.
