@@ -108,16 +108,20 @@ const scenes = [
             <h2>Leave the cave.<br /><em>Carry the tools.</em></h2>
             <p>第一次被带离封闭的地方，世界像一张刚打开的舷窗。技术栈也一样：先带上手边能用的东西，再慢慢飞远。</p>
           </header>
-          <ol class="kisara-me-flight-manifest">
-            {profileTech.map((tech, index) => (
-              <li>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <i><Icon name={techPresentation[tech.key].icon} aria-hidden="true" /></i>
-                <div><strong>{tech.name}</strong><small>{tech.note}</small></div>
-                <b>{techPresentation[tech.key].code}</b>
-              </li>
-            ))}
-          </ol>
+          <div class="kisara-me-flight-instrument" data-me-flight-dial>
+            <span class="kisara-me-flight-dial" aria-hidden="true"><i></i><i></i><b></b></span>
+            <ol class="kisara-me-flight-manifest">
+              {profileTech.map((tech, index) => (
+                <li>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <i><Icon name={techPresentation[tech.key].icon} aria-hidden="true" /></i>
+                  <div><strong>{tech.name}</strong><small>{tech.note}</small></div>
+                  <b>{techPresentation[tech.key].code}</b>
+                </li>
+              ))}
+            </ol>
+            <span class="kisara-me-flight-horizon" aria-hidden="true"><i></i></span>
+          </div>
           <footer><span>BAYRON AIR / FIRST FLIGHT</span><i></i><strong>TOOLS ON BOARD</strong></footer>
         </div>
       </article>
@@ -316,10 +320,13 @@ const scenes = [
       const root = document.querySelector("[data-kisara-me]");
       let transitionTimer = 0;
       let edgeTimer = 0;
+      let flightFrame = 0;
+      let flightDial = null;
 
       const cleanup = () => {
         window.clearTimeout(transitionTimer);
         window.clearTimeout(edgeTimer);
+        window.cancelAnimationFrame(flightFrame);
         lifecycle.abort();
         document.documentElement.classList.remove("kisara-me-locked");
         document.body.classList.remove("kisara-me-page");
@@ -335,6 +342,7 @@ const scenes = [
       const currentNumber = root.querySelector("[data-me-current-number]");
       const currentLabel = root.querySelector("[data-me-current-label]");
       const announcer = root.querySelector("[data-me-announcer]");
+      flightDial = root.querySelector("[data-me-flight-dial]");
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       let activeIndex = 0;
       let wheelBuffer = 0;
@@ -347,6 +355,34 @@ const scenes = [
       document.body.classList.add("kisara-me-page");
       window.scrollTo(0, 0);
 
+      let flightTargetRoll = 0;
+      let flightTargetTilt = 0;
+
+      const commitFlightPose = () => {
+        flightFrame = 0;
+        if (!(flightDial instanceof HTMLElement)) return;
+        flightDial.style.setProperty("--flight-roll", flightTargetRoll.toFixed(3));
+        flightDial.style.setProperty("--flight-tilt", flightTargetTilt.toFixed(3));
+      };
+
+      const queueFlightPose = (roll, tilt) => {
+        if (!(flightDial instanceof HTMLElement) || reduceMotion) return;
+        flightTargetRoll = Math.max(-1, Math.min(1, roll));
+        flightTargetTilt = Math.max(-1, Math.min(1, tilt));
+        if (!flightFrame) flightFrame = window.requestAnimationFrame(commitFlightPose);
+      };
+
+      const resetFlightPose = () => queueFlightPose(0, 0);
+
+      const trackFlightPose = (clientX, clientY) => {
+        if (activeIndex !== 1 || reduceMotion) return;
+        const bounds = root.getBoundingClientRect();
+        if (!bounds.width || !bounds.height) return;
+        const roll = ((clientX - bounds.left) / bounds.width - 0.5) * 2;
+        const tilt = ((clientY - bounds.top) / bounds.height - 0.5) * 2;
+        queueFlightPose(roll, tilt);
+      };
+
       const setActiveScene = (nextIndex, instant = false) => {
         const boundedIndex = Math.max(0, Math.min(scenes.length - 1, nextIndex));
         if (boundedIndex === activeIndex && !instant) return false;
@@ -354,6 +390,7 @@ const scenes = [
         root.scrollTop = 0;
         const previousIndex = activeIndex;
         activeIndex = boundedIndex;
+        if (boundedIndex !== 1) resetFlightPose();
         root.dataset.direction = boundedIndex >= previousIndex ? "next" : "previous";
         root.dataset.activeScene = String(boundedIndex);
         root.classList.toggle("is-switching", !instant && !reduceMotion);
@@ -460,6 +497,17 @@ const scenes = [
         touchStartY = null;
         touchStartX = null;
       }, { signal });
+
+      root.addEventListener("pointermove", (event) => {
+        if (activeIndex !== 1 || event.pointerType === "touch" || reduceMotion) return;
+        trackFlightPose(event.clientX, event.clientY);
+      }, { signal });
+
+      root.addEventListener("mousemove", (event) => {
+        trackFlightPose(event.clientX, event.clientY);
+      }, { signal });
+
+      root.addEventListener("pointerleave", resetFlightPose, { signal });
 
       markers.forEach((marker) => marker.addEventListener("click", () => {
         if (!(marker instanceof HTMLElement)) return;
