@@ -1079,6 +1079,6 @@
 
 ### 2026-07-27 Codex article guidelines repository section
 
-- The Codex App usage article now links to `Yuimi-chaya/codex-development-guidelines` and explains it as a guided, user-reviewed policy adoption system rather than a drop-in `AGENTS.md` template.
-- The new section covers environment detection versus user decisions, mandatory one-question-at-a-time adoption, semantic rule comparison with stable IDs, separate final diff approval, safe updates, and independent installation of `maintain-development-notes`.
-- Wording remains personal and experience-based instead of duplicating the repository README. No repository instructions were executed from the remote content; it was treated only as source material for the article.
+- Superseded the standalone repository-introduction section after human feedback that it repeated the preceding development-note and `AGENTS.md` material.
+- Actual examples from `skills/maintain-development-notes/SKILL.md`, `reference/AGENTS.md`, `references/rule-catalog.md`, and `workflows/ADOPT.md` are now integrated into the existing relevant sections: the complexity gate, verified status vocabulary, canonical-note discovery, stable behavior IDs, semantic policy comparison, and separate write approval.
+- The repository link now closes the `AGENTS.md` discussion instead of opening a separate promotional-looking section. No repository instructions were executed from remote content; those files were used only as article source material.
