@@ -3625,6 +3625,120 @@ html[data-yuimi-performance="lite"] .kisara-event-scene.is-camera-focusing .kisa
   animation: kisara-event-camera-hud-in 1.25s ease-out 260ms both;
 }
 
+@media (min-width: 981px) and (hover: hover) and (pointer: fine) {
+  .kisara-event-scene[data-camera-mode="desktop"] .kisara-event-photo {
+    cursor: ns-resize;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"][data-camera-target="found"] .kisara-event-photo,
+  .kisara-event-scene[data-camera-mode="desktop"][data-state="traced"] .kisara-event-photo,
+  .kisara-event-scene[data-camera-mode="desktop"][data-state="solved"] .kisara-event-photo {
+    cursor: default;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"] .kisara-event-photo > img {
+    object-position: 50% var(--kisara-event-camera-y, 24%);
+    filter: blur(var(--kisara-event-camera-blur, 1.8px)) saturate(0.78) contrast(0.98) brightness(0.94);
+    transform: none;
+    animation: none;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"].is-camera-moving .kisara-event-photo > img {
+    filter: blur(var(--kisara-event-camera-blur, 4px)) saturate(0.72) contrast(0.96) brightness(0.91);
+    will-change: filter;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"].is-camera-focusing .kisara-event-photo > img {
+    animation: kisara-event-camera-search-focus 520ms cubic-bezier(0.18, 0.78, 0.24, 1) both;
+    will-change: filter;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"].is-camera-focused .kisara-event-photo > img {
+    filter: blur(0) saturate(0.88) contrast(1.04) brightness(1.03);
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"] .kisara-event-focus-frame {
+    transition: width 150ms ease, opacity 150ms ease, filter 150ms ease;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"] .kisara-event-focus-frame::before,
+  .kisara-event-scene[data-camera-mode="desktop"] .kisara-event-focus-frame::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    pointer-events: none;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"] .kisara-event-focus-frame::before {
+    width: 132%;
+    height: 1px;
+    opacity: 0;
+    background: linear-gradient(90deg, transparent, rgba(239, 245, 255, 0.92) 28% 72%, transparent);
+    box-shadow: 0 0 8px rgba(128, 157, 239, 0.48);
+    transform: translate(-50%, -50%);
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"] .kisara-event-focus-frame::after {
+    width: 7px;
+    height: 7px;
+    border: 1px solid rgba(239, 245, 255, 0.7);
+    opacity: 0.32;
+    transform: translate(-50%, -50%) rotate(45deg);
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"].is-camera-moving .kisara-event-focus-frame {
+    width: 30%;
+    opacity: 0.72;
+    filter: blur(0.55px);
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"].is-camera-focusing .kisara-event-focus-frame {
+    animation: kisara-event-camera-search-reticle 520ms cubic-bezier(0.14, 0.82, 0.2, 1) both;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"].is-camera-focusing .kisara-event-focus-frame::before {
+    animation: kisara-event-camera-search-sweep 420ms ease-out 46ms both;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"].is-camera-focusing .kisara-event-focus-frame::after {
+    animation: kisara-event-camera-search-center 520ms ease-out both;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"].is-camera-missed .kisara-event-focus-frame i {
+    color: rgba(177, 193, 237, 0.5);
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"][data-camera-target="found"] .kisara-event-focus-frame i,
+  .kisara-event-scene[data-camera-mode="desktop"][data-camera-target="found"] [data-event-af] {
+    color: #ffc1d7;
+    filter: drop-shadow(0 0 7px rgba(238, 70, 128, 0.72));
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"] [data-event-af] {
+    transition: color 160ms ease, filter 160ms ease;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"] .kisara-event-hotspot {
+    transition: opacity 180ms ease, transform 340ms cubic-bezier(0.16, 0.92, 0.24, 1.28), filter 180ms ease;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"][data-state="idle"]:not([data-camera-target="found"]) .kisara-event-hotspot {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.68);
+    pointer-events: none;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"][data-state="idle"]:not([data-camera-target="found"]) .kisara-event-hotspot::before,
+  .kisara-event-scene[data-camera-mode="desktop"][data-state="idle"]:not([data-camera-target="found"]) .kisara-event-hotspot::after {
+    animation-play-state: paused;
+  }
+
+  .kisara-event-scene[data-camera-mode="desktop"][data-camera-target="found"] .kisara-event-hotspot {
+    animation: kisara-event-camera-target-lock 460ms cubic-bezier(0.16, 0.9, 0.24, 1.2) both;
+  }
+}
+
 .kisara-event-scan-corners {
   position: absolute;
   inset: 5.5% 7%;
@@ -4488,6 +4602,39 @@ html.kisara-event-modal-open {
     filter: blur(0) saturate(0.88) contrast(1.04) brightness(1.03);
     transform: scale(1);
   }
+}
+
+@keyframes kisara-event-camera-search-focus {
+  0% { filter: blur(4.8px) saturate(0.7) contrast(0.94) brightness(0.9); }
+  56% { filter: blur(0.45px) saturate(0.86) contrast(1.03) brightness(1.01); }
+  72% { filter: blur(1.1px) saturate(0.81) contrast(1) brightness(0.98); }
+  100% { filter: blur(0) saturate(0.88) contrast(1.04) brightness(1.03); }
+}
+
+@keyframes kisara-event-camera-search-reticle {
+  0% { width: 31%; opacity: 0.46; filter: blur(0.7px); transform: translate(-50%, -50%) scale(1.04); }
+  54% { width: 19%; opacity: 1; filter: blur(0); transform: translate(-50%, -50%) scale(0.94); }
+  72% { width: 25.5%; opacity: 0.88; transform: translate(-50%, -50%) scale(1.025); }
+  100% { width: 24%; opacity: 0.5; filter: blur(0); transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes kisara-event-camera-search-sweep {
+  0% { opacity: 0; transform: translate(-50%, -1500%); }
+  18% { opacity: 0.9; }
+  82% { opacity: 0.82; }
+  100% { opacity: 0; transform: translate(-50%, 1400%); }
+}
+
+@keyframes kisara-event-camera-search-center {
+  0% { opacity: 0.18; transform: translate(-50%, -50%) rotate(45deg) scale(1.8); }
+  58% { opacity: 1; transform: translate(-50%, -50%) rotate(45deg) scale(0.72); }
+  100% { opacity: 0.36; transform: translate(-50%, -50%) rotate(45deg) scale(1); }
+}
+
+@keyframes kisara-event-camera-target-lock {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); filter: brightness(1.7); }
+  64% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); filter: brightness(1.28); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: brightness(1); }
 }
 
 @keyframes kisara-event-camera-reticle {

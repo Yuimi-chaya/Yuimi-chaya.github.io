@@ -699,7 +699,7 @@ const gateStyle = [
               <div class="kisara-event-camera-hud" aria-hidden="true">
                 <span class="is-recording"><i></i>REC 00:03:17</span>
                 <span>50mm / F2.8 / ISO 640</span>
-                <span>AF-C</span>
+                <span data-event-af>AF-C</span>
                 <span>1/125</span>
               </div>
               <div class="kisara-event-scan-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -828,71 +828,12 @@ const gateStyle = [
           const command = this.querySelector<HTMLElement>("[data-event-command]");
           const clueAction = this.querySelector<HTMLElement>("[data-event-clue-action]");
           const achievement = this.querySelector<HTMLElement>("[data-event-achievement]");
+          const eventPhoto = this.querySelector<HTMLElement>(".kisara-event-photo");
           const eventImage = this.querySelector<HTMLImageElement>(".kisara-event-photo > img");
+          const autofocus = this.querySelector<HTMLElement>("[data-event-af]");
 
           if (!hotspot || !clue || !reward || !closeButton || !playSecretButton || !saveSecretButton) return;
           this.reward = reward;
-
-          let cameraVisible = false;
-          let cameraDecoded = !eventImage;
-          let cameraFocusFrame = 0;
-          const startCameraFocus = () => {
-            if (
-              !cameraVisible
-              || !cameraDecoded
-              || cameraFocusFrame
-              || this.classList.contains("is-camera-focusing")
-            ) return;
-            cameraFocusFrame = requestAnimationFrame(() => {
-              cameraFocusFrame = 0;
-              if (!signal.aborted && cameraVisible && cameraDecoded) {
-                this.classList.add("is-camera-focusing");
-              }
-            });
-            this.cameraObserver?.disconnect();
-            this.cameraObserver = null;
-          };
-
-          const finishCameraDecode = async () => {
-            if (!eventImage) return;
-            try {
-              if (typeof eventImage.decode === "function") await eventImage.decode();
-            } catch {
-              // A completed image can still render when decode() is interrupted by navigation.
-            }
-            if (signal.aborted || !eventImage.complete || eventImage.naturalWidth <= 0) return;
-            cameraDecoded = true;
-            startCameraFocus();
-          };
-
-          const armCameraFocus = () => {
-            this.cameraObserver?.disconnect();
-            this.cameraObserver = null;
-            if (cameraFocusFrame) cancelAnimationFrame(cameraFocusFrame);
-            cameraFocusFrame = 0;
-            cameraVisible = false;
-            delete this.dataset.sceneVisible;
-            this.classList.remove("is-camera-focusing");
-
-            if ("IntersectionObserver" in window) {
-              this.cameraObserver = new IntersectionObserver((entries) => {
-                if (!entries.some((entry) => entry.isIntersecting)) return;
-                cameraVisible = true;
-                this.dataset.sceneVisible = "true";
-                startCameraFocus();
-              }, { rootMargin: "12% 0px 12% 0px", threshold: 0.01 });
-              this.cameraObserver.observe(this);
-            } else {
-              cameraVisible = true;
-              this.dataset.sceneVisible = "true";
-              startCameraFocus();
-            }
-          };
-
-          if (eventImage) {
-            if (eventImage.complete && eventImage.naturalWidth > 0) void finishCameraDecode();
-            else eventImage.addEventListener("load", () => void finishCameraDecode(), { once: true, signal });
-          }
 
           const copy = {
             idle: {
@@ -926,6 +867,265 @@ const gateStyle = [
             clue.setAttribute("aria-label", nextState === "solved" ? "回看已解锁章节：心之备用钥匙" : "打开线索：被贴进合照的人");
           };
 
+          const desktopCamera = Boolean(
+            eventPhoto
+            && eventImage
+            && window.matchMedia("(min-width: 981px) and (hover: hover) and (pointer: fine)").matches
+          );
+
+          let cameraVisible = false;
+          let cameraDecoded = !eventImage;
+          let cameraFocusFrame = 0;
+          let cameraPanFrame = 0;
+          let cameraSettleTimer = 0;
+          let cameraFocusTimer = 0;
+          let cameraMissTimer = 0;
+          let cameraFocusRun = 0;
+          let cameraHasMoved = false;
+          let cameraCurrentY = 24;
+          let cameraTargetY = 24;
+          let cameraLastFrameAt = 0;
+          let cameraLastMoveAt = 0;
+          const cameraMinY = 18;
+          const cameraMaxY = 72;
+          const cameraClueY = 45;
+          const cameraClueTolerance = 3.2;
+
+          const setCameraCopy = (nextStatus: string, nextCommand: string, nextAutofocus: string) => {
+            if (status && status.textContent !== nextStatus) status.textContent = nextStatus;
+            if (command && command.textContent !== nextCommand) command.textContent = nextCommand;
+            if (autofocus && autofocus.textContent !== nextAutofocus) autofocus.textContent = nextAutofocus;
+          };
+
+          const clearCameraTimers = () => {
+            if (cameraSettleTimer) window.clearTimeout(cameraSettleTimer);
+            if (cameraFocusTimer) window.clearTimeout(cameraFocusTimer);
+            if (cameraMissTimer) window.clearTimeout(cameraMissTimer);
+            cameraSettleTimer = 0;
+            cameraFocusTimer = 0;
+            cameraMissTimer = 0;
+          };
+
+          const cancelCameraPan = () => {
+            if (cameraPanFrame) cancelAnimationFrame(cameraPanFrame);
+            cameraPanFrame = 0;
+            cameraLastFrameAt = 0;
+          };
+
+          const cancelCameraSearch = () => {
+            cameraFocusRun += 1;
+            clearCameraTimers();
+            this.classList.remove("is-camera-moving", "is-camera-focusing", "is-camera-focused", "is-camera-missed");
+          };
+
+          const setCameraPosition = (position: number) => {
+            this.style.setProperty("--kisara-event-camera-y", `${position.toFixed(3)}%`);
+          };
+
+          const resetDesktopCamera = () => {
+            cancelCameraPan();
+            cancelCameraSearch();
+            cameraHasMoved = false;
+            cameraCurrentY = 24;
+            cameraTargetY = 24;
+            cameraLastMoveAt = 0;
+            this.dataset.cameraMode = "desktop";
+            delete this.dataset.cameraTarget;
+            this.classList.remove("is-camera-ready");
+            this.style.setProperty("--kisara-event-camera-blur", "1.8px");
+            setCameraPosition(cameraCurrentY);
+            hotspot.disabled = true;
+            hotspot.setAttribute("aria-hidden", "true");
+            setCameraCopy("等待取景", "在相机框内上下移动镜头，停稳后等待自动对焦", "AF-C / READY");
+          };
+
+          const resetStaticCamera = () => {
+            cancelCameraPan();
+            cancelCameraSearch();
+            delete this.dataset.cameraMode;
+            delete this.dataset.cameraTarget;
+            this.classList.remove("is-camera-ready");
+            this.style.removeProperty("--kisara-event-camera-y");
+            this.style.removeProperty("--kisara-event-camera-blur");
+            hotspot.disabled = false;
+            hotspot.removeAttribute("aria-hidden");
+            if (autofocus) autofocus.textContent = "AF-C";
+          };
+
+          const startCameraFocus = () => {
+            if (
+              !cameraVisible
+              || !cameraDecoded
+              || cameraFocusFrame
+              || (desktopCamera
+                ? this.classList.contains("is-camera-ready")
+                : this.classList.contains("is-camera-focusing"))
+            ) return;
+            cameraFocusFrame = requestAnimationFrame(() => {
+              cameraFocusFrame = 0;
+              if (!signal.aborted && cameraVisible && cameraDecoded) {
+                this.classList.add(desktopCamera ? "is-camera-ready" : "is-camera-focusing");
+              }
+            });
+            this.cameraObserver?.disconnect();
+            this.cameraObserver = null;
+          };
+
+          const finishCameraDecode = async () => {
+            if (!eventImage) return;
+            try {
+              if (typeof eventImage.decode === "function") await eventImage.decode();
+            } catch {
+              // A completed image can still render when decode() is interrupted by navigation.
+            }
+            if (signal.aborted || !eventImage.complete || eventImage.naturalWidth <= 0) return;
+            cameraDecoded = true;
+            startCameraFocus();
+          };
+
+          const armCameraFocus = () => {
+            this.cameraObserver?.disconnect();
+            this.cameraObserver = null;
+            if (cameraFocusFrame) cancelAnimationFrame(cameraFocusFrame);
+            cameraFocusFrame = 0;
+            cameraVisible = false;
+            delete this.dataset.sceneVisible;
+            this.classList.remove("is-camera-focusing");
+
+            if (desktopCamera) resetDesktopCamera();
+            else resetStaticCamera();
+
+            if ("IntersectionObserver" in window) {
+              this.cameraObserver = new IntersectionObserver((entries) => {
+                if (!entries.some((entry) => entry.isIntersecting)) return;
+                cameraVisible = true;
+                this.dataset.sceneVisible = "true";
+                startCameraFocus();
+              }, { rootMargin: "12% 0px 12% 0px", threshold: 0.01 });
+              this.cameraObserver.observe(this);
+            } else {
+              cameraVisible = true;
+              this.dataset.sceneVisible = "true";
+              startCameraFocus();
+            }
+          };
+
+          const finishDesktopFocus = (focusRun: number, found: boolean) => {
+            if (signal.aborted || focusRun !== cameraFocusRun || this.dataset.state !== "idle") return;
+            cameraFocusTimer = 0;
+            this.classList.remove("is-camera-focusing");
+            this.classList.add("is-camera-focused");
+            this.style.setProperty("--kisara-event-camera-blur", "0px");
+
+            if (found) {
+              this.dataset.cameraTarget = "found";
+              hotspot.disabled = false;
+              hotspot.removeAttribute("aria-hidden");
+              setCameraCopy("异常点锁定", "对焦完成，点击镜头中心的异常点", "AF / LOCKED");
+              return;
+            }
+
+            this.classList.add("is-camera-missed");
+            setCameraCopy("未发现", "这里没有异常，继续上下调整取景", "AF / NO TRACE");
+            cameraMissTimer = window.setTimeout(() => {
+              cameraMissTimer = 0;
+              if (signal.aborted || focusRun !== cameraFocusRun || this.dataset.cameraTarget === "found") return;
+              this.classList.remove("is-camera-missed");
+              if (autofocus) autofocus.textContent = "AF-C / READY";
+            }, 760);
+          };
+
+          const beginDesktopFocus = () => {
+            if (
+              !desktopCamera
+              || !cameraVisible
+              || !cameraDecoded
+              || !cameraHasMoved
+              || cameraPanFrame
+              || this.dataset.state !== "idle"
+              || this.dataset.cameraTarget === "found"
+            ) return;
+
+            const focusRun = ++cameraFocusRun;
+            const found = Math.abs(cameraCurrentY - cameraClueY) <= cameraClueTolerance;
+            clearCameraTimers();
+            this.classList.remove("is-camera-moving", "is-camera-focused", "is-camera-missed");
+            this.classList.add("is-camera-focusing");
+            setCameraCopy("自动对焦", "正在扫描镜头中心…", "AF / SEARCHING");
+            cameraFocusTimer = window.setTimeout(() => finishDesktopFocus(focusRun, found), 520);
+          };
+
+          const scheduleDesktopFocus = (delay = 150) => {
+            if (!desktopCamera || !cameraHasMoved || this.dataset.cameraTarget === "found") return;
+            if (cameraSettleTimer) window.clearTimeout(cameraSettleTimer);
+            cameraSettleTimer = window.setTimeout(() => {
+              cameraSettleTimer = 0;
+              if (cameraPanFrame || performance.now() - cameraLastMoveAt < 130) {
+                scheduleDesktopFocus(70);
+                return;
+              }
+              beginDesktopFocus();
+            }, delay);
+          };
+
+          const runCameraPan = (timestamp: number) => {
+            cameraPanFrame = 0;
+            if (signal.aborted || !desktopCamera || this.dataset.cameraTarget === "found") return;
+
+            const elapsed = cameraLastFrameAt ? Math.min(40, timestamp - cameraLastFrameAt) : 16;
+            cameraLastFrameAt = timestamp;
+            const previousY = cameraCurrentY;
+            const blend = 1 - Math.exp(-elapsed / 58);
+            cameraCurrentY += (cameraTargetY - cameraCurrentY) * blend;
+            if (Math.abs(cameraTargetY - cameraCurrentY) < 0.018) cameraCurrentY = cameraTargetY;
+
+            const speed = Math.abs(cameraCurrentY - previousY) / Math.max(1, elapsed) * 1000;
+            const blur = Math.min(6.2, 1.65 + speed * 0.052 + Math.abs(cameraTargetY - cameraCurrentY) * 0.075);
+            setCameraPosition(cameraCurrentY);
+            this.style.setProperty("--kisara-event-camera-blur", `${blur.toFixed(2)}px`);
+
+            if (cameraCurrentY !== cameraTargetY) {
+              cameraPanFrame = requestAnimationFrame(runCameraPan);
+              return;
+            }
+
+            cameraLastFrameAt = 0;
+            this.style.setProperty("--kisara-event-camera-blur", "1.7px");
+            scheduleDesktopFocus(Math.max(40, 150 - (performance.now() - cameraLastMoveAt)));
+          };
+
+          const handleCameraPointerMove = (event: PointerEvent) => {
+            if (
+              !desktopCamera
+              || !eventPhoto
+              || !cameraVisible
+              || !cameraDecoded
+              || this.dataset.state !== "idle"
+              || this.dataset.cameraTarget === "found"
+            ) return;
+
+            const bounds = eventPhoto.getBoundingClientRect();
+            if (bounds.height <= 0) return;
+            const ratio = Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height));
+            cameraTargetY = cameraMinY + (cameraMaxY - cameraMinY) * ratio;
+            cameraLastMoveAt = performance.now();
+            cameraHasMoved = true;
+            cancelCameraSearch();
+            this.classList.add("is-camera-moving");
+            setCameraCopy("镜头移动中", "停稳后将自动对焦并检查画面中心", "AF-C / TRACKING");
+            if (!cameraPanFrame) cameraPanFrame = requestAnimationFrame(runCameraPan);
+          };
+
+          if (desktopCamera && eventPhoto) {
+            eventPhoto.addEventListener("pointermove", handleCameraPointerMove, { signal });
+            eventPhoto.addEventListener("pointerleave", () => scheduleDesktopFocus(80), { signal });
+          }
+
+          if (eventImage) {
+            if (eventImage.complete && eventImage.naturalWidth > 0) void finishCameraDecode();
+            else eventImage.addEventListener("load", () => void finishCameraDecode(), { once: true, signal });
+          }
+
           const releaseScroll = () => {
             document.documentElement.classList.remove("kisara-event-modal-open");
             delete reward.dataset.ready;
@@ -948,7 +1148,10 @@ const gateStyle = [
           };
 
           hotspot.addEventListener("click", () => {
-            if (this.dataset.state === "idle") setState("traced");
+            if (this.dataset.state === "idle") {
+              cancelCameraSearch();
+              setState("traced");
+            }
           }, { signal });
 
           clue.addEventListener("click", openReward, { signal });
@@ -976,6 +1179,8 @@ const gateStyle = [
           signal.addEventListener("abort", () => {
             if (cameraFocusFrame) cancelAnimationFrame(cameraFocusFrame);
             cameraFocusFrame = 0;
+            cancelCameraPan();
+            cancelCameraSearch();
           }, { once: true });
           setState("idle");
           armCameraFocus();
