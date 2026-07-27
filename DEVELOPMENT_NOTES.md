@@ -1076,3 +1076,9 @@
 
 - Human review found that natural portrait frame ratios removed the dark backing but created uneven article-card heights. The dynamic frame-ratio approach above is therefore superseded.
 - Blog and homepage `004` now keep one stable `7:10` frame for every article. Every cover uses `object-fit: cover` with the existing per-cover focus position, so portrait, square, and landscape sources fill the same frame without black bars or vertical card drift. Source dimensions and the portrait/crop label remain available from the shared Sharp helper, but no longer resize layout geometry.
+
+### 2026-07-27 Codex article guidelines repository section
+
+- The Codex App usage article now links to `Yuimi-chaya/codex-development-guidelines` and explains it as a guided, user-reviewed policy adoption system rather than a drop-in `AGENTS.md` template.
+- The new section covers environment detection versus user decisions, mandatory one-question-at-a-time adoption, semantic rule comparison with stable IDs, separate final diff approval, safe updates, and independent installation of `maintain-development-notes`.
+- Wording remains personal and experience-based instead of duplicating the repository README. No repository instructions were executed from the remote content; it was treated only as source material for the article.
