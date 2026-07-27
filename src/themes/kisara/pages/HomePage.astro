@@ -1091,15 +1091,39 @@ const gateStyle = [
         element.style.setProperty(property, value);
       };
 
+      const performanceProfile = document.documentElement.dataset.yuimiPerformance ?? "full";
+      const mobilePerformance = performanceProfile !== "full";
+      const litePerformance = performanceProfile === "lite";
+      const mobileFrameInterval = litePerformance
+        ? 1000 / 24
+        : mobilePerformance
+          ? 1000 / 30
+          : 0;
+      const mobileCanvasRatio = litePerformance ? 0.9 : 1;
+      const quantizeRuntimeValue = (value, mobileStep, liteStep = mobileStep) => {
+        const step = litePerformance
+          ? liteStep
+          : mobilePerformance
+            ? mobileStep
+            : 0;
+        return step > 0 ? Math.round(value / step) * step : value;
+      };
       const energyCanvas = gate.querySelector("[data-kisara-energy]");
       const energyContext = energyCanvas?.getContext("2d");
       const burstCanvas = gate.querySelector("[data-kisara-burst-canvas]");
       const burstContext = burstCanvas?.getContext("2d");
       const spaceLensCanvas = gate.querySelector("[data-kisara-space-lens]");
       const titleLensCanvas = gate.querySelector("[data-kisara-title-lens]");
-      const chainBackCanvas = gate.querySelector("[data-kisara-chain-back]");
+      if (mobilePerformance) {
+        gate.querySelectorAll(".kisara-title-chain-canvas").forEach((canvas) => canvas.remove());
+      }
+      const chainBackCanvas = mobilePerformance
+        ? null
+        : gate.querySelector("[data-kisara-chain-back]");
       const chainBackContext = chainBackCanvas?.getContext("2d", { alpha: true });
-      const chainFrontCanvas = gate.querySelector("[data-kisara-chain-front]");
+      const chainFrontCanvas = mobilePerformance
+        ? null
+        : gate.querySelector("[data-kisara-chain-front]");
       const chainFrontContext = chainFrontCanvas?.getContext("2d", { alpha: true });
       const titleDataCanvas = gate.querySelector("[data-kisara-title-data]");
       const titleDataContext = titleDataCanvas?.getContext("2d", { alpha: true });
@@ -1258,23 +1282,6 @@ const gateStyle = [
       const fridgeScene = document.querySelector("kisara-fridge-scene");
       const eventScene = document.querySelector("kisara-clue-scene");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const performanceProfile = document.documentElement.dataset.yuimiPerformance ?? "full";
-      const mobilePerformance = performanceProfile !== "full";
-      const litePerformance = performanceProfile === "lite";
-      const mobileFrameInterval = litePerformance
-        ? 1000 / 24
-        : mobilePerformance
-          ? 1000 / 30
-          : 0;
-      const mobileCanvasRatio = litePerformance ? 0.9 : 1;
-      const quantizeRuntimeValue = (value, mobileStep, liteStep = mobileStep) => {
-        const step = litePerformance
-          ? liteStep
-          : mobilePerformance
-            ? mobileStep
-            : 0;
-        return step > 0 ? Math.round(value / step) * step : value;
-      };
       const openingMemory = opening instanceof HTMLElement
         ? opening.querySelector("[data-kisara-opening-memory]")
         : null;
@@ -11636,7 +11643,7 @@ const gateStyle = [
         const height = energyCanvasHeight;
         energyContext.clearRect(0, 0, width, height);
         drawScreenEnergy(timestamp);
-        drawTitleChains(timestamp, energyProgress);
+        if (!mobilePerformance) drawTitleChains(timestamp, energyProgress);
         if (!renderLegacyChargeBeam) {
           updateRenderQuality(timestamp, performance.now() - renderStartedAt);
           queueEnergyFrame();
