@@ -694,7 +694,7 @@ const kitchenCatalog = {
         }
 
         const token = ++kitchenScrollToken;
-        const duration = Math.min(1080, Math.max(720, 620 + Math.abs(distance) * 0.12));
+        const duration = Math.min(760, Math.max(480, 410 + Math.abs(distance) * 0.08));
         let startTime = 0;
         root.dataset.scrollTarget = targetName;
         if (targetName === "result") root.dataset.scrollingResult = "true";
@@ -810,7 +810,7 @@ const kitchenCatalog = {
           root.dataset.blending = "false";
           renderAll();
           showResult();
-        }, 1320);
+        }, 980);
       };
 
       const createDragGhost = (source, width) => {
@@ -821,6 +821,12 @@ const kitchenCatalog = {
         ghost.classList.add("kisara-kitchen-drag-ghost");
         ghost.setAttribute("aria-hidden", "true");
         ghost.style.setProperty("--drag-width", `${width}px`);
+        ghost.style.right = "auto";
+        ghost.style.bottom = "auto";
+        ghost.style.margin = "0";
+        ghost.style.translate = "none";
+        ghost.style.scale = "1";
+        ghost.style.transform = "none";
         document.body.append(ghost);
         return ghost;
       };
@@ -977,7 +983,7 @@ const kitchenCatalog = {
         if (!dragState.moved && distance >= 7) {
           dragState.moved = true;
           const ghostWidth = dragState.source === "pantry"
-            ? Math.min(230, Math.max(184, dragState.originRect.width * 0.82))
+            ? Math.min(184, Math.max(118, dragState.originRect.width))
             : Math.min(178, Math.max(142, dragState.originRect.width));
           dragGhost = createDragGhost(dragState.element, ghostWidth);
           const ghostRect = dragGhost.getBoundingClientRect();
@@ -989,6 +995,7 @@ const kitchenCatalog = {
           dragState.renderY = dragState.originGhostY;
           dragState.targetX = event.clientX - ghostRect.width * dragState.anchorX;
           dragState.targetY = event.clientY - ghostRect.height * dragState.anchorY;
+          dragGhost.style.transform = `translate3d(${dragState.originGhostX}px, ${dragState.originGhostY}px, 0) rotate(${dragState.baseRotation}deg) scale(1.018)`;
           dragState.element.classList.add("is-drag-source");
           root.dataset.dragging = "true";
           queueDragPosition();

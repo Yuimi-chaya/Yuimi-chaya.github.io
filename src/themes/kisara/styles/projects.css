@@ -2102,6 +2102,12 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   100% { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
+@keyframes kisara-ingredient-pile-enter {
+  0% { opacity: 0; translate: 0 18px; scale: 0.9; }
+  70% { opacity: 1; translate: 0 -3px; scale: 1.02; }
+  100% { opacity: 1; translate: 0; scale: 1; }
+}
+
 @keyframes kisara-board-item-in {
   0% { opacity: 0; transform: translate3d(var(--board-x), calc(var(--board-y) - 16px), 0) rotate(var(--board-rotate)) scale(0.9); }
   70% { opacity: 1; transform: translate3d(var(--board-x), calc(var(--board-y) + 3px), 0) rotate(var(--board-rotate)) scale(1.03); }
@@ -2193,6 +2199,177 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   .kisara-kitchen-trash {
     min-height: 100%;
     align-content: center;
+  }
+}
+
+@media (min-width: 901px) {
+  .kisara-kitchen-heading {
+    margin-bottom: 38px;
+  }
+
+  .kisara-kitchen-counter {
+    grid-template-columns: minmax(205px, 0.56fr) minmax(420px, 1.3fr) minmax(300px, 0.8fr);
+    gap: clamp(14px, 1.5vw, 22px);
+    height: clamp(620px, 76svh, 700px);
+    min-height: 0;
+    padding: clamp(14px, 1.4vw, 22px);
+  }
+
+  .kisara-kitchen-pantry {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .kisara-kitchen-pantry > header {
+    min-height: 64px;
+    padding: 10px 12px 10px 4px;
+  }
+
+  .kisara-ingredient-rack {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0 6px;
+  }
+
+  .kisara-ingredient {
+    --pile-angle: 0deg;
+    position: absolute;
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-rows: 1fr;
+    gap: 8px;
+    width: min(142px, 68%);
+    min-height: 94px;
+    padding: 8px;
+    overflow: visible;
+    border: 1px solid color-mix(in srgb, var(--ingredient) 28%, rgba(94, 67, 80, 0.18));
+    border-radius: 6px;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--ingredient-soft) 72%, white), rgba(255, 255, 255, 0.86));
+    box-shadow: 0 12px 22px rgba(76, 49, 64, 0.13), inset 0 1px rgba(255, 255, 255, 0.9);
+    transform: rotate(var(--pile-angle));
+    transform-origin: 50% 80%;
+    animation: kisara-ingredient-pile-enter 460ms cubic-bezier(0.18, 0.78, 0.2, 1) calc(var(--ingredient-order) * 55ms) both;
+  }
+
+  .kisara-ingredient:nth-child(1) { z-index: 1; bottom: 38px; left: 2%; --pile-angle: -9deg; }
+  .kisara-ingredient:nth-child(2) { z-index: 2; right: 1%; bottom: 32px; --pile-angle: 8deg; }
+  .kisara-ingredient:nth-child(3) { z-index: 3; bottom: 116px; left: 8%; --pile-angle: -5deg; }
+  .kisara-ingredient:nth-child(4) { z-index: 4; right: 4%; bottom: 122px; --pile-angle: 7deg; }
+  .kisara-ingredient:nth-child(5) { z-index: 5; bottom: 202px; left: 13%; --pile-angle: -6deg; }
+  .kisara-ingredient:nth-child(6) { z-index: 6; right: 10%; bottom: 210px; --pile-angle: 4deg; }
+
+  .kisara-ingredient:hover,
+  .kisara-ingredient:focus-visible {
+    z-index: 12;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--ingredient-soft) 84%, white), rgba(255, 255, 255, 0.96));
+    transform: translateY(-7px) rotate(var(--pile-angle)) scale(1.045);
+  }
+
+  .kisara-ingredient[data-used="true"],
+  .kisara-ingredient.is-drag-source {
+    transform: rotate(var(--pile-angle));
+  }
+
+  .kisara-ingredient-visual {
+    grid-row: auto;
+    width: 52px;
+    min-height: 64px;
+    transform: scale(0.84);
+  }
+
+  .kisara-ingredient-copy {
+    gap: 4px;
+  }
+
+  .kisara-ingredient-copy small {
+    font-size: 0.45rem;
+  }
+
+  .kisara-ingredient-copy strong {
+    font-size: 0.74rem;
+  }
+
+  .kisara-ingredient-copy > span,
+  .kisara-ingredient-project {
+    display: none;
+  }
+
+  .kisara-kitchen-prep {
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .kisara-cutting-board {
+    min-height: 0;
+    height: 100%;
+    padding: 56px 34px 32px;
+  }
+
+  .kisara-board-actions button,
+  .kisara-blend-button {
+    min-height: 54px;
+    padding-block: 9px;
+  }
+
+  .kisara-kitchen-status {
+    min-height: 32px;
+  }
+
+  .kisara-appliance-deck {
+    grid-column: auto;
+    display: grid;
+    grid-template-columns: minmax(190px, 1fr) minmax(82px, 0.38fr);
+    grid-template-rows: 1fr;
+    align-items: end;
+    gap: 10px;
+    min-height: 0;
+    padding-left: 0;
+  }
+
+  .kisara-blender-station {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    min-height: 0;
+    height: 100%;
+    padding: 14px 12px 15px;
+  }
+
+  .kisara-blender-station > header,
+  .kisara-blender-machine,
+  .kisara-blender-readout,
+  .kisara-blend-button {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .kisara-blender-machine {
+    width: 190px;
+    height: 360px;
+    margin: -28px auto -38px;
+    scale: 0.82;
+  }
+
+  .kisara-kitchen-trash {
+    align-content: center;
+    justify-items: center;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    min-height: 152px;
+    height: auto;
+    padding: 12px 7px;
+    text-align: center;
+  }
+
+  .kisara-kitchen-trash > span:last-child {
+    display: grid;
+    gap: 4px;
+  }
+
+  .kisara-kitchen-trash small {
+    font-size: 0.43rem;
+    line-height: 1.25;
   }
 }
 
