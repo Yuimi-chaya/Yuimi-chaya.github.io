@@ -316,6 +316,20 @@ const scenes = [
               <li><span>0{index + 1}</span><small>{signal.label}</small><p>{signal.text}</p><i aria-hidden="true"></i></li>
             ))}
           </ol>
+          <button
+            type="button"
+            class="kisara-me-memory-return"
+            data-me-memory-return
+            aria-label="收下未归档的记忆"
+            aria-hidden="true"
+            disabled
+          >
+            <span class="kisara-me-memory-return-mark" aria-hidden="true"><i></i><b>11</b></span>
+            <span class="kisara-me-memory-return-copy">
+              <small data-me-memory-return-kicker>UNFILED TRACE</small>
+              <strong data-me-memory-return-label>MEMORY RETURN</strong>
+            </span>
+          </button>
           <footer>
             <span>CONDITION REWRITTEN / CHANNEL 03</span>
             <strong>YUIMI LAB</strong>
@@ -404,8 +418,12 @@ const scenes = [
       const currentNumber = root.querySelector("[data-me-current-number]");
       const currentLabel = root.querySelector("[data-me-current-label]");
       const announcer = root.querySelector("[data-me-announcer]");
+      const memoryReturn = root.querySelector("[data-me-memory-return]");
+      const memoryReturnKicker = root.querySelector("[data-me-memory-return-kicker]");
+      const memoryReturnLabel = root.querySelector("[data-me-memory-return-label]");
       flightDial = root.querySelector("[data-me-flight-dial]");
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const visitedMemoryScenes = new Set();
       let activeIndex = 0;
       let wheelBuffer = 0;
       let lastWheelAt = 0;
@@ -436,6 +454,33 @@ const scenes = [
 
       const resetFlightPose = () => queueFlightPose(0, 0);
 
+      const setMemoryReturnState = (state) => {
+        if (!(memoryReturn instanceof HTMLButtonElement)) return;
+        const archived = state === "archived";
+        root.classList.add("has-memory-return");
+        memoryReturn.dataset.state = archived ? "archived" : "ready";
+        memoryReturn.disabled = archived;
+        memoryReturn.removeAttribute("aria-hidden");
+        memoryReturn.setAttribute(
+          "aria-label",
+          archived ? "《记忆归还》已收进隐藏歌单" : "收下未归档的记忆"
+        );
+        if (memoryReturnKicker) memoryReturnKicker.textContent = archived ? "MEMORY ARCHIVED" : "UNFILED TRACE";
+        if (memoryReturnLabel) memoryReturnLabel.textContent = archived ? "记忆已归还" : "MEMORY RETURN";
+      };
+
+      const memoryAlreadyUnlocked = Array.isArray(window.__yuimiKisaraSecretAudioSession?.unlockedIds)
+        && window.__yuimiKisaraSecretAudioSession.unlockedIds.includes("kioku-kikan");
+      if (memoryAlreadyUnlocked) setMemoryReturnState("archived");
+
+      const rememberScene = (sceneIndex) => {
+        if (sceneIndex >= 1 && sceneIndex <= 5) visitedMemoryScenes.add(sceneIndex);
+        if (memoryAlreadyUnlocked || memoryReturn?.dataset.state === "archived") return;
+        if ([1, 2, 3, 4, 5].every((index) => visitedMemoryScenes.has(index))) {
+          setMemoryReturnState("ready");
+        }
+      };
+
       const trackFlightPose = (clientX, clientY) => {
         if (activeIndex !== 1 || reduceMotion) return;
         const bounds = root.getBoundingClientRect();
@@ -452,6 +497,7 @@ const scenes = [
         root.scrollTop = 0;
         const previousIndex = activeIndex;
         activeIndex = boundedIndex;
+        rememberScene(boundedIndex);
         if (boundedIndex !== 1) resetFlightPose();
         root.dataset.direction = boundedIndex >= previousIndex ? "next" : "previous";
         root.dataset.activeScene = String(boundedIndex);
@@ -576,6 +622,15 @@ const scenes = [
         const target = Number(marker.dataset.meTarget);
         if (Number.isFinite(target)) setActiveScene(target);
       }, { signal }));
+
+      memoryReturn?.addEventListener("click", () => {
+        if (!(memoryReturn instanceof HTMLButtonElement) || memoryReturn.dataset.state !== "ready") return;
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio", {
+          detail: { trackId: "kioku-kikan", autoplay: false }
+        }));
+        setMemoryReturnState("archived");
+        if (announcer) announcer.textContent = "一段被归还的记忆已收进本次访问的隐藏歌单。";
+      }, { signal });
 
       setActiveScene(0, true);
     })();

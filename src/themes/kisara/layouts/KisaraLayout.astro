@@ -14,8 +14,10 @@ import KisaraChibiStage from "../components/KisaraChibiStage.astro";
 import {
   KISARA_AUDIO_LEGACY_STORAGE_KEY,
   KISARA_AUDIO_STORAGE_KEY,
+  KISARA_SECRET_AUDIO_SESSION_KEY,
   KISARA_AUDIO_VOLUME,
-  kisaraAudioTracks
+  kisaraAudioTracks,
+  kisaraSecretAudioTracks
 } from "../lib/audio";
 
 interface Props {
@@ -60,8 +62,10 @@ const contextThemeLabels: Record<string, string> = {
 };
 const audioConfig = {
   tracks: kisaraAudioTracks,
+  secretTracks: kisaraSecretAudioTracks,
   storageKey: KISARA_AUDIO_STORAGE_KEY,
   legacyStorageKey: KISARA_AUDIO_LEGACY_STORAGE_KEY,
+  secretSessionKey: KISARA_SECRET_AUDIO_SESSION_KEY,
   volume: KISARA_AUDIO_VOLUME
 };
 ---
@@ -199,9 +203,32 @@ const audioConfig = {
           bootstrap.restoreTime = Math.max(0, storedState.currentTime);
         }
 
+        let storedSecretSession = null;
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(audioConfig.secretSessionKey) ?? "null");
+          if (stored && typeof stored === "object") storedSecretSession = stored;
+        } catch {}
+        if (storedSecretSession) window.__yuimiKisaraSecretAudioSession = storedSecretSession;
+
+        const unlockedSecretIds = new Set(
+          Array.isArray(storedSecretSession?.unlockedIds) ? storedSecretSession.unlockedIds : []
+        );
+        const unlockedSecretTracks = audioConfig.secretTracks.filter((candidate) => unlockedSecretIds.has(candidate.id));
+        bootstrap.tracks = [...audioConfig.tracks, ...unlockedSecretTracks];
+
         const storedTrackId = typeof storedState?.trackId === "string" ? storedState.trackId : "";
-        const track = audioConfig.tracks.find((candidate) => candidate.id === storedTrackId)
+        let track = audioConfig.tracks.find((candidate) => candidate.id === storedTrackId)
           ?? audioConfig.tracks[0];
+        const activeSecretTrack = storedSecretSession?.active
+          ? unlockedSecretTracks.find((candidate) => candidate.id === storedSecretSession.activeTrackId)
+          : null;
+        if (activeSecretTrack) {
+          track = activeSecretTrack;
+          bootstrap.enabled = storedSecretSession.secretEnabled !== false;
+          bootstrap.persistedResumeIntent = storedSecretSession.normalEnabled !== false;
+          bootstrap.restoreTime = Math.max(0, Number(storedSecretSession.secretTime) || 0);
+          bootstrap.restoredFromStorage = true;
+        }
         bootstrap.trackId = track.id;
 
         try {

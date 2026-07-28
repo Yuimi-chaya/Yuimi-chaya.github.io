@@ -1,5 +1,6 @@
 export const KISARA_AUDIO_STORAGE_KEY = "yuimi-kisara-playlist-v2";
 export const KISARA_AUDIO_LEGACY_STORAGE_KEY = "yuimi-kisara-audio-v1";
+export const KISARA_SECRET_AUDIO_SESSION_KEY = "yuimi-kisara-secret-playlist-v1";
 export const KISARA_AUDIO_VOLUME = 0.48;
 
 export const kisaraAudioTracks = [
@@ -16,8 +17,19 @@ export const kisaraAudioTracks = [
   { id: "kioku-no-yukue", title: "記憶の行方", src: "/themes/kisara/audio/kioku-no-yukue.mp3" }
 ] as const;
 
-export const kisaraSecretAudioTrack = {
-  id: "kokoro-spare-key",
-  title: "ココロスペアキー",
-  src: "/themes/kisara/audio/kokoro-spare-key.mp3"
-} as const;
+export const kisaraSecretAudioTracks = [
+  {
+    id: "kokoro-spare-key",
+    title: "ココロスペアキー",
+    src: "/themes/kisara/audio/kokoro-spare-key.mp3",
+    variant: "demon"
+  },
+  {
+    id: "kioku-kikan",
+    title: "记忆归还",
+    src: "/themes/kisara/audio/kioku-kikan.mp3",
+    variant: "memory"
+  }
+] as const;
+
+export const kisaraSecretAudioTrack = kisaraSecretAudioTracks[0];
