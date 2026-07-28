@@ -891,6 +891,30 @@ const characters = [
     animation: kisara-chibi-bubble-in 240ms cubic-bezier(0.16, 1.35, 0.3, 1) forwards;
   }
 
+  .kisara-chibi-bubble.is-image {
+    top: calc(-24% - clamp(102px, 10vw, 128px));
+    width: clamp(174px, 18vw, 232px);
+    min-width: 0;
+    min-height: 0;
+    padding: 5px;
+    border-radius: 22px 18px 24px 17px;
+    background: rgba(248, 246, 255, 0.94);
+    box-shadow:
+      0 14px 30px rgba(1, 2, 15, 0.3),
+      0 0 28px rgba(255, 91, 126, 0.24);
+  }
+
+  .kisara-chibi-bubble.is-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 694 / 531;
+    border-radius: 17px 14px 19px 13px;
+    object-fit: cover;
+    pointer-events: none;
+    -webkit-user-drag: none;
+  }
+
   @keyframes kisara-chibi-speak {
     0%, 100% { transform: translateY(0) scale(1); }
     34% { transform: translateY(-13px) scale(1.04, 0.97) rotate(-2deg); }
@@ -1023,6 +1047,7 @@ const characters = [
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const preloadAppleMedia = document.documentElement.dataset.yuimiPerformance === "full"
       && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const jealousyBubbleSource = "/themes/kisara/assets/chibi/jealousy-emoji.png";
     const characterOrder = ["kisara", "ayano", "shu", "sharon"];
     const nameMap = { kisara: "木更", ayano: "绫乃", shu: "修", sharon: "莎朗" };
     const soloEmoji = {
@@ -1100,6 +1125,8 @@ const characters = [
     let appleFallbackToken = 0;
     let appleActive = false;
     let applePreloadObserver = null;
+    let jealousyImagePreload = null;
+    let shuJealousyHits = 0;
     let cleaned = false;
 
     const schedule = (callback, delay) => {
@@ -1200,20 +1227,15 @@ const characters = [
       schedule(() => node.classList.remove(className), duration);
     };
 
-    const setBubble = (id, emoji, duration = 1180, animateFigure = true) => {
-      const node = nodes.get(id);
-      const bubble = node?.querySelector("[data-chibi-bubble]");
-      if (!(node instanceof HTMLElement) || !(bubble instanceof HTMLElement)) return;
-
+    const revealBubble = (id, node, bubble, announcement, duration, animateFigure) => {
       const previousTimer = bubbleTimers.get(id);
       if (previousTimer) window.clearTimeout(previousTimer);
-      bubble.textContent = emoji;
       bubble.setAttribute("aria-hidden", "false");
       bubble.classList.remove("is-visible");
       void bubble.offsetWidth;
       bubble.classList.add("is-visible");
       if (animateFigure) animateClass(node, "is-speaking", 560);
-      if (liveRegion) liveRegion.textContent = `${nameMap[id] || id} ${emoji}`;
+      if (liveRegion) liveRegion.textContent = `${nameMap[id] || id} ${announcement}`;
 
       const timer = window.setTimeout(() => {
         bubble.classList.remove("is-visible");
@@ -1221,6 +1243,40 @@ const characters = [
         bubbleTimers.delete(id);
       }, duration);
       bubbleTimers.set(id, timer);
+    };
+
+    const setBubble = (id, emoji, duration = 1180, animateFigure = true) => {
+      const node = nodes.get(id);
+      const bubble = node?.querySelector("[data-chibi-bubble]");
+      if (!(node instanceof HTMLElement) || !(bubble instanceof HTMLElement)) return;
+
+      bubble.classList.remove("is-image");
+      bubble.textContent = emoji;
+      revealBubble(id, node, bubble, emoji, duration, animateFigure);
+    };
+
+    const setImageBubble = (id, source, announcement, duration = 2100) => {
+      const node = nodes.get(id);
+      const bubble = node?.querySelector("[data-chibi-bubble]");
+      if (!(node instanceof HTMLElement) || !(bubble instanceof HTMLElement)) return;
+
+      const image = document.createElement("img");
+      image.src = source;
+      image.alt = "";
+      image.width = 694;
+      image.height = 531;
+      image.decoding = "async";
+      image.draggable = false;
+      bubble.classList.add("is-image");
+      bubble.replaceChildren(image);
+      revealBubble(id, node, bubble, announcement, duration, true);
+    };
+
+    const preloadJealousyBubble = () => {
+      if (jealousyImagePreload instanceof Image) return;
+      jealousyImagePreload = new Image();
+      jealousyImagePreload.decoding = "async";
+      jealousyImagePreload.src = jealousyBubbleSource;
     };
 
     const loadAppleVideo = () => {
@@ -1328,7 +1384,7 @@ const characters = [
       nodes.forEach((node) => {
         node.classList.remove("is-speaking", "is-dropped", "is-snapping");
         const bubble = node.querySelector("[data-chibi-bubble]");
-        bubble?.classList.remove("is-visible");
+        bubble?.classList.remove("is-visible", "is-image");
         bubble?.setAttribute("aria-hidden", "true");
       });
     };
@@ -1369,6 +1425,20 @@ const characters = [
           setBubble(speaker, emoji, index === beats.length - 1 ? 1380 : 1040);
         }, 120 + index * 520);
       });
+    };
+
+    const playJealousyScene = () => {
+      cancelScene();
+      const token = sceneToken;
+      root.style.setProperty("--scene-accent", "255, 73, 117");
+      schedule(() => {
+        if (token !== sceneToken) return;
+        setImageBubble("kisara", jealousyBubbleSource, "你又在想着别的女人了对吧", 2200);
+      }, 100);
+      schedule(() => {
+        if (token !== sceneToken) return;
+        setBubble("shu", "😰", 1480);
+      }, 920);
     };
 
     const playAppleScene = () => {
@@ -1449,6 +1519,24 @@ const characters = [
       applePairHits = 0;
       appleCooldownUntil = now + 12000;
       return "cutscene";
+    };
+
+    const jealousyInteractionMode = (ids) => {
+      const members = new Set(ids);
+      const hasShu = members.has("shu");
+      const hasKisara = members.has("kisara");
+      const hasOtherWoman = members.has("ayano") || members.has("sharon");
+
+      if (shuJealousyHits >= 2) {
+        shuJealousyHits = 0;
+        return hasShu && hasKisara ? "cutscene" : "normal";
+      }
+
+      if (hasShu && hasOtherWoman && !hasKisara) {
+        shuJealousyHits += 1;
+        preloadJealousyBubble();
+      }
+      return "normal";
     };
 
     const initialLayout = (animate = false) => {
@@ -1598,8 +1686,10 @@ const characters = [
         baseline: existingBounds.bottom,
       });
       const appleMode = appleInteractionMode(id, members);
+      const jealousyMode = jealousyInteractionMode(members);
       schedule(() => {
-        if (appleMode === "cutscene") playAppleScene();
+        if (jealousyMode === "cutscene") playJealousyScene();
+        else if (appleMode === "cutscene") playAppleScene();
         else if (appleMode === "prelude") playApplePrelude();
         else playScene(members);
       }, 360);
@@ -1674,6 +1764,7 @@ const characters = [
       applePairHits = 0;
       lastApplePairAt = 0;
       appleCooldownUntil = 0;
+      shuJealousyHits = 0;
       initialLayout(true);
     }, { signal: lifecycle.signal });
 

@@ -992,6 +992,13 @@
 - Human feedback found the first `340..680px` cut-in too obscured by the two foreground Q characters. The media now uses approximately `414..830px`, about 22% larger at both desktop and mobile sizes. Narrow screens may crop a small amount of the already feathered media edge instead of shrinking the subject again. Center clamping now handles media larger than the stage by using an even center crop, preventing the enlarged layer from being pushed toward one edge.
 - Browser geometry checks measured an `830px` computed desktop media width inside the `1220x560` stage and `414px` at a `390px` viewport, with document `scrollWidth` remaining exactly `390px`. No page warning/error logs were emitted. `git diff --check`, `npm test` (3/3), and `npm run build` passed; the build generated 36 Astro pages, sitemap, and a 37-page Pagefind index. Fine visibility behind the two Q characters remains a human visual judgment.
 
+### 2026-07-28 Kisara footer jealousy easter egg
+
+- The user-owned untracked source `kisara/emoji.png` remains untouched. Its explicit runtime copy is `public/themes/kisara/assets/chibi/jealousy-emoji.png` and is loaded only after the first qualifying interaction.
+- `KisaraChibiStage.astro` now counts interaction events whose final group contains Shu plus Ayano and/or Sharon but not Kisara. Pair interactions, a three-character interaction, and repeated use of the same character each count as one event. After two hits, only the immediately following group interaction containing both Shu and Kisara triggers the easter egg; any other group interaction clears the armed sequence.
+- The trigger gives Kisara a compact screenshot bubble first, then Shu responds with `😰`. The existing reset button clears the sequence together with the apple counters, while normal emoji bubbles remove the temporary image-bubble treatment before reuse.
+- Validation passed `git diff --check`, `npm test` (3/3), and `npm run build` (42 Astro pages, 43-page Pagefind index). Bubble scale and timing remain pending human visual validation.
+
 ### 2026-07-26 Kisara lower-home damped section navigation
 
 - Rollback checkpoint before this pass is `1af7243`. Desktop homepage content after the hero now treats `001`, `002`, `003`, `004`, and the footer as five explicit stops. A single wheel gesture advances to the adjacent stop through the existing spring scroller with a section-specific near-critical damping profile; trackpad inertia extends a short quiet guard instead of queuing extra sections. Keyboard directional inputs use the same stops. Touch/mobile keeps the existing free-scroll behavior because the snap controller is limited to `(min-width: 981px) and (hover: hover)`.
