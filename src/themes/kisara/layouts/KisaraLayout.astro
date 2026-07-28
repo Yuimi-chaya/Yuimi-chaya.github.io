@@ -374,7 +374,6 @@ const audioConfig = {
     >
       <span class="kisara-scrollbar-progress" aria-hidden="true"></span>
       <span class="kisara-scrollbar-thumb" data-kisara-scrollbar-thumb aria-hidden="true"><i></i></span>
-      <span class="kisara-scrollbar-guide" aria-hidden="true"><i></i><i></i></span>
     </div>
 
     <nav class="kisara-context-menu" data-kisara-context-menu hidden aria-label="Kisara 主题快捷菜单">
@@ -502,6 +501,8 @@ const audioConfig = {
           const progress = gateMode ? gateRailProgress : pageProgress;
           const thumbSize = gateMode ? (window.innerWidth <= 600 ? 34 : 46) : metrics.thumbSize;
           const thumbTravel = Math.max(0, metrics.trackRect.height - thumbSize);
+          const thumbY = thumbTravel * progress;
+          const markerY = thumbY + thumbSize * 0.5;
           scrollbar.classList.toggle("is-idle", metrics.scrollRange <= 1 || metrics.trackRect.height <= 0);
           scrollbar.classList.toggle("is-gate-progress", gateMode);
           scrollbar.classList.toggle("is-scroll-guided", gateMode && gateRailGuided);
@@ -514,7 +515,8 @@ const audioConfig = {
           scrollbar.dataset.releaseMode = gateMode ? gateRailReleaseMode : "document";
           scrollbar.style.setProperty("--kisara-scroll-progress", String(progress));
           scrollbar.style.setProperty("--kisara-scroll-thumb-size", `${thumbSize}px`);
-          scrollbar.style.setProperty("--kisara-scroll-thumb-y", `${thumbTravel * progress}px`);
+          scrollbar.style.setProperty("--kisara-scroll-thumb-y", `${thumbY}px`);
+          scrollbar.style.setProperty("--kisara-scroll-marker-y", `${markerY}px`);
           scrollbar.style.setProperty("--kisara-scroll-energy", String(gateMode ? progress : 0));
           scrollbar.style.setProperty("--kisara-scroll-boost", String(gateMode ? gateRailPressure : 0));
           scrollbar.style.setProperty(

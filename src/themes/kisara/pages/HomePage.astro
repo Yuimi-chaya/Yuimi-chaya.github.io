@@ -127,12 +127,17 @@ const openingEdgeScenes = [
     position: "center 50%"
   }
 ].filter((scene) => scene.image);
-const channelLinks = [
-  { index: "01", label: "READ THE LOG", note: "开发与部署记录", href: getThemePath("kisara", "/blog/") },
-  { index: "02", label: "OPEN THE LAB", note: "项目与互动实验", href: getThemePath("kisara", "/projects/") },
-  { index: "03", label: "ENTER PLAY", note: "短暂切进小游戏", href: getThemePath("kisara", "/games/") },
-  { index: "04", label: "TRACE YUIMI", note: "翻阅关于我的注脚", href: getThemePath("kisara", "/about/") }
-] as const;
+const openingMemoryCopy = {
+  leadPrefix: "后来才明白，",
+  leadBody: "记忆并不负责把事情讲完整。",
+  bodyPrimary: "它只留下几样东西：黄昏照在墙上的颜色、木更停下来的目光，还有当时没能说出口的下一句。",
+  bodySecondary: "这个博客也差不多。学到一半的技术、做坏又重来的交互、看完动画后舍不得丢掉的情绪，都先夹在这里。以后再翻回来，至少还能认出那时自己为什么想做。",
+  margin: "真正被记住的，往往不是故事讲了什么，而是某一帧为什么迟迟没有翻过去。"
+} as const;
+const openingMemoryGlyphs = (value: string, delayStart: number, delayStep: number, offset = 0) => Array.from(value).map((character, index) => ({
+  character,
+  delay: delayStart + (index + offset) * delayStep
+}));
 const fridgeDiscoveries = [
   {
     code: "LEARN",
@@ -349,11 +354,11 @@ const gateStyle = [
       <header class="kisara-opening-heading">
         <div>
           <p class="kisara-section-index">MEMORY AFTERGLOW / 001</p>
-          <h2 id="kisara-opening-title">What sunset kept.</h2>
+          <h2 id="kisara-opening-title"><span>What sunset</span><em>kept.</em></h2>
         </div>
         <div class="kisara-opening-heading-note">
           <span>17:42 / A PAGE LEFT OPEN</span>
-          <p>黄昏留下的，不一定是答案，也可能只是某个舍不得翻过去的瞬间。</p>
+          <p>那一刻其实没有发生什么。只是后来回想起来，连墙面的颜色都比答案更清楚。</p>
         </div>
       </header>
       <div class="kisara-opening-grid">
@@ -388,34 +393,74 @@ const gateStyle = [
                 loading="lazy"
                 decoding="async"
               />
+              <img
+                class="kisara-opening-memory-depth-focus"
+                src="/themes/kisara/assets/opening-memory-001.webp"
+                alt=""
+                width="1800"
+                height="1013"
+                loading="lazy"
+                decoding="async"
+                aria-hidden="true"
+              />
+              <img
+                class="kisara-opening-memory-depth-foreground"
+                src="/themes/kisara/assets/opening-memory-001.webp"
+                alt=""
+                width="1800"
+                height="1013"
+                loading="lazy"
+                decoding="async"
+                aria-hidden="true"
+              />
             </span>
           </div>
-          <figcaption><span>图 01</span> 黄昏把旧日的轮廓，留在墙边。</figcaption>
+          <figcaption><span>图 01</span> 黄昏没有回答，只把那一刻留得很慢。</figcaption>
         </figure>
         <div class="kisara-opening-copy">
           <div class="kisara-opening-lesson">
             <div class="kisara-opening-lesson-body">
-              <p class="kisara-opening-copy-lead">有些记忆没有消失，只是在光线暗下去以后，慢慢失去了清楚的边缘。</p>
-              <p class="kisara-opening-copy-body">这里收下那些没有说完的话，也把技术、动画和下一次想做的小东西，像书页里的批注一样留在身边。</p>
-              <p class="kisara-opening-copy-body">等到某一天再次翻到这一页，模糊的轮廓或许会替我们记住，当时的风、黄昏，以及没有说出口的下一句。</p>
+              <p
+                class="kisara-opening-copy-lead"
+                aria-label={`${openingMemoryCopy.leadPrefix}${openingMemoryCopy.leadBody}`}
+              >
+                <span class="kisara-opening-copy-lead-prefix" aria-hidden="true">
+                  {openingMemoryGlyphs(openingMemoryCopy.leadPrefix, 420, 28).map(({ character, delay }) => (
+                    <i class="kisara-opening-copy-glyph" style={`--kisara-memory-glyph-delay: ${delay}ms;`}>{character}</i>
+                  ))}
+                </span>
+                <span class="kisara-opening-copy-glyph-line" aria-hidden="true">
+                  {openingMemoryGlyphs(openingMemoryCopy.leadBody, 420, 28, Array.from(openingMemoryCopy.leadPrefix).length).map(({ character, delay }) => (
+                    <i class="kisara-opening-copy-glyph" style={`--kisara-memory-glyph-delay: ${delay}ms;`}>{character}</i>
+                  ))}
+                </span>
+              </p>
+              <p class="kisara-opening-copy-body is-primary" aria-label={openingMemoryCopy.bodyPrimary}>
+                <span class="kisara-opening-copy-glyph-line" aria-hidden="true">
+                  {openingMemoryGlyphs(openingMemoryCopy.bodyPrimary, 940, 18).map(({ character, delay }) => (
+                    <i class="kisara-opening-copy-glyph" style={`--kisara-memory-glyph-delay: ${delay}ms;`}>{character}</i>
+                  ))}
+                </span>
+              </p>
+              <p class="kisara-opening-copy-body is-secondary" aria-label={openingMemoryCopy.bodySecondary}>
+                <span class="kisara-opening-copy-glyph-line" aria-hidden="true">
+                  {openingMemoryGlyphs(openingMemoryCopy.bodySecondary, 1460, 11).map(({ character, delay }) => (
+                    <i class="kisara-opening-copy-glyph" style={`--kisara-memory-glyph-delay: ${delay}ms;`}>{character}</i>
+                  ))}
+                </span>
+              </p>
             </div>
             <aside class="kisara-opening-margin-note" aria-label="课文旁批">
-              <p>记忆会褪色，留下来的往往不是答案，而是仍愿意回头看的那一瞬。</p>
+              <span>页边注 / 17:42</span>
+              <p aria-label={openingMemoryCopy.margin}>
+                <span class="kisara-opening-copy-glyph-line" aria-hidden="true">
+                  {openingMemoryGlyphs(openingMemoryCopy.margin, 2140, 15).map(({ character, delay }) => (
+                    <i class="kisara-opening-copy-glyph" style={`--kisara-memory-glyph-delay: ${delay}ms;`}>{character}</i>
+                  ))}
+                </span>
+              </p>
             </aside>
           </div>
-          <nav class="kisara-channel-links" aria-label="Kisara theme shortcuts">
-            <div class="kisara-channel-links-heading">
-              <small>顺着页边，继续往下读。</small>
-            </div>
-            <div class="kisara-channel-links-index">
-              {channelLinks.map((item) => (
-                <a href={item.href}>
-                  <span>〔{item.index}〕</span>
-                  <div><strong>{item.note}</strong><small>{item.label}</small></div>
-                </a>
-              ))}
-            </div>
-          </nav>
         </div>
       </div>
     </div>
@@ -892,6 +937,8 @@ const gateStyle = [
           const cameraClueTolerance = 8.5;
           const cameraInputInsetX = 0.13;
           const cameraInputInsetY = 0.1;
+          const tapeSourceX = 0.534;
+          const tapeSourceY = 0.436;
 
           const setCameraCopy = (nextStatus: string, nextCommand: string, nextAutofocus: string) => {
             if (status && status.textContent !== nextStatus) status.textContent = nextStatus;
@@ -922,9 +969,34 @@ const gateStyle = [
             this.classList.remove("is-camera-moving", "is-camera-focusing", "is-camera-focused", "is-camera-missed", "is-camera-snapping");
           };
 
+          const syncTapeGlint = (positionX: number, positionY: number) => {
+            if (!desktopCamera || !eventPhoto || !eventImage || eventImage.naturalWidth <= 0 || eventImage.naturalHeight <= 0) {
+              this.style.removeProperty("--kisara-event-tape-x");
+              this.style.removeProperty("--kisara-event-tape-y");
+              return;
+            }
+
+            const width = eventPhoto.clientWidth;
+            const height = eventPhoto.clientHeight;
+            if (width <= 0 || height <= 0) return;
+
+            const coverScale = Math.max(width / eventImage.naturalWidth, height / eventImage.naturalHeight);
+            const renderedWidth = eventImage.naturalWidth * coverScale;
+            const renderedHeight = eventImage.naturalHeight * coverScale;
+            const localX = (width - renderedWidth) * 0.5 + renderedWidth * tapeSourceX;
+            const localY = (height - renderedHeight) * (positionY / 100) + renderedHeight * tapeSourceY;
+            const imageScale = 1.12;
+            const screenX = width * 0.5 + (localX - width * 0.5) * imageScale + width * (positionX / 100);
+            const screenY = height * 0.5 + (localY - height * 0.5) * imageScale;
+
+            this.style.setProperty("--kisara-event-tape-x", `${(screenX / width * 100).toFixed(3)}%`);
+            this.style.setProperty("--kisara-event-tape-y", `${(screenY / height * 100).toFixed(3)}%`);
+          };
+
           const setCameraPosition = (positionX: number, positionY: number) => {
             this.style.setProperty("--kisara-event-camera-x", `${positionX.toFixed(3)}%`);
             this.style.setProperty("--kisara-event-camera-y", `${positionY.toFixed(3)}%`);
+            syncTapeGlint(positionX, positionY);
           };
 
           const resetDesktopCamera = () => {
@@ -988,6 +1060,7 @@ const gateStyle = [
             }
             if (signal.aborted || !eventImage.complete || eventImage.naturalWidth <= 0) return;
             cameraDecoded = true;
+            setCameraPosition(cameraCurrentX, cameraCurrentY);
             startCameraFocus();
           };
 
@@ -1145,6 +1218,7 @@ const gateStyle = [
               handleCameraPointerMove(event);
               scheduleDesktopFocus(40);
             }, { signal });
+            window.addEventListener("resize", () => setCameraPosition(cameraCurrentX, cameraCurrentY), { passive: true, signal });
           }
 
           if (eventImage) {
