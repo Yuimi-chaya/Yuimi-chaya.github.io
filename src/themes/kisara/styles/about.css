@@ -2519,11 +2519,87 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
 .is-condition header { align-self: center; }
 .is-condition header > p:last-child { color: #665b68; }
 .is-condition .kisara-me-memory-kicker { color: #7b5064; }
-.is-condition h2 { text-shadow: 0 1px rgba(255, 255, 255, 0.5); }
+.is-condition h2 {
+  max-width: min(650px, 100%);
+  text-shadow: 0 1px rgba(255, 255, 255, 0.5);
+}
 .is-condition h2 em {
-  display: inline-block;
-  color: #b72d5e;
-  transform: translateX(9px) rotate(-2.1deg);
+  display: grid;
+  justify-items: start;
+  width: max-content;
+  max-width: 100%;
+  margin: 0.13em 0 0 0.08em;
+  color: rgba(57, 34, 50, 0.82);
+  font-family: "Segoe Print", "Bradley Hand ITC", "Comic Sans MS", "KaiTi", cursive;
+  font-size: 0.67em;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 0.9;
+  text-shadow:
+    1px 1px 0 rgba(91, 38, 64, 0.15),
+    0 0 7px rgba(229, 54, 118, 0.16);
+  transform: translateX(8px) rotate(-2.6deg);
+}
+
+.is-condition h2 em > span {
+  --title-strike-delay: 520ms;
+  --title-strike-dark-angle: -2.2deg;
+  --title-strike-pink-angle: 0.7deg;
+  position: relative;
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  isolation: isolate;
+}
+
+.is-condition h2 em > span + span {
+  --title-strike-delay: 690ms;
+  --title-strike-dark-angle: 1.4deg;
+  --title-strike-pink-angle: -1deg;
+  margin: -0.02em 0 0 0.24em;
+  transform: rotate(1.3deg);
+}
+
+.is-condition h2 em > span::before,
+.is-condition h2 em > span::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: -5%;
+  width: 111%;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: left center;
+}
+
+.is-condition h2 em > span::before {
+  --stroke-angle: var(--title-strike-dark-angle);
+  top: 48%;
+  height: max(8px, 0.12em);
+  background: linear-gradient(90deg, rgba(67, 32, 51, 0.9), rgba(54, 28, 44, 0.96) 48%, rgba(73, 34, 54, 0.84));
+  clip-path: polygon(0 34%, 10% 22%, 21% 45%, 33% 27%, 45% 51%, 57% 31%, 69% 49%, 81% 25%, 91% 43%, 100% 32%, 100% 73%, 91% 82%, 81% 65%, 69% 79%, 57% 61%, 45% 83%, 33% 62%, 21% 78%, 10% 57%, 0 69%);
+  filter: blur(0.35px);
+  transform: rotate(var(--stroke-angle)) scaleX(0) skewX(-8deg);
+}
+
+.is-condition h2 em > span::after {
+  --stroke-angle: var(--title-strike-pink-angle);
+  top: 53%;
+  left: -2%;
+  width: 106%;
+  height: max(3px, 0.045em);
+  background: linear-gradient(90deg, rgba(214, 51, 108, 0.5), rgba(205, 39, 96, 0.82) 42%, rgba(227, 73, 130, 0.58));
+  clip-path: polygon(0 24%, 14% 9%, 28% 48%, 43% 21%, 58% 61%, 73% 29%, 87% 55%, 100% 18%, 100% 81%, 87% 73%, 73% 89%, 58% 70%, 43% 86%, 28% 65%, 14% 77%, 0 62%);
+  box-shadow: 0 0 9px rgba(211, 54, 108, 0.2);
+  transform: rotate(var(--stroke-angle)) scaleX(0);
+}
+
+.kisara-me-memory[data-me-memory="condition"][data-scene-position="active"] .is-condition h2 em > span::before {
+  animation: kisara-me-hand-strike 500ms cubic-bezier(0.12, 0.86, 0.18, 1) var(--title-strike-delay) both;
+}
+
+.kisara-me-memory[data-me-memory="condition"][data-scene-position="active"] .is-condition h2 em > span::after {
+  animation: kisara-me-hand-strike 390ms cubic-bezier(0.12, 0.86, 0.18, 1) calc(var(--title-strike-delay) + 90ms) both;
 }
 
 .kisara-me-rewritten-signals {
@@ -2634,15 +2710,14 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
 .is-condition > footer {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 24px;
   align-items: end;
   padding-top: 8px;
   color: #81556b;
 }
 
-.is-condition > footer strong { color: rgba(83, 46, 66, 0.2); font: 400 clamp(2.5rem, 5vw, 5.4rem)/0.7 Georgia, "Times New Roman", serif; }
-.is-condition > footer p { margin: 0; color: #7d6875; }
+.is-condition > footer p { justify-self: end; margin: 0; color: #7d6875; }
 
 .kisara-me-memory-return {
   position: absolute;
@@ -3113,6 +3188,8 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
   .kisara-me-memory[data-me-memory="condition"][data-scene-position="active"] .kisara-me-rewritten-signals li::before,
   .kisara-me-memory[data-me-memory="condition"][data-scene-position="active"] .kisara-me-rewritten-signals li::after,
   .kisara-me-memory[data-me-memory="condition"][data-scene-position="active"] .kisara-me-rewritten-signals li > i,
+  .kisara-me-memory[data-me-memory="condition"][data-scene-position="active"] .is-condition h2 em > span::before,
+  .kisara-me-memory[data-me-memory="condition"][data-scene-position="active"] .is-condition h2 em > span::after,
   .kisara-me-memory-return,
   .kisara-me-memory-return-copy {
     animation: none !important;
@@ -3131,6 +3208,12 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
   .kisara-me-sunrise-flare,
   .kisara-me-condition-scan {
     opacity: 0;
+  }
+
+  .kisara-me-memory[data-me-memory="condition"][data-scene-position="active"] .is-condition h2 em > span::before,
+  .kisara-me-memory[data-me-memory="condition"][data-scene-position="active"] .is-condition h2 em > span::after {
+    opacity: 0.84;
+    transform: rotate(var(--stroke-angle)) scaleX(1);
   }
 
   .kisara-me-memory[data-me-memory="ritual"][data-scene-position="active"] .kisara-me-kao-bleed path,

@@ -1220,3 +1220,10 @@
 - Human review rejected the experimental mouth-centered lens-contact fog and heart/key condensation pass from checkpoint `6ca133d`. The experiment is fully superseded and must not be partially restored; END is back to the previously accepted full-frame soft-focus/exposure entrance and restrained image pulse.
 - The epilogue remains the seventh wheel/touch/keyboard scene and retains its reversible transition behavior, but it is no longer represented as an `END` item in the visible chapter rail. The rail now renders only Profile through Pulse, including a six-column mobile layout; internal scene indexing still keeps END at index `6` so navigation state does not shift.
 - `git diff --check`, `npm test` (3/3), and `npm run build` pass with 42 Astro pages and a 43-page Pagefind index. Human visual acceptance of the six-item rail remains pending.
+
+### 2026-07-28 Kisara Me Pulse handwritten cancellation
+
+- Pulse no longer places the oversized `YUIMI LAB` wordmark in the center of its footer. The footer now keeps only the left channel status and the right Yuimi-chaya/GPT attribution, leaving the contract artwork unobstructed.
+- The lower two title lines are explicit handwritten rows rather than one italic serif phrase. They use a local system handwriting stack, small line-specific offsets, and dark contract-ink coloring with a restrained pink bleed so they sit closer to the amended writing already present in Episode 11 scene `e5`.
+- Each row owns a broad irregular dark cancellation stroke and a slightly displaced thinner pink return stroke. The rows are crossed in sequence on scene entry through the existing bounded `kisara-me-hand-strike` keyframe; reduced-motion renders the completed crossed state directly. No extra DOM overlay, font download, image request, or animation loop was introduced.
+- `git diff --check`, `npm test` (3/3), and `npm run build` pass with 42 Astro pages and a 43-page Pagefind index. Exact handwriting character and strike weight remain pending human visual judgment.
