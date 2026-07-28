@@ -1206,3 +1206,10 @@
 - The copy now describes concrete retained fragments from the source scene and the actual blog-building process instead of generic memory language. Paragraph widths and indentation vary deliberately, while the page-edge note remains a narrative annotation rather than navigation.
 - Existing procedural ink diffusion is unchanged. The original image-development animation now resolves the three depth layers together, while the heading note, copy, and caption retain their lightweight reveal timing. No new Canvas, runtime observer, asset request, or independent animation loop was added. Tablet and mobile keep the overlap with bounded widths and hidden overflow.
 - `git diff --check`, `npm test` (3/3), and `npm run build` pass with 42 Astro pages and a 43-page Pagefind index. Final typography balance and overlap depth remain pending human visual judgment.
+
+### 2026-07-28 Kisara Me profile prelude
+
+- Human review found the informational Profile scene too quiet beside the five Episode 11 memory scenes. The dossier copy, status facts, social links, avatar, and scene navigation remain intact; the refinement adds presentation around them rather than replacing their practical value.
+- Five narrow, low-opacity previews reuse the already-loaded Episode 11 images behind the Profile grid. They develop in sequence with one bounded scan each, are labeled as five contract-memory fragments, and open slightly as Profile yields to the first memory scene so the dossier reads as a prelude to the later sequence.
+- The profile card now receives one short material scan, while its existing avatar rings and signal light animate gently during the active scene. Copy groups enter in a restrained stagger. The five previews do not run continuous repaint animations; tablet/mobile reduce their footprint, narrow mobile keeps only three visible fragments, and reduced-motion renders the settled composition directly.
+- `git diff --check`, `npm test` (3/3), and `npm run build` pass with 42 Astro pages and a 43-page Pagefind index. Fine preview opacity, overlap, and dramatic balance remain pending human visual judgment; no automated screenshot is treated as acceptance.
