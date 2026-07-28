@@ -1132,6 +1132,12 @@
 - Search and channel filters operate on both rendered views while result counts are deduplicated by post id. Empty year groups disappear during filtering, keyboard arrow/Home/End navigation works across the two tabs, and reduced-motion disables the new hover transitions.
 - Validation passed `git diff --check`, `npm test` (3/3), and `npm run build` (42 Astro pages, 43-page Pagefind index). Browser checks confirmed article/timeline switching, a `Codex` search returning one unique signal in both views, session view restoration after reload, and zero horizontal overflow at `390x844`.
 
+### 2026-07-28 Kisara Blog archive reading strip
+
+- The user-owned untracked source `kisara/read.jpg` remains untouched. Its explicit runtime copy is `public/themes/kisara/assets/blog/read-interlude.jpg`.
+- The archive heading is now an open horizontal night-reading scene rather than a plain text gap or framed image. The source is enlarged and vertically cropped into one panoramic strip, with Kisara kept on the left and the archive copy moved onto the empty dark wall at the right. Top and bottom masks fade the scene back into the page instead of exposing a hard image edge.
+- Desktop, tablet, and mobile keep separate crop anchors; all three were shifted upward after user feedback so the framing retains more of the upper scene. The production build passed before the final crop-only adjustment, and the final CSS change passed `git diff --check`; detailed crop acceptance remains a human visual check.
+
 ### 2026-07-27 Kisara Me Episode 11 memory sequence
 
 - Rollback checkpoint before this redesign is `e82b50f`. `TECH` through `PULSE` retain the existing personal data but are rebuilt as five full-screen Episode 11 memory scenes instead of repeating the former light dossier/list layout. The official Episode 11 story, `優しく愚かな嘘`, was used only to establish the visual progression and emotional framing.
