@@ -791,6 +791,8 @@ body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-au
 }
 
 .kisara-me-epilogue-image {
+  --epilogue-contact-x: 50%;
+  --epilogue-contact-y: 47.5%;
   position: absolute;
   inset: 0;
   isolation: isolate;
@@ -869,6 +871,85 @@ body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-au
   -webkit-user-drag: none;
 }
 
+.kisara-me-epilogue-contact {
+  position: absolute;
+  z-index: 3;
+  top: var(--epilogue-contact-y);
+  left: var(--epilogue-contact-x);
+  width: clamp(180px, 20vw, 350px);
+  aspect-ratio: 1.42;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.58) rotate(-2deg);
+  transform-origin: center;
+  mix-blend-mode: screen;
+}
+
+.kisara-me-epilogue-contact::before,
+.kisara-me-epilogue-contact::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.kisara-me-epilogue-contact::before {
+  inset: 8% 4%;
+  border-radius: 46% 54% 51% 49% / 55% 44% 56% 45%;
+  background:
+    radial-gradient(ellipse at 48% 50%, rgba(255, 255, 255, 0.38) 0 12%, rgba(255, 237, 247, 0.22) 30%, transparent 68%),
+    radial-gradient(ellipse at 34% 56%, rgba(255, 248, 252, 0.28), transparent 48%),
+    radial-gradient(ellipse at 67% 40%, rgba(246, 178, 213, 0.24), transparent 52%);
+  filter: blur(13px);
+  box-shadow:
+    0 0 34px rgba(255, 239, 248, 0.28),
+    0 0 76px rgba(232, 120, 178, 0.16);
+}
+
+.kisara-me-epilogue-contact::after {
+  inset: 23% 18%;
+  border-radius: 53% 47% 58% 42% / 46% 56% 44% 54%;
+  background:
+    radial-gradient(ellipse at 44% 47%, rgba(255, 255, 255, 0.42), rgba(255, 231, 243, 0.16) 34%, transparent 67%),
+    linear-gradient(112deg, transparent 28%, rgba(255, 255, 255, 0.24) 48%, transparent 67%);
+  filter: blur(3px);
+}
+
+.kisara-me-epilogue-contact > i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: rgba(255, 246, 251, 0.34);
+  filter: blur(5px);
+}
+
+.kisara-me-epilogue-contact > i:nth-child(1) { top: 23%; left: 18%; width: 24%; height: 17%; transform: rotate(-18deg); }
+.kisara-me-epilogue-contact > i:nth-child(2) { right: 14%; bottom: 22%; width: 29%; height: 19%; transform: rotate(12deg); }
+.kisara-me-epilogue-contact > i:nth-child(3) { right: 31%; top: 8%; width: 13%; height: 10%; opacity: 0.55; }
+
+.kisara-me-epilogue-imprint {
+  position: absolute;
+  z-index: 4;
+  top: calc(var(--epilogue-contact-y) + 5.5%);
+  left: calc(var(--epilogue-contact-x) + 7.5%);
+  width: clamp(42px, 4.8vw, 76px);
+  height: auto;
+  overflow: visible;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-11deg) scale(0.86);
+}
+
+.kisara-me-epilogue-imprint path {
+  fill: none;
+  stroke: rgba(199, 82, 143, 0.62);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: blur(0.3px) drop-shadow(0 0 3px rgba(255, 255, 255, 0.92)) drop-shadow(0 0 6px rgba(226, 109, 168, 0.3));
+}
+
 .kisara-me-epilogue-frame figcaption {
   display: none;
 }
@@ -884,7 +965,24 @@ body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-au
 }
 
 .kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-image img {
-  animation: kisara-me-epilogue-breathe 10s ease-in-out 1400ms infinite alternate;
+  transform-origin: 50% 47.5%;
+  animation: kisara-me-epilogue-approach 2450ms cubic-bezier(0.18, 0.76, 0.2, 1) 70ms both;
+}
+
+.kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-contact {
+  animation: kisara-me-epilogue-contact 2200ms cubic-bezier(0.16, 0.8, 0.22, 1) 510ms both;
+}
+
+.kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-imprint {
+  animation: kisara-me-epilogue-imprint-settle 1150ms cubic-bezier(0.2, 0.72, 0.22, 1) 1560ms both;
+}
+
+.kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-imprint path {
+  animation: kisara-me-epilogue-imprint-draw 820ms cubic-bezier(0.22, 0.72, 0.28, 1) 1500ms both;
+}
+
+.kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-imprint path + path {
+  animation-delay: 1710ms;
 }
 
 .kisara-me[data-active-scene="6"] .kisara-me-ambient,
@@ -894,7 +992,7 @@ body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-au
 }
 
 .kisara-me[data-active-scene="6"] .kisara-me-rail {
-  opacity: 0.06;
+  opacity: 0;
 }
 
 .kisara-me[data-active-scene="6"] .kisara-me-rail:hover,
@@ -1045,9 +1143,31 @@ body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-au
   100% { opacity: 0; }
 }
 
-@keyframes kisara-me-epilogue-breathe {
-  from { filter: brightness(1) saturate(1); }
-  to { filter: brightness(1.018) saturate(1.025); }
+@keyframes kisara-me-epilogue-approach {
+  0% { transform: translate(-50%, -50%) scale(1.055); }
+  44% { transform: translate(-50%, -50%) scale(1.025); }
+  57% { transform: translate(-50%, -50%) scale(1.034); }
+  72% { transform: translate(-50%, -50%) scale(1.018); }
+  100% { transform: translate(-50%, -50%) scale(1.02); }
+}
+
+@keyframes kisara-me-epilogue-contact {
+  0%, 10% { opacity: 0; transform: translate(-50%, -50%) scale(0.58) rotate(-2deg); }
+  32% { opacity: 0.92; transform: translate(-50%, -50%) scale(0.98) rotate(-1deg); }
+  48% { opacity: 0.74; transform: translate(-50%, -50%) scale(1.045) rotate(0deg); }
+  76% { opacity: 0.26; transform: translate(-50%, -50%) scale(1.12) rotate(1deg); }
+  100% { opacity: 0.1; transform: translate(-50%, -50%) scale(1.17) rotate(1deg); }
+}
+
+@keyframes kisara-me-epilogue-imprint-settle {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-11deg) scale(0.86); }
+  48% { opacity: 0.54; transform: translate(-50%, -50%) rotate(-9deg) scale(1.02); }
+  100% { opacity: 0.31; transform: translate(-50%, -50%) rotate(-9deg) scale(1); }
+}
+
+@keyframes kisara-me-epilogue-imprint-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
 }
 
 @media (max-width: 1050px) {
@@ -1146,6 +1266,16 @@ body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-au
     -webkit-mask-image: none;
     mask-image: none;
   }
+  .kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-image img {
+    transform-origin: 50% 47.5%;
+    animation-name: kisara-me-epilogue-approach-mobile;
+  }
+  .kisara-me-epilogue-contact { width: clamp(170px, 54vw, 280px); }
+  .kisara-me-epilogue-imprint {
+    top: calc(var(--epilogue-contact-y) + 5%);
+    left: calc(var(--epilogue-contact-x) + 14%);
+    width: clamp(38px, 12vw, 58px);
+  }
   .kisara-me-epilogue-frame figcaption {
     position: absolute;
     z-index: 2;
@@ -1177,6 +1307,14 @@ body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-au
     font: 400 clamp(1.35rem, 6vw, 1.8rem)/1.2 Georgia, "Yu Mincho", serif;
   }
   .kisara-me-epilogue-frame figcaption small { color: #8e7b8e; }
+}
+
+@keyframes kisara-me-epilogue-approach-mobile {
+  0% { transform: scale(1.075); }
+  44% { transform: scale(1.035); }
+  57% { transform: scale(1.045); }
+  72% { transform: scale(1.024); }
+  100% { transform: scale(1.027); }
 }
 
 @media (max-width: 600px) {
@@ -1283,9 +1421,26 @@ body[data-kisara-page="about"]:has(.kisara-me[data-active-scene="6"]) .kisara-au
 
   .kisara-me-epilogue-image,
   .kisara-me-epilogue-image::after,
-  .kisara-me-epilogue-image img {
+  .kisara-me-epilogue-image img,
+  .kisara-me-epilogue-contact,
+  .kisara-me-epilogue-imprint,
+  .kisara-me-epilogue-imprint path {
     animation: none !important;
     transition: none;
+  }
+
+  .kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-contact {
+    opacity: 0.1;
+    transform: translate(-50%, -50%) scale(1.17) rotate(1deg);
+  }
+
+  .kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-imprint {
+    opacity: 0.31;
+    transform: translate(-50%, -50%) rotate(-9deg) scale(1);
+  }
+
+  .kisara-me-epilogue[data-scene-position="active"] .kisara-me-epilogue-imprint path {
+    stroke-dashoffset: 0;
   }
 
   .kisara-me-profile-portrait-media,
