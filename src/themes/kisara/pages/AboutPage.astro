@@ -28,6 +28,8 @@ const scenes = [
   { key: "pulse", label: "PULSE", title: "当前电波" },
   { key: "epilogue", label: "END", title: "谢幕" }
 ] as const;
+
+const railScenes = scenes.slice(0, -1);
 ---
 
 <KisaraLayout title="Me | Kisara" description="关于喝益胃与 Yuimi Lab。" stylesheets={[aboutStylesheet]}>
@@ -355,18 +357,6 @@ const scenes = [
               loading="eager"
               decoding="async"
             />
-            <span class="kisara-me-epilogue-contact" aria-hidden="true">
-              <i></i><i></i><i></i>
-            </span>
-            <svg
-              class="kisara-me-epilogue-imprint"
-              viewBox="0 0 96 78"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path pathLength="1" d="M43 51C35 44 22 35 19 25C16 16 22 10 30 11C37 12 41 17 44 23C47 16 52 11 59 12C68 14 72 22 68 31C64 40 53 47 43 51Z" />
-              <path pathLength="1" d="M43 51C48 57 55 62 65 67L77 57M65 67L72 73" />
-            </svg>
           </div>
           <figcaption>
             <span>EPILOGUE / LAST FRAME</span>
@@ -380,7 +370,7 @@ const scenes = [
     <nav class="kisara-me-rail" data-me-rail aria-label="个人档案章节">
       <span class="kisara-me-rail-track" aria-hidden="true"><i data-me-rail-progress></i></span>
       <div>
-        {scenes.map((scene, index) => (
+        {railScenes.map((scene, index) => (
           <button
             type="button"
             data-me-target={index}
@@ -530,7 +520,8 @@ const scenes = [
 
         const scene = scenes[boundedIndex];
         const sceneName = scene instanceof HTMLElement ? scene.dataset.sceneName || "档案" : "档案";
-        const label = markers[boundedIndex]?.querySelector("span")?.textContent || "PROFILE";
+        const label = markers[boundedIndex]?.querySelector("span")?.textContent
+          || (boundedIndex === scenes.length - 1 ? "END" : "PROFILE");
         if (currentNumber) currentNumber.textContent = String(boundedIndex + 1).padStart(2, "0");
         if (currentLabel) currentLabel.textContent = label;
         if (announcer) announcer.textContent = `第 ${boundedIndex + 1} 章，共 ${scenes.length} 章：${sceneName}`;
