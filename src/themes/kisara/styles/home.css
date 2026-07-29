@@ -200,7 +200,7 @@ html[data-kisara-found-self-entry] .kisara-found-self,
 
 html[data-kisara-found-self-entry] .kisara-found-self-first,
 .kisara-gate.is-found-self-active .kisara-found-self-first {
-  background-image: url("/themes/kisara/assets/found-self-memory-first.webp");
+  background-image: url("/themes/kisara/assets/found-self-ep12-first.webp");
   background-position: center center;
   background-size: cover;
   background-repeat: no-repeat;
@@ -257,7 +257,7 @@ html[data-kisara-found-self-entry] .kisara-found-self-first,
 }
 
 .kisara-found-self.is-running .kisara-found-self-origin {
-  animation: kisara-found-self-origin 2.2s 2.75s ease-out both;
+  animation: kisara-found-self-origin 1.75s 20.05s ease-out both;
 }
 
 .kisara-found-self-inscription h1 {
@@ -291,35 +291,16 @@ html[data-kisara-found-self-entry] .kisara-found-self-first,
 .kisara-found-self-glyph i {
   color: rgba(28, 20, 35, 0.88);
   opacity: 0;
-  filter: blur(13px) saturate(0.2) brightness(0.48);
-  text-shadow: 0 0 12px rgba(25, 11, 26, 0.72);
+  filter: blur(15px) saturate(0.16) brightness(0.4);
+  text-shadow:
+    0 0 9px rgba(25, 11, 26, 0.76),
+    0 0 24px rgba(39, 14, 35, 0.38);
+  transform: translate3d(var(--found-drift), 5px, 0) scale(1.035);
+  will-change: opacity, filter, transform;
 }
 
-.kisara-found-self-glyph i.is-upper {
-  clip-path: polygon(0 0, 100% 0, 96% 39%, 55% 35%, 0 46%);
-  transform: translate3d(-7px, -9px, 0) scale(1.05);
-}
-
-.kisara-found-self-glyph i.is-middle {
-  clip-path: polygon(0 30%, 58% 34%, 100% 25%, 100% 73%, 46% 67%, 0 79%);
-  transform: translate3d(8px, 3px, 0) scale(0.98);
-}
-
-.kisara-found-self-glyph i.is-lower {
-  clip-path: polygon(0 69%, 42% 61%, 100% 72%, 100% 100%, 0 100%);
-  transform: translate3d(-4px, 11px, 0) scale(1.03);
-}
-
-.kisara-found-self.is-running .kisara-found-self-glyph i.is-upper {
-  animation: kisara-found-self-fragment 3.6s var(--found-delay) cubic-bezier(0.2, 0.78, 0.22, 1) both;
-}
-
-.kisara-found-self.is-running .kisara-found-self-glyph i.is-middle {
-  animation: kisara-found-self-fragment 3.9s calc(var(--found-delay) + 0.48s) cubic-bezier(0.2, 0.78, 0.22, 1) both;
-}
-
-.kisara-found-self.is-running .kisara-found-self-glyph i.is-lower {
-  animation: kisara-found-self-fragment 3.4s calc(var(--found-delay) + 0.18s) cubic-bezier(0.2, 0.78, 0.22, 1) both;
+.kisara-found-self.is-running .kisara-found-self-glyph i {
+  animation: kisara-found-self-inkwake 2.75s var(--found-delay) cubic-bezier(0.2, 0.78, 0.22, 1) both;
 }
 
 .kisara-found-self-glyph b {
@@ -334,7 +315,7 @@ html[data-kisara-found-self-entry] .kisara-found-self-first,
 }
 
 .kisara-found-self.is-running .kisara-found-self-glyph b {
-  animation: kisara-found-self-colorwake 4.3s calc(var(--found-delay) + 2.15s) cubic-bezier(0.18, 0.78, 0.22, 1) both;
+  animation: kisara-found-self-colorwake 2.65s calc(var(--found-delay) + 1.25s) cubic-bezier(0.18, 0.78, 0.22, 1) both;
 }
 
 .kisara-found-self-note {
@@ -365,11 +346,11 @@ html[data-kisara-found-self-entry] .kisara-found-self-first,
 }
 
 .kisara-found-self.is-running .kisara-found-self-note span {
-  animation: kisara-found-self-note 2.5s 7.6s ease-out both;
+  animation: kisara-found-self-note 1.65s 24.05s ease-out both;
 }
 
 .kisara-found-self.is-running .kisara-found-self-note b {
-  animation: kisara-found-self-note 2.8s 8.55s ease-out both;
+  animation: kisara-found-self-note 1.55s 24.45s ease-out both;
 }
 
 .kisara-found-self-playback {
@@ -442,11 +423,22 @@ html[data-kisara-found-self-entry] .kisara-found-self-first,
   100% { opacity: 1; filter: blur(0); transform: translateX(0); }
 }
 
-@keyframes kisara-found-self-fragment {
-  0% { opacity: 0; filter: blur(13px) saturate(0.18) brightness(0.42); }
-  26% { opacity: 0.7; }
-  68% { opacity: 0.92; filter: blur(2.8px) saturate(0.38) brightness(0.72); }
-  100% { opacity: 0.22; filter: blur(0.5px) saturate(0.7) brightness(0.9); transform: translate3d(0, 0, 0) scale(1); }
+@keyframes kisara-found-self-inkwake {
+  0% {
+    opacity: 0;
+    filter: blur(15px) saturate(0.14) brightness(0.38);
+    transform: translate3d(var(--found-drift), 5px, 0) scale(1.035);
+  }
+  24% { opacity: 0.2; }
+  62% {
+    opacity: 0.78;
+    filter: blur(4px) saturate(0.34) brightness(0.66);
+  }
+  100% {
+    opacity: 0.2;
+    filter: blur(0.6px) saturate(0.66) brightness(0.88);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 @keyframes kisara-found-self-colorwake {

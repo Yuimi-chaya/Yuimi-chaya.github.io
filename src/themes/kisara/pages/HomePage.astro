@@ -2611,7 +2611,6 @@ const gateStyle = [
       let foundSelfSequenceTimer = 0;
       let foundSelfReadyTimer = 0;
       let foundSelfExitTimer = 0;
-      let foundSelfSound = null;
       let foundSelfAudioSuspended = false;
       let renderedHeroAutoplayState = "";
       let renderedPercent = -1;
@@ -13444,14 +13443,6 @@ const gateStyle = [
         }));
       };
 
-      const stopFoundSelfSound = () => {
-        if (!(foundSelfSound instanceof HTMLAudioElement)) return;
-        foundSelfSound.pause();
-        try {
-          foundSelfSound.currentTime = 0;
-        } catch {}
-      };
-
       const settleFoundSelfSequence = () => {
         if (!foundSelfActive || foundSelfState === "leaving" || foundSelfState === "settled") return;
         window.clearTimeout(foundSelfSequenceTimer);
@@ -13504,7 +13495,6 @@ const gateStyle = [
           foundSelfOverlay.classList.add("is-leaving");
         }
         if (foundSelfVideo instanceof HTMLVideoElement) foundSelfVideo.pause();
-        stopFoundSelfSound();
         setFoundSelfMusicSuspended(false);
         foundSelfExitTimer = window.setTimeout(finalizeFoundSelfExit, reducedMotion ? 80 : 1050);
         enterNextPage();
@@ -13516,58 +13506,68 @@ const gateStyle = [
         foundSelfOverlay.setAttribute("aria-hidden", "false");
         foundSelfOverlay.dataset.state = "loading";
         setFoundSelfStatus("MEMORY SEARCH");
+        setFoundSelfMusicSuspended(true);
+
+        let playbackStarted = false;
+        let playbackPending = false;
+        const markPlaybackStarted = () => {
+          if (playbackStarted || !foundSelfActive || foundSelfState === "leaving") return;
+          playbackStarted = true;
+          playbackPending = false;
+          window.clearTimeout(foundSelfReadyTimer);
+          foundSelfReadyTimer = 0;
+          foundSelfState = "playing";
+          foundSelfOverlay.dataset.state = "playing";
+          foundSelfOverlay.classList.add("is-running", "is-media-ready");
+          setFoundSelfStatus("MEMORY PLAYBACK");
+          if (foundSelfAnnouncer) foundSelfAnnouncer.textContent = "记忆正在自动回放。播放期间滚轮输入已锁定。";
+          foundSelfSequenceTimer = window.setTimeout(settleFoundSelfSequence, 26_500);
+        };
+
+        const requestFoundSelfPlayback = () => {
+          if (playbackStarted || playbackPending || !foundSelfActive || foundSelfState === "leaving") return;
+          if (!(foundSelfVideo instanceof HTMLVideoElement)) {
+            markPlaybackStarted();
+            return;
+          }
+          playbackPending = true;
+          try {
+            foundSelfVideo.currentTime = 0;
+          } catch {}
+          foundSelfVideo.muted = false;
+          foundSelfVideo.volume = 0.82;
+          Promise.resolve(foundSelfVideo.play()).then(markPlaybackStarted).catch(() => {
+            playbackPending = false;
+            setFoundSelfStatus("MEMORY SIGNAL");
+          });
+        };
 
         if (foundSelfVideo instanceof HTMLVideoElement) {
           if (foundSelfVideo.dataset.poster) foundSelfVideo.poster = foundSelfVideo.dataset.poster;
           if (foundSelfVideo.dataset.src) foundSelfVideo.src = foundSelfVideo.dataset.src;
           foundSelfVideo.load();
           foundSelfVideo.addEventListener("playing", () => {
-            foundSelfOverlay.classList.add("is-media-ready");
+            markPlaybackStarted();
           }, { once: true, signal });
           foundSelfVideo.addEventListener("ended", () => {
             foundSelfOverlay.classList.add("is-holding");
+            settleFoundSelfSequence();
           }, { once: true, signal });
         }
 
-        foundSelfSound = new Audio("/themes/kisara/audio/found-self-se.mp3");
-        foundSelfSound.preload = "auto";
-        foundSelfSound.volume = 0.58;
-        foundSelfSound.addEventListener("ended", settleFoundSelfSequence, { once: true, signal });
-        foundSelfSound.load();
-
-        let started = false;
-        const begin = () => {
-          if (started || !foundSelfActive || foundSelfState === "leaving") return;
-          started = true;
-          window.clearTimeout(foundSelfReadyTimer);
-          foundSelfReadyTimer = 0;
-          foundSelfState = "playing";
-          foundSelfOverlay.dataset.state = "playing";
-          foundSelfOverlay.classList.add("is-running");
-          setFoundSelfStatus("MEMORY PLAYBACK");
-          if (foundSelfAnnouncer) foundSelfAnnouncer.textContent = "记忆正在自动回放。播放期间滚轮输入已锁定。";
-          setFoundSelfMusicSuspended(true);
-          if (foundSelfVideo instanceof HTMLVideoElement) {
-            try {
-              foundSelfVideo.currentTime = 0;
-            } catch {}
-            Promise.resolve(foundSelfVideo.play()).catch(() => {
-              foundSelfOverlay.classList.add("is-holding");
-            });
-          }
-          Promise.resolve(foundSelfSound?.play()).catch(() => {
-            setFoundSelfStatus("MEMORY SIGNAL");
-          });
-          foundSelfSequenceTimer = window.setTimeout(settleFoundSelfSequence, 13_650);
-        };
         const mediaReady = () => {
           const videoReady = !(foundSelfVideo instanceof HTMLVideoElement) || foundSelfVideo.readyState >= 2;
-          const soundReady = !(foundSelfSound instanceof HTMLAudioElement) || foundSelfSound.readyState >= 2;
-          if (videoReady && soundReady) begin();
+          if (videoReady) requestFoundSelfPlayback();
         };
         foundSelfVideo?.addEventListener("canplay", mediaReady, { signal });
-        foundSelfSound.addEventListener("canplay", mediaReady, { signal });
-        foundSelfReadyTimer = window.setTimeout(begin, 1200);
+        foundSelfReadyTimer = window.setTimeout(requestFoundSelfPlayback, 1200);
+        const retryFoundSelfPlayback = () => {
+          if (!playbackStarted) requestFoundSelfPlayback();
+        };
+        window.addEventListener("pointerdown", retryFoundSelfPlayback, { passive: true, signal });
+        window.addEventListener("touchend", retryFoundSelfPlayback, { passive: true, signal });
+        window.addEventListener("keydown", retryFoundSelfPlayback, { signal });
+        window.addEventListener("wheel", retryFoundSelfPlayback, { passive: true, signal });
         mediaReady();
       };
 
@@ -14132,7 +14132,6 @@ const gateStyle = [
         foundSelfReadyTimer = 0;
         foundSelfSequenceTimer = 0;
         foundSelfExitTimer = 0;
-        stopFoundSelfSound();
         setFoundSelfMusicSuspended(false);
         foundSelfActive = false;
         foundSelfState = "inactive";
