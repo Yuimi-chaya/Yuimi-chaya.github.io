@@ -2748,6 +2748,19 @@ const gateStyle = [
       let poseClock = 0;
       let poseAtRest = true;
       let chargeInstability = 0;
+      let sceneBreathClock = performance.now() / 1000;
+      let sceneBreathTimestamp = 0;
+      const readSceneBreathClock = (timestamp, advance) => {
+        if (!advance) return sceneBreathClock;
+        if (sceneBreathTimestamp > 0) {
+          sceneBreathClock += clamp((timestamp - sceneBreathTimestamp) / 1000, 0, 0.06);
+        }
+        sceneBreathTimestamp = timestamp;
+        return sceneBreathClock;
+      };
+      const pauseSceneBreathClock = () => {
+        sceneBreathTimestamp = 0;
+      };
       const makeMotionPhases = () => ({
         floatPrimary: 0,
         floatSecondary: 1.7,
@@ -9347,7 +9360,7 @@ const gateStyle = [
           0,
           1
         ));
-        const sceneClock = timestamp / 1000;
+        const sceneClock = readSceneBreathClock(timestamp, advanceCharge);
         const sceneBreathX = (
           Math.sin(sceneClock * 0.44) * 4.8
           + Math.sin(sceneClock * 0.17 + 1.35) * 2.45
@@ -12448,6 +12461,7 @@ const gateStyle = [
       const startEnergyAnimation = () => {
         if (!energyContext || pageMode !== "gate" || energyLoopActive) return;
         energyLoopActive = true;
+        pauseSceneBreathClock();
         if (reducedMotion) {
           drawEnergy(performance.now());
           return;
@@ -13270,6 +13284,7 @@ const gateStyle = [
         energyFrame = 0;
         energyTimer = 0;
         energyLoopActive = false;
+        pauseSceneBreathClock();
         lastFrameTime = 0;
         targetProgress = 0;
         progress = 0;
@@ -13398,6 +13413,7 @@ const gateStyle = [
           syncOpeningEdgeLiveGeometry(true);
           lockOpeningEdgeState();
           gateVisualResetPending = true;
+          if (foundSelfState === "leaving") finalizeFoundSelfExit();
         }, () => {
           syncOpeningEdgeLiveGeometry(true);
         }, "forward");
@@ -13496,7 +13512,8 @@ const gateStyle = [
         }
         if (foundSelfVideo instanceof HTMLVideoElement) foundSelfVideo.pause();
         setFoundSelfMusicSuspended(false);
-        foundSelfExitTimer = window.setTimeout(finalizeFoundSelfExit, reducedMotion ? 80 : 1050);
+        // The scroll completion owns the handoff; this is only a stalled-transition fallback.
+        foundSelfExitTimer = window.setTimeout(finalizeFoundSelfExit, reducedMotion ? 160 : 2400);
         enterNextPage();
       };
 
@@ -14101,6 +14118,7 @@ const gateStyle = [
           energyFrame = 0;
           energyTimer = 0;
           energyLoopActive = false;
+          pauseSceneBreathClock();
           screenParticleTimestamp = 0;
           lastEnergyPaintTimestamp = 0;
           energyFlowTimestamp = 0;
