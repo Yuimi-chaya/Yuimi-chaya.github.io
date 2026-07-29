@@ -2,7 +2,8 @@ export const site = {
   name: "Yuimi Lab",
   title: "Yuimi Lab | Anime x Code",
   description: "一个混合二次元审美与技术开发记录的个人博客。",
-  author: "Yuimi-chaya",
+  author: "喝益胃 / Yuimi-chaya",
+  keywords: ["喝益胃", "Yuimi-chaya", "Yuimi Lab", "个人博客", "二次元", "技术开发", "Astro"],
   nav: [
     { href: "/", label: "HOME", icon: "tabler:home-heart", hint: "front page" },
     { href: "/blog/", label: "BLOG", icon: "tabler:book-2", hint: "notes" },

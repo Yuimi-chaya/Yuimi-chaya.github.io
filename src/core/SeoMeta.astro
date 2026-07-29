@@ -1,0 +1,102 @@
+---
+import { profileIdentity } from "@/core/data/profile";
+import { site } from "@/lib/site";
+
+interface Props {
+  title: string;
+  description: string;
+  canonical: URL;
+  isArticlePage?: boolean;
+}
+
+const { title, description, canonical, isArticlePage = false } = Astro.props;
+const siteRoot = new URL("/", Astro.site ?? canonical);
+const canonicalUrl = canonical.toString();
+const canonicalPath = canonical.pathname.replace(/\/+$/, "") || "/";
+const authorLabel = `${profileIdentity.displayName} / ${profileIdentity.handle}`;
+const personUrl = new URL("/about/", siteRoot).toString();
+const personId = new URL("/#person", siteRoot).toString();
+const websiteId = new URL("/#website", siteRoot).toString();
+const pageId = `${canonicalUrl}#webpage`;
+const profileImage = new URL("/themes/kisara/assets/profile.webp", siteRoot).toString();
+const isHome = canonicalPath === "/";
+const isProfile = canonicalPath === "/about";
+const openGraphType = isArticlePage ? "article" : isProfile ? "profile" : "website";
+
+const personNode = {
+  "@type": "Person",
+  "@id": personId,
+  name: profileIdentity.displayName,
+  alternateName: [profileIdentity.handle],
+  url: personUrl,
+  image: profileImage,
+  description: profileIdentity.bio,
+  sameAs: [profileIdentity.github, profileIdentity.bilibili]
+};
+
+const pageNode = isProfile
+  ? {
+      "@type": "ProfilePage",
+      "@id": pageId,
+      url: canonicalUrl,
+      name: title,
+      description,
+      inLanguage: "zh-CN",
+      isPartOf: { "@id": websiteId },
+      mainEntity: { "@id": personId }
+    }
+  : {
+      "@type": "WebPage",
+      "@id": pageId,
+      url: canonicalUrl,
+      name: title,
+      description,
+      inLanguage: "zh-CN",
+      isPartOf: { "@id": websiteId },
+      author: { "@id": personId }
+    };
+
+const graph = [
+  personNode,
+  ...(isHome
+    ? [
+        {
+          "@type": "WebSite",
+          "@id": websiteId,
+          url: siteRoot.toString(),
+          name: site.name,
+          alternateName: [profileIdentity.handle, profileIdentity.displayName],
+          description: site.description,
+          inLanguage: "zh-CN",
+          author: { "@id": personId },
+          publisher: { "@id": personId }
+        }
+      ]
+    : []),
+  pageNode
+];
+
+const structuredData = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": graph
+}).replace(/</g, "\\u003c");
+---
+
+<meta name="description" content={description} />
+<meta name="author" content={authorLabel} />
+<meta name="creator" content={authorLabel} />
+<meta name="publisher" content={site.name} />
+<meta name="keywords" content={site.keywords.join(", ")} />
+<meta name="application-name" content={site.name} />
+<meta property="og:locale" content="zh_CN" />
+<meta property="og:type" content={openGraphType} />
+<meta property="og:site_name" content={site.name} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonicalUrl} />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+{isArticlePage && <meta property="article:author" content={personUrl} />}
+<link rel="author" href={personUrl} />
+<script type="application/ld+json" set:html={structuredData}></script>
