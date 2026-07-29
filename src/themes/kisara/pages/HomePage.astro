@@ -217,31 +217,34 @@ const gateStyle = [
     <script type="application/json" data-kisara-scene-manifest set:html={JSON.stringify(gateSceneManifest)}></script>
     <div class="kisara-gate-visual-shell" aria-hidden="true">
       <div class="kisara-gate-visual-camera">
-        <div class="kisara-gate-visual">
-          <div class="kisara-gate-background kisara-gate-background-base"></div>
-          <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="0"></div>
-          <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="1"></div>
-          <div class="kisara-gate-background kisara-gate-background-fight"></div>
-          <div class="kisara-memory-flare"></div>
-          <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
-          <div class="kisara-gate-atmosphere"></div>
+        <div class="kisara-gate-bridge-underlay"></div>
+        <div class="kisara-gate-bridge-current">
+          <div class="kisara-gate-visual">
+            <div class="kisara-gate-background kisara-gate-background-base"></div>
+            <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="0"></div>
+            <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="1"></div>
+            <div class="kisara-gate-background kisara-gate-background-fight"></div>
+            <div class="kisara-memory-flare"></div>
+            <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
+            <div class="kisara-gate-atmosphere"></div>
+          </div>
+          <canvas
+            class="kisara-space-lens-canvas"
+            data-kisara-space-lens
+            data-base-src={activeBackgroundUrl ?? ""}
+            data-pre-release-src={activeTransformationUrl ?? activeBackgroundUrl ?? ""}
+            data-fight-src={activeFightUrl ?? ""}
+            width="1280"
+            height="900"
+          ></canvas>
+          <canvas
+            class="kisara-post-release-canvas"
+            data-kisara-post-release-canvas
+            data-fight-src={activeFightUrl ?? ""}
+            width="1280"
+            height="900"
+          ></canvas>
         </div>
-        <canvas
-          class="kisara-space-lens-canvas"
-          data-kisara-space-lens
-          data-base-src={activeBackgroundUrl ?? ""}
-          data-pre-release-src={activeTransformationUrl ?? activeBackgroundUrl ?? ""}
-          data-fight-src={activeFightUrl ?? ""}
-          width="1280"
-          height="900"
-        ></canvas>
-        <canvas
-          class="kisara-post-release-canvas"
-          data-kisara-post-release-canvas
-          data-fight-src={activeFightUrl ?? ""}
-          width="1280"
-          height="900"
-        ></canvas>
       </div>
     </div>
     <KisaraFoundSelfEasterEgg />
@@ -2085,6 +2088,24 @@ const gateStyle = [
         openingBridgePortalActive = false;
         openingEdgeLiveSyncTimestamp = 0;
       };
+      const startOpeningBridgeDissolve = () => {
+        if (openingBridgeHandoffFrame) window.cancelAnimationFrame(openingBridgeHandoffFrame);
+        openingBridgeHandoffFrame = 0;
+        gate.classList.remove("is-opening-bridge-handoff");
+        gate.classList.add("is-opening-bridge-dissolving");
+      };
+      const settleOpeningBridgeDissolve = () => {
+        if (openingBridgeHandoffFrame) window.cancelAnimationFrame(openingBridgeHandoffFrame);
+        openingBridgeHandoffFrame = 0;
+        gate.classList.add("is-opening-bridge-handoff");
+        gate.classList.remove("is-opening-bridge-dissolving");
+        void gate.offsetWidth;
+        openingBridgeHandoffFrame = window.requestAnimationFrame(() => {
+          openingBridgeHandoffFrame = 0;
+          if (disposed) return;
+          gate.classList.remove("is-opening-bridge-handoff");
+        });
+      };
       const renderLegacyChargeBeam = false;
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
@@ -2732,6 +2753,7 @@ const gateStyle = [
       let layoutResizeFrame = 0;
       let restoreSyncTimer = 0;
       let openingBridgeRecoveryFrame = 0;
+      let openingBridgeHandoffFrame = 0;
       let openingBridgeRecoveryPending = restoredBelowGate;
       let openingBridgeResumeLive = false;
       let restoreWindowOpen = true;
@@ -13153,6 +13175,7 @@ const gateStyle = [
         resetGateState();
         lockOpeningEdgeState();
         scheduleOpeningEdgeTextureRefresh();
+        settleOpeningBridgeDissolve();
         openingBridgeRecoveryPending = false;
         return false;
       };
@@ -13394,6 +13417,7 @@ const gateStyle = [
         releaseOpeningEdgeState();
         resetGateState();
         lockOpeningEdgeState();
+        settleOpeningBridgeDissolve();
       };
 
       const enterNextPage = () => {
@@ -13406,6 +13430,7 @@ const gateStyle = [
         syncOpeningEdgeLiveGeometry(true);
         primeCurrentOpeningEdgeTextures();
         activateOpeningBridgePortal();
+        startOpeningBridgeDissolve();
         const started = smoothScrollTo(getNextPageTop(), () => {
           pageMode = "next";
           lastObservedScrollY = window.scrollY;
@@ -13420,6 +13445,7 @@ const gateStyle = [
         if (!started) {
           pageMode = "gate";
           deactivateOpeningBridgePortal();
+          settleOpeningBridgeDissolve();
         }
       };
 
@@ -13436,6 +13462,7 @@ const gateStyle = [
         // Paint the blue bridge state once, then keep it live for the next run.
         lockOpeningEdgeState();
         releaseOpeningEdgeState();
+        settleOpeningBridgeDissolve();
         gateReturnGuardUntil = performance.now() + 120;
         scheduleWarningWarmup(true);
         if (gateReturnResetFrame) window.cancelAnimationFrame(gateReturnResetFrame);
@@ -14192,6 +14219,7 @@ const gateStyle = [
         if (energyTimer) window.clearTimeout(energyTimer);
         if (restoreSyncTimer) window.clearTimeout(restoreSyncTimer);
         if (openingBridgeRecoveryFrame) window.cancelAnimationFrame(openingBridgeRecoveryFrame);
+        if (openingBridgeHandoffFrame) window.cancelAnimationFrame(openingBridgeHandoffFrame);
         if (homeSectionWheelTimer) window.clearTimeout(homeSectionWheelTimer);
         if (homeGateReturnTimer) window.clearTimeout(homeGateReturnTimer);
         if (warningWarmupHandle) {
@@ -14217,10 +14245,12 @@ const gateStyle = [
         energyTimer = 0;
         restoreSyncTimer = 0;
         openingBridgeRecoveryFrame = 0;
+        openingBridgeHandoffFrame = 0;
         openingBridgeResumeLive = false;
         homeSectionWheelTimer = 0;
         homeGateReturnTimer = 0;
         opening?.classList.remove("is-gate-return-armed");
+        gate.classList.remove("is-opening-bridge-dissolving", "is-opening-bridge-handoff");
         warningWarmupHandle = 0;
         warningWarmupReleaseFrame = 0;
         warningWarmupScheduled = false;
