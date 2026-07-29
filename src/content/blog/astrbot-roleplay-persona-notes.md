@@ -20,7 +20,7 @@ category: "tech"
 
 ---
 
-下面是我整理出来的 roleplay-prompt-design-helper skill，直接按原文代码块样式展示，后面写人设提示词时可以直接拿来当骨架。
+下面是我整理出来的 roleplay-prompt-design-helper skill，直接按原文代码块样式展示，后面写人设提示词时可以直接拿来当骨架
 
 <pre class="skill-terminal"><code class="language-md">---
 name: roleplay-prompt-design-helper

@@ -1293,9 +1293,10 @@
 
 ### 2026-07-29 Blog short-sentence punctuation pass
 
-- All nine published Markdown articles received a controlled prose cleanup to reduce the repetitive full-stop cadence associated with generated writing. Short body lines, compact list items, short blockquotes, and bold inline labels no longer end with `。`; long paragraphs retain their internal sentence boundaries.
-- Frontmatter, headings, fenced code, paths, commands, URLs, and article wording remain unchanged. A byte-level comparison against `HEAD` confirmed that the only content removed was `221` Chinese full stops. No remaining `。` before Chinese or ASCII closing quotation marks was found.
-- `npm test` passes 3/3 and `npm run build` passes with 45 generated pages and a 46-page Pagefind index.
+- The original pass removed `221` Chinese full stops, but its visible-character threshold was incomplete: longer list items and lines ending after inline-code or other Markdown wrappers could retain a final `。`, producing inconsistent punctuation inside the same list. That length-based rule is superseded and must not be reused.
+- The follow-up uses Markdown block semantics instead. Every list item and blockquote now drops only its terminal Chinese full stop, while an ordinary standalone paragraph drops it only when no earlier `。` exists in that block. Long multi-sentence paragraphs retain all internal boundaries and their final punctuation.
+- The structural follow-up removed another `88` full stops across eight affected articles. A diff audit confirmed that every changed line differs only by one removed `。`; a second scan found no terminal full stops remaining on list items, blockquotes, or single-sentence prose blocks. Frontmatter, headings, fenced code, paths, commands, URLs, wording, BOM state, and existing CRLF/LF style remain unchanged.
+- `git diff --check` reports no patch errors and `npm test` passes 3/3. The earlier full production build remains valid because this follow-up changes punctuation only; no new build was run for the content-only correction.
 
 ### 2026-07-29 Kisara Me epilogue audio and one-shot memory track
 

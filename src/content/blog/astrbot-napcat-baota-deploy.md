@@ -12,7 +12,7 @@ category: "tech"
 作者：**喝益胃 / Yuimi-chaya**  
 Bilibili 主页：<https://space.bilibili.com/494350222>
 
-> 创作声明：本文由作者提供实践经验与截图，并使用 AI 辅助整理、改写和排版。教程内容会尽量保持清晰准确，但 AstrBot、NapCat、宝塔面板和各云厂商界面可能随版本变化，请以实际页面和官方文档为准。
+> 创作声明：本文由作者提供实践经验与截图，并使用 AI 辅助整理、改写和排版。教程内容会尽量保持清晰准确，但 AstrBot、NapCat、宝塔面板和各云厂商界面可能随版本变化，请以实际页面和官方文档为准
 
 ## 这篇教程能做什么
 
@@ -55,7 +55,7 @@ token、API Key、服务器 IP、QQ 账号都不要公开
 | `3000 / 3001` | NapCat 容器端口 | 按截图保留 | 用于 NapCat 容器内部服务，手动创建容器时按截图映射即可 |
 | `6199` | AstrBot OneBot v11 反向 WebSocket | QQ 对接需要 | NapCat 会通过 `ws://服务器IP:6199/ws` 连接到 AstrBot |
 
-> 注意：云服务商安全组和宝塔系统防火墙是两层东西。只在宝塔里放行不一定够，云服务器控制台里的安全组也要放行。
+> 注意：云服务商安全组和宝塔系统防火墙是两层东西。只在宝塔里放行不一定够，云服务器控制台里的安全组也要放行
 
 ## 1. 放行云服务器安全组端口
 
@@ -134,11 +134,11 @@ networks:
     external: true
 ```
 
-> 如果模板中的 `bot` 网络在服务器上不存在，需要先创建，或者把 `networks` 部分改成你实际使用的 Docker 网络。
+> 如果模板中的 `bot` 网络在服务器上不存在，需要先创建，或者把 `networks` 部分改成你实际使用的 Docker 网络
 
 ## 4. 放行并登录 AstrBot WebUI
 
-在宝塔左侧点击“安全”，添加系统防火墙规则，放行 AstrBot WebUI 默认端口 `6185`。
+在宝塔左侧点击“安全”，添加系统防火墙规则，放行 AstrBot WebUI 默认端口 `6185`
 
 ![宝塔放行 6185 端口](/blog-assets/astrbot-napcat-baota/09-baota-open-6185.webp)
 
@@ -215,7 +215,7 @@ token 正确时会进入 NapCat 后台。如果提示错误，请重新打开容
 
 ![AstrBot 配置 AI 模型入口](/blog-assets/astrbot-napcat-baota/16-astrbot-model-entry.webp)
 
-新增提供商时可以选择 DeepSeek，也可以选择 OpenAI Compatible 后填写兼容地址。
+新增提供商时可以选择 DeepSeek，也可以选择 OpenAI Compatible 后填写兼容地址
 
 ![AstrBot 选择模型提供商](/blog-assets/astrbot-napcat-baota/17-astrbot-provider-select.webp)
 
@@ -238,7 +238,7 @@ API Key 只复制一次就要保存好，不要发到群里，也不要放到公
 
 ![DeepSeek 复制 API Key](/blog-assets/astrbot-napcat-baota/19-deepseek-copy-key.webp)
 
-回到 AstrBot，在模型提供方里填入刚才复制的 API Key，确认 API Base URL 正确。
+回到 AstrBot，在模型提供方里填入刚才复制的 API Key，确认 API Base URL 正确
 
 ![AstrBot 填入 API Key](/blog-assets/astrbot-napcat-baota/20-astrbot-api-key.webp)
 
@@ -266,7 +266,7 @@ API Key 只复制一次就要保存好，不要发到群里，也不要放到公
 
 ### 在 AstrBot 中创建 OneBot v11
 
-进入 AstrBot WebUI，点击左侧“机器人”，创建一个 OneBot v11 / aiocqhttp 机器人。
+进入 AstrBot WebUI，点击左侧“机器人”，创建一个 OneBot v11 / aiocqhttp 机器人
 
 建议这样填：
 
@@ -307,7 +307,7 @@ ws://astrbot:6199/ws
 ws://宿主机IP:6199/ws
 ```
 
-回到 AstrBot 控制台或平台日志，看到 OneBot v11 / aiocqhttp 适配器已连接，就说明 NapCat 已经连上 AstrBot。
+回到 AstrBot 控制台或平台日志，看到 OneBot v11 / aiocqhttp 适配器已连接，就说明 NapCat 已经连上 AstrBot
 
 ![AstrBot 显示 NapCat 已连接](/blog-assets/astrbot-napcat-baota/27-astrbot-napcat-connected-log.webp)
 
@@ -344,7 +344,7 @@ AstrBot 日志显示收到事件、调用模型并发送消息
 
 ![AstrBot 收发消息日志](/blog-assets/astrbot-napcat-baota/30-astrbot-message-log.webp)
 
-只要 QQ 端能看到回复，NapCat 日志有收发记录，AstrBot 日志有事件和发送记录，三者同时成立时，部署、连接和测试这条链路就基本完成了。
+只要 QQ 端能看到回复，NapCat 日志有收发记录，AstrBot 日志有事件和发送记录，三者同时成立时，部署、连接和测试这条链路就基本完成了
 
 ## 完成检查清单
 
@@ -376,11 +376,11 @@ AstrBot 日志显示收到事件、调用模型并发送消息
 
 ### AstrBot 收不到 QQ 消息
 
-检查 NapCat 网络配置 URL，`6199` 是否暴露，AstrBot OneBot v11 是否启用。
+检查 NapCat 网络配置 URL，`6199` 是否暴露，AstrBot OneBot v11 是否启用
 
 ### 模型配置后不回复
 
-检查 API Key、余额、Base URL、模型名；先在 AstrBot WebUI 里单独测试模型。
+检查 API Key、余额、Base URL、模型名；先在 AstrBot WebUI 里单独测试模型
 
 ### Docker 内互联失败
 
