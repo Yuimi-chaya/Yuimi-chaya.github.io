@@ -287,40 +287,43 @@ const gateStyle = [
         <span class="kisara-cross-core"></span>
       </i>
     </div>
-    <h1 class="kisara-title" aria-label="Kisara">
-      <canvas
-        class="kisara-title-chain-canvas kisara-title-chain-canvas-back"
-        data-kisara-chain-back
-        width="1400"
-        height="420"
-        aria-hidden="true"
-      ></canvas>
-      <span class="kisara-title-base" aria-hidden="true">Kisara</span>
-      <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
-      <canvas
-        class="kisara-title-chain-canvas kisara-title-chain-canvas-front"
-        data-kisara-chain-front
-        width="1400"
-        height="420"
-        aria-hidden="true"
-      ></canvas>
-      <span class="kisara-title-enchant" aria-hidden="true">Kisara</span>
-      <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
-      <canvas
-        class="kisara-title-data-canvas"
-        data-kisara-title-data
-        width="1200"
-        height="320"
-        aria-hidden="true"
-      ></canvas>
-      <canvas
-        class="kisara-title-lens-canvas"
-        data-kisara-title-lens
-        width="1200"
-        height="260"
-        aria-hidden="true"
-      ></canvas>
-    </h1>
+    <div class="kisara-title-stage">
+      <span class="kisara-title-reset-underlay kisara-title-base" aria-hidden="true">Kisara</span>
+      <h1 class="kisara-title" aria-label="Kisara">
+        <canvas
+          class="kisara-title-chain-canvas kisara-title-chain-canvas-back"
+          data-kisara-chain-back
+          width="1400"
+          height="420"
+          aria-hidden="true"
+        ></canvas>
+        <span class="kisara-title-base" aria-hidden="true">Kisara</span>
+        <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
+        <canvas
+          class="kisara-title-chain-canvas kisara-title-chain-canvas-front"
+          data-kisara-chain-front
+          width="1400"
+          height="420"
+          aria-hidden="true"
+        ></canvas>
+        <span class="kisara-title-enchant" aria-hidden="true">Kisara</span>
+        <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
+        <canvas
+          class="kisara-title-data-canvas"
+          data-kisara-title-data
+          width="1200"
+          height="320"
+          aria-hidden="true"
+        ></canvas>
+        <canvas
+          class="kisara-title-lens-canvas"
+          data-kisara-title-lens
+          width="1200"
+          height="260"
+          aria-hidden="true"
+        ></canvas>
+      </h1>
+    </div>
     <div class="kisara-contract-meter" aria-hidden="true">
       <canvas class="kisara-energy-canvas" data-kisara-energy width="640" height="64"></canvas>
     </div>
@@ -2106,6 +2109,107 @@ const gateStyle = [
           gate.classList.remove("is-opening-bridge-handoff");
         });
       };
+      const setOpeningTitleBridgePresentation = (
+        currentOpacity,
+        underlayOpacity,
+        blur,
+        saturation
+      ) => {
+        setRuntimeStyle(gate, "--kisara-title-return-current-opacity", currentOpacity.toFixed(4));
+        setRuntimeStyle(gate, "--kisara-title-return-underlay-opacity", underlayOpacity.toFixed(4));
+        setRuntimeStyle(gate, "--kisara-title-return-blur", `${blur.toFixed(3)}px`);
+        setRuntimeStyle(gate, "--kisara-title-return-saturation", saturation.toFixed(4));
+      };
+      const setOpeningTitleBridgeProgress = (value) => {
+        const dissolve = smootherstep(clamp(value, 0, 1));
+        const currentOpacity = 1 - dissolve;
+        const underlayOpacity = smootherstep(clamp((dissolve - 0.1) / 0.9, 0, 1));
+        const blur = Math.sin(dissolve * Math.PI) * 1.15 + dissolve * 0.35;
+        const saturation = 1 - dissolve * 0.24;
+        setOpeningTitleBridgePresentation(
+          currentOpacity,
+          underlayOpacity,
+          blur,
+          saturation
+        );
+      };
+      const resetOpeningTitleBridgePresentation = () => {
+        setOpeningTitleBridgePresentation(1, 0, 0, 1);
+      };
+      const clearOpeningTitleBridgeDissolve = () => {
+        if (openingTitleBridgeHandoffFrame) {
+          window.cancelAnimationFrame(openingTitleBridgeHandoffFrame);
+        }
+        openingTitleBridgeHandoffFrame = 0;
+        openingTitleBridgeActive = false;
+        gate.classList.remove(
+          "is-opening-title-bridge-dissolving",
+          "is-opening-title-bridge-handoff"
+        );
+        resetOpeningTitleBridgePresentation();
+      };
+      const startOpeningTitleBridgeDissolve = () => {
+        if (openingTitleBridgeHandoffFrame) {
+          window.cancelAnimationFrame(openingTitleBridgeHandoffFrame);
+        }
+        openingTitleBridgeHandoffFrame = 0;
+        openingTitleBridgeActive = true;
+        gate.classList.remove("is-opening-title-bridge-handoff");
+        gate.classList.add("is-opening-title-bridge-dissolving");
+        setOpeningTitleBridgeProgress(0);
+      };
+      const updateOpeningTitleBridgeDissolve = (journeyProgress) => {
+        if (!openingTitleBridgeActive) return;
+        const dissolve = clamp((journeyProgress - 0.48) / 0.46, 0, 1);
+        setOpeningTitleBridgeProgress(dissolve);
+      };
+      const settleOpeningTitleBridgeDissolve = () => {
+        if (openingTitleBridgeHandoffFrame) {
+          window.cancelAnimationFrame(openingTitleBridgeHandoffFrame);
+        }
+        openingTitleBridgeHandoffFrame = 0;
+        if (!openingTitleBridgeActive) {
+          gate.classList.remove(
+            "is-opening-title-bridge-dissolving",
+            "is-opening-title-bridge-handoff"
+          );
+          resetOpeningTitleBridgePresentation();
+          return;
+        }
+
+        setOpeningTitleBridgeProgress(1);
+        openingTitleBridgeActive = false;
+        gate.classList.add("is-opening-title-bridge-handoff");
+        gate.classList.remove("is-opening-title-bridge-dissolving");
+        void gate.offsetWidth;
+        if (reducedMotion) {
+          resetOpeningTitleBridgePresentation();
+          gate.classList.remove("is-opening-title-bridge-handoff");
+          return;
+        }
+
+        const revealStartedAt = performance.now();
+        const revealDuration = 460;
+        const reveal = (timestamp) => {
+          if (disposed) return;
+          const progress = smootherstep(clamp((timestamp - revealStartedAt) / revealDuration, 0, 1));
+          const underlayFade = smootherstep(clamp((progress - 0.48) / 0.52, 0, 1));
+          setOpeningTitleBridgePresentation(
+            progress,
+            1 - underlayFade,
+            (1 - progress) * 0.42,
+            0.76 + progress * 0.24
+          );
+          if (progress < 1) {
+            openingTitleBridgeHandoffFrame = window.requestAnimationFrame(reveal);
+            return;
+          }
+          openingTitleBridgeHandoffFrame = 0;
+          resetOpeningTitleBridgePresentation();
+          gate.classList.remove("is-opening-title-bridge-handoff");
+        };
+        openingTitleBridgeHandoffFrame = window.requestAnimationFrame(reveal);
+      };
       const renderLegacyChargeBeam = false;
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
@@ -2754,6 +2858,8 @@ const gateStyle = [
       let restoreSyncTimer = 0;
       let openingBridgeRecoveryFrame = 0;
       let openingBridgeHandoffFrame = 0;
+      let openingTitleBridgeHandoffFrame = 0;
+      let openingTitleBridgeActive = false;
       let openingBridgeRecoveryPending = restoredBelowGate;
       let openingBridgeResumeLive = false;
       let restoreWindowOpen = true;
@@ -7022,11 +7128,12 @@ const gateStyle = [
           left: meterShell?.offsetLeft ?? (width - Math.min(620, width * 0.78)) / 2,
           top: meterShell?.offsetTop ?? height * 0.58
         };
+        const titleRect = title?.getBoundingClientRect();
         titleLayout = {
-          width: title?.offsetWidth || Math.min(width * 0.82, 880),
-          height: title?.offsetHeight || Math.min(height * 0.24, 190),
-          left: title?.offsetLeft ?? width * 0.09,
-          top: title?.offsetTop ?? height * 0.28
+          width: titleRect?.width || Math.min(width * 0.82, 880),
+          height: titleRect?.height || Math.min(height * 0.24, 190),
+          left: titleRect ? titleRect.left - rect.left : width * 0.09,
+          top: titleRect ? titleRect.top - rect.top : height * 0.28
         };
       };
 
@@ -13171,6 +13278,7 @@ const gateStyle = [
 
         deactivateOpeningBridgePortal();
         gateVisualResetPending = false;
+        clearOpeningTitleBridgeDissolve();
         releaseOpeningEdgeState();
         resetGateState();
         lockOpeningEdgeState();
@@ -13410,10 +13518,21 @@ const gateStyle = [
         render();
       };
 
+      const hasGateTitleVisualState = () => gateVisualResetPending
+        || targetProgress > 0.0005
+        || progress > 0.0005
+        || targetBurstProgress > 0.0005
+        || burstProgress > 0.0005
+        || chargeIntroProgress > 0.0005
+        || chargeIntroActive
+        || chargeIntroComplete
+        || releaseMode !== "manual";
+
       const finalizeGateResetForNextPage = () => {
         if (!gateVisualResetPending) return;
         gateVisualResetPending = false;
         deactivateOpeningBridgePortal();
+        clearOpeningTitleBridgeDissolve();
         releaseOpeningEdgeState();
         resetGateState();
         lockOpeningEdgeState();
@@ -13423,6 +13542,7 @@ const gateStyle = [
       const enterNextPage = () => {
         if (scrollTransitionDirection === "forward") return;
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
+        clearOpeningTitleBridgeDissolve();
         pageMode = "snap";
         gateReturnGuardUntil = 0;
         setPostReleaseActive(false);
@@ -13452,6 +13572,11 @@ const gateStyle = [
       const completeGateReturn = () => {
         clearHomeGateReturnArm();
         finishHomeSectionReplayReset();
+        const shouldDissolveTitleReset = openingTitleBridgeActive || hasGateTitleVisualState();
+        if (shouldDissolveTitleReset && !openingTitleBridgeActive) {
+          startOpeningTitleBridgeDissolve();
+        }
+        if (openingTitleBridgeActive) setOpeningTitleBridgeProgress(1);
         gateVisualResetPending = false;
         deactivateOpeningBridgePortal();
         releaseOpeningEdgeState();
@@ -13463,7 +13588,8 @@ const gateStyle = [
         lockOpeningEdgeState();
         releaseOpeningEdgeState();
         settleOpeningBridgeDissolve();
-        gateReturnGuardUntil = performance.now() + 120;
+        settleOpeningTitleBridgeDissolve();
+        gateReturnGuardUntil = performance.now() + (reducedMotion ? 120 : 480);
         scheduleWarningWarmup(true);
         if (gateReturnResetFrame) window.cancelAnimationFrame(gateReturnResetFrame);
         gateReturnResetFrame = window.requestAnimationFrame(() => {
@@ -13621,7 +13747,10 @@ const gateStyle = [
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
         pageMode = "snap";
         const returnRailStart = getDocumentScrollProgress();
+        const shouldDissolveTitleReset = hasGateTitleVisualState();
         gateVisualResetPending = false;
+        if (shouldDissolveTitleReset) startOpeningTitleBridgeDissolve();
+        else clearOpeningTitleBridgeDissolve();
         activateOpeningBridgePortal();
         requestHomeSectionReplayReset();
         publishGateRailState({
@@ -13634,6 +13763,7 @@ const gateStyle = [
         const started = smoothScrollTo(0, () => {
           completeGateReturn();
         }, (journeyProgress) => {
+          updateOpeningTitleBridgeDissolve(journeyProgress);
           resetOpeningMemoryWhenCovered();
           publishGateRailState({
             active: true,
@@ -14220,6 +14350,9 @@ const gateStyle = [
         if (restoreSyncTimer) window.clearTimeout(restoreSyncTimer);
         if (openingBridgeRecoveryFrame) window.cancelAnimationFrame(openingBridgeRecoveryFrame);
         if (openingBridgeHandoffFrame) window.cancelAnimationFrame(openingBridgeHandoffFrame);
+        if (openingTitleBridgeHandoffFrame) {
+          window.cancelAnimationFrame(openingTitleBridgeHandoffFrame);
+        }
         if (homeSectionWheelTimer) window.clearTimeout(homeSectionWheelTimer);
         if (homeGateReturnTimer) window.clearTimeout(homeGateReturnTimer);
         if (warningWarmupHandle) {
@@ -14246,11 +14379,19 @@ const gateStyle = [
         restoreSyncTimer = 0;
         openingBridgeRecoveryFrame = 0;
         openingBridgeHandoffFrame = 0;
+        openingTitleBridgeHandoffFrame = 0;
+        openingTitleBridgeActive = false;
         openingBridgeResumeLive = false;
         homeSectionWheelTimer = 0;
         homeGateReturnTimer = 0;
         opening?.classList.remove("is-gate-return-armed");
-        gate.classList.remove("is-opening-bridge-dissolving", "is-opening-bridge-handoff");
+        gate.classList.remove(
+          "is-opening-bridge-dissolving",
+          "is-opening-bridge-handoff",
+          "is-opening-title-bridge-dissolving",
+          "is-opening-title-bridge-handoff"
+        );
+        resetOpeningTitleBridgePresentation();
         warningWarmupHandle = 0;
         warningWarmupReleaseFrame = 0;
         warningWarmupScheduled = false;
