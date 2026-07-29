@@ -1284,3 +1284,9 @@
 - Fourteen newly added JPG source images in the ignored local `文章封面/` directory were prepared as `public/blog-covers/cover-11.webp` through `cover-24.webp`. Existing `cover-01` through `cover-10` and all current article frontmatter remain unchanged; the new covers are an unassigned library for later articles.
 - Assignment follows source addition order: `FE2B... -> 11`, `5438... -> 12`, `8ABA... -> 13`, `C77D... -> 14`, `92C5... -> 15`, `96C0... -> 16`, `1FC0... -> 17`, `73CD... -> 18`, `10D3... -> 19`, `78C9... -> 20`, `3615... -> 21`, `E062... -> 22`, `C807... -> 23`, and `7382... -> 24`.
 - Conversion uses Sharp auto-rotation, WebP quality `82`, effort `6`, smart chroma subsampling, a `1400px` maximum width, and no enlargement. All original aspect ratios are preserved. The fourteen runtime assets total about `2.05MB`, down from about `4.36MB` of source JPEGs (`53%` smaller).
+
+### 2026-07-29 AI emotional attachment article
+
+- Added `src/content/blog/is-it-strange-to-feel-for-ai.md` from the supplied manuscript. The source prose is retained; only the duplicate body-level H1 is omitted because the article layout renders the frontmatter title.
+- The article is categorized as `life`, uses tags `AI`, `LLMRP`, `情感`, `记忆`, and `陪伴`, and assigns the reflective `cover-17.webp` from the newly prepared cover library.
+- `git diff --check`, `npm test` (3/3), and `npm run build` pass. Astro generated 45 pages and Pagefind indexed 46 pages, including the article under default, Blank, and Kisara routes.
