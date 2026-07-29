@@ -30,7 +30,8 @@ export const kisaraSecretAudioTracks = [
     title: "记忆归还",
     src: "/themes/kisara/audio/kioku-kikan.mp3",
     variant: "memory",
-    persistAcrossReload: false
+    persistAcrossReload: false,
+    consumeAfterPlayback: true
   }
 ] as const;
 

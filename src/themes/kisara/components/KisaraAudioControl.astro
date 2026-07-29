@@ -700,6 +700,33 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     audio.addEventListener("error", () => setUiState("error"), { signal });
     audio.addEventListener("ended", () => {
       restoreTime = 0;
+      const endedTrack = activeTrack();
+      if (
+        isSecretTrack(endedTrack)
+        && endedTrack?.consumeAfterPlayback === true
+        && secretSession.playbackMode === "playlist"
+      ) {
+        const nextTrackId = tracks[(trackIndex + 1) % tracks.length]?.id ?? baseTracks[0]?.id;
+        unlockedIds.delete(endedTrack.id);
+        secretSession.unlockedIds = [...unlockedIds];
+        secretSession.unlocked = unlockedIds.size > 0;
+        secretSession.active = false;
+        secretSession.activeTrackId = "";
+        secretSession.secretTime = 0;
+        const nextIndex = tracks.findIndex((track) => track.id === nextTrackId);
+        selectTrack(nextIndex >= 0 ? nextIndex : 0, {
+          time: 0,
+          autoplay: true,
+          secretMode: "playlist"
+        });
+        syncUnlockedSecretTracks();
+        updateTrackUi();
+        persistSecretSession();
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio-consumed", {
+          detail: { trackId: endedTrack.id }
+        }));
+        return;
+      }
       if (isSecretTrack() && secretSession.playbackMode === "interrupt") {
         const normalIndex = baseTracks.findIndex((track) => track.id === secretSession.normalTrackId);
         enabled = secretSession.normalEnabled !== false;

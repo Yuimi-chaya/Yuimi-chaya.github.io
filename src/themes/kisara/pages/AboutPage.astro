@@ -354,7 +354,12 @@ const railScenes = scenes.slice(0, -1);
         inert
       >
         <figure class="kisara-me-epilogue-frame">
-          <div class="kisara-me-epilogue-image">
+          <button
+            class="kisara-me-epilogue-image"
+            type="button"
+            data-me-epilogue-audio
+            aria-label="播放谢幕声音"
+          >
             <img
               src="/themes/kisara/assets/me-epilogue.webp"
               alt="木更亲吻镜头并向观众道谢的动画终帧"
@@ -363,7 +368,7 @@ const railScenes = scenes.slice(0, -1);
               loading="eager"
               decoding="async"
             />
-          </div>
+          </button>
           <figcaption>
             <span>EPILOGUE / LAST FRAME</span>
             <strong>ご視聴ありがとうございました。</strong>
@@ -406,9 +411,11 @@ const railScenes = scenes.slice(0, -1);
       let flightFrame = 0;
       let flightDial = null;
       let prepareFoundSelfReturn = () => {};
+      let stopEpilogueAudio = () => {};
 
       const cleanup = (event) => {
         prepareFoundSelfReturn(event);
+        stopEpilogueAudio();
         window.clearTimeout(transitionTimer);
         window.clearTimeout(edgeTimer);
         window.cancelAnimationFrame(flightFrame);
@@ -430,6 +437,7 @@ const railScenes = scenes.slice(0, -1);
       const memoryReturn = root.querySelector("[data-me-memory-return]");
       const memoryReturnKicker = root.querySelector("[data-me-memory-return-kicker]");
       const memoryReturnLabel = root.querySelector("[data-me-memory-return-label]");
+      const epilogueAudioTrigger = root.querySelector("[data-me-epilogue-audio]");
       flightDial = root.querySelector("[data-me-flight-dial]");
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const visitedMemoryScenes = new Set();
@@ -441,6 +449,38 @@ const railScenes = scenes.slice(0, -1);
       let blockedUntil = 0;
       let touchStartY = null;
       let touchStartX = null;
+      let memoryReturnConsumed = false;
+
+      const epilogueSceneIndex = scenes.length - 1;
+      const epilogueAudio = new Audio("/themes/kisara/audio/end.mp3");
+      epilogueAudio.preload = "auto";
+      epilogueAudio.playsInline = true;
+      epilogueAudio.volume = 0.82;
+      let epilogueAudioPlayedForEntry = false;
+      let epilogueAudioSuspended = false;
+
+      const setEpilogueAudioSuspension = (active) => {
+        if (epilogueAudioSuspended === active) return;
+        epilogueAudioSuspended = active;
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-audio-suspension", {
+          detail: { id: "me-epilogue-audio", active }
+        }));
+      };
+
+      stopEpilogueAudio = (resetEntry = false) => {
+        epilogueAudio.pause();
+        try { epilogueAudio.currentTime = 0; } catch {}
+        setEpilogueAudioSuspension(false);
+        if (resetEntry) epilogueAudioPlayedForEntry = false;
+      };
+
+      epilogueAudio.addEventListener("ended", () => {
+        setEpilogueAudioSuspension(false);
+      }, { signal });
+      epilogueAudio.addEventListener("error", () => {
+        epilogueAudioPlayedForEntry = false;
+        setEpilogueAudioSuspension(false);
+      }, { signal });
 
       document.documentElement.classList.add("kisara-me-locked");
       document.body.classList.add("kisara-me-page");
@@ -504,13 +544,24 @@ const railScenes = scenes.slice(0, -1);
         if (memoryReturnLabel) memoryReturnLabel.textContent = archived ? "记忆已归还" : "MEMORY RETURN";
       };
 
+      const clearMemoryReturnState = () => {
+        if (!(memoryReturn instanceof HTMLButtonElement)) return;
+        root.classList.remove("has-memory-return");
+        delete memoryReturn.dataset.state;
+        memoryReturn.disabled = true;
+        memoryReturn.setAttribute("aria-hidden", "true");
+        memoryReturn.setAttribute("aria-label", "收下未归档的记忆");
+        if (memoryReturnKicker) memoryReturnKicker.textContent = "UNFILED TRACE";
+        if (memoryReturnLabel) memoryReturnLabel.textContent = "MEMORY RETURN";
+      };
+
       const memoryAlreadyUnlocked = Array.isArray(window.__yuimiKisaraSecretAudioSession?.unlockedIds)
         && window.__yuimiKisaraSecretAudioSession.unlockedIds.includes("kioku-kikan");
       if (memoryAlreadyUnlocked) setMemoryReturnState("archived");
 
       const rememberScene = (sceneIndex) => {
         if (sceneIndex >= 1 && sceneIndex <= 5) visitedMemoryScenes.add(sceneIndex);
-        if (memoryAlreadyUnlocked || memoryReturn?.dataset.state === "archived") return;
+        if (memoryReturnConsumed || memoryAlreadyUnlocked || memoryReturn?.dataset.state === "archived") return;
         if ([1, 2, 3, 4, 5].every((index) => visitedMemoryScenes.has(index))) {
           setMemoryReturnState("ready");
         }
@@ -532,6 +583,11 @@ const railScenes = scenes.slice(0, -1);
         root.scrollTop = 0;
         const previousIndex = activeIndex;
         activeIndex = boundedIndex;
+        if (previousIndex === epilogueSceneIndex && boundedIndex !== epilogueSceneIndex) {
+          stopEpilogueAudio(true);
+        } else if (boundedIndex === epilogueSceneIndex && previousIndex !== epilogueSceneIndex) {
+          epilogueAudioPlayedForEntry = false;
+        }
         if (boundedIndex >= 0 && boundedIndex <= 4) foundSelfVisitedScenes.add(boundedIndex);
         if (boundedIndex >= 5) foundSelfDisqualified = true;
         rememberScene(boundedIndex);
@@ -669,6 +725,28 @@ const railScenes = scenes.slice(0, -1);
         if (destination.origin !== window.location.origin || !isKisaraHomePath(destination.pathname)) return;
         setFoundSelfTicket(canTriggerFoundSelf());
       }, { capture: true, signal });
+
+      epilogueAudioTrigger?.addEventListener("click", () => {
+        if (activeIndex !== epilogueSceneIndex || epilogueAudioPlayedForEntry) return;
+        if (epilogueAudioTrigger instanceof HTMLButtonElement) epilogueAudioTrigger.blur();
+        epilogueAudioPlayedForEntry = true;
+        setEpilogueAudioSuspension(true);
+        try { epilogueAudio.currentTime = 0; } catch {}
+        Promise.resolve(epilogueAudio.play()).catch(() => {
+          epilogueAudioPlayedForEntry = false;
+          setEpilogueAudioSuspension(false);
+        });
+      }, { signal });
+
+      window.addEventListener("yuimi:kisara-secret-audio-consumed", (event) => {
+        const detail = event instanceof CustomEvent && event.detail && typeof event.detail === "object"
+          ? event.detail
+          : {};
+        if (detail.trackId !== "kioku-kikan") return;
+        memoryReturnConsumed = true;
+        clearMemoryReturnState();
+        if (announcer) announcer.textContent = "记忆归还已完成，本次隐藏播放记录已清除。";
+      }, { signal });
 
       memoryReturn?.addEventListener("click", () => {
         if (!(memoryReturn instanceof HTMLButtonElement) || memoryReturn.dataset.state !== "ready") return;
