@@ -206,7 +206,30 @@ const audioConfig = {
         let storedSecretSession = null;
         try {
           const stored = JSON.parse(sessionStorage.getItem(audioConfig.secretSessionKey) ?? "null");
-          if (stored && typeof stored === "object") storedSecretSession = stored;
+          if (stored && typeof stored === "object") {
+            const persistentSecretIds = new Set(
+              audioConfig.secretTracks
+                .filter((track) => track.persistAcrossReload !== false)
+                .map((track) => track.id)
+            );
+            const legacySecretId = audioConfig.secretTracks[0]?.id ?? "";
+            const storedUnlockedIds = Array.isArray(stored.unlockedIds)
+              ? stored.unlockedIds
+              : stored.unlocked && legacySecretId
+                ? [legacySecretId]
+                : [];
+            const unlockedIds = storedUnlockedIds.filter((id) => persistentSecretIds.has(id));
+            const activeTrackId = unlockedIds.includes(stored.activeTrackId) ? stored.activeTrackId : "";
+            storedSecretSession = {
+              ...stored,
+              unlockedIds,
+              unlocked: unlockedIds.length > 0,
+              active: Boolean(stored.active && activeTrackId),
+              activeTrackId,
+              secretTime: activeTrackId ? Math.max(0, Number(stored.secretTime) || 0) : 0
+            };
+            sessionStorage.setItem(audioConfig.secretSessionKey, JSON.stringify(storedSecretSession));
+          }
         } catch {}
         if (storedSecretSession) window.__yuimiKisaraSecretAudioSession = storedSecretSession;
 

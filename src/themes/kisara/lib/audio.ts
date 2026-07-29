@@ -22,13 +22,15 @@ export const kisaraSecretAudioTracks = [
     id: "kokoro-spare-key",
     title: "ココロスペアキー",
     src: "/themes/kisara/audio/kokoro-spare-key.mp3",
-    variant: "demon"
+    variant: "demon",
+    persistAcrossReload: true
   },
   {
     id: "kioku-kikan",
     title: "记忆归还",
     src: "/themes/kisara/audio/kioku-kikan.mp3",
-    variant: "memory"
+    variant: "memory",
+    persistAcrossReload: false
   }
 ] as const;
 

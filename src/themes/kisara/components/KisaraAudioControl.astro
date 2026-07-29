@@ -88,12 +88,34 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     const baseTracks = audioConfig.tracks;
     const secretTracks = Array.isArray(audioConfig.secretTracks) ? audioConfig.secretTracks : [];
     const secretTrackIds = new Set(secretTracks.map((track) => track.id));
+    const persistentSecretTrackIds = new Set(
+      secretTracks
+        .filter((track) => track.persistAcrossReload !== false)
+        .map((track) => track.id)
+    );
     const legacySecretTrack = secretTracks[0];
     const secretSessionKey = audioConfig.secretSessionKey;
     let storedSecretSession = null;
     try {
       const stored = JSON.parse(sessionStorage.getItem(secretSessionKey) ?? "null");
-      if (stored && typeof stored === "object") storedSecretSession = stored;
+      if (stored && typeof stored === "object") {
+        const storedUnlockedIds = Array.isArray(stored.unlockedIds)
+          ? stored.unlockedIds
+          : stored.unlocked && legacySecretTrack
+            ? [legacySecretTrack.id]
+            : [];
+        const unlockedIds = storedUnlockedIds.filter((id) => persistentSecretTrackIds.has(id));
+        const activeTrackId = unlockedIds.includes(stored.activeTrackId) ? stored.activeTrackId : "";
+        storedSecretSession = {
+          ...stored,
+          unlockedIds,
+          unlocked: unlockedIds.length > 0,
+          active: Boolean(stored.active && activeTrackId),
+          activeTrackId,
+          secretTime: activeTrackId ? Math.max(0, Number(stored.secretTime) || 0) : 0
+        };
+        sessionStorage.setItem(secretSessionKey, JSON.stringify(storedSecretSession));
+      }
     } catch {}
     const secretSession = window.__yuimiKisaraSecretAudioSession ?? {
       unlockedIds: [],
@@ -232,6 +254,8 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       const secretTime = secretActive && Number.isFinite(audio.currentTime)
         ? Math.max(0, audio.currentTime)
         : 0;
+      const persistentUnlockedIds = [...unlockedIds].filter((id) => persistentSecretTrackIds.has(id));
+      const persistentSecretActive = secretActive && persistentSecretTrackIds.has(track.id);
       secretSession.unlockedIds = [...unlockedIds];
       secretSession.unlocked = unlockedIds.size > 0;
       secretSession.active = secretActive;
@@ -240,15 +264,15 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       if (secretActive) secretSession.secretEnabled = enabled;
       try {
         sessionStorage.setItem(secretSessionKey, JSON.stringify({
-          unlockedIds: secretSession.unlockedIds,
-          active: secretSession.active,
-          activeTrackId: secretSession.activeTrackId,
+          unlockedIds: persistentUnlockedIds,
+          active: persistentSecretActive,
+          activeTrackId: persistentSecretActive ? track.id : "",
           playbackMode: secretSession.playbackMode,
           normalTrackId: secretSession.normalTrackId,
           normalTime: secretSession.normalTime,
           normalEnabled: secretSession.normalEnabled,
           secretEnabled: secretSession.secretEnabled,
-          secretTime
+          secretTime: persistentSecretActive ? secretTime : 0
         }));
         lastSecretStoredTime = secretTime;
       } catch {}
