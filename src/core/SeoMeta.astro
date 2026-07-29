@@ -1,5 +1,6 @@
 ---
 import { profileIdentity } from "@/core/data/profile";
+import type { BlogPost } from "@/core/content/blog";
 import { site } from "@/lib/site";
 
 interface Props {
@@ -7,9 +8,10 @@ interface Props {
   description: string;
   canonical: URL;
   isArticlePage?: boolean;
+  article?: BlogPost["data"];
 }
 
-const { title, description, canonical, isArticlePage = false } = Astro.props;
+const { title, description, canonical, isArticlePage = false, article } = Astro.props;
 const siteRoot = new URL("/", Astro.site ?? canonical);
 const canonicalUrl = canonical.toString();
 const canonicalPath = canonical.pathname.replace(/\/+$/, "") || "/";
@@ -22,6 +24,12 @@ const profileImage = new URL("/themes/kisara/assets/profile.webp", siteRoot).toS
 const isHome = canonicalPath === "/";
 const isProfile = canonicalPath === "/about";
 const openGraphType = isArticlePage ? "article" : isProfile ? "profile" : "website";
+const articleId = `${canonicalUrl}#article`;
+const articleImage = article?.cover ? new URL(article.cover, siteRoot).toString() : undefined;
+const articleKeywords = article
+  ? Array.from(new Set([...(article.seoKeywords ?? []), ...article.tags]))
+  : [];
+const keywords = Array.from(new Set([...site.keywords, ...articleKeywords]));
 
 const personNode = {
   "@type": "Person",
@@ -53,8 +61,29 @@ const pageNode = isProfile
       description,
       inLanguage: "zh-CN",
       isPartOf: { "@id": websiteId },
-      author: { "@id": personId }
+      author: { "@id": personId },
+      ...(isArticlePage && article ? { mainEntity: { "@id": articleId } } : {})
     };
+
+const articleNode = isArticlePage && article
+  ? {
+      "@type": "BlogPosting",
+      "@id": articleId,
+      url: canonicalUrl,
+      headline: article.seoTitle ?? article.title,
+      description: article.seoDescription ?? article.description,
+      datePublished: article.pubDate.toISOString(),
+      dateModified: (article.updatedDate ?? article.pubDate).toISOString(),
+      inLanguage: "zh-CN",
+      articleSection: article.category,
+      keywords: articleKeywords.join(", "),
+      ...(articleImage ? { image: articleImage } : {}),
+      mainEntityOfPage: { "@id": pageId },
+      isPartOf: { "@id": websiteId },
+      author: { "@id": personId },
+      publisher: { "@id": personId }
+    }
+  : undefined;
 
 const graph = [
   personNode,
@@ -73,7 +102,8 @@ const graph = [
         }
       ]
     : []),
-  pageNode
+  pageNode,
+  ...(articleNode ? [articleNode] : [])
 ];
 
 const structuredData = JSON.stringify({
@@ -86,7 +116,7 @@ const structuredData = JSON.stringify({
 <meta name="author" content={authorLabel} />
 <meta name="creator" content={authorLabel} />
 <meta name="publisher" content={site.name} />
-<meta name="keywords" content={site.keywords.join(", ")} />
+<meta name="keywords" content={keywords.join(", ")} />
 <meta name="application-name" content={site.name} />
 <meta property="og:locale" content="zh_CN" />
 <meta property="og:type" content={openGraphType} />
@@ -94,9 +124,16 @@ const structuredData = JSON.stringify({
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
 <meta property="og:url" content={canonicalUrl} />
-<meta name="twitter:card" content="summary" />
+{articleImage && <meta property="og:image" content={articleImage} />}
+{articleImage && <meta property="og:image:alt" content={`${article?.title ?? title} 封面`} />}
+<meta name="twitter:card" content={articleImage ? "summary_large_image" : "summary"} />
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={description} />
-{isArticlePage && <meta property="article:author" content={personUrl} />}
+{articleImage && <meta name="twitter:image" content={articleImage} />}
+{isArticlePage && article && <meta property="article:author" content={personUrl} />}
+{isArticlePage && article && <meta property="article:published_time" content={article.pubDate.toISOString()} />}
+{isArticlePage && article && <meta property="article:modified_time" content={(article.updatedDate ?? article.pubDate).toISOString()} />}
+{isArticlePage && article && <meta property="article:section" content={article.category} />}
+{isArticlePage && article?.tags.map((tag) => <meta property="article:tag" content={tag} />)}
 <link rel="author" href={personUrl} />
 <script type="application/ld+json" set:html={structuredData}></script>

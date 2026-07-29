@@ -1,5 +1,6 @@
 ---
 import "../styles/theme.css";
+import type { BlogPost } from "@/core/content/blog";
 import ThemePreferenceGate from "@/core/themes/ThemePreferenceGate.astro";
 import ThemeLongPressMenu from "@/core/themes/ThemeLongPressMenu.astro";
 import ConsoleEasterEgg from "@/core/ConsoleEasterEgg.astro";
@@ -12,9 +13,10 @@ interface Props {
   title?: string;
   description?: string;
   isArticlePage?: boolean;
+  article?: BlogPost["data"];
 }
 
-const { title = site.title, description = site.description, isArticlePage = false } = Astro.props;
+const { title = site.title, description = site.description, isArticlePage = false, article } = Astro.props;
 const canonicalPath = getCanonicalPath(Astro.url.pathname);
 const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
 const navItems = site.nav.map((item) => ({
@@ -33,7 +35,7 @@ const themeOptions = themes.map((theme) => ({
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <PerformanceProfile />
-    <SeoMeta title={title} description={description} canonical={canonical} isArticlePage={isArticlePage} />
+    <SeoMeta title={title} description={description} canonical={canonical} isArticlePage={isArticlePage} article={article} />
     <meta name="theme-color" content="#f5f6f8" />
     <meta name="robots" content="noindex,follow" />
     <link rel="canonical" href={canonical} />

@@ -1,6 +1,7 @@
 ---
 import "../styles/theme.css";
 import { site } from "@/lib/site";
+import type { BlogPost } from "@/core/content/blog";
 import { Icon } from "astro-icon/components";
 import { ClientRouter } from "astro:transitions";
 import ThemePreferenceGate from "@/core/themes/ThemePreferenceGate.astro";
@@ -16,6 +17,7 @@ interface Props {
   honorThemePreference?: boolean;
   redirectThemedNotFound?: boolean;
   isArticlePage?: boolean;
+  article?: BlogPost["data"];
 }
 
 const {
@@ -23,7 +25,8 @@ const {
   description = site.description,
   honorThemePreference = true,
   redirectThemedNotFound = false,
-  isArticlePage = false
+  isArticlePage = false,
+  article
 } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 const themedNotFoundRedirectScript = `(() => {
@@ -43,7 +46,7 @@ const themedNotFoundRedirectScript = `(() => {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <PerformanceProfile />
-    <SeoMeta title={title} description={description} canonical={canonical} isArticlePage={isArticlePage} />
+    <SeoMeta title={title} description={description} canonical={canonical} isArticlePage={isArticlePage} article={article} />
     <meta name="theme-color" content="#fff8ec" />
     {
       redirectThemedNotFound && (

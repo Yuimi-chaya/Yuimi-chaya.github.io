@@ -3,7 +3,8 @@ import BaseLayout from "./BaseLayout.astro";
 import { categoryLabel } from "@/lib/site";
 
 const { frontmatter } = Astro.props;
-const title = `${frontmatter.title} | Yuimi Lab`;
+const title = `${frontmatter.seoTitle ?? frontmatter.title} | Yuimi Lab`;
+const description = frontmatter.seoDescription ?? frontmatter.description;
 const date = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
   month: "2-digit",
@@ -12,7 +13,7 @@ const date = new Intl.DateTimeFormat("zh-CN", {
 const headings = (Astro.props.headings ?? []).filter((heading) => heading.depth >= 2 && heading.depth <= 3);
 ---
 
-<BaseLayout title={title} description={frontmatter.description} isArticlePage>
+<BaseLayout title={title} description={description} isArticlePage article={frontmatter}>
   <div class="article-shell">
     <article class="article" data-pagefind-body>
       <a class="back-link" href="/blog/">← 回到文章列表</a>

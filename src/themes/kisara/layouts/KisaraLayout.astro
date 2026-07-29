@@ -1,6 +1,7 @@
 ---
 import "../styles/theme.css";
 import { Icon } from "astro-icon/components";
+import type { BlogPost } from "@/core/content/blog";
 import { ClientRouter } from "astro:transitions";
 import ThemePreferenceGate from "@/core/themes/ThemePreferenceGate.astro";
 import ThemeLongPressMenu from "@/core/themes/ThemeLongPressMenu.astro";
@@ -26,13 +27,15 @@ interface Props {
   description?: string;
   isArticlePage?: boolean;
   stylesheets?: string[];
+  article?: BlogPost["data"];
 }
 
 const {
   title = `${site.title} | Kisara`,
   description = site.description,
   isArticlePage = false,
-  stylesheets = []
+  stylesheets = [],
+  article
 } = Astro.props;
 const canonicalPath = getCanonicalPath(Astro.url.pathname);
 const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
@@ -77,7 +80,7 @@ const audioConfig = {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <PerformanceProfile />
-    <SeoMeta title={title} description={description} canonical={canonical} isArticlePage={isArticlePage} />
+    <SeoMeta title={title} description={description} canonical={canonical} isArticlePage={isArticlePage} article={article} />
     <meta name="theme-color" content="#111636" />
     <meta name="robots" content="noindex,follow" />
     <link rel="icon" type="image/x-icon" href="/themes/kisara/favicon.ico?v=heart-only" />

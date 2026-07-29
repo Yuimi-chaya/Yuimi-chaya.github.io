@@ -4,7 +4,8 @@ import { categoryLabel } from "@/lib/site";
 
 const { frontmatter } = Astro.props;
 const headings = (Astro.props.headings ?? []).filter((heading) => heading.depth >= 2 && heading.depth <= 3);
-const title = `${frontmatter.title} | Yuimi Lab Blank`;
+const title = `${frontmatter.seoTitle ?? frontmatter.title} | Yuimi Lab Blank`;
+const description = frontmatter.seoDescription ?? frontmatter.description;
 const date = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
   month: "2-digit",
@@ -12,7 +13,7 @@ const date = new Intl.DateTimeFormat("zh-CN", {
 }).format(frontmatter.updatedDate ?? frontmatter.pubDate);
 ---
 
-<BlankLayout title={title} description={frontmatter.description} isArticlePage>
+<BlankLayout title={title} description={description} isArticlePage article={frontmatter}>
   <div class="blank-article-shell">
     <article>
       <header class="blank-article-header">

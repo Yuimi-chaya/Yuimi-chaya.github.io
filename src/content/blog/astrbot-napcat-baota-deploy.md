@@ -1,6 +1,9 @@
 ﻿---
-title: "使用宝塔面板部署 AstrBot + NapCat QQ 机器人教程"
+title: "AstrBot 部署教程：宝塔面板 + NapCat 搭建 QQ 机器人"
 description: "从云服务器端口放行、宝塔 Docker 环境准备，到 AstrBot 与 NapCat 连接测试的一篇完整部署记录。"
+seoTitle: "AstrBot 部署教程：宝塔面板 + NapCat 搭建 QQ 机器人"
+seoDescription: "AstrBot 部署教程：从宝塔 Docker 环境、AstrBot 与 NapCat 安装，到 OneBot v11、WebSocket、模型配置和 QQ 收发消息测试。"
+seoKeywords: ["AstrBot", "AstrBot 部署", "AstrBot 部署教程", "AstrBot 教程", "宝塔部署 AstrBot", "NapCat 部署", "QQ 机器人部署", "OneBot v11", "WebSocket", "Docker"]
 pubDate: 2026-05-19
 updatedDate: 2026-05-19
 cover: "/blog-covers/cover-08.webp"

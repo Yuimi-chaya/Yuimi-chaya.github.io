@@ -11,12 +11,15 @@ const headings = (Astro.props.headings ?? [])
   .map((heading) => ({ ...heading, text: heading.text.replace(/\s*#\s*$/, "").trim() }));
 const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" })
   .format(frontmatter.updatedDate ?? frontmatter.pubDate);
+const title = `${frontmatter.seoTitle ?? frontmatter.title} | Kisara`;
+const description = frontmatter.seoDescription ?? frontmatter.description;
 ---
 
 <KisaraLayout
-  title={`${frontmatter.title} | Kisara`}
-  description={frontmatter.description}
+  title={title}
+  description={description}
   isArticlePage
+  article={frontmatter}
   stylesheets={[articleStylesheet]}
 >
   <div class="kisara-reading-progress" data-kisara-reading-progress aria-hidden="true"><span></span></div>
