@@ -7,7 +7,7 @@ cover: "/blog-covers/cover-08.webp"
 tags: ["AstrBot", "NapCat", "QQ机器人", "宝塔面板", "Docker"]
 category: "tech"
 ---
-从云服务器准备到 QQ 收发消息测试，小白也能照着做。
+从云服务器准备到 QQ 收发消息测试，小白也能照着做
 
 作者：**喝益胃 / Yuimi-chaya**  
 Bilibili 主页：<https://space.bilibili.com/494350222>
@@ -26,11 +26,11 @@ Bilibili 主页：<https://space.bilibili.com/494350222>
 - OneBot v11 / WebSocket 连接
 - QQ 消息测试
 
-做完以后，你的 QQ bot 可以收到消息，并让 AstrBot 调用模型回复。
+做完以后，你的 QQ bot 可以收到消息，并让 AstrBot 调用模型回复
 
 ## 先说风险
 
-token、API Key、服务器 IP、QQ 账号都不要公开。
+token、API Key、服务器 IP、QQ 账号都不要公开
 
 建议使用 QQ 小号做 bot，不建议直接使用常用大号。重要提示词、人设、配置文件、插件数据也建议及时备份。机器人部署、账号登录、记忆类插件、模型调用都有一定风险，请确认理解后再继续。
 
@@ -59,13 +59,13 @@ token、API Key、服务器 IP、QQ 账号都不要公开。
 
 ## 1. 放行云服务器安全组端口
 
-进入云服务器控制台，找到安全组或防火墙规则，放行上面清单里的 TCP 端口。
+进入云服务器控制台，找到安全组或防火墙规则，放行上面清单里的 TCP 端口
 
-不同厂商页面不一样，但核心字段基本相同：来源、协议、端口、策略。
+不同厂商页面不一样，但核心字段基本相同：来源、协议、端口、策略
 
 ![腾讯云轻量服务器防火墙页面](/blog-assets/astrbot-napcat-baota/01-cloud-firewall.webp)
 
-添加规则时，可以选择 TCP，也可以按自己的安全策略把来源 IP 改得更严格。
+添加规则时，可以选择 TCP，也可以按自己的安全策略把来源 IP 改得更严格
 
 ![安全组规则字段](/blog-assets/astrbot-napcat-baota/02-firewall-rule-fields.webp)
 
@@ -77,15 +77,15 @@ token、API Key、服务器 IP、QQ 账号都不要公开。
 
 ![宝塔应用管理](/blog-assets/astrbot-napcat-baota/03-baota-app-management.webp)
 
-在宝塔左侧进入 Docker。如果提示未安装 Docker 模块，先点击立即安装。
+在宝塔左侧进入 Docker。如果提示未安装 Docker 模块，先点击立即安装
 
 ![安装宝塔 Docker 模块](/blog-assets/astrbot-napcat-baota/04-install-docker-module.webp)
 
-确认 Docker 页面能正常打开，并且顶部可以看到应用商店、容器、镜像等菜单。
+确认 Docker 页面能正常打开，并且顶部可以看到应用商店、容器、镜像等菜单
 
 ## 3. 在宝塔中安装 AstrBot
 
-在宝塔 Docker 的应用商店中搜索 AstrBot，点击安装并等待容器启动。
+在宝塔 Docker 的应用商店中搜索 AstrBot，点击安装并等待容器启动
 
 ![搜索 AstrBot](/blog-assets/astrbot-napcat-baota/05-search-astrbot.webp)
 
@@ -93,9 +93,9 @@ token、API Key、服务器 IP、QQ 账号都不要公开。
 
 ![AstrBot 安装配置](/blog-assets/astrbot-napcat-baota/06-astrbot-install-options.webp)
 
-安装完成后，先不要急着配置模型。先确认容器能启动，再处理 WebUI 访问端口。
+安装完成后，先不要急着配置模型。先确认容器能启动，再处理 WebUI 访问端口
 
-AstrBot 启动日志中出现 WebUI 地址，说明后台服务已经跑起来。
+AstrBot 启动日志中出现 WebUI 地址，说明后台服务已经跑起来
 
 ![AstrBot WebUI 启动日志](/blog-assets/astrbot-napcat-baota/07-astrbot-webui-log.webp)
 
@@ -148,21 +148,21 @@ networks:
 http://服务器IP:6185
 ```
 
-地址栏应该显示服务器 IP 加 `6185` 端口。
+地址栏应该显示服务器 IP 加 `6185` 端口
 
 ![AstrBot 地址栏](/blog-assets/astrbot-napcat-baota/10-astrbot-url.webp)
 
-成功进入 AstrBot WebUI 后，可以看到欢迎页和快速引导。
+成功进入 AstrBot WebUI 后，可以看到欢迎页和快速引导
 
 ![AstrBot 欢迎页](/blog-assets/astrbot-napcat-baota/11-astrbot-welcome.webp)
 
-如果打不开，优先检查 `6185` 是否同时在云服务器安全组和宝塔防火墙中放行。
+如果打不开，优先检查 `6185` 是否同时在云服务器安全组和宝塔防火墙中放行
 
 ## 5. 手动创建 NapCat 容器
 
-回到宝塔 Docker 的“容器”页面，点击“创建容器”，选择“手动创建”。
+回到宝塔 Docker 的“容器”页面，点击“创建容器”，选择“手动创建”
 
-NapCat 没有直接上架宝塔应用商店，所以这里用镜像名创建。
+NapCat 没有直接上架宝塔应用商店，所以这里用镜像名创建
 
 | 字段 | 填写内容 |
 | --- | --- |
@@ -172,13 +172,13 @@ NapCat 没有直接上架宝塔应用商店，所以这里用镜像名创建。
 
 ![手动创建 NapCat 容器](/blog-assets/astrbot-napcat-baota/12-create-napcat-container.webp)
 
-创建完成后，容器列表里应出现 `napcat`，状态为运行中。
+创建完成后，容器列表里应出现 `napcat`，状态为运行中
 
 ## 6. 保存 token 并登录 NapCat
 
-打开 NapCat 容器日志，找到 WebUI 登录地址和 token。
+打开 NapCat 容器日志，找到 WebUI 登录地址和 token
 
-这个 token 只在日志里最容易找到，建议立刻保存到本地安全位置。
+这个 token 只在日志里最容易找到，建议立刻保存到本地安全位置
 
 ![NapCat token 日志](/blog-assets/astrbot-napcat-baota/13-napcat-token-log.webp)
 
@@ -189,9 +189,9 @@ http://服务器IP:6099/webui
 http://服务器IP:6099/webui/web_login
 ```
 
-以日志里给出的地址为准。
+以日志里给出的地址为准
 
-打开 NapCat WebUI 登录页，输入日志中的 token。
+打开 NapCat WebUI 登录页，输入日志中的 token
 
 ![NapCat 登录页](/blog-assets/astrbot-napcat-baota/14-napcat-login.webp)
 
@@ -199,9 +199,9 @@ token 正确时会进入 NapCat 后台。如果提示错误，请重新打开容
 
 ## 7. 登录 QQ bot 号
 
-在 NapCat 后台按照页面提示登录 QQ bot 号。
+在 NapCat 后台按照页面提示登录 QQ bot 号
 
-建议使用小号，并提前在手机 QQ 上确认该账号可以正常登录。
+建议使用小号，并提前在手机 QQ 上确认该账号可以正常登录
 
 ![NapCat 基础信息页](/blog-assets/astrbot-napcat-baota/15-napcat-dashboard.webp)
 
@@ -209,9 +209,9 @@ token 正确时会进入 NapCat 后台。如果提示错误，请重新打开容
 
 ## 8. 配置 AstrBot 模型提供方
 
-回到 AstrBot WebUI，进入“模型提供商”。
+回到 AstrBot WebUI，进入“模型提供商”
 
-如果是第一次配置，可以在欢迎页的快速引导中点击“配置 AI 模型”。
+如果是第一次配置，可以在欢迎页的快速引导中点击“配置 AI 模型”
 
 ![AstrBot 配置 AI 模型入口](/blog-assets/astrbot-napcat-baota/16-astrbot-model-entry.webp)
 
@@ -230,11 +230,11 @@ API Key 只复制一次就要保存好，不要发到群里，也不要放到公
 
 ## 9. 填入 API Key 并选择模型
 
-以 DeepSeek 为例，进入控制台的 API keys 页面，创建 API Key。
+以 DeepSeek 为例，进入控制台的 API keys 页面，创建 API Key
 
 ![DeepSeek 创建 API Key](/blog-assets/astrbot-napcat-baota/18-deepseek-create-key.webp)
 
-创建后立刻复制并保存 API Key。关闭弹窗后，通常无法再次查看完整 key。
+创建后立刻复制并保存 API Key。关闭弹窗后，通常无法再次查看完整 key
 
 ![DeepSeek 复制 API Key](/blog-assets/astrbot-napcat-baota/19-deepseek-copy-key.webp)
 
@@ -242,11 +242,11 @@ API Key 只复制一次就要保存好，不要发到群里，也不要放到公
 
 ![AstrBot 填入 API Key](/blog-assets/astrbot-napcat-baota/20-astrbot-api-key.webp)
 
-点击“获取模型列表”，把需要使用的模型添加到已配置模型中。
+点击“获取模型列表”，把需要使用的模型添加到已配置模型中
 
 ![AstrBot 获取模型列表](/blog-assets/astrbot-napcat-baota/21-astrbot-model-list.webp)
 
-也可以在模型提供商中继续添加可用模型。
+也可以在模型提供商中继续添加可用模型
 
 ![添加 LLM](/blog-assets/astrbot-napcat-baota/22-add-llm.webp)
 
@@ -254,7 +254,7 @@ API Key 只复制一次就要保存好，不要发到群里，也不要放到公
 
 ![选择默认 LLM](/blog-assets/astrbot-napcat-baota/23-default-llm.webp)
 
-配置完成后，可以先在 AstrBot WebUI 的聊天页测试一句话。
+配置完成后，可以先在 AstrBot WebUI 的聊天页测试一句话
 
 ## 10. 配置 AstrBot 与 NapCat 的连接
 
@@ -281,11 +281,11 @@ API Key 只复制一次就要保存好，不要发到群里，也不要放到公
 
 ### 在 NapCat 中新增 WebSocket 客户端
 
-进入 NapCat WebUI 的“网络配置”，新增一个 WebSocket 客户端。
+进入 NapCat WebUI 的“网络配置”，新增一个 WebSocket 客户端
 
 ![NapCat 新增 WebSocket 客户端](/blog-assets/astrbot-napcat-baota/25-create-napcat-ws-client.webp)
 
-启用后填写 AstrBot 的 ws 地址。
+启用后填写 AstrBot 的 ws 地址
 
 常用 URL：
 
@@ -320,9 +320,9 @@ ws://宿主机IP:6199/ws
 
 ## 11. 发送 QQ 消息测试
 
-用另一个 QQ 给 bot 号发一句普通消息，例如“你好”。
+用另一个 QQ 给 bot 号发一句普通消息，例如“你好”
 
-不要一开始就发很长的提示词，先验证最短链路是否能跑通。
+不要一开始就发很长的提示词，先验证最短链路是否能跑通
 
 检查顺序：
 
@@ -332,15 +332,15 @@ ws://宿主机IP:6199/ws
 4. 模型端：AstrBot 调用模型成功，没有 API Key 或余额错误
 5. QQ 端：bot 返回一条模型回复
 
-QQ 端能看到回复，说明最终用户侧已经能看到结果。
+QQ 端能看到回复，说明最终用户侧已经能看到结果
 
 ![QQ 端收到 bot 回复](/blog-assets/astrbot-napcat-baota/28-qq-bot-reply.webp)
 
-NapCat 日志显示收到 QQ 消息并发送回复。
+NapCat 日志显示收到 QQ 消息并发送回复
 
 ![NapCat 收发消息日志](/blog-assets/astrbot-napcat-baota/29-napcat-message-log.webp)
 
-AstrBot 日志显示收到事件、调用模型并发送消息。
+AstrBot 日志显示收到事件、调用模型并发送消息
 
 ![AstrBot 收发消息日志](/blog-assets/astrbot-napcat-baota/30-astrbot-message-log.webp)
 
@@ -360,19 +360,19 @@ AstrBot 日志显示收到事件、调用模型并发送消息。
 
 ### WebUI 打不开
 
-检查安全组和宝塔防火墙是否都放行；容器是否运行；URL 是否带端口。
+检查安全组和宝塔防火墙是否都放行；容器是否运行；URL 是否带端口
 
 ### 端口放行了还是访问不了
 
-云服务商安全组、宝塔系统防火墙、Docker 端口映射要同时正确。
+云服务商安全组、宝塔系统防火墙、Docker 端口映射要同时正确
 
 ### NapCat token 找不到
 
-打开 `napcat` 容器日志，搜索 `token` 或 `WebUI User Panel Url`。
+打开 `napcat` 容器日志，搜索 `token` 或 `WebUI User Panel Url`
 
 ### QQ 登录失败
 
-确认账号能在手机 QQ 登录；完成安全验证；避免频繁重试。
+确认账号能在手机 QQ 登录；完成安全验证；避免频繁重试
 
 ### AstrBot 收不到 QQ 消息
 

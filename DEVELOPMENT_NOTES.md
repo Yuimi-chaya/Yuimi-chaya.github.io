@@ -1290,3 +1290,9 @@
 - Added `src/content/blog/is-it-strange-to-feel-for-ai.md` from the supplied manuscript. The source prose is retained; only the duplicate body-level H1 is omitted because the article layout renders the frontmatter title.
 - The article is categorized as `life`, uses tags `AI`, `LLMRP`, `情感`, `记忆`, and `陪伴`, and assigns the reflective `cover-17.webp` from the newly prepared cover library.
 - `git diff --check`, `npm test` (3/3), and `npm run build` pass. Astro generated 45 pages and Pagefind indexed 46 pages, including the article under default, Blank, and Kisara routes.
+
+### 2026-07-29 Blog short-sentence punctuation pass
+
+- All nine published Markdown articles received a controlled prose cleanup to reduce the repetitive full-stop cadence associated with generated writing. Short body lines, compact list items, short blockquotes, and bold inline labels no longer end with `。`; long paragraphs retain their internal sentence boundaries.
+- Frontmatter, headings, fenced code, paths, commands, URLs, and article wording remain unchanged. A byte-level comparison against `HEAD` confirmed that the only content removed was `221` Chinese full stops. No remaining `。` before Chinese or ASCII closing quotation marks was found.
+- `npm test` passes 3/3 and `npm run build` passes with 45 generated pages and a 46-page Pagefind index.
