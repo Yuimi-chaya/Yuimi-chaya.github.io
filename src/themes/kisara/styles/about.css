@@ -1651,6 +1651,10 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
 .is-departure header { grid-column: 1; }
 .is-departure header > p:last-child { color: #5b6274; }
 .is-departure .kisara-me-memory-kicker { color: #4d5870; }
+.is-departure h2 em {
+  color: #777c86;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.7), 0 0 18px rgba(91, 98, 116, 0.12);
+}
 .is-departure .kisara-me-flight-instrument { grid-column: 2; }
 
 .kisara-me-flight-instrument {
@@ -1795,7 +1799,7 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
 }
 
 .is-departure > footer i { height: 1px; background: rgba(24, 33, 58, 0.24); }
-.is-departure > footer strong { color: #b43861; }
+.is-departure > footer strong { color: #747a86; }
 
 .kisara-me-memory[data-me-memory="departure"] .kisara-me-memory-motion {
   left: 44%;
@@ -1825,8 +1829,113 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
 .is-ritual .kisara-me-memory-kicker { color: #aebfe9; }
 .is-ritual h2 em {
   display: inline-block;
-  text-shadow: 0 0 26px rgba(224, 111, 165, 0.24);
-  transform: rotate(-1.4deg) translateX(8px);
+  position: relative;
+  margin-left: 0.1em;
+  padding: 0.02em 0.04em 0.11em 0.28em;
+  color: inherit;
+  font-size: 0.88em;
+  font-style: normal;
+  line-height: 0.92;
+  transform: rotate(-1.8deg) translateX(8px);
+}
+
+.kisara-me-clause-word {
+  position: relative;
+  display: inline-block;
+  color: rgba(182, 192, 219, 0.58);
+  font-family: Georgia, "Times New Roman", serif;
+  transform: translate3d(0, 0.07em, 0);
+  transition: color 420ms ease 360ms, transform 620ms cubic-bezier(0.16, 0.82, 0.18, 1) 320ms;
+}
+
+.kisara-me-clause-word::after {
+  content: attr(data-ink);
+  position: absolute;
+  inset: 0 auto auto 0;
+  color: #f1a2bd;
+  font-family: "Segoe Print", "Bradley Hand ITC", "Comic Sans MS", "KaiTi", cursive;
+  font-size: 0.9em;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 0 18px rgba(224, 111, 165, 0.28);
+  clip-path: inset(0 100% 0 0);
+  transform: translate3d(0.05em, 0.07em, 0) rotate(-1.4deg);
+  transition: clip-path 760ms cubic-bezier(0.16, 0.82, 0.18, 1) 430ms;
+}
+
+.kisara-me-clause-article {
+  position: absolute;
+  top: -0.24em;
+  left: 0.03em;
+  color: #c3cdec;
+  font: 700 0.42em/1 "Segoe Print", "Bradley Hand ITC", "Comic Sans MS", "KaiTi", cursive;
+  opacity: 0;
+  text-shadow: 0 0 12px rgba(145, 168, 230, 0.26);
+  transform: translate3d(0.22em, 0.16em, 0) rotate(9deg);
+  transition: opacity 260ms ease 520ms, transform 520ms cubic-bezier(0.16, 0.82, 0.18, 1) 500ms;
+}
+
+.kisara-me-clause-note > i {
+  position: absolute;
+  right: -0.08em;
+  bottom: -0.02em;
+  left: 0.02em;
+  height: 0.2em;
+  pointer-events: none;
+}
+
+.kisara-me-clause-note > i::before,
+.kisara-me-clause-note > i::after {
+  content: "";
+  position: absolute;
+  opacity: 0;
+}
+
+.kisara-me-clause-note > i::before {
+  right: 0;
+  bottom: 0;
+  left: 0.12em;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(174, 191, 233, 0.26), rgba(240, 132, 172, 0.92) 24%, rgba(240, 132, 172, 0.5) 82%, transparent);
+  transform: rotate(-1deg) scaleX(0);
+  transform-origin: left;
+  transition: opacity 180ms ease 760ms, transform 620ms cubic-bezier(0.12, 0.86, 0.18, 1) 760ms;
+}
+
+.kisara-me-clause-note > i::after {
+  bottom: -0.01em;
+  left: 0.01em;
+  width: 0.2em;
+  height: 0.15em;
+  border-top: 2px solid rgba(174, 191, 233, 0.8);
+  border-left: 2px solid rgba(174, 191, 233, 0.8);
+  transform: skewX(-20deg) rotate(8deg) scale(0.35);
+  transform-origin: left bottom;
+  transition: opacity 180ms ease 620ms, transform 360ms cubic-bezier(0.12, 0.86, 0.18, 1) 620ms;
+}
+
+.kisara-me-memory[data-me-memory="ritual"][data-scene-position="active"] .kisara-me-clause-word {
+  color: rgba(182, 192, 219, 0.18);
+  transform: none;
+}
+
+.kisara-me-memory[data-me-memory="ritual"][data-scene-position="active"] .kisara-me-clause-word::after {
+  clip-path: inset(0);
+}
+
+.kisara-me-memory[data-me-memory="ritual"][data-scene-position="active"] .kisara-me-clause-article {
+  opacity: 1;
+  transform: rotate(-8deg);
+}
+
+.kisara-me-memory[data-me-memory="ritual"][data-scene-position="active"] .kisara-me-clause-note > i::before {
+  opacity: 0.9;
+  transform: rotate(-1deg) scaleX(1);
+}
+
+.kisara-me-memory[data-me-memory="ritual"][data-scene-position="active"] .kisara-me-clause-note > i::after {
+  opacity: 0.82;
+  transform: skewX(-20deg) rotate(8deg) scale(1);
 }
 
 .kisara-me-contract-field {
@@ -2134,10 +2243,129 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
 .is-amendment header > p:last-child { color: rgba(236, 234, 246, 0.72); }
 .is-amendment .kisara-me-memory-kicker { color: #c9d3f2; }
 .is-amendment h2 em {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.13em;
+  color: inherit;
+  font-size: 0.84em;
+  font-style: normal;
+  line-height: 0.95;
+  white-space: nowrap;
+  transform: rotate(-1.2deg) translateX(10px);
+}
+
+.kisara-me-neutral-bond > .is-never,
+.kisara-me-neutral-bond > .is-neutral {
   display: inline-block;
-  color: #f08bb0;
-  text-shadow: 0 0 28px rgba(227, 77, 130, 0.28);
-  transform: rotate(-1.8deg) translateX(10px);
+  transition: color 420ms ease 360ms, text-shadow 420ms ease 360ms, transform 620ms cubic-bezier(0.16, 0.82, 0.18, 1) 340ms;
+}
+
+.kisara-me-neutral-bond > .is-never {
+  color: rgba(180, 194, 225, 0.78);
+  transform: translateX(-0.12em);
+}
+
+.kisara-me-neutral-bond > .is-neutral {
+  color: rgba(239, 143, 177, 0.82);
+  transform: translateX(0.12em);
+}
+
+.kisara-me-neutral-link {
+  --neutral-link-width: clamp(48px, 5vw, 88px);
+  position: relative;
+  display: block;
+  flex: 0 0 var(--neutral-link-width);
+  width: var(--neutral-link-width);
+  height: 0.34em;
+  transform: translateY(0.06em);
+}
+
+.kisara-me-neutral-link::before,
+.kisara-me-neutral-link::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 53%;
+  height: 2px;
+  opacity: 0.24;
+  transform: scaleX(0);
+  transition: opacity 220ms ease 460ms, transform 620ms cubic-bezier(0.12, 0.86, 0.18, 1) 440ms;
+}
+
+.kisara-me-neutral-link::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(180, 194, 225, 0.5), #b4c2e1);
+  box-shadow: 0 3px 0 -1px rgba(139, 157, 201, 0.34);
+  transform-origin: left;
+}
+
+.kisara-me-neutral-link::after {
+  right: 0;
+  background: linear-gradient(90deg, #df779f, rgba(239, 143, 177, 0.5));
+  box-shadow: 0 -3px 0 -1px rgba(227, 77, 130, 0.28);
+  transform-origin: right;
+}
+
+.kisara-me-neutral-link > i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.34em;
+  height: 0.18em;
+  transform: translate(-50%, -50%);
+}
+
+.kisara-me-neutral-link > i::before,
+.kisara-me-neutral-link > i::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 0.18em;
+  height: 0.11em;
+  border: 2px solid;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 180ms ease 740ms, transform 420ms cubic-bezier(0.12, 0.86, 0.18, 1) 720ms;
+}
+
+.kisara-me-neutral-link > i::before {
+  left: 0;
+  border-color: #b4c2e1;
+  transform: translate3d(-0.08em, -50%, 0) rotate(-18deg) scale(0.3);
+}
+
+.kisara-me-neutral-link > i::after {
+  right: 0;
+  border-color: #df779f;
+  transform: translate3d(0.08em, -50%, 0) rotate(18deg) scale(0.3);
+}
+
+.kisara-me-memory[data-me-memory="amendment"][data-scene-position="active"] .kisara-me-neutral-bond > .is-never {
+  color: #becbe7;
+  text-shadow: 0 0 20px rgba(174, 188, 224, 0.18);
+  transform: none;
+}
+
+.kisara-me-memory[data-me-memory="amendment"][data-scene-position="active"] .kisara-me-neutral-bond > .is-neutral {
+  color: #f095b5;
+  text-shadow: 0 0 24px rgba(227, 77, 130, 0.26);
+  transform: none;
+}
+
+.kisara-me-memory[data-me-memory="amendment"][data-scene-position="active"] .kisara-me-neutral-link::before,
+.kisara-me-memory[data-me-memory="amendment"][data-scene-position="active"] .kisara-me-neutral-link::after {
+  opacity: 0.92;
+  transform: scaleX(1);
+}
+
+.kisara-me-memory[data-me-memory="amendment"][data-scene-position="active"] .kisara-me-neutral-link > i::before {
+  opacity: 1;
+  transform: translate3d(-0.02em, -50%, 0) rotate(-18deg) scale(1);
+}
+
+.kisara-me-memory[data-me-memory="amendment"][data-scene-position="active"] .kisara-me-neutral-link > i::after {
+  opacity: 1;
+  transform: translate3d(0.02em, -50%, 0) rotate(18deg) scale(1);
 }
 
 .kisara-me-amended-clauses {
@@ -3106,6 +3334,8 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
   .kisara-me-contract-bloom { display: none; }
 
   .is-amendment header { width: 100%; }
+  .kisara-me-neutral-bond { gap: 0.1em; }
+  .kisara-me-neutral-link { --neutral-link-width: clamp(34px, 8vw, 50px); }
   .kisara-me-amended-clauses {
     position: relative;
     right: auto;
@@ -3174,6 +3404,8 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
   .kisara-me-memory-kicker { font-size: 0.53rem; }
   .kisara-me-memory-kicker::before { width: 22px; }
   .kisara-me-memory-copy h2 { font-size: clamp(2.2rem, 9.5vw, 3.35rem); }
+  .is-ritual h2 em { margin-left: 0; }
+  .is-amendment h2 em { font-size: 0.8em; }
   .kisara-me-memory-copy header > p:last-child { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .kisara-me-amended-clauses li { min-height: 66px; }
   .kisara-me-amended-clauses small { display: none; }
@@ -3203,7 +3435,18 @@ body[data-kisara-page="about"]:has(.kisara-me:is(
   .kisara-me-contract-field,
   .kisara-me-contract-margins li,
   .kisara-me-shared-saves li,
-  .kisara-me-rewritten-signals li::before {
+  .kisara-me-rewritten-signals li::before,
+  .kisara-me-clause-word,
+  .kisara-me-clause-word::after,
+  .kisara-me-clause-article,
+  .kisara-me-clause-note > i::before,
+  .kisara-me-clause-note > i::after,
+  .kisara-me-neutral-bond > .is-never,
+  .kisara-me-neutral-bond > .is-neutral,
+  .kisara-me-neutral-link::before,
+  .kisara-me-neutral-link::after,
+  .kisara-me-neutral-link > i::before,
+  .kisara-me-neutral-link > i::after {
     transition: none !important;
   }
 
