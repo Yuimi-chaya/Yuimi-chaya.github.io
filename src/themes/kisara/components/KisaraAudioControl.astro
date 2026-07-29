@@ -135,6 +135,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       loading: "LINKING",
       playing: "PLAYING",
       paused: "PAUSED",
+      memory: "MEMORY / HOLD",
       blocked: "READY / PLAY",
       error: "OFFLINE"
     };
@@ -151,6 +152,13 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     let switchingTrack = false;
     let persistedResumeIntent = false;
     let unlockNoticeTimer = 0;
+    const audioSuspension = window.__yuimiKisaraAudioSuspension ?? {
+      active: false,
+      id: "",
+      resumeRequested: false
+    };
+    window.__yuimiKisaraAudioSuspension = audioSuspension;
+    const isAudioSuspended = () => audioSuspension.active === true;
     const persistInterval = document.documentElement.dataset.yuimiPerformance === "full" ? 5 : 10;
 
     signal.addEventListener("abort", () => {
@@ -248,16 +256,29 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
 
     const setUiState = (state) => {
       const playing = state === "playing";
+      const suspended = state === "memory";
       const track = activeTrack();
       currentUiState = state;
       control.dataset.state = state;
       player?.classList.toggle("is-playing", playing);
+      player?.classList.toggle("is-interlude-suspended", suspended);
       control.setAttribute("aria-pressed", String(playing));
+      control.setAttribute("aria-disabled", String(suspended));
       control.setAttribute(
         "aria-label",
-        playing ? `暂停主题音乐《${track.title}》` : `播放主题音乐《${track.title}》`
+        suspended
+          ? `记忆回放中，主题音乐《${track.title}》已暂时挂起`
+          : playing
+            ? `暂停主题音乐《${track.title}》`
+            : `播放主题音乐《${track.title}》`
       );
-      control.title = playing ? `暂停主题音乐《${track.title}》` : `播放主题音乐《${track.title}》`;
+      control.title = suspended
+        ? `记忆回放中：《${track.title}》将在退出后恢复`
+        : playing
+          ? `暂停主题音乐《${track.title}》`
+          : `播放主题音乐《${track.title}》`;
+      if (previous instanceof HTMLButtonElement) previous.disabled = suspended;
+      if (next instanceof HTMLButtonElement) next.disabled = suspended;
       if (status) {
         if (isSecretTrack(track)) {
           const unlockedSecrets = tracks.slice(baseTracks.length);
@@ -338,6 +359,11 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     };
 
     const requestPlayback = () => {
+      if (isAudioSuspended()) {
+        audio.pause();
+        setUiState("memory");
+        return Promise.resolve(false);
+      }
       if (!enabled) {
         audio.pause();
         setUiState("paused");
@@ -369,6 +395,30 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
           if (!signal.aborted && token === playbackToken) playbackPromise = null;
         });
       return playbackPromise;
+    };
+
+    const handleAudioSuspension = (event) => {
+      const detail = event instanceof CustomEvent && event.detail && typeof event.detail === "object"
+        ? event.detail
+        : {};
+      const id = typeof detail.id === "string" && detail.id ? detail.id : "interlude";
+      if (detail.active === true) {
+        if (!audioSuspension.active) audioSuspension.resumeRequested = enabled;
+        audioSuspension.active = true;
+        audioSuspension.id = id;
+        playbackToken += 1;
+        playbackPromise = null;
+        audio.pause();
+        setUiState("memory");
+        return;
+      }
+      if (!audioSuspension.active || (detail.id && detail.id !== audioSuspension.id)) return;
+      const shouldResume = audioSuspension.resumeRequested && enabled;
+      audioSuspension.active = false;
+      audioSuspension.id = "";
+      audioSuspension.resumeRequested = false;
+      if (shouldResume) requestPlayback();
+      else setUiState("paused");
     };
 
     const adoptBootstrapPlayback = () => {
@@ -532,8 +582,10 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     };
 
     window.addEventListener(audioConfig.secretEventName, unlockSecretTrack, { signal });
+    window.addEventListener("yuimi:kisara-audio-suspension", handleAudioSuspension, { signal });
 
     control.addEventListener("click", () => {
+      if (isAudioSuspended()) return;
       if (audio.paused) {
         enabled = true;
         if (isSecretTrack()) {
@@ -559,11 +611,15 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       persistState();
     }, { signal });
 
-    previous?.addEventListener("click", () => stepTrack(-1), { signal });
-    next?.addEventListener("click", () => stepTrack(1), { signal });
+    previous?.addEventListener("click", () => {
+      if (!isAudioSuspended()) stepTrack(-1);
+    }, { signal });
+    next?.addEventListener("click", () => {
+      if (!isAudioSuspended()) stepTrack(1);
+    }, { signal });
 
     const unlockPlayback = (event) => {
-      if (!enabled || !audio.paused) return;
+      if (isAudioSuspended() || !enabled || !audio.paused) return;
       const target = event.target instanceof Element ? event.target : null;
       if (target?.closest("[data-kisara-audio-control]")) return;
       if (!autoplayBlocked && currentUiState !== "loading") return;
@@ -592,24 +648,30 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       persistState();
     }, { capture: true, signal });
     window.addEventListener("pageshow", () => {
-      if (enabled && audio.paused && !autoplayBlocked) requestPlayback();
+      if (!isAudioSuspended() && enabled && audio.paused && !autoplayBlocked) requestPlayback();
     }, { signal });
     window.addEventListener("pagehide", persistState, { signal });
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") persistState();
-      else if (enabled && audio.paused && !autoplayBlocked) requestPlayback();
+      else if (!isAudioSuspended() && enabled && audio.paused && !autoplayBlocked) requestPlayback();
     }, { signal });
 
     audio.addEventListener("playing", () => {
+      if (isAudioSuspended()) {
+        audio.pause();
+        setUiState("memory");
+        return;
+      }
       autoplayBlocked = false;
       setUiState("playing");
     }, { signal });
     audio.addEventListener("pause", () => {
-      if (!switchingTrack) setUiState(enabled ? "loading" : "paused");
+      if (!switchingTrack) setUiState(isAudioSuspended() ? "memory" : enabled ? "loading" : "paused");
     }, { signal });
     audio.addEventListener("waiting", () => {
-      if (enabled) setUiState("loading");
+      if (isAudioSuspended()) setUiState("memory");
+      else if (enabled) setUiState("loading");
     }, { signal });
     audio.addEventListener("error", () => setUiState("error"), { signal });
     audio.addEventListener("ended", () => {
@@ -641,6 +703,11 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     }, { signal });
 
     updateTrackUi();
+    if (isAudioSuspended()) {
+      audio.pause();
+      setUiState("memory");
+      return;
+    }
     if (isSecretTrack() && audio.currentSrc.includes(activeTrack().src)) {
       setUiState(!audio.paused && !audio.ended ? "playing" : enabled ? "loading" : "paused");
       if (enabled && audio.paused) requestPlayback();

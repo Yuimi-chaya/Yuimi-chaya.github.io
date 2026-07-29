@@ -1,0 +1,57 @@
+---
+const letters = [
+  { character: "K", delay: "3.05s", rotation: "-3.6deg", lift: "7px" },
+  { character: "i", delay: "3.72s", rotation: "2.4deg", lift: "-4px" },
+  { character: "s", delay: "3.28s", rotation: "-1.8deg", lift: "4px" },
+  { character: "a", delay: "4.16s", rotation: "2.8deg", lift: "-2px" },
+  { character: "r", delay: "3.56s", rotation: "-2.2deg", lift: "5px" },
+  { character: "a", delay: "4.44s", rotation: "1.6deg", lift: "0px" }
+] as const;
+---
+
+<div class="kisara-found-self" data-kisara-found-self aria-hidden="true">
+  <div class="kisara-found-self-camera" data-kisara-found-self-camera>
+    <div class="kisara-found-self-first" aria-hidden="true"></div>
+    <video
+      class="kisara-found-self-video"
+      data-kisara-found-self-video
+      data-src="/themes/kisara/assets/found-self-memory.mp4"
+      data-poster="/themes/kisara/assets/found-self-memory-first.webp"
+      muted
+      playsinline
+      preload="none"
+      aria-hidden="true"
+    ></video>
+  </div>
+
+  <div class="kisara-found-self-grade" aria-hidden="true"></div>
+
+  <div class="kisara-found-self-inscription">
+    <small class="kisara-found-self-origin">WRITTEN BY MYSELF / MEMORY 11</small>
+    <h1 aria-label="Kisara">
+      {letters.map((letter) => (
+        <span
+          class="kisara-found-self-glyph"
+          style={`--found-delay:${letter.delay};--found-rotation:${letter.rotation};--found-lift:${letter.lift}`}
+          aria-hidden="true"
+        >
+          <i class="is-upper">{letter.character}</i>
+          <i class="is-middle">{letter.character}</i>
+          <i class="is-lower">{letter.character}</i>
+          <b>{letter.character}</b>
+        </span>
+      ))}
+    </h1>
+    <p class="kisara-found-self-note" aria-hidden="true">
+      <span>忘れないで</span>
+      <b>シュウを助ける</b>
+    </p>
+  </div>
+
+  <div class="kisara-found-self-playback" aria-hidden="true">
+    <span><i></i>AUTO</span>
+    <b data-kisara-found-self-status>MEMORY SEARCH</b>
+  </div>
+  <a class="kisara-found-self-skip" href="#kisara-opening" data-kisara-found-self-skip>SKIP</a>
+  <p class="sr-only" data-kisara-found-self-announcer aria-live="polite"></p>
+</div>

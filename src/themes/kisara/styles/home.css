@@ -121,6 +121,351 @@
   inset: 0;
 }
 
+html[data-kisara-found-self-entry] .kisara-gate :is(
+  .kisara-gate-visual-shell,
+  .kisara-ambient-particles,
+  .kisara-burst-canvas,
+  .kisara-screen-impact,
+  .kisara-gate-index,
+  .kisara-title,
+  .kisara-contract-meter,
+  .kisara-contract-state,
+  .kisara-scroll-cue,
+  .kisara-motion-toggle,
+  .kisara-gate-auto,
+  .kisara-gate-skip
+),
+.kisara-gate.is-found-self-active :is(
+  .kisara-gate-visual-shell,
+  .kisara-ambient-particles,
+  .kisara-burst-canvas,
+  .kisara-screen-impact,
+  .kisara-gate-index,
+  .kisara-title,
+  .kisara-contract-meter,
+  .kisara-contract-state,
+  .kisara-scroll-cue,
+  .kisara-motion-toggle,
+  .kisara-gate-auto,
+  .kisara-gate-skip
+) {
+  visibility: hidden;
+}
+
+.kisara-found-self {
+  position: absolute;
+  z-index: 24;
+  inset: 0;
+  overflow: hidden;
+  visibility: hidden;
+  opacity: 0;
+  color: #f7e7ef;
+  background: #a9dce9;
+  isolation: isolate;
+  pointer-events: none;
+  transition: opacity 760ms cubic-bezier(0.32, 0.02, 0.18, 1), transform 900ms cubic-bezier(0.32, 0.02, 0.18, 1);
+}
+
+html[data-kisara-found-self-entry] .kisara-found-self,
+.kisara-gate.is-found-self-active .kisara-found-self {
+  visibility: visible;
+  opacity: 1;
+}
+
+.kisara-found-self-camera,
+.kisara-found-self-first,
+.kisara-found-self-video,
+.kisara-found-self-grade {
+  position: absolute;
+  inset: 0;
+}
+
+.kisara-found-self-camera {
+  z-index: 0;
+  inset: -1.5%;
+  overflow: hidden;
+  transform: translate3d(0, 0, 0) scale(1.035);
+  transform-origin: 54% 52%;
+  backface-visibility: hidden;
+}
+
+.kisara-found-self-first,
+.kisara-found-self-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  backface-visibility: hidden;
+}
+
+html[data-kisara-found-self-entry] .kisara-found-self-first,
+.kisara-gate.is-found-self-active .kisara-found-self-first {
+  background-image: url("/themes/kisara/assets/found-self-memory-first.webp");
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.kisara-found-self-first {
+  z-index: 0;
+  opacity: 1;
+  transition: opacity 260ms ease;
+}
+
+.kisara-found-self-video {
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.kisara-found-self.is-media-ready .kisara-found-self-first {
+  opacity: 0;
+}
+
+.kisara-found-self.is-media-ready .kisara-found-self-video {
+  opacity: 1;
+}
+
+.kisara-found-self-grade {
+  z-index: 3;
+  background:
+    linear-gradient(90deg, rgba(14, 20, 38, 0.58) 0%, rgba(20, 25, 43, 0.3) 31%, transparent 58%),
+    linear-gradient(180deg, rgba(8, 14, 29, 0.12) 0%, transparent 54%, rgba(14, 9, 27, 0.34) 100%),
+    radial-gradient(circle at 84% 68%, rgba(255, 166, 204, 0.04) 0 4%, transparent 17%);
+}
+
+.kisara-found-self-inscription {
+  position: absolute;
+  z-index: 6;
+  top: 31%;
+  left: clamp(34px, 8vw, 132px);
+  width: min(58vw, 760px);
+  transform: rotate(-3.4deg);
+  transform-origin: left center;
+}
+
+.kisara-found-self-origin {
+  display: block;
+  margin: 0 0 14px 10px;
+  color: rgba(34, 25, 41, 0.78);
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  opacity: 0;
+  filter: blur(5px);
+}
+
+.kisara-found-self.is-running .kisara-found-self-origin {
+  animation: kisara-found-self-origin 2.2s 2.75s ease-out both;
+}
+
+.kisara-found-self-inscription h1 {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  color: transparent;
+  font-family: "Segoe Print", "Bradley Hand ITC", "Comic Sans MS", "KaiTi", cursive;
+  font-size: 9rem;
+  font-weight: 700;
+  line-height: 0.88;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.kisara-found-self-glyph {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  transform: translateY(var(--found-lift)) rotate(var(--found-rotation));
+}
+
+.kisara-found-self-glyph > :is(i, b) {
+  grid-area: 1 / 1;
+  display: block;
+  font: inherit;
+  font-style: normal;
+  letter-spacing: 0;
+}
+
+.kisara-found-self-glyph i {
+  color: rgba(28, 20, 35, 0.88);
+  opacity: 0;
+  filter: blur(13px) saturate(0.2) brightness(0.48);
+  text-shadow: 0 0 12px rgba(25, 11, 26, 0.72);
+}
+
+.kisara-found-self-glyph i.is-upper {
+  clip-path: polygon(0 0, 100% 0, 96% 39%, 55% 35%, 0 46%);
+  transform: translate3d(-7px, -9px, 0) scale(1.05);
+}
+
+.kisara-found-self-glyph i.is-middle {
+  clip-path: polygon(0 30%, 58% 34%, 100% 25%, 100% 73%, 46% 67%, 0 79%);
+  transform: translate3d(8px, 3px, 0) scale(0.98);
+}
+
+.kisara-found-self-glyph i.is-lower {
+  clip-path: polygon(0 69%, 42% 61%, 100% 72%, 100% 100%, 0 100%);
+  transform: translate3d(-4px, 11px, 0) scale(1.03);
+}
+
+.kisara-found-self.is-running .kisara-found-self-glyph i.is-upper {
+  animation: kisara-found-self-fragment 3.6s var(--found-delay) cubic-bezier(0.2, 0.78, 0.22, 1) both;
+}
+
+.kisara-found-self.is-running .kisara-found-self-glyph i.is-middle {
+  animation: kisara-found-self-fragment 3.9s calc(var(--found-delay) + 0.48s) cubic-bezier(0.2, 0.78, 0.22, 1) both;
+}
+
+.kisara-found-self.is-running .kisara-found-self-glyph i.is-lower {
+  animation: kisara-found-self-fragment 3.4s calc(var(--found-delay) + 0.18s) cubic-bezier(0.2, 0.78, 0.22, 1) both;
+}
+
+.kisara-found-self-glyph b {
+  color: #ff7fac;
+  opacity: 0;
+  filter: blur(8px) saturate(0.28) brightness(0.5);
+  text-shadow:
+    0 1px 0 rgba(255, 233, 242, 0.55),
+    0 0 11px rgba(255, 90, 148, 0.48),
+    0 0 30px rgba(224, 49, 112, 0.3);
+  transform: scale(0.985);
+}
+
+.kisara-found-self.is-running .kisara-found-self-glyph b {
+  animation: kisara-found-self-colorwake 4.3s calc(var(--found-delay) + 2.15s) cubic-bezier(0.18, 0.78, 0.22, 1) both;
+}
+
+.kisara-found-self-note {
+  display: flex;
+  align-items: flex-end;
+  gap: 26px;
+  margin: 18px 0 0 16px;
+  font-family: "Segoe Print", "KaiTi", cursive;
+  letter-spacing: 0;
+}
+
+.kisara-found-self-note :is(span, b) {
+  color: rgba(49, 23, 42, 0.88);
+  font-weight: 700;
+  opacity: 0;
+  filter: blur(7px);
+}
+
+.kisara-found-self-note span {
+  font-size: 1rem;
+  transform: translateY(7px) rotate(-2deg);
+}
+
+.kisara-found-self-note b {
+  color: rgba(171, 41, 91, 0.92);
+  font-size: 1.28rem;
+  transform: translateY(-2px) rotate(1.8deg);
+}
+
+.kisara-found-self.is-running .kisara-found-self-note span {
+  animation: kisara-found-self-note 2.5s 7.6s ease-out both;
+}
+
+.kisara-found-self.is-running .kisara-found-self-note b {
+  animation: kisara-found-self-note 2.8s 8.55s ease-out both;
+}
+
+.kisara-found-self-playback {
+  position: absolute;
+  z-index: 8;
+  right: 108px;
+  bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: rgba(49, 35, 58, 0.76);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.kisara-found-self-playback span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kisara-found-self-playback span i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d93778;
+  box-shadow: 0 0 8px rgba(217, 55, 120, 0.55);
+  animation: kisara-found-self-auto 1.15s ease-in-out infinite;
+}
+
+.kisara-found-self-playback b {
+  min-width: 104px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(69, 42, 64, 0.34);
+  color: rgba(82, 43, 72, 0.72);
+  font-size: inherit;
+  font-weight: 800;
+}
+
+.kisara-found-self-skip {
+  position: absolute;
+  z-index: 9;
+  right: 48px;
+  bottom: 28px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(74, 42, 66, 0.46);
+  color: rgba(69, 39, 62, 0.78);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  pointer-events: auto;
+  transition: color 180ms ease, border-color 180ms ease, filter 180ms ease;
+}
+
+.kisara-found-self-skip:hover,
+.kisara-found-self-skip:focus-visible {
+  color: #c42f6a;
+  border-bottom-color: rgba(196, 47, 106, 0.78);
+  filter: drop-shadow(0 0 7px rgba(218, 53, 119, 0.35));
+}
+
+.kisara-found-self.is-leaving {
+  opacity: 0;
+  transform: translate3d(0, -2.5%, 0) scale(1.012);
+}
+
+@keyframes kisara-found-self-origin {
+  0% { opacity: 0; filter: blur(5px); transform: translateX(-8px); }
+  100% { opacity: 1; filter: blur(0); transform: translateX(0); }
+}
+
+@keyframes kisara-found-self-fragment {
+  0% { opacity: 0; filter: blur(13px) saturate(0.18) brightness(0.42); }
+  26% { opacity: 0.7; }
+  68% { opacity: 0.92; filter: blur(2.8px) saturate(0.38) brightness(0.72); }
+  100% { opacity: 0.22; filter: blur(0.5px) saturate(0.7) brightness(0.9); transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes kisara-found-self-colorwake {
+  0% { opacity: 0; filter: blur(8px) saturate(0.22) brightness(0.44); transform: scale(0.985); }
+  30% { opacity: 0.28; }
+  72% { opacity: 0.9; filter: blur(1.4px) saturate(0.86) brightness(0.92); }
+  100% { opacity: 1; filter: blur(0) saturate(1.12) brightness(1.08); transform: scale(1); }
+}
+
+@keyframes kisara-found-self-note {
+  0% { opacity: 0; filter: blur(7px); }
+  100% { opacity: 1; filter: blur(0); }
+}
+
+@keyframes kisara-found-self-auto {
+  0%, 100% { opacity: 0.42; transform: scale(0.72); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
 .kisara-ambient-particles {
   position: absolute;
   z-index: -1;
@@ -5982,5 +6327,107 @@ html[data-yuimi-performance="lite"] .kisara-ambient-particles i:nth-child(n + 4)
   .kisara-event-scene:not([data-scene-visible="true"]) .kisara-event-hotspot::after,
   .kisara-event-reward:not([open]) .kisara-event-reward-burst::before {
     animation-play-state: paused;
+  }
+}
+
+@media (max-width: 980px) {
+  .kisara-found-self-inscription {
+    top: 34%;
+    left: 36px;
+    width: 68vw;
+  }
+
+  .kisara-found-self-inscription h1 {
+    font-size: 7rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .kisara-found-self-camera {
+    inset: -2.5%;
+    transform-origin: 76% 52%;
+  }
+
+  .kisara-found-self-first,
+  .kisara-found-self-video,
+  html[data-kisara-found-self-entry] .kisara-found-self-first,
+  .kisara-gate.is-found-self-active .kisara-found-self-first {
+    object-position: 76% center;
+    background-position: 76% center;
+  }
+
+  .kisara-found-self-grade {
+    background:
+      linear-gradient(180deg, rgba(10, 16, 31, 0.2) 0%, transparent 38%, rgba(13, 8, 25, 0.5) 100%),
+      linear-gradient(90deg, rgba(15, 20, 38, 0.22), transparent 64%);
+  }
+
+  .kisara-found-self-inscription {
+    top: auto;
+    right: 20px;
+    bottom: max(142px, calc(116px + env(safe-area-inset-bottom)));
+    left: 20px;
+    width: auto;
+    transform: rotate(-4deg);
+  }
+
+  .kisara-found-self-origin {
+    margin: 0 0 8px 4px;
+    font-size: 0.54rem;
+  }
+
+  .kisara-found-self-inscription h1 {
+    font-size: 4.65rem;
+  }
+
+  .kisara-found-self-note {
+    gap: 14px;
+    margin: 12px 0 0 6px;
+  }
+
+  .kisara-found-self-note span {
+    font-size: 0.76rem;
+  }
+
+  .kisara-found-self-note b {
+    font-size: 0.92rem;
+  }
+
+  .kisara-found-self-playback {
+    right: 64px;
+    bottom: max(78px, calc(58px + env(safe-area-inset-bottom)));
+  }
+
+  .kisara-found-self-playback b {
+    display: none;
+  }
+
+  .kisara-found-self-skip {
+    right: 24px;
+    bottom: max(78px, calc(58px + env(safe-area-inset-bottom)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kisara-found-self,
+  .kisara-found-self-first,
+  .kisara-found-self-video,
+  .kisara-found-self-camera {
+    transition: none;
+    animation: none !important;
+  }
+
+  .kisara-found-self.is-running .kisara-found-self-origin,
+  .kisara-found-self.is-running .kisara-found-self-glyph i,
+  .kisara-found-self.is-running .kisara-found-self-glyph b,
+  .kisara-found-self.is-running .kisara-found-self-note :is(span, b) {
+    animation: none;
+    opacity: 1;
+    filter: none;
+  }
+
+  .kisara-found-self.is-running .kisara-found-self-glyph i {
+    opacity: 0.16;
+    transform: none;
   }
 }

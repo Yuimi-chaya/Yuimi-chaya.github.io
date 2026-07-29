@@ -1,5 +1,6 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import KisaraFoundSelfEasterEgg from "../components/KisaraFoundSelfEasterEgg.astro";
 import homeStylesheet from "../styles/home.css?url";
 import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
@@ -196,6 +197,22 @@ const gateStyle = [
   description="Yuimi Lab 的 Kisara 视觉交互主题。"
   stylesheets={[homeStylesheet]}
 >
+  <script is:inline data-astro-rerun>
+    (() => {
+      const ticketKey = "yuimi-kisara-found-self-ticket-v1";
+      let ticket = null;
+      try {
+        ticket = JSON.parse(sessionStorage.getItem(ticketKey) ?? "null");
+        sessionStorage.removeItem(ticketKey);
+      } catch {}
+      const requested = ticket?.source === "me-games"
+        && Number.isFinite(ticket?.createdAt)
+        && Date.now() - ticket.createdAt < 30_000;
+      if (requested) document.documentElement.dataset.kisaraFoundSelfEntry = "pending";
+      else delete document.documentElement.dataset.kisaraFoundSelfEntry;
+    })();
+  </script>
+
   <section class="kisara-gate" data-kisara-gate style={gateStyle}>
     <script type="application/json" data-kisara-scene-manifest set:html={JSON.stringify(gateSceneManifest)}></script>
     <div class="kisara-gate-visual-shell" aria-hidden="true">
@@ -227,6 +244,7 @@ const gateStyle = [
         ></canvas>
       </div>
     </div>
+    <KisaraFoundSelfEasterEgg />
     <div class="kisara-ambient-particles" aria-hidden="true">
       {ambientParticles.map((particle) => (
         <i
@@ -1374,6 +1392,7 @@ const gateStyle = [
         (() => {
       const gate = document.querySelector("[data-kisara-gate]");
       if (!gate) return;
+      const foundSelfEntryRequested = document.documentElement.dataset.kisaraFoundSelfEntry === "pending";
       if (gate.dataset.bound === "true") {
         if (!releaseStaleKisaraHomeRuntime(gate)) {
           window.__yuimiKisaraHomeBootController?.markReady?.();
@@ -1524,7 +1543,7 @@ const gateStyle = [
         if (fill >= 0.7 || intro >= 0.18) warmSceneImage(transformationSceneRecords[1]);
         if (fill >= 0.84 || intro >= 0.46) warmSceneImage(transformationSceneRecords[2]);
       };
-      memorySceneRecords.slice(0, 2).forEach(warmSceneImage);
+      if (!foundSelfEntryRequested) memorySceneRecords.slice(0, 2).forEach(warmSceneImage);
       let sceneSlotOverflowWarned = false;
       const meterShell = gate.querySelector(".kisara-contract-meter");
       const title = gate.querySelector(".kisara-title");
@@ -1590,6 +1609,11 @@ const gateStyle = [
       const autoPlay = gate.querySelector("[data-kisara-auto]");
       const autoPlayLabel = autoPlay?.querySelector("[data-kisara-auto-label]");
       const skip = gate.querySelector("[data-kisara-skip]");
+      const foundSelfOverlay = gate.querySelector("[data-kisara-found-self]");
+      const foundSelfVideo = gate.querySelector("[data-kisara-found-self-video]");
+      const foundSelfStatus = gate.querySelector("[data-kisara-found-self-status]");
+      const foundSelfSkip = gate.querySelector("[data-kisara-found-self-skip]");
+      const foundSelfAnnouncer = gate.querySelector("[data-kisara-found-self-announcer]");
       const fridgeScene = document.querySelector("kisara-fridge-scene");
       const eventScene = document.querySelector("kisara-clue-scene");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -2546,7 +2570,7 @@ const gateStyle = [
       };
       ensureOpeningEdgeSampler(openingEdgeRecordById.get("base"), true);
       window.addEventListener("resize", scheduleOpeningEdgeTextureRefresh, { passive: true, signal });
-      const startsComplete = reducedMotion && !restoredBelowGate;
+      const startsComplete = reducedMotion && !restoredBelowGate && !foundSelfEntryRequested;
       let progress = startsComplete ? 1 : 0;
       let targetProgress = progress;
       let velocity = 0;
@@ -2582,6 +2606,13 @@ const gateStyle = [
       let gateWheelLastTimestamp = 0;
       let heroAutoplayActive = false;
       let heroAutoplayLastTimestamp = 0;
+      let foundSelfActive = foundSelfEntryRequested;
+      let foundSelfState = foundSelfEntryRequested ? "loading" : "inactive";
+      let foundSelfSequenceTimer = 0;
+      let foundSelfReadyTimer = 0;
+      let foundSelfExitTimer = 0;
+      let foundSelfSound = null;
+      let foundSelfAudioSuspended = false;
       let renderedHeroAutoplayState = "";
       let renderedPercent = -1;
       let renderedStage = "";
@@ -13401,6 +13432,145 @@ const gateStyle = [
         });
       };
 
+      const setFoundSelfStatus = (value) => {
+        if (foundSelfStatus) foundSelfStatus.textContent = value;
+      };
+
+      const setFoundSelfMusicSuspended = (active) => {
+        if (foundSelfAudioSuspended === active) return;
+        foundSelfAudioSuspended = active;
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-audio-suspension", {
+          detail: { id: "found-self", active }
+        }));
+      };
+
+      const stopFoundSelfSound = () => {
+        if (!(foundSelfSound instanceof HTMLAudioElement)) return;
+        foundSelfSound.pause();
+        try {
+          foundSelfSound.currentTime = 0;
+        } catch {}
+      };
+
+      const settleFoundSelfSequence = () => {
+        if (!foundSelfActive || foundSelfState === "leaving" || foundSelfState === "settled") return;
+        window.clearTimeout(foundSelfSequenceTimer);
+        foundSelfSequenceTimer = 0;
+        foundSelfState = "settled";
+        if (foundSelfOverlay instanceof HTMLElement) {
+          foundSelfOverlay.dataset.state = "settled";
+          foundSelfOverlay.classList.add("is-holding", "is-settled");
+        }
+        setFoundSelfStatus("MEMORY FOUND");
+        if (foundSelfAnnouncer) {
+          foundSelfAnnouncer.textContent = "记忆回放完成。向下滑动继续浏览，或使用跳过按钮。";
+        }
+      };
+
+      const unloadFoundSelfMedia = () => {
+        if (foundSelfVideo instanceof HTMLVideoElement) {
+          foundSelfVideo.pause();
+          foundSelfVideo.removeAttribute("src");
+          foundSelfVideo.removeAttribute("poster");
+          foundSelfVideo.load();
+        }
+      };
+
+      const finalizeFoundSelfExit = () => {
+        window.clearTimeout(foundSelfExitTimer);
+        foundSelfExitTimer = 0;
+        foundSelfActive = false;
+        foundSelfState = "inactive";
+        gate.classList.remove("is-found-self-active", "is-found-self-leaving");
+        if (foundSelfOverlay instanceof HTMLElement) {
+          foundSelfOverlay.dataset.state = "inactive";
+          foundSelfOverlay.classList.remove("is-running", "is-media-ready", "is-holding", "is-settled", "is-leaving");
+          foundSelfOverlay.setAttribute("aria-hidden", "true");
+        }
+        delete document.documentElement.dataset.kisaraFoundSelfEntry;
+        unloadFoundSelfMedia();
+      };
+
+      const leaveFoundSelfSequence = () => {
+        if (!foundSelfActive || foundSelfState === "leaving") return;
+        foundSelfState = "leaving";
+        window.clearTimeout(foundSelfReadyTimer);
+        window.clearTimeout(foundSelfSequenceTimer);
+        foundSelfReadyTimer = 0;
+        foundSelfSequenceTimer = 0;
+        gate.classList.add("is-found-self-leaving");
+        if (foundSelfOverlay instanceof HTMLElement) {
+          foundSelfOverlay.dataset.state = "leaving";
+          foundSelfOverlay.classList.add("is-leaving");
+        }
+        if (foundSelfVideo instanceof HTMLVideoElement) foundSelfVideo.pause();
+        stopFoundSelfSound();
+        setFoundSelfMusicSuspended(false);
+        foundSelfExitTimer = window.setTimeout(finalizeFoundSelfExit, reducedMotion ? 80 : 1050);
+        enterNextPage();
+      };
+
+      const startFoundSelfSequence = () => {
+        if (!foundSelfActive || !(foundSelfOverlay instanceof HTMLElement)) return;
+        gate.classList.add("is-found-self-active");
+        foundSelfOverlay.setAttribute("aria-hidden", "false");
+        foundSelfOverlay.dataset.state = "loading";
+        setFoundSelfStatus("MEMORY SEARCH");
+
+        if (foundSelfVideo instanceof HTMLVideoElement) {
+          if (foundSelfVideo.dataset.poster) foundSelfVideo.poster = foundSelfVideo.dataset.poster;
+          if (foundSelfVideo.dataset.src) foundSelfVideo.src = foundSelfVideo.dataset.src;
+          foundSelfVideo.load();
+          foundSelfVideo.addEventListener("playing", () => {
+            foundSelfOverlay.classList.add("is-media-ready");
+          }, { once: true, signal });
+          foundSelfVideo.addEventListener("ended", () => {
+            foundSelfOverlay.classList.add("is-holding");
+          }, { once: true, signal });
+        }
+
+        foundSelfSound = new Audio("/themes/kisara/audio/found-self-se.mp3");
+        foundSelfSound.preload = "auto";
+        foundSelfSound.volume = 0.58;
+        foundSelfSound.addEventListener("ended", settleFoundSelfSequence, { once: true, signal });
+        foundSelfSound.load();
+
+        let started = false;
+        const begin = () => {
+          if (started || !foundSelfActive || foundSelfState === "leaving") return;
+          started = true;
+          window.clearTimeout(foundSelfReadyTimer);
+          foundSelfReadyTimer = 0;
+          foundSelfState = "playing";
+          foundSelfOverlay.dataset.state = "playing";
+          foundSelfOverlay.classList.add("is-running");
+          setFoundSelfStatus("MEMORY PLAYBACK");
+          if (foundSelfAnnouncer) foundSelfAnnouncer.textContent = "记忆正在自动回放。播放期间滚轮输入已锁定。";
+          setFoundSelfMusicSuspended(true);
+          if (foundSelfVideo instanceof HTMLVideoElement) {
+            try {
+              foundSelfVideo.currentTime = 0;
+            } catch {}
+            Promise.resolve(foundSelfVideo.play()).catch(() => {
+              foundSelfOverlay.classList.add("is-holding");
+            });
+          }
+          Promise.resolve(foundSelfSound?.play()).catch(() => {
+            setFoundSelfStatus("MEMORY SIGNAL");
+          });
+          foundSelfSequenceTimer = window.setTimeout(settleFoundSelfSequence, 13_650);
+        };
+        const mediaReady = () => {
+          const videoReady = !(foundSelfVideo instanceof HTMLVideoElement) || foundSelfVideo.readyState >= 2;
+          const soundReady = !(foundSelfSound instanceof HTMLAudioElement) || foundSelfSound.readyState >= 2;
+          if (videoReady && soundReady) begin();
+        };
+        foundSelfVideo?.addEventListener("canplay", mediaReady, { signal });
+        foundSelfSound.addEventListener("canplay", mediaReady, { signal });
+        foundSelfReadyTimer = window.setTimeout(begin, 1200);
+        mediaReady();
+      };
+
       const returnToGate = () => {
         if (scrollTransitionDirection === "return") return;
         clearHomeGateReturnArm();
@@ -13710,6 +13880,11 @@ const gateStyle = [
 
       const handleDirectionalInput = (delta, event, inputType = "wheel") => {
         if (delta === 0) return;
+        if (foundSelfActive) {
+          event.preventDefault();
+          if (foundSelfState === "settled" && delta > 0) leaveFoundSelfSequence();
+          return;
+        }
         if (scrollFrame || scrollTransitionDirection !== "idle") {
           event.preventDefault();
           if (inputType === "wheel" && scrollTransitionDirection.startsWith("section")) {
@@ -13836,6 +14011,7 @@ const gateStyle = [
       }, { passive: true, signal });
 
       gate.addEventListener("kisara:scene-ready", () => {
+        if (foundSelfActive) return;
         render();
         startEnergyAnimation();
       }, { signal });
@@ -13846,6 +14022,11 @@ const gateStyle = [
       if (autoPlay instanceof HTMLElement) {
         autoPlay.dataset.kisaraRuntimeBound = "true";
       }
+
+      foundSelfSkip?.addEventListener("click", (event) => {
+        event.preventDefault();
+        leaveFoundSelfSequence();
+      }, { signal });
 
       skip?.addEventListener("click", (event) => {
         event.preventDefault();
@@ -13878,6 +14059,7 @@ const gateStyle = [
         resizeTitleDataCanvas(true);
         spaceLensRenderer?.resize();
         titleLensRenderer?.resize();
+        if (foundSelfActive) return;
         startEnergyAnimation();
         startPostReleaseAnimation();
       };
@@ -13932,6 +14114,7 @@ const gateStyle = [
           gate.style.setProperty("--kisara-title-source-opacity", "1");
           return;
         }
+        if (foundSelfActive) return;
         const keptLiveBridge = openingBridgeResumeLive && restoreLiveOpeningBridge();
         openingBridgeResumeLive = false;
         startEnergyAnimation();
@@ -13943,6 +14126,17 @@ const gateStyle = [
       const cleanup = () => {
         if (disposed) return;
         disposed = true;
+        window.clearTimeout(foundSelfReadyTimer);
+        window.clearTimeout(foundSelfSequenceTimer);
+        window.clearTimeout(foundSelfExitTimer);
+        foundSelfReadyTimer = 0;
+        foundSelfSequenceTimer = 0;
+        foundSelfExitTimer = 0;
+        stopFoundSelfSound();
+        setFoundSelfMusicSuspended(false);
+        foundSelfActive = false;
+        foundSelfState = "inactive";
+        delete document.documentElement.dataset.kisaraFoundSelfEntry;
         cancelBurstWarmup();
         finishWarningPresentationWarmup(false, true);
         gate.removeAttribute("data-bound");
@@ -14034,8 +14228,11 @@ const gateStyle = [
       gate.removeAttribute("data-binding");
       gate.removeAttribute("data-kisara-runtime-retries");
       window.__yuimiKisaraHomeBootController?.markReady?.();
-      scheduleWarningWarmup();
-      scheduleOpeningBridgeRecovery();
+      if (foundSelfActive) startFoundSelfSequence();
+      else {
+        scheduleWarningWarmup();
+        scheduleOpeningBridgeRecovery();
+      }
       const syncRestoredPosition = () => {
         if (!restoreWindowOpen || scrollFrame || pageMode !== "gate" || window.scrollY <= 2) return;
         pageMode = "next";

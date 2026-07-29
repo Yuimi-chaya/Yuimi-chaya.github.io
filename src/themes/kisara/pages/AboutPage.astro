@@ -405,8 +405,10 @@ const railScenes = scenes.slice(0, -1);
       let edgeTimer = 0;
       let flightFrame = 0;
       let flightDial = null;
+      let prepareFoundSelfReturn = () => {};
 
-      const cleanup = () => {
+      const cleanup = (event) => {
+        prepareFoundSelfReturn(event);
         window.clearTimeout(transitionTimer);
         window.clearTimeout(edgeTimer);
         window.cancelAnimationFrame(flightFrame);
@@ -431,7 +433,9 @@ const railScenes = scenes.slice(0, -1);
       flightDial = root.querySelector("[data-me-flight-dial]");
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const visitedMemoryScenes = new Set();
+      const foundSelfVisitedScenes = new Set([0]);
       let activeIndex = 0;
+      let foundSelfDisqualified = false;
       let wheelBuffer = 0;
       let lastWheelAt = 0;
       let blockedUntil = 0;
@@ -460,6 +464,30 @@ const railScenes = scenes.slice(0, -1);
       };
 
       const resetFlightPose = () => queueFlightPose(0, 0);
+
+      const foundSelfTicketKey = "yuimi-kisara-found-self-ticket-v1";
+      const canTriggerFoundSelf = () => activeIndex === 4
+        && !foundSelfDisqualified
+        && [0, 1, 2, 3, 4].every((index) => foundSelfVisitedScenes.has(index));
+      const setFoundSelfTicket = (enabled) => {
+        try {
+          if (enabled) {
+            sessionStorage.setItem(foundSelfTicketKey, JSON.stringify({
+              source: "me-games",
+              createdAt: Date.now()
+            }));
+          } else {
+            sessionStorage.removeItem(foundSelfTicketKey);
+          }
+        } catch {}
+      };
+      const isKisaraHomePath = (pathname) => pathname.replace(/\/+$/, "") === "/themes/kisara";
+      prepareFoundSelfReturn = (event) => {
+        const nextDocument = event?.newDocument;
+        if (!nextDocument) return;
+        const nextIsHome = nextDocument.body?.classList.contains("kisara-home-page");
+        setFoundSelfTicket(Boolean(nextIsHome && canTriggerFoundSelf()));
+      };
 
       const setMemoryReturnState = (state) => {
         if (!(memoryReturn instanceof HTMLButtonElement)) return;
@@ -504,6 +532,8 @@ const railScenes = scenes.slice(0, -1);
         root.scrollTop = 0;
         const previousIndex = activeIndex;
         activeIndex = boundedIndex;
+        if (boundedIndex >= 0 && boundedIndex <= 4) foundSelfVisitedScenes.add(boundedIndex);
+        if (boundedIndex >= 5) foundSelfDisqualified = true;
         rememberScene(boundedIndex);
         if (boundedIndex !== 1) resetFlightPose();
         root.dataset.direction = boundedIndex >= previousIndex ? "next" : "previous";
@@ -630,6 +660,15 @@ const railScenes = scenes.slice(0, -1);
         const target = Number(marker.dataset.meTarget);
         if (Number.isFinite(target)) setActiveScene(target);
       }, { signal }));
+
+      document.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const anchor = target?.closest("a[href]");
+        if (!(anchor instanceof HTMLAnchorElement) || anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+        const destination = new URL(anchor.href, document.baseURI);
+        if (destination.origin !== window.location.origin || !isKisaraHomePath(destination.pathname)) return;
+        setFoundSelfTicket(canTriggerFoundSelf());
+      }, { capture: true, signal });
 
       memoryReturn?.addEventListener("click", () => {
         if (!(memoryReturn instanceof HTMLButtonElement) || memoryReturn.dataset.state !== "ready") return;
