@@ -1,10 +1,10 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
 import KisaraFoundSelfEasterEgg from "../components/KisaraFoundSelfEasterEgg.astro";
+import KisaraFridgeScene from "../components/KisaraFridgeScene.astro";
 import homeStylesheet from "../styles/home.css?url";
 import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
-import { currentSignals } from "@/core/data/profile";
 import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
 import { existsSync } from "node:fs";
@@ -139,35 +139,6 @@ const openingMemoryGlyphs = (value: string, delayStart: number, delayStep: numbe
   character,
   delay: delayStart + (index + offset) * delayStep
 }));
-const fridgeDiscoveries = [
-  {
-    code: "LEARN",
-    zone: "冷藏上层",
-    temperature: "04°C",
-    title: "一盒还没学完的 UE5",
-    detail: currentSignals[0]?.text ?? "",
-    label: currentSignals[0]?.label ?? "正在学习",
-    icon: "tabler:sparkles"
-  },
-  {
-    code: "BUILD",
-    zone: "保鲜中层",
-    temperature: "06°C",
-    title: "一罐正在发酵的 AstrBot",
-    detail: currentSignals[1]?.text ?? "",
-    label: currentSignals[1]?.label ?? "最近在折腾",
-    icon: "tabler:flask-2"
-  },
-  {
-    code: "TUNE",
-    zone: "冰箱门侧",
-    temperature: "02°C",
-    title: "一包可爱过量的呈现方式",
-    detail: currentSignals[2]?.text ?? "",
-    label: currentSignals[2]?.label ?? "今日电波",
-    icon: "tabler:activity-heartbeat"
-  }
-] as const;
 const ambientParticles = [
   { x: 7, y: 21, driftX: 88, driftY: -54, size: 3.2, duration: 18.4, delay: -4.8, opacity: 0.46, hue: 338 },
   { x: 15, y: 73, driftX: 64, driftY: -92, size: 2.1, duration: 21.7, delay: -13.2, opacity: 0.34, hue: 346 },
@@ -391,10 +362,10 @@ const gateStyle = [
             <img
               class="kisara-opening-memory-source"
               data-kisara-memory-source
-              src="/themes/kisara/assets/opening-memory-001.webp"
+              src="/themes/kisara/assets/opening-memory-001-v2.webp"
               alt=""
-              width="1800"
-              height="1013"
+              width="1920"
+              height="1080"
               loading="lazy"
               decoding="async"
               aria-hidden="true"
@@ -410,36 +381,36 @@ const gateStyle = [
               <img
                 class="kisara-opening-memory-image"
                 data-kisara-opening-image
-                src="/themes/kisara/assets/opening-memory-001.webp"
-                alt="黄昏中，木更隔着人影安静望来的旧日片段"
-                width="1800"
-                height="1013"
+                src="/themes/kisara/assets/opening-memory-001-v2.webp"
+                alt="昏暗烛光里，木更从身后抱住修的旧日片段"
+                width="1920"
+                height="1080"
                 loading="lazy"
                 decoding="async"
               />
               <img
                 class="kisara-opening-memory-depth-focus"
-                src="/themes/kisara/assets/opening-memory-001.webp"
+                src="/themes/kisara/assets/opening-memory-001-v2.webp"
                 alt=""
-                width="1800"
-                height="1013"
+                width="1920"
+                height="1080"
                 loading="lazy"
                 decoding="async"
                 aria-hidden="true"
               />
               <img
                 class="kisara-opening-memory-depth-foreground"
-                src="/themes/kisara/assets/opening-memory-001.webp"
+                src="/themes/kisara/assets/opening-memory-001-v2.webp"
                 alt=""
-                width="1800"
-                height="1013"
+                width="1920"
+                height="1080"
                 loading="lazy"
                 decoding="async"
                 aria-hidden="true"
               />
             </span>
           </div>
-          <figcaption><span>图 01</span> 黄昏没有回答，只把那一刻留得很慢。</figcaption>
+          <figcaption><span>图 01</span> 烛光没有回答，只把相拥的一刻留得很慢。</figcaption>
         </figure>
         <div class="kisara-opening-copy">
           <div class="kisara-opening-lesson">
@@ -492,237 +463,7 @@ const gateStyle = [
 
   <div class="kisara-home-transition is-memory-to-fridge" aria-hidden="true"><span></span><i></i><i></i></div>
 
-  <section class="kisara-fridge-deck" data-kisara-home-stop="002" aria-labelledby="kisara-fridge-title">
-    <kisara-fridge-scene class="kisara-fridge-scene" data-active-index="0" data-fridge-bound="true">
-      <div class="kisara-fridge-media">
-        <img
-          class="kisara-fridge-image"
-          data-fridge-image
-          src="/themes/kisara/assets/fridge-discovery-002.webp"
-          alt="木更打开冰箱，从冰箱内部向里张望"
-          width="1920"
-          height="1080"
-          loading="lazy"
-          decoding="async"
-        />
-        <img
-          class="kisara-fridge-veil-image"
-          data-fridge-image
-          src="/themes/kisara/assets/fridge-discovery-002-veil.webp"
-          alt=""
-          width="1920"
-          height="1080"
-          loading="lazy"
-          decoding="async"
-          aria-hidden="true"
-        />
-        <span class="kisara-fridge-light" aria-hidden="true"></span>
-        <span class="kisara-fridge-shade" aria-hidden="true"></span>
-        <span class="kisara-fridge-curtain" aria-hidden="true"></span>
-      </div>
-
-      <div class="kisara-content-shell kisara-fridge-content">
-        <header class="kisara-fridge-overlay-heading">
-          <p class="kisara-section-index">REFRIGERATOR LOG / 002</p>
-          <div class="kisara-fridge-findings-status">
-            <span data-fridge-status>SEALED</span>
-            <small>KISARA / HOME LOG</small>
-          </div>
-        </header>
-
-        <div class="kisara-fridge-findings">
-          <p class="kisara-fridge-findings-kicker">AFTER OPENING THE DOOR</p>
-          <h2 id="kisara-fridge-title" class="kisara-fridge-findings-title">
-            <span>打开冰箱，</span>
-            <strong data-fridge-title>发现{fridgeDiscoveries[0].title}。</strong>
-          </h2>
-          <p class="kisara-fridge-findings-copy">没有严谨的库存管理，只有一些正在学习、发酵，以及明显放得太可爱的东西。</p>
-
-          <div class="kisara-fridge-detail" aria-live="polite">
-            <small data-fridge-meta>{fridgeDiscoveries[0].label} / {fridgeDiscoveries[0].temperature}</small>
-            <strong data-fridge-detail>{fridgeDiscoveries[0].detail}</strong>
-          </div>
-
-          <div class="kisara-fridge-inventory" aria-label="冰箱里的发现">
-            {fridgeDiscoveries.map((discovery, index) => (
-              <button
-                type="button"
-                data-fridge-item
-                data-fridge-index={index}
-                data-fridge-title={`发现${discovery.title}。`}
-                data-fridge-detail={discovery.detail}
-                data-fridge-meta={`${discovery.label} / ${discovery.temperature}`}
-                aria-pressed={index === 0 ? "true" : "false"}
-                style={`--fridge-order: ${index};`}
-              >
-                <span>0{index + 1}</span>
-                <div><small>{discovery.zone} / {discovery.code}</small><strong>{discovery.title}</strong></div>
-                <i aria-hidden="true"><Icon name={discovery.icon} /></i>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <button class="kisara-fridge-replay" type="button" data-fridge-replay aria-label="重新播放冰箱显影" title="重新播放冰箱显影">
-          <Icon name="tabler:refresh" aria-hidden="true" />
-        </button>
-      </div>
-    </kisara-fridge-scene>
-  </section>
-
-  <script>
-    if (!customElements.get("kisara-fridge-scene")) {
-      class KisaraFridgeScene extends HTMLElement {
-        controller: AbortController | null = null;
-        observer: IntersectionObserver | null = null;
-        resetScene: (() => void) | null = null;
-
-        resetPresentation() {
-          this.resetScene?.();
-        }
-
-        connectedCallback() {
-          this.controller?.abort();
-          const controller = new AbortController();
-          this.controller = controller;
-          const { signal } = controller;
-          const items = Array.from(this.querySelectorAll<HTMLButtonElement>("[data-fridge-item]"));
-          const replay = this.querySelector<HTMLButtonElement>("[data-fridge-replay]");
-          const images = Array.from(this.querySelectorAll<HTMLImageElement>("[data-fridge-image]"));
-          const status = this.querySelector<HTMLElement>("[data-fridge-status]");
-          const title = this.querySelector<HTMLElement>("[data-fridge-title]");
-          const detail = this.querySelector<HTMLElement>("[data-fridge-detail]");
-          const meta = this.querySelector<HTMLElement>("[data-fridge-meta]");
-          const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-          if (!items.length || !title || !detail || !meta) return;
-
-          let visible = false;
-          let decoded = images.every((image) => image.complete && image.naturalWidth > 0);
-          let startFrame = 0;
-          let openTimer = 0;
-          let detailAnimation: Animation | null = null;
-
-          const clearPlayback = () => {
-            if (startFrame) cancelAnimationFrame(startFrame);
-            startFrame = 0;
-            if (openTimer) window.clearTimeout(openTimer);
-            openTimer = 0;
-            detailAnimation?.cancel();
-            detailAnimation = null;
-          };
-
-          const setActive = (nextIndex: number, animate = true) => {
-            const boundedIndex = Math.max(0, Math.min(items.length - 1, nextIndex));
-            const nextItem = items[boundedIndex];
-            this.dataset.activeIndex = String(boundedIndex);
-            items.forEach((item, index) => item.setAttribute("aria-pressed", index === boundedIndex ? "true" : "false"));
-            title.textContent = nextItem.dataset.fridgeTitle ?? "发现了一些不该还在保鲜期里的东西。";
-            detail.textContent = nextItem.dataset.fridgeDetail ?? "";
-            meta.textContent = nextItem.dataset.fridgeMeta ?? "";
-
-            if (animate && !reducedMotion && typeof detail.animate === "function") {
-              detailAnimation?.cancel();
-              detailAnimation = detail.animate([
-                { opacity: 0.18, transform: "translateY(8px)", filter: "blur(3px)" },
-                { opacity: 1, transform: "translateY(0)", filter: "blur(0)" }
-              ], { duration: 360, easing: "cubic-bezier(0.18, 0.78, 0.2, 1)" });
-            }
-          };
-
-          const finishOpening = () => {
-            openTimer = 0;
-            this.classList.remove("is-fridge-opening");
-            this.classList.add("is-fridge-open");
-            if (status) status.textContent = "OPEN / 04°C";
-          };
-
-          const startOpening = () => {
-            if (!visible || !decoded || this.classList.contains("is-fridge-opening") || this.classList.contains("is-fridge-open")) return;
-            this.observer?.disconnect();
-            this.observer = null;
-            if (reducedMotion) {
-              this.classList.remove("is-fridge-resetting");
-              this.classList.add("is-fridge-open");
-              if (status) status.textContent = "OPEN / 04°C";
-              return;
-            }
-            if (status) status.textContent = "OPENING";
-            startFrame = requestAnimationFrame(() => {
-              startFrame = 0;
-              if (signal.aborted) return;
-              this.classList.remove("is-fridge-resetting");
-              this.classList.add("is-fridge-opening");
-              openTimer = window.setTimeout(finishOpening, 2500);
-            });
-          };
-
-          const armOpening = () => {
-            clearPlayback();
-            this.observer?.disconnect();
-            this.observer = null;
-            visible = false;
-            this.dataset.fridgeBound = "true";
-            this.classList.add("is-fridge-resetting");
-            this.classList.remove("is-fridge-opening", "is-fridge-open");
-            if (status) status.textContent = "SEALED";
-            setActive(0, false);
-            void this.offsetWidth;
-
-            if (reducedMotion) {
-              visible = true;
-              startOpening();
-              return;
-            }
-            if ("IntersectionObserver" in window) {
-              this.observer = new IntersectionObserver((entries) => {
-                if (!entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.18)) return;
-                visible = true;
-                startOpening();
-              }, { threshold: [0.18, 0.42], rootMargin: "4% 0px 4%" });
-              this.observer.observe(this);
-            } else {
-              visible = true;
-              startOpening();
-            }
-          };
-
-          const finishDecode = async () => {
-            if (!images.length) return;
-            await Promise.all(images.map(async (image) => {
-              try {
-                if (typeof image.decode === "function") await image.decode();
-              } catch {
-                // A completed image can still render if decode() is interrupted by navigation.
-              }
-            }));
-            if (signal.aborted || images.some((image) => !image.complete || image.naturalWidth <= 0)) return;
-            decoded = true;
-            startOpening();
-          };
-
-          items.forEach((item, index) => item.addEventListener("click", () => setActive(index), { signal }));
-          replay?.addEventListener("click", armOpening, { signal });
-          if (!decoded) images.forEach((image) => image.addEventListener("load", () => void finishDecode(), { once: true, signal }));
-          void finishDecode();
-
-          this.resetScene = armOpening;
-          signal.addEventListener("abort", clearPlayback, { once: true });
-          armOpening();
-        }
-
-        disconnectedCallback() {
-          this.controller?.abort();
-          this.controller = null;
-          this.observer?.disconnect();
-          this.observer = null;
-          this.resetScene = null;
-        }
-      }
-
-      customElements.define("kisara-fridge-scene", KisaraFridgeScene);
-    }
-  </script>
+  <KisaraFridgeScene />
 
   <div class="kisara-home-transition is-fridge-to-event" aria-hidden="true"><span></span><i></i><i></i></div>
 
@@ -1726,101 +1467,95 @@ const gateStyle = [
         const { width, height, coreRight, coreBottom } = geometry;
         const random = createMemoryInkRandom(20260725);
         const nodes = [];
-        const addField = ({
-          seedX,
-          seedY,
-          direction,
-          spread,
-          reachX,
-          reachY,
+        const addWash = ({
+          centerX,
+          centerY,
+          fieldRadiusX,
+          fieldRadiusY,
           count,
           birthStart,
           birthEnd,
           radiusMin,
-          radiusMax
+          radiusMax,
+          driftX = 0,
+          driftY = 0,
+          alphaMin = 0.28,
+          alphaMax = 0.58
         }) => {
           for (let index = 0; index < count; index += 1) {
-            const distance = Math.pow(random(), 0.64);
-            const angle = direction
-              + (random() - 0.5) * spread
-              + Math.sin(index * 1.71 + seedY * 0.01) * 0.075;
-            const edgeNoise = (random() - 0.5) * (8 + distance * 14);
-            const x = seedX + Math.cos(angle) * reachX * distance + edgeNoise;
-            const y = seedY + Math.sin(angle) * reachY * distance + edgeNoise * 0.42;
+            const angle = random() * Math.PI * 2;
+            const distance = Math.sqrt(random());
+            const ripple = Math.sin(angle * 3 + index * 0.57) * (1 - distance) * 0.16;
+            const x = centerX
+              + Math.cos(angle) * fieldRadiusX * (distance + ripple)
+              + driftX * distance
+              + (random() - 0.5) * 9;
+            const y = centerY
+              + Math.sin(angle) * fieldRadiusY * (distance - ripple * 0.5)
+              + driftY * distance
+              + (random() - 0.5) * 7;
             if (x < -20 || x > width + 20 || y < -20 || y > height + 20) continue;
-            const radius = radiusMin + random() * (radiusMax - radiusMin);
-            const radiusX = radius * (0.82 + random() * 0.55);
-            const radiusY = radius * (0.72 + random() * 0.62);
-            const reachesLowerLeft = y + radiusY > coreBottom * 0.68
-              && x - radiusX < width * 0.18;
-            if (reachesLowerLeft) continue;
+            const radius = (radiusMin + random() * (radiusMax - radiusMin)) * (1 - distance * 0.18);
             nodes.push({
               x,
               y,
-              radiusX,
-              radiusY,
-              rotation: (random() - 0.5) * 0.9,
-              birth: Math.min(0.94, birthStart + (birthEnd - birthStart) * distance + random() * 0.055),
-              growth: 0.11 + random() * 0.14,
-              alpha: (0.38 + random() * 0.34) * (1 - distance * 0.28),
+              radiusX: radius * (0.92 + random() * 0.58),
+              radiusY: radius * (0.76 + random() * 0.5),
+              rotation: angle + (random() - 0.5) * 0.66,
+              birth: Math.min(0.95, birthStart + (birthEnd - birthStart) * (distance * 0.68 + random() * 0.32)),
+              growth: 0.16 + random() * 0.16,
+              alpha: (alphaMin + random() * (alphaMax - alphaMin)) * (1 - distance * 0.3),
               brush: Math.floor(random() * openingMemoryInkBrushes.length)
             });
           }
         };
 
-        addField({
-          seedX: coreRight - 6,
-          seedY: coreBottom * 0.42,
-          direction: 0.08,
-          spread: 2.05,
-          reachX: width * 0.27,
-          reachY: height * 0.34,
-          count: 118,
+        addWash({
+          centerX: coreRight * 0.87,
+          centerY: coreBottom * 0.6,
+          fieldRadiusX: width * 0.1,
+          fieldRadiusY: height * 0.18,
+          count: 96,
           birthStart: 0,
-          birthEnd: 0.82,
-          radiusMin: 12,
-          radiusMax: 34
+          birthEnd: 0.7,
+          radiusMin: 20,
+          radiusMax: 48,
+          driftX: width * 0.035,
+          driftY: height * 0.015,
+          alphaMin: 0.3,
+          alphaMax: 0.54
         });
-        addField({
-          seedX: coreRight - 9,
-          seedY: coreBottom * 0.72,
-          direction: 0.48,
-          spread: 1.72,
-          reachX: width * 0.24,
-          reachY: height * 0.28,
-          count: 94,
-          birthStart: 0.07,
-          birthEnd: 0.88,
-          radiusMin: 12,
-          radiusMax: 32
+        addWash({
+          centerX: coreRight * 0.52,
+          centerY: coreBottom * 0.83,
+          fieldRadiusX: coreRight * 0.34,
+          fieldRadiusY: height * 0.075,
+          count: 112,
+          birthStart: 0.06,
+          birthEnd: 0.8,
+          radiusMin: 18,
+          radiusMax: 43,
+          driftX: width * 0.025,
+          driftY: height * 0.045,
+          alphaMin: 0.28,
+          alphaMax: 0.5
         });
-        addField({
-          seedX: coreRight * 0.5,
-          seedY: coreBottom - 5,
-          direction: Math.PI / 2,
-          spread: 2.3,
-          reachX: width * 0.31,
-          reachY: height * 0.17,
-          count: 104,
-          birthStart: 0.11,
-          birthEnd: 0.9,
-          radiusMin: 11,
-          radiusMax: 30
-        });
-        addField({
-          seedX: coreRight * 0.76,
-          seedY: coreBottom - 7,
-          direction: 1.08,
-          spread: 1.9,
-          reachX: width * 0.22,
-          reachY: height * 0.18,
-          count: 72,
-          birthStart: 0.18,
+        addWash({
+          centerX: coreRight * 0.78,
+          centerY: coreBottom * 0.72,
+          fieldRadiusX: width * 0.065,
+          fieldRadiusY: height * 0.105,
+          count: 48,
+          birthStart: 0.24,
           birthEnd: 0.92,
-          radiusMin: 10,
-          radiusMax: 27
+          radiusMin: 7,
+          radiusMax: 19,
+          driftX: width * 0.018,
+          driftY: height * 0.025,
+          alphaMin: 0.25,
+          alphaMax: 0.52
         });
-        openingMemoryInkNodes = nodes.sort((left, right) => left.birth - right.birth);
+        openingMemoryInkNodes = nodes;
         return true;
       };
 
@@ -1837,6 +1572,7 @@ const gateStyle = [
         const height = openingMemoryInkCanvas.height;
         const progress = clamp(progressValue, 0, 1);
         openingMemoryMaskContext.clearRect(0, 0, width, height);
+
         for (const node of openingMemoryInkNodes) {
           if (node.birth > progress) break;
           const age = clamp((progress - node.birth) / node.growth, 0, 1);
@@ -1861,21 +1597,6 @@ const gateStyle = [
         openingMemoryInkContext.drawImage(openingMemorySource, 0, 0, width, height);
         openingMemoryInkContext.globalCompositeOperation = "destination-in";
         openingMemoryInkContext.drawImage(openingMemoryMaskCanvas, 0, 0);
-        const horizontalEdgeFade = openingMemoryInkContext.createLinearGradient(0, 0, width, 0);
-        horizontalEdgeFade.addColorStop(0, "rgba(0,0,0,1)");
-        horizontalEdgeFade.addColorStop(0.8, "rgba(0,0,0,1)");
-        horizontalEdgeFade.addColorStop(0.89, "rgba(0,0,0,0.72)");
-        horizontalEdgeFade.addColorStop(0.955, "rgba(0,0,0,0.16)");
-        horizontalEdgeFade.addColorStop(1, "rgba(0,0,0,0)");
-        openingMemoryInkContext.fillStyle = horizontalEdgeFade;
-        openingMemoryInkContext.fillRect(0, 0, width, height);
-        const verticalEdgeFade = openingMemoryInkContext.createLinearGradient(0, 0, 0, height);
-        verticalEdgeFade.addColorStop(0, "rgba(0,0,0,1)");
-        verticalEdgeFade.addColorStop(0.9, "rgba(0,0,0,1)");
-        verticalEdgeFade.addColorStop(0.95, "rgba(0,0,0,0.48)");
-        verticalEdgeFade.addColorStop(1, "rgba(0,0,0,0)");
-        openingMemoryInkContext.fillStyle = verticalEdgeFade;
-        openingMemoryInkContext.fillRect(0, 0, width, height);
         openingMemoryInkContext.globalCompositeOperation = "source-over";
       };
 
@@ -1906,7 +1627,7 @@ const gateStyle = [
         }
         if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
         const startedAt = performance.now();
-        const duration = 2450;
+        const duration = 1900;
         const paint = (timestamp) => {
           if (disposed || generation !== openingMemoryInkGeneration) return;
           if (timestamp - openingMemoryInkLastPaint < 24 && openingMemoryInkProgress < 1) {
@@ -1947,7 +1668,7 @@ const gateStyle = [
         openingMemoryRevealArmFrame = 0;
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
-        openingMemoryBloomTimer = window.setTimeout(startOpeningMemoryBloom, 1700);
+        startOpeningMemoryBloom();
       };
       const armOpeningMemoryReveal = () => {
         if (
