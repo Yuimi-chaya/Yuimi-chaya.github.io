@@ -370,6 +370,36 @@ const gateStyle = [
               decoding="async"
               aria-hidden="true"
             />
+            <img
+              class="kisara-opening-memory-mask-source"
+              data-kisara-memory-mask-source
+              src="/themes/kisara/assets/opening-memory-001-mask.png"
+              alt=""
+              width="960"
+              height="540"
+              decoding="async"
+              aria-hidden="true"
+            />
+            <img
+              class="kisara-opening-memory-mask-source"
+              data-kisara-memory-right-mask-source
+              src="/themes/kisara/assets/opening-memory-001-expansion-right.png"
+              alt=""
+              width="960"
+              height="540"
+              decoding="async"
+              aria-hidden="true"
+            />
+            <img
+              class="kisara-opening-memory-mask-source"
+              data-kisara-memory-bottom-mask-source
+              src="/themes/kisara/assets/opening-memory-001-expansion-bottom.png"
+              alt=""
+              width="960"
+              height="540"
+              decoding="async"
+              aria-hidden="true"
+            />
             <canvas
               class="kisara-opening-memory-ink-canvas"
               data-kisara-memory-ink-canvas
@@ -1376,6 +1406,15 @@ const gateStyle = [
       const openingMemorySource = openingMemory instanceof HTMLElement
         ? openingMemory.querySelector("[data-kisara-memory-source]")
         : null;
+      const openingMemoryMaskSource = openingMemory instanceof HTMLElement
+        ? openingMemory.querySelector("[data-kisara-memory-mask-source]")
+        : null;
+      const openingMemoryRightMaskSource = openingMemory instanceof HTMLElement
+        ? openingMemory.querySelector("[data-kisara-memory-right-mask-source]")
+        : null;
+      const openingMemoryBottomMaskSource = openingMemory instanceof HTMLElement
+        ? openingMemory.querySelector("[data-kisara-memory-bottom-mask-source]")
+        : null;
       const openingMemoryInkCanvas = openingMemory instanceof HTMLElement
         ? openingMemory.querySelector("[data-kisara-memory-ink-canvas]")
         : null;
@@ -1395,54 +1434,9 @@ const gateStyle = [
       let openingMemoryInkProgress = 0;
       let openingMemoryInkGeneration = 0;
       let openingMemoryInkStarted = false;
-      let openingMemoryInkNodes = [];
+      let openingMemoryInkRegions = [];
       let openingMemoryInkResizeObserver = null;
       let openingMemoryInkGeometry = null;
-
-      const createMemoryInkRandom = (seed) => {
-        let value = seed >>> 0;
-        return () => {
-          value += 0x6d2b79f5;
-          let result = value;
-          result = Math.imul(result ^ (result >>> 15), result | 1);
-          result ^= result + Math.imul(result ^ (result >>> 7), result | 61);
-          return ((result ^ (result >>> 14)) >>> 0) / 4294967296;
-        };
-      };
-
-      const createMemoryInkBrush = (seed) => {
-        const brush = document.createElement("canvas");
-        brush.width = 96;
-        brush.height = 96;
-        const context = brush.getContext("2d", { alpha: true });
-        if (!context) return brush;
-        const random = createMemoryInkRandom(seed);
-        context.clearRect(0, 0, brush.width, brush.height);
-        for (let index = 0; index < 20; index += 1) {
-          const angle = random() * Math.PI * 2;
-          const distance = Math.pow(random(), 0.72) * 18;
-          const x = 48 + Math.cos(angle) * distance;
-          const y = 48 + Math.sin(angle) * distance;
-          const radius = 18 + random() * 23;
-          const gradient = context.createRadialGradient(x, y, radius * 0.08, x, y, radius);
-          gradient.addColorStop(0, `rgba(255,255,255,${(0.22 + random() * 0.2).toFixed(3)})`);
-          gradient.addColorStop(0.46, `rgba(255,255,255,${(0.14 + random() * 0.16).toFixed(3)})`);
-          gradient.addColorStop(0.78, `rgba(255,255,255,${(0.035 + random() * 0.055).toFixed(3)})`);
-          gradient.addColorStop(1, "rgba(255,255,255,0)");
-          context.fillStyle = gradient;
-          context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-        }
-        return brush;
-      };
-
-      const openingMemoryInkBrushes = [
-        createMemoryInkBrush(3107),
-        createMemoryInkBrush(8219),
-        createMemoryInkBrush(14503),
-        createMemoryInkBrush(22637),
-        createMemoryInkBrush(41047),
-        createMemoryInkBrush(65537)
-      ];
 
       const measureOpeningMemoryInk = () => {
         if (
@@ -1464,98 +1458,20 @@ const gateStyle = [
         const geometry = measureOpeningMemoryInk();
         if (!geometry) return false;
         openingMemoryInkGeometry = geometry;
-        const { width, height, coreRight, coreBottom } = geometry;
-        const random = createMemoryInkRandom(20260725);
-        const nodes = [];
-        const addWash = ({
-          centerX,
-          centerY,
-          fieldRadiusX,
-          fieldRadiusY,
-          count,
-          birthStart,
-          birthEnd,
-          radiusMin,
-          radiusMax,
-          driftX = 0,
-          driftY = 0,
-          alphaMin = 0.28,
-          alphaMax = 0.58
-        }) => {
-          for (let index = 0; index < count; index += 1) {
-            const angle = random() * Math.PI * 2;
-            const distance = Math.sqrt(random());
-            const ripple = Math.sin(angle * 3 + index * 0.57) * (1 - distance) * 0.16;
-            const x = centerX
-              + Math.cos(angle) * fieldRadiusX * (distance + ripple)
-              + driftX * distance
-              + (random() - 0.5) * 9;
-            const y = centerY
-              + Math.sin(angle) * fieldRadiusY * (distance - ripple * 0.5)
-              + driftY * distance
-              + (random() - 0.5) * 7;
-            if (x < -20 || x > width + 20 || y < -20 || y > height + 20) continue;
-            const radius = (radiusMin + random() * (radiusMax - radiusMin)) * (1 - distance * 0.18);
-            nodes.push({
-              x,
-              y,
-              radiusX: radius * (0.92 + random() * 0.58),
-              radiusY: radius * (0.76 + random() * 0.5),
-              rotation: angle + (random() - 0.5) * 0.66,
-              birth: Math.min(0.95, birthStart + (birthEnd - birthStart) * (distance * 0.68 + random() * 0.32)),
-              growth: 0.16 + random() * 0.16,
-              alpha: (alphaMin + random() * (alphaMax - alphaMin)) * (1 - distance * 0.3),
-              brush: Math.floor(random() * openingMemoryInkBrushes.length)
-            });
+        openingMemoryInkRegions = [
+          {
+            source: openingMemoryRightMaskSource,
+            start: 0.02,
+            end: 0.72,
+            opacity: 0.84
+          },
+          {
+            source: openingMemoryBottomMaskSource,
+            start: 0.08,
+            end: 0.84,
+            opacity: 0.76
           }
-        };
-
-        addWash({
-          centerX: coreRight * 0.87,
-          centerY: coreBottom * 0.6,
-          fieldRadiusX: width * 0.1,
-          fieldRadiusY: height * 0.18,
-          count: 96,
-          birthStart: 0,
-          birthEnd: 0.7,
-          radiusMin: 20,
-          radiusMax: 48,
-          driftX: width * 0.035,
-          driftY: height * 0.015,
-          alphaMin: 0.3,
-          alphaMax: 0.54
-        });
-        addWash({
-          centerX: coreRight * 0.52,
-          centerY: coreBottom * 0.83,
-          fieldRadiusX: coreRight * 0.34,
-          fieldRadiusY: height * 0.075,
-          count: 112,
-          birthStart: 0.06,
-          birthEnd: 0.8,
-          radiusMin: 18,
-          radiusMax: 43,
-          driftX: width * 0.025,
-          driftY: height * 0.045,
-          alphaMin: 0.28,
-          alphaMax: 0.5
-        });
-        addWash({
-          centerX: coreRight * 0.78,
-          centerY: coreBottom * 0.72,
-          fieldRadiusX: width * 0.065,
-          fieldRadiusY: height * 0.105,
-          count: 48,
-          birthStart: 0.24,
-          birthEnd: 0.92,
-          radiusMin: 7,
-          radiusMax: 19,
-          driftX: width * 0.018,
-          driftY: height * 0.025,
-          alphaMin: 0.25,
-          alphaMax: 0.52
-        });
-        openingMemoryInkNodes = nodes;
+        ].filter((region) => region.source instanceof HTMLImageElement);
         return true;
       };
 
@@ -1573,24 +1489,17 @@ const gateStyle = [
         const progress = clamp(progressValue, 0, 1);
         openingMemoryMaskContext.clearRect(0, 0, width, height);
 
-        for (const node of openingMemoryInkNodes) {
-          if (node.birth > progress) break;
-          const age = clamp((progress - node.birth) / node.growth, 0, 1);
-          const growth = 0.22 + (1 - Math.pow(1 - age, 2.4)) * 0.78;
-          const brush = openingMemoryInkBrushes[node.brush];
+        for (const region of openingMemoryInkRegions) {
+          if (!(region.source instanceof HTMLImageElement) || progress <= region.start) continue;
+          const age = clamp((progress - region.start) / Math.max(0.001, region.end - region.start), 0, 1);
+          const reveal = 1 - Math.pow(1 - age, 2.15);
           openingMemoryMaskContext.save();
-          openingMemoryMaskContext.translate(node.x, node.y);
-          openingMemoryMaskContext.rotate(node.rotation);
-          openingMemoryMaskContext.globalAlpha = node.alpha * (0.24 + age * 0.76);
-          openingMemoryMaskContext.drawImage(
-            brush,
-            -node.radiusX * growth,
-            -node.radiusY * growth,
-            node.radiusX * growth * 2,
-            node.radiusY * growth * 2
-          );
+          openingMemoryMaskContext.globalCompositeOperation = "lighter";
+          openingMemoryMaskContext.globalAlpha = region.opacity * (0.12 + reveal * 0.88);
+          openingMemoryMaskContext.drawImage(region.source, 0, 0, width, height);
           openingMemoryMaskContext.restore();
         }
+        openingMemoryMaskContext.globalCompositeOperation = "source-over";
 
         openingMemoryInkContext.clearRect(0, 0, width, height);
         openingMemoryInkContext.globalCompositeOperation = "source-over";
@@ -1601,17 +1510,24 @@ const gateStyle = [
       };
 
       const prepareOpeningMemoryInk = () => {
-        if (!(openingMemorySource instanceof HTMLImageElement)) return Promise.resolve(false);
-        if (openingMemorySource.complete && openingMemorySource.naturalWidth > 0) {
-          return Promise.resolve(true);
-        }
-        if (typeof openingMemorySource.decode === "function") {
-          return openingMemorySource.decode().then(() => true).catch(() => false);
-        }
-        return new Promise((resolve) => {
-          openingMemorySource.addEventListener("load", () => resolve(true), { once: true, signal });
-          openingMemorySource.addEventListener("error", () => resolve(false), { once: true, signal });
-        });
+        const sources = [
+          openingMemorySource,
+          openingMemoryMaskSource,
+          openingMemoryRightMaskSource,
+          openingMemoryBottomMaskSource
+        ].filter((source) => source instanceof HTMLImageElement);
+        if (!sources.length) return Promise.resolve(false);
+        const decodeSource = (source) => {
+          if (source.complete && source.naturalWidth > 0) return Promise.resolve(true);
+          if (typeof source.decode === "function") {
+            return source.decode().then(() => true).catch(() => false);
+          }
+          return new Promise((resolve) => {
+            source.addEventListener("load", () => resolve(true), { once: true, signal });
+            source.addEventListener("error", () => resolve(false), { once: true, signal });
+          });
+        };
+        return Promise.all(sources.map(decodeSource)).then((results) => results.every(Boolean));
       };
 
       const playOpeningMemoryInk = async (instant = false) => {

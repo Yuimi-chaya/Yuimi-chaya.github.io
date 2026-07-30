@@ -1361,3 +1361,10 @@
 - The old large radial CSS window is replaced by the generated RGBA alpha mask `public/themes/kisara/assets/opening-memory-001-mask.png`, produced by `scripts/prepare-kisara-memory-mask.py`. The core mask no longer changes size or position during reveal; only opacity and image development animate, preventing the stretched-editor effect.
 - The runtime canvas starts with the reveal and uses the same base image filter as the core image. The current visual target is intentionally conservative: remove the detached top blobs first, preserve the prior right/bottom diffusion state, and leave further contour tuning for direct human review.
 - `git diff --check`, `npm test` (3/3), and `npm run build` pass; Astro generated 60 pages and Pagefind indexed 61 documents.
+
+### 2026-07-30 Kisara Home 001 shared watercolor diffusion
+
+- Human review confirmed that the previous Canvas `addWash()` system was visually unrelated to the core mask: its radial brush stamps read as particles or soft circles, so changing timing could never make the transition coherent. The old random brush generator and its right/bottom node fields are superseded.
+- `scripts/prepare-kisara-memory-mask.py` now uses one shared textured-mask generator for the core, right expansion, and bottom expansion. It outputs `opening-memory-001-mask.png`, `opening-memory-001-expansion-right.png`, and `opening-memory-001-expansion-bottom.png` as RGBA alpha masks with the same irregular contour, low-frequency grain, and feathering.
+- Home 001 loads the three small mask sources and the runtime Canvas only fades the two expansion masks by reveal progress. No random circles, path ribbons, mask stretching, or second visual language is used. The core CSS mask remains fixed throughout the reveal.
+- The previous checkpoint `14ebc0e` remains the rollback point for this new shared-mask experiment. This experiment is intentionally uncommitted until direct visual review confirms that the expansion reads as one continuous ink treatment.
