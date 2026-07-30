@@ -535,7 +535,10 @@ const railScenes = scenes.slice(0, -1);
           }
         } catch {}
       };
-      const isKisaraHomePath = (pathname) => pathname.replace(/\/+$/, "") === "/themes/kisara";
+      const isKisaraHomePath = (pathname) => {
+        const normalized = pathname.replace(/\/+$/, "") || "/";
+        return normalized === "/" || normalized === "/themes/kisara";
+      };
       prepareFoundSelfReturn = (event) => {
         const nextDocument = event?.newDocument;
         if (!nextDocument) return;

@@ -25,6 +25,8 @@ import {
 interface Props {
   title?: string;
   description?: string;
+  honorThemePreference?: boolean;
+  redirectThemedNotFound?: boolean;
   isArticlePage?: boolean;
   stylesheets?: string[];
   article?: BlogPost["data"];
@@ -33,12 +35,15 @@ interface Props {
 const {
   title = `${site.title} | Kisara`,
   description = site.description,
+  honorThemePreference = true,
+  redirectThemedNotFound = false,
   isArticlePage = false,
   stylesheets = [],
   article
 } = Astro.props;
 const canonicalPath = getCanonicalPath(Astro.url.pathname);
 const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
+const isAlternateThemeRoute = Astro.url.pathname.startsWith("/themes/");
 const isHome = canonicalPath === "/";
 const pageKey = canonicalPath.split("/").filter(Boolean)[0] ?? "home";
 const navItems = site.nav.map((item) => {
@@ -72,6 +77,15 @@ const audioConfig = {
   secretSessionKey: KISARA_SECRET_AUDIO_SESSION_KEY,
   volume: KISARA_AUDIO_VOLUME
 };
+const themedNotFoundRedirectScript = `(() => {
+  const themeMatch = window.location.pathname.match(/^\\/themes\\/(blank|kisara|fuyukawa-kagari)(?:\\/|$)/);
+  if (!themeMatch) return;
+  const themeId = themeMatch[1];
+  const notFoundPath = "/themes/" + themeId + "/404/";
+  if (window.location.pathname === notFoundPath) return;
+  const original = window.location.pathname + window.location.search + window.location.hash;
+  window.location.replace(notFoundPath + "?from=" + encodeURIComponent(original));
+})();`;
 ---
 
 <!doctype html>
@@ -82,11 +96,16 @@ const audioConfig = {
     <PerformanceProfile />
     <SeoMeta title={title} description={description} canonical={canonical} isArticlePage={isArticlePage} article={article} />
     <meta name="theme-color" content="#111636" />
-    <meta name="robots" content="noindex,follow" />
+    {isAlternateThemeRoute && <meta name="robots" content="noindex,follow" />}
+    {
+      redirectThemedNotFound && (
+        <script is:inline set:html={themedNotFoundRedirectScript}></script>
+      )
+    }
     <link rel="icon" type="image/x-icon" href="/themes/kisara/favicon.ico?v=heart-only" />
     <link rel="canonical" href={canonical} />
     {stylesheets.map((href) => <link rel="stylesheet" href={href} />)}
-    <ThemePreferenceGate currentTheme="kisara" />
+    <ThemePreferenceGate currentTheme="kisara" honorPreference={honorThemePreference} />
     <ClientRouter fallback="swap" />
     <ConsoleEasterEgg />
     <script>
@@ -327,7 +346,7 @@ const audioConfig = {
     data-kisara-page={pageKey}
     data-yuimi-selection-lock={isArticlePage ? undefined : "true"}
     data-yuimi-article-page={isArticlePage ? "true" : undefined}
-    data-pagefind-ignore
+    data-pagefind-ignore={isAlternateThemeRoute ? true : undefined}
     transition:animate="none"
   >
     <a class="kisara-skip-link" href="#kisara-main">跳到正文</a>

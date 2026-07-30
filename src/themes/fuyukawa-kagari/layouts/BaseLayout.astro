@@ -9,6 +9,7 @@ import ThemeLongPressMenu from "@/core/themes/ThemeLongPressMenu.astro";
 import ConsoleEasterEgg from "@/core/ConsoleEasterEgg.astro";
 import PerformanceProfile from "@/core/PerformanceProfile.astro";
 import SeoMeta from "@/core/SeoMeta.astro";
+import { getCanonicalPath, getThemePath } from "@/core/themes/registry";
 import { kagariAssets } from "../assets";
 
 interface Props {
@@ -28,9 +29,16 @@ const {
   isArticlePage = false,
   article
 } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
+const canonicalPath = getCanonicalPath(Astro.url.pathname);
+const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
+const themeHomePath = getThemePath("fuyukawa-kagari", "/");
+const navItems = site.nav.map((item) => ({
+  ...item,
+  href: getThemePath("fuyukawa-kagari", item.href)
+}));
+const isAlternateThemeRoute = Astro.url.pathname.startsWith("/themes/");
 const themedNotFoundRedirectScript = `(() => {
-  const themeMatch = window.location.pathname.match(/^\\/themes\\/(blank|kisara)(?:\\/|$)/);
+  const themeMatch = window.location.pathname.match(/^\\/themes\\/(blank|kisara|fuyukawa-kagari)(?:\\/|$)/);
   if (!themeMatch) return;
   const themeId = themeMatch[1];
   const notFoundPath = "/themes/" + themeId + "/404/";
@@ -48,6 +56,7 @@ const themedNotFoundRedirectScript = `(() => {
     <PerformanceProfile />
     <SeoMeta title={title} description={description} canonical={canonical} isArticlePage={isArticlePage} article={article} />
     <meta name="theme-color" content="#fff8ec" />
+    {isAlternateThemeRoute && <meta name="robots" content="noindex,follow" />}
     {
       redirectThemedNotFound && (
         <script is:inline set:html={themedNotFoundRedirectScript}></script>
@@ -62,6 +71,7 @@ const themedNotFoundRedirectScript = `(() => {
     <ConsoleEasterEgg />
   </head>
   <body
+    data-pagefind-ignore={isAlternateThemeRoute ? true : undefined}
     data-yuimi-selection-lock={isArticlePage ? undefined : "true"}
     data-yuimi-article-page={isArticlePage ? "true" : undefined}
   >
@@ -181,13 +191,13 @@ const themedNotFoundRedirectScript = `(() => {
     </button>
     <div class="site-shell">
       <header class="site-header" aria-label="Primary">
-        <a class="brand" href="/" aria-label={`${site.name} home`}>
+        <a class="brand" href={themeHomePath} aria-label={`${site.name} home`}>
           <img src={kagariAssets.brand} alt="" width="40" height="36" />
           <span>{site.name}</span>
         </a>
         <nav class="nav-links" aria-label="Main navigation">
           {
-            site.nav.map((item) => (
+            navItems.map((item) => (
               <a href={item.href} aria-label={`${item.label}: ${item.hint}`}>
                 <span class="nav-icon" aria-hidden="true"><Icon name={item.icon} /></span>
                 <span class="nav-label">{item.label}</span>
@@ -356,7 +366,7 @@ const themedNotFoundRedirectScript = `(() => {
 
       const isHomeRoute = () => {
         const path = window.location.pathname.replace(/\/index\.html$/, "/");
-        return path === "/";
+        return path === "/themes/fuyukawa-kagari/" || path === "/themes/fuyukawa-kagari";
       };
 
       const setLive2dControlsLocked = (locked) => {
@@ -1014,7 +1024,7 @@ const themedNotFoundRedirectScript = `(() => {
         const action = button.dataset.contextAction;
         if (action === "top") window.scrollTo({ top: 0, behavior: "smooth" });
         if (action === "refresh") window.location.reload();
-        if (action === "home") window.location.href = "/";
+        if (action === "home") window.location.href = "/themes/fuyukawa-kagari/";
         if (action === "back") history.back();
         if (action === "forward") history.forward();
         if (action === "copy") {

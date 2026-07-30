@@ -69,6 +69,7 @@ const config = {
       const target = config.themes.find((theme) => theme.id === themeId)
         || config.themes.find((theme) => theme.id === config.defaultTheme);
       const path = canonicalPath(pathname);
+      if (target?.id === config.defaultTheme) return path;
       if (!target || !target.routePrefix) return path;
       return path === "/" ? `${target.routePrefix}/` : `${target.routePrefix}${path}`;
     };

@@ -41,14 +41,13 @@ declare global {
   }
 }
 
-const KISARA_ROUTE_PREFIX = "/themes/kisara/";
 const ROUTE_WARM_TTL = 45_000;
 const MAX_AUTOMATIC_WARMUPS = 2;
 const ROUTE_PRIORITY = [
-  "/themes/kisara/games/",
-  "/themes/kisara/projects/",
-  "/themes/kisara/blog/",
-  "/themes/kisara/about/"
+  "/games/",
+  "/projects/",
+  "/blog/",
+  "/about/"
 ];
 const warmups = new Map<string, RouteWarmupEntry>();
 const warmedStylesheets = new Set<string>();
@@ -65,12 +64,19 @@ const canWarmRoutes = (automatic = false) => {
 
 const maxConcurrentWarmups = () => performanceProfile() === "full" ? 2 : 1;
 
+const isKisaraRoute = (pathname: string) => {
+  if (pathname === "/") return true;
+  return ["/games", "/projects", "/blog", "/about"].some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+};
+
 const normalizeRoute = (value: string) => {
   try {
     const url = new URL(value, window.location.href);
     url.hash = "";
     if (url.origin !== window.location.origin) return null;
-    if (!url.pathname.startsWith(KISARA_ROUTE_PREFIX)) return null;
+    if (!isKisaraRoute(url.pathname)) return null;
     if (url.pathname === window.location.pathname && url.search === window.location.search) return null;
     return url.href;
   } catch {

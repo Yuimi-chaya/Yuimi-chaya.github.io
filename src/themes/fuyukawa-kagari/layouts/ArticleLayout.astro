@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
 import { categoryLabel } from "@/lib/site";
+import { getThemePath } from "@/core/themes/registry";
 
 const { frontmatter } = Astro.props;
 const title = `${frontmatter.seoTitle ?? frontmatter.title} | Yuimi Lab`;
@@ -16,7 +17,7 @@ const headings = (Astro.props.headings ?? []).filter((heading) => heading.depth 
 <BaseLayout title={title} description={description} isArticlePage article={frontmatter}>
   <div class="article-shell">
     <article class="article" data-pagefind-body>
-      <a class="back-link" href="/blog/">← 回到文章列表</a>
+      <a class="back-link" href={getThemePath("fuyukawa-kagari", "/blog/")}>← 回到文章列表</a>
       <header class="article-header">
         <div class="meta-row">
           <span>{categoryLabel[frontmatter.category]}</span>

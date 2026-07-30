@@ -8,7 +8,7 @@
 
 ## Non-Negotiable Constraints
 
-- Preserve the existing Fuyukawa Kagari theme's public routes, copy, visuals, interactions, and article URLs unless a verified architecture requirement forces a change.
+- Preserve every canonical content URL. If the user explicitly changes which theme owns the root routes, keep the displaced theme independently available under its own `/themes/<id>/` prefix without changing its copy, visuals, or interactions.
 - Never modify, delete, stage, or publish the current untracked source materials under the repository root, `XP/`, `kisara/`, or `showcase-output/` without an explicit request.
 - Keep shared article content, covers, and article attachments outside theme namespaces.
 - A non-default theme must own its layouts, pages, CSS, runtime, and presentation assets; it must not import Fuyukawa Kagari theme internals.
@@ -80,11 +80,11 @@
 - Kisara Event 003 secret-audio/achievement rollback checkpoint: `9e30edd feat(kisara): add secret audio state and achievement`.
 - Deployment: Astro static output to GitHub Pages through `.github/workflows/deploy.yml`.
 - Local state: the Kisara image transition, seal-chain title progression, post-gloss procedural warning, segmented foreground pink-black-hole release, original-scene `6 -> 7 -> 8` transformation bridge, continuous full-frame WebGL2 lensing, independent title refraction/dissolve/reconstruction, full-screen block reconstruction, lingering particle rain, post-reconstruction highlights/parallax, and site-wide deep-indigo UI are implemented and browser-validated. Blog, Works, Game, and Me now use four distinct page structures rather than variants of one card layout. The title keeps its clear red core and soft tide, while the blade gloss remains the Beijing-time July 19 morning slanted text layer clipped inside the glyphs. The rejected `ba82ee4` 2D overlay remains a rollback reference only; `1725af6` remains the segmented-flight rollback point. Untracked user source materials remain separate and untouched (`102000325_p0.jpg`, `122472458_p0.png`, `gate-background.jpg`, `XP/`, `kisara/`, `showcase-output/`).
-- Default theme ID: `fuyukawa-kagari`.
+- Default theme ID: `kisara`.
 - Available theme IDs: `fuyukawa-kagari`, `blank`, `kisara`.
-- Route decision: `fuyukawa-kagari` remains on existing root URLs; `blank` uses `/themes/blank/...`; `kisara` uses `/themes/kisara/...`. Alternate themes canonicalize to matching root URLs.
-- Preference key: `yuimi-theme-id-v1` with an allowlist and `fuyukawa-kagari` fallback.
-- Implementation state: three independent frontends are locally available. The Kisara homepage interaction, article layout, and redesigned Blog/Works/Game/Me pages have passed the current local test/build/browser checks. Commit `2b6a39b` adds the cross-theme mobile long-press menu, homepage boot lock, and final-stage mobile orientation input. The current homepage runtime recovery patch keeps the large gate script as a cacheable external module, retries a failed module request from a small inline guard, and prevents `astro:page-load` from cleaning up an already-bound gate. The subject-aware lensing checkpoint is `1164fb4`, the latest warning rollback point is `d112f11`, the opening-transition rollback point is `cb1fa6e`, and the compressed-release checkpoint is `91356a2`.
+- Route decision: `kisara` owns the canonical root URLs. `fuyukawa-kagari` uses `/themes/fuyukawa-kagari/...`; `blank` uses `/themes/blank/...`; the historical `/themes/kisara/...` pages remain as noindex compatibility aliases. Every prefixed route canonicalizes to its matching root URL.
+- Preference key: `yuimi-theme-id-v2` with an allowlist and `kisara` fallback. The key was intentionally versioned instead of inheriting `v1`, because the old gate automatically stored the former Fuyukawa default for ordinary visitors and would otherwise redirect most returning users away from the new default.
+- Implementation state: three independent frontends are locally available, with Kisara now serving the canonical Home/Blog/Game/Works/Me/article routes. Fuyukawa remains complete under its explicit prefix, including theme-local navigation, article search results, Home actions, canonical metadata, and `noindex,follow`. Commit `2b6a39b` adds the cross-theme mobile long-press menu, homepage boot lock, and final-stage mobile orientation input. The current homepage runtime recovery patch keeps the large gate script as a cacheable external module, retries a failed module request from a small inline guard, and prevents `astro:page-load` from cleaning up an already-bound gate. The subject-aware lensing checkpoint is `1164fb4`, the latest warning rollback point is `d112f11`, the opening-transition rollback point is `cb1fa6e`, and the compressed-release checkpoint is `91356a2`.
 - Current uncommitted stability pass (`2026-07-28`): the persistent Kisara audio control now draws its play/pause glyphs with local CSS geometry instead of Astro icon `<use>` references, preventing an intermittently clickable-but-empty control after document swaps. Me episode-memory scenes no longer combine full-viewport `filter` animation with `clip-path` and transform on the same scene layer; the visual background was moved out of negative stacking and given backface protection to reduce intermittent white compositor flashes. `npm test` passed 3/3 and `npm run build` generated 42 pages with a 43-page Pagefind index. Fine runtime visual confirmation remains pending user testing.
 - Current reverse-opening handoff: the gate visual shell remains fixed for the whole handoff and is clipped by the gate section after leaving the first viewport; scene breathing belongs to an inset inner camera. Returning from `001` keeps the live portal open while the section moves down, then resets the blue gate only after the section has fully left the viewport. Do not restore the superseded `is-returning-to-gate` overlay or predictive wheel-delta cleanup.
 - Current Me-to-Home secret checkpoint (`2026-07-29`): viewing Profile through Games without entering Pulse, then navigating directly to the Kisara Home route, consumes a 30-second same-tab ticket and replaces the normal gate with the one-shot `found-self` memory interlude. The interlude owns its input/audio lifecycle and exits through the existing Home smooth-scroll path; its ticket is consumed before playback, so returning upward always restores the normal blue gate.
@@ -97,7 +97,7 @@
 - Kisara layer: independent dark visual-interaction frontend with a reversible blue-to-red diagonal title tide controlled by captured vertical input. It owns its layout, pages, CSS, mobile navigation, context menu, runtime, and theme-owned background slots under `public/themes/kisara/assets/`.
 - Switching: map the current canonical pathname into the target theme, preserve query/hash, persist the target ID, then perform a full-document navigation. Explicit user switches use history-preserving `assign`; automatic preference restoration uses `replace`; browser history traversal adopts the restored page's theme.
 - SEO: alternate theme routes use `noindex,follow`; sitemap excludes `/themes/` routes.
-- 404: the single GitHub Pages root 404 performs an early client redirect for unknown `/themes/blank/*` paths to `/themes/blank/404/`, carrying the original URL in `from`.
+- 404: the single GitHub Pages root Kisara 404 performs an early client redirect for unknown Blank, Fuyukawa, or legacy Kisara prefixed paths to that theme's `/404/` route, carrying the original URL in `from`.
 
 ## Asset Inventory
 
@@ -118,7 +118,7 @@
 | `src/layouts/ArticleLayout.astro` | `src/themes/fuyukawa-kagari/layouts/ArticleLayout.astro` |
 | `src/styles/global.css` | `src/themes/fuyukawa-kagari/styles/theme.css` |
 | `src/data/noticeContent.ts` | `src/themes/fuyukawa-kagari/data/noticeContent.ts` |
-| Theme-heavy implementations in `src/pages/*.astro` | `src/themes/fuyukawa-kagari/pages/*Page.astro`; root `src/pages/` files are thin public route entries |
+| Theme-heavy implementations in `src/pages/*.astro` | Theme-owned implementations under `src/themes/*/pages/`; root `src/pages/` files are thin canonical entries currently importing Kisara, while alternate themes have prefixed entries under `src/pages/themes/` |
 | `public/assets/` | `public/themes/fuyukawa-kagari/assets/` |
 | `public/music/` | `public/themes/fuyukawa-kagari/music/` |
 | Blog collection, `public/blog-assets/`, `public/blog-covers/`, `src/lib/site.ts` | Remain shared and outside theme namespaces |
@@ -138,15 +138,15 @@
 
 ### Multi-Theme Foundation
 
-- Goal: make `fuyukawa-kagari` and `blank` independently renderable and switchable while preserving existing routes.
-- Status: implemented and validated locally; publication pending.
+- Goal: keep all three themes independently renderable and switchable while the selected default owns the unchanged canonical content routes.
+- Status: implemented and locally validated with Kisara as the default root theme; publication pending.
 - Key paths: `src/core/`, `src/themes/`, `src/pages/`, `public/themes/`.
 - Validation: production build, root/deep-link rendering, both-direction context-preserving switch, refresh persistence, history navigation, and allowlisted fallback logic passed.
 
 ### Fuyukawa Kagari Boundary Migration
 
 - Goal: move existing theme implementation as intact units before any internal refactor.
-- Status: implemented and browser-validated with existing root routes preserved.
+- Status: implemented and browser-validated; the original frontend now lives at `/themes/fuyukawa-kagari/...` after the explicit default-route migration.
 - Explicitly deferred: splitting the large Kagari layout script, homepage runtime, and theme CSS into smaller modules.
 
 ### Blank Theme
@@ -1326,3 +1326,11 @@
 - Article layouts now pass the full frontmatter into the shared SEO component. Canonical article pages emit `WebPage + BlogPosting` JSON-LD with headline, description, author, publication/modification dates, category, tags, cover image, and main-page relationship, plus article Open Graph dates/tags and a large-image Twitter card.
 - The sitemap continues to contain exactly one canonical AstrBot article URL and no `/themes/` copies. Blank and Kisara article variants retain `noindex,follow` and point back to the same canonical article.
 - `git diff --check`, `npm test` (3/3), and the final `npm run build` pass; Astro generated 45 pages and Pagefind indexed 46 pages. Generated HTML confirms the focused SEO title/description/keywords, `BlogPosting` cover and tags, exactly one sitemap URL, and both `article:modified_time` and `dateModified` restored to `2026-05-19`.
+
+### 2026-07-30 Kisara canonical root migration
+
+- Kisara now owns `/`, `/blog/`, `/games/`, `/projects/`, `/about/`, canonical article paths, and the root 404. The displaced Fuyukawa frontend remains fully available under `/themes/fuyukawa-kagari/...`; the existing `/themes/kisara/...` output is retained only as a backward-compatible alias.
+- Theme path generation special-cases `DEFAULT_THEME_ID`, so Kisara links resolve directly to canonical paths even though its historical prefix remains registered for canonical stripping. Fuyukawa navigation, article rows, Pagefind result links, context-menu Home, Live2D Home detection, and 404 recovery now use the prefixed route family.
+- The preference key changed from `yuimi-theme-id-v1` to `yuimi-theme-id-v2`. This is a deliberate one-time reset: `v1` was automatically populated with the former default for ordinary visitors, so migrating it would make the new default appear ineffective on most returning browsers.
+- Root Kisara documents no longer emit `noindex` or `data-pagefind-ignore`. Blank, Fuyukawa, and legacy prefixed Kisara documents retain `noindex,follow`, canonicalize to root content URLs, and remain excluded from the sitemap. `edgeone.json` needs no change because its root HTML rule and existing theme asset rules already cover the new ownership.
+- `git diff --check`, `npm test` (3/3), and `npm run build` pass. Astro generated 60 pages and Pagefind processed 61 HTML documents including the standalone game document. Generated-HTML checks confirmed root Home and AstrBot article as indexable Kisara pages, both alternate theme homes as noindex canonical aliases, prefixed Fuyukawa navigation, and zero `/themes/` URLs in the sitemap.

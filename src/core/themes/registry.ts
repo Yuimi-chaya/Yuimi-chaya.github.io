@@ -1,12 +1,12 @@
-export const THEME_STORAGE_KEY = "yuimi-theme-id-v1";
-export const DEFAULT_THEME_ID = "fuyukawa-kagari";
+export const THEME_STORAGE_KEY = "yuimi-theme-id-v2";
+export const DEFAULT_THEME_ID = "kisara";
 
 export const themes = [
   {
     id: "fuyukawa-kagari",
     label: "Fuyukawa Kagari",
     description: "现有的 Fuyukawa Kagari 二次元手账主题",
-    routePrefix: ""
+    routePrefix: "/themes/fuyukawa-kagari"
   },
   {
     id: "blank",
@@ -29,7 +29,9 @@ export function isThemeId(value: unknown): value is ThemeId {
 }
 
 export function getTheme(themeId: ThemeId) {
-  return themes.find((theme) => theme.id === themeId) ?? themes[0];
+  return themes.find((theme) => theme.id === themeId)
+    ?? themes.find((theme) => theme.id === DEFAULT_THEME_ID)
+    ?? themes[0];
 }
 
 function withLeadingSlash(pathname: string) {
@@ -57,6 +59,7 @@ export function getThemePath(themeId: ThemeId, pathname: string) {
   const canonicalPath = getCanonicalPath(pathname);
   const theme = getTheme(themeId);
 
+  if (theme.id === DEFAULT_THEME_ID) return canonicalPath;
   if (!theme.routePrefix) return canonicalPath;
   if (canonicalPath === "/") return `${theme.routePrefix}/`;
   return `${theme.routePrefix}${canonicalPath}`;
