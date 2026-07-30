@@ -1368,3 +1368,10 @@
 - `scripts/prepare-kisara-memory-mask.py` now uses one shared textured-mask generator for the core, right expansion, and bottom expansion. It outputs `opening-memory-001-mask.png`, `opening-memory-001-expansion-right.png`, and `opening-memory-001-expansion-bottom.png` as RGBA alpha masks with the same irregular contour, low-frequency grain, and feathering.
 - Home 001 loads the three small mask sources and the runtime Canvas only fades the two expansion masks by reveal progress. No random circles, path ribbons, mask stretching, or second visual language is used. The core CSS mask remains fixed throughout the reveal.
 - The previous checkpoint `14ebc0e` remains the rollback point for this new shared-mask experiment. This experiment is intentionally uncommitted until direct visual review confirms that the expansion reads as one continuous ink treatment.
+
+### 2026-07-30 Kisara Home 001 single-mask rollback
+
+- The user clarified that the 001 rollback baseline is the parent of `14ebc0e` (`1f1a80b`), while 002 and the rest of the homepage must remain untouched. The current `new001` runtime image and accepted editorial layout are retained; only the 001 mask/diffusion implementation is being replaced.
+- The shared-mask experiment is superseded. Home 001 now loads one RGBA mask and one hidden source image; the two expansion mask assets, their generator polygons, and the independent right/bottom diffusion regions are removed. Do not restore the rejected dragged-strip treatment.
+- The reveal canvas derives one connected, low-frequency reveal order from the same mask and applies it back to that mask's alpha. It does not add a second mask, random brush stamps, ribbons, or a separately moving bottom/right layer. The core image stays fixed in place and crossfades only after the masked canvas reaches its settled frame.
+- The soft reveal canvas is intentionally `640x360` and reuses its `ImageData` buffer to keep the 001 interaction lightweight; the final sharp/depth composition remains on the original image layers. `npm test` (3/3), `npm run build` (60 pages, 61 Pagefind pages), and `git diff --check` pass.

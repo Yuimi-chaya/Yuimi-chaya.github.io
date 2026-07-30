@@ -2855,7 +2855,7 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
 }
 
 .kisara-opening.is-memory-armed .kisara-opening-memory-core {
-  opacity: 0.58;
+  opacity: 0;
   -webkit-mask-position: center;
   -webkit-mask-size: 100% 100%;
   mask-position: center;
@@ -2864,22 +2864,13 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
 }
 
 .kisara-opening.is-memory-revealed .kisara-opening-memory-core {
-  animation: kisara-memory-core-unfurl 2.2s cubic-bezier(0.18, 0.72, 0.16, 1) both;
+  opacity: 0;
+  animation: none;
 }
 
-@keyframes kisara-memory-core-unfurl {
-  0% {
-    opacity: 0.58;
-    transform: none;
-  }
-  42% {
-    opacity: 0.9;
-    transform: none;
-  }
-  100% {
-    opacity: 1;
-    transform: none;
-  }
+.kisara-opening.is-memory-settled .kisara-opening-memory-core {
+  opacity: 1;
+  animation: none;
 }
 
 .kisara-opening.is-memory-armed :is(
@@ -2962,17 +2953,19 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
   width: auto;
   max-width: none;
   height: var(--kisara-memory-source-height);
-  opacity: 1;
-  filter: blur(2.6px) saturate(0.78) contrast(0.96) sepia(0.1) brightness(0.96);
+  opacity: 0;
+  filter: blur(11px) saturate(0.72) contrast(0.9) sepia(0.22) brightness(0.94);
   pointer-events: none;
-}
-
-.kisara-opening.is-memory-armed .kisara-opening-memory-ink-canvas {
-  opacity: 1;
+  transition: opacity 300ms ease, filter 1.35s cubic-bezier(0.2, 0.72, 0.18, 1);
 }
 
 .kisara-opening.is-memory-blooming .kisara-opening-memory-ink-canvas {
-  opacity: 1;
+  opacity: 0.98;
+  filter: blur(2.6px) saturate(0.78) contrast(0.96) sepia(0.1) brightness(0.96);
+}
+
+.kisara-opening.is-memory-settled .kisara-opening-memory-ink-canvas {
+  opacity: 0;
 }
 
 .kisara-opening-memory figcaption {
@@ -6346,8 +6339,9 @@ html.kisara-event-modal-open {
   }
 
   .kisara-opening-memory-ink-canvas,
-  .kisara-opening.is-memory-blooming .kisara-opening-memory-ink-canvas {
-    opacity: 1;
+  .kisara-opening.is-memory-blooming .kisara-opening-memory-ink-canvas,
+  .kisara-opening.is-memory-settled .kisara-opening-memory-ink-canvas {
+    opacity: 0;
     transition: none;
   }
 
