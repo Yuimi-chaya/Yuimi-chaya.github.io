@@ -1398,6 +1398,21 @@ const gateStyle = [
       let openingMemoryInkNodes = [];
       let openingMemoryInkResizeObserver = null;
       let openingMemoryInkGeometry = null;
+      let openingMemoryInkAmbientFrame = 0;
+      let openingMemoryInkAmbientTimer = 0;
+      let openingMemoryInkAmbientLastPaint = 0;
+      let openingMemoryInkAmbientGeneration = 0;
+      let openingMemoryAmbientObserver = null;
+      let openingMemoryAmbientVisible = false;
+      let openingMemoryPointerFrame = 0;
+      let openingMemoryPointerActive = false;
+      let openingMemoryPointerTargetX = 0;
+      let openingMemoryPointerTargetY = 0;
+      let openingMemoryPointerCurrentX = 0;
+      let openingMemoryPointerCurrentY = 0;
+      const openingMemoryAmbientMotionEnabled = !reducedMotion && window.matchMedia(
+        "(hover: hover) and (pointer: fine) and (min-width: 901px)"
+      ).matches;
 
       const createMemoryInkRandom = (seed) => {
         let value = seed >>> 0;
@@ -1506,7 +1521,9 @@ const gateStyle = [
               birth: Math.min(0.95, birthStart + (birthEnd - birthStart) * (distance * 0.68 + random() * 0.32)),
               growth: 0.16 + random() * 0.16,
               alpha: (alphaMin + random() * (alphaMax - alphaMin)) * (1 - distance * 0.3),
-              brush: Math.floor(random() * openingMemoryInkBrushes.length)
+              brush: Math.floor(random() * openingMemoryInkBrushes.length),
+              pulsePhase: angle * 2.1 + index * 0.37 + distance * 4.8,
+              pulseStrength: 0.01 + distance * 0.016
             };
             if (emit) nodes.push(node);
           }
@@ -1578,7 +1595,7 @@ const gateStyle = [
         return true;
       };
 
-      const renderOpeningMemoryInk = (progressValue) => {
+      const renderOpeningMemoryInk = (progressValue, ambientPhase = 0) => {
         if (
           !(openingMemoryInkCanvas instanceof HTMLCanvasElement)
           || !(openingMemorySource instanceof HTMLImageElement)
@@ -1590,23 +1607,32 @@ const gateStyle = [
         const width = openingMemoryInkCanvas.width;
         const height = openingMemoryInkCanvas.height;
         const progress = clamp(progressValue, 0, 1);
+        const ambientEnvelope = ambientPhase > 0
+          ? Math.sin(Math.PI * clamp(ambientPhase, 0, 1))
+          : 0;
         openingMemoryMaskContext.clearRect(0, 0, width, height);
 
         for (const node of openingMemoryInkNodes) {
           if (node.birth > progress) break;
           const age = clamp((progress - node.birth) / node.growth, 0, 1);
           const growth = 0.22 + (1 - Math.pow(1 - age, 2.4)) * 0.78;
+          const ambientRipple = ambientEnvelope > 0
+            ? Math.sin(ambientPhase * Math.PI * 2 + node.pulsePhase) * node.pulseStrength * ambientEnvelope
+            : 0;
+          const renderedGrowth = growth * (1 + ambientRipple);
           const brush = openingMemoryInkBrushes[node.brush];
           openingMemoryMaskContext.save();
           openingMemoryMaskContext.translate(node.x, node.y);
           openingMemoryMaskContext.rotate(node.rotation);
-          openingMemoryMaskContext.globalAlpha = node.alpha * (0.24 + age * 0.76);
+          openingMemoryMaskContext.globalAlpha = node.alpha
+            * (0.24 + age * 0.76)
+            * (1 + ambientRipple * 0.72);
           openingMemoryMaskContext.drawImage(
             brush,
-            -node.radiusX * growth,
-            -node.radiusY * growth,
-            node.radiusX * growth * 2,
-            node.radiusY * growth * 2
+            -node.radiusX * renderedGrowth,
+            -node.radiusY * renderedGrowth,
+            node.radiusX * renderedGrowth * 2,
+            node.radiusY * renderedGrowth * 2
           );
           openingMemoryMaskContext.restore();
         }
@@ -1617,6 +1643,129 @@ const gateStyle = [
         openingMemoryInkContext.globalCompositeOperation = "destination-in";
         openingMemoryInkContext.drawImage(openingMemoryMaskCanvas, 0, 0);
         openingMemoryInkContext.globalCompositeOperation = "source-over";
+      };
+
+      const cancelOpeningMemoryInkAmbient = (restore = true) => {
+        openingMemoryInkAmbientGeneration += 1;
+        if (openingMemoryInkAmbientFrame) window.cancelAnimationFrame(openingMemoryInkAmbientFrame);
+        openingMemoryInkAmbientFrame = 0;
+        if (openingMemoryInkAmbientTimer) window.clearTimeout(openingMemoryInkAmbientTimer);
+        openingMemoryInkAmbientTimer = 0;
+        openingMemoryInkAmbientLastPaint = 0;
+        if (restore && openingMemoryInkStarted && openingMemoryInkProgress >= 1) {
+          renderOpeningMemoryInk(1, 0);
+        }
+      };
+
+      const scheduleOpeningMemoryInkAmbient = (delay = 5200) => {
+        if (
+          !openingMemoryAmbientMotionEnabled
+          || !openingMemoryAmbientVisible
+          || document.visibilityState !== "visible"
+          || !(opening instanceof HTMLElement)
+          || !opening.classList.contains("is-memory-blooming")
+          || openingMemoryInkProgress < 1
+          || disposed
+        ) return;
+        if (openingMemoryInkAmbientTimer) window.clearTimeout(openingMemoryInkAmbientTimer);
+        const generation = openingMemoryInkAmbientGeneration;
+        openingMemoryInkAmbientTimer = window.setTimeout(() => {
+          openingMemoryInkAmbientTimer = 0;
+          if (
+            generation !== openingMemoryInkAmbientGeneration
+            || !openingMemoryAmbientVisible
+            || document.visibilityState !== "visible"
+            || disposed
+          ) return;
+          const startedAt = performance.now();
+          const duration = 1750;
+          const paint = (timestamp) => {
+            if (
+              generation !== openingMemoryInkAmbientGeneration
+              || !openingMemoryAmbientVisible
+              || document.visibilityState !== "visible"
+              || disposed
+            ) return;
+            if (timestamp - openingMemoryInkAmbientLastPaint < 70) {
+              openingMemoryInkAmbientFrame = window.requestAnimationFrame(paint);
+              return;
+            }
+            openingMemoryInkAmbientLastPaint = timestamp;
+            const phase = clamp((timestamp - startedAt) / duration, 0, 1);
+            renderOpeningMemoryInk(1, phase);
+            if (phase < 1) {
+              openingMemoryInkAmbientFrame = window.requestAnimationFrame(paint);
+            } else {
+              openingMemoryInkAmbientFrame = 0;
+              openingMemoryInkAmbientLastPaint = 0;
+              renderOpeningMemoryInk(1, 0);
+              scheduleOpeningMemoryInkAmbient(7200 + Math.random() * 3600);
+            }
+          };
+          openingMemoryInkAmbientFrame = window.requestAnimationFrame(paint);
+        }, delay);
+      };
+
+      const applyOpeningMemoryPointer = () => {
+        if (!(openingMemoryVisual instanceof HTMLElement)) return;
+        openingMemoryVisual.style.setProperty(
+          "--kisara-memory-pointer-background-x",
+          `${(-openingMemoryPointerCurrentX * 1.1).toFixed(3)}px`
+        );
+        openingMemoryVisual.style.setProperty(
+          "--kisara-memory-pointer-background-y",
+          `${(-openingMemoryPointerCurrentY * 0.78).toFixed(3)}px`
+        );
+        openingMemoryVisual.style.setProperty(
+          "--kisara-memory-pointer-focus-x",
+          `${(openingMemoryPointerCurrentX * 0.18).toFixed(3)}px`
+        );
+        openingMemoryVisual.style.setProperty(
+          "--kisara-memory-pointer-focus-y",
+          `${(openingMemoryPointerCurrentY * 0.14).toFixed(3)}px`
+        );
+        openingMemoryVisual.style.setProperty(
+          "--kisara-memory-pointer-foreground-x",
+          `${(openingMemoryPointerCurrentX * 1.65).toFixed(3)}px`
+        );
+        openingMemoryVisual.style.setProperty(
+          "--kisara-memory-pointer-foreground-y",
+          `${(openingMemoryPointerCurrentY * 1.18).toFixed(3)}px`
+        );
+      };
+
+      const animateOpeningMemoryPointer = () => {
+        openingMemoryPointerFrame = 0;
+        openingMemoryPointerCurrentX += (openingMemoryPointerTargetX - openingMemoryPointerCurrentX) * 0.14;
+        openingMemoryPointerCurrentY += (openingMemoryPointerTargetY - openingMemoryPointerCurrentY) * 0.14;
+        applyOpeningMemoryPointer();
+        if (
+          Math.abs(openingMemoryPointerTargetX - openingMemoryPointerCurrentX) > 0.002
+          || Math.abs(openingMemoryPointerTargetY - openingMemoryPointerCurrentY) > 0.002
+        ) {
+          openingMemoryPointerFrame = window.requestAnimationFrame(animateOpeningMemoryPointer);
+        }
+      };
+
+      const queueOpeningMemoryPointer = () => {
+        if (!openingMemoryPointerFrame) {
+          openingMemoryPointerFrame = window.requestAnimationFrame(animateOpeningMemoryPointer);
+        }
+      };
+
+      const resetOpeningMemoryPointer = (instant = false) => {
+        openingMemoryPointerActive = false;
+        openingMemoryPointerTargetX = 0;
+        openingMemoryPointerTargetY = 0;
+        if (instant) {
+          if (openingMemoryPointerFrame) window.cancelAnimationFrame(openingMemoryPointerFrame);
+          openingMemoryPointerFrame = 0;
+          openingMemoryPointerCurrentX = 0;
+          openingMemoryPointerCurrentY = 0;
+          applyOpeningMemoryPointer();
+          return;
+        }
+        queueOpeningMemoryPointer();
       };
 
       const prepareOpeningMemoryInk = () => {
@@ -1634,6 +1783,7 @@ const gateStyle = [
       };
 
       const playOpeningMemoryInk = async (instant = false) => {
+        cancelOpeningMemoryInkAmbient(false);
         const generation = ++openingMemoryInkGeneration;
         const ready = await prepareOpeningMemoryInk();
         if (!ready || disposed || generation !== openingMemoryInkGeneration) return;
@@ -1663,6 +1813,7 @@ const gateStyle = [
             openingMemoryInkFrame = 0;
             openingMemoryInkProgress = 1;
             renderOpeningMemoryInk(1);
+            scheduleOpeningMemoryInkAmbient();
           }
         };
         openingMemoryInkFrame = window.requestAnimationFrame(paint);
@@ -1683,6 +1834,7 @@ const gateStyle = [
         if (!(opening instanceof HTMLElement)) return;
         if (opening.classList.contains("is-memory-revealed")) return;
         opening.classList.add("is-memory-revealed");
+        if (openingMemoryAmbientVisible) opening.classList.add("is-memory-ambient-active");
         if (openingMemoryRevealArmFrame) window.cancelAnimationFrame(openingMemoryRevealArmFrame);
         openingMemoryRevealArmFrame = 0;
         openingMemoryObserver?.disconnect();
@@ -1733,6 +1885,8 @@ const gateStyle = [
         openingMemoryInkGeneration += 1;
         if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
         openingMemoryInkFrame = 0;
+        cancelOpeningMemoryInkAmbient(false);
+        resetOpeningMemoryPointer(true);
         openingMemoryInkLastPaint = 0;
         openingMemoryInkProgress = 0;
         openingMemoryInkStarted = false;
@@ -1748,7 +1902,7 @@ const gateStyle = [
           openingMemoryMaskCanvas.width,
           openingMemoryMaskCanvas.height
         );
-        opening.classList.remove("is-memory-revealed", "is-memory-blooming");
+        opening.classList.remove("is-memory-revealed", "is-memory-blooming", "is-memory-ambient-active");
         opening.classList.add("is-memory-armed");
         armOpeningMemoryReveal();
       };
@@ -1770,6 +1924,65 @@ const gateStyle = [
           renderOpeningMemoryInk(openingMemoryInkProgress);
         });
         openingMemoryInkResizeObserver.observe(openingMemoryVisual);
+      }
+      if (openingMemoryVisual instanceof HTMLElement && openingMemoryAmbientMotionEnabled) {
+        openingMemoryVisual.addEventListener("pointerenter", () => {
+          openingMemoryPointerActive = true;
+        }, { signal });
+        openingMemoryVisual.addEventListener("pointermove", (event) => {
+          if (
+            !openingMemoryPointerActive
+            || !(opening instanceof HTMLElement)
+            || !opening.classList.contains("is-memory-revealed")
+          ) return;
+          const rect = openingMemoryVisual.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) return;
+          const normalizedX = clamp(((event.clientX - rect.left) / rect.width) * 2 - 1, -1, 1);
+          const normalizedY = clamp(((event.clientY - rect.top) / rect.height) * 2 - 1, -1, 1);
+          const subjectDistance = Math.hypot(normalizedX + 0.5, normalizedY - 0.32);
+          const distanceGain = 0.58 + clamp(subjectDistance / 1.25, 0, 1) * 0.42;
+          openingMemoryPointerTargetX = normalizedX * distanceGain;
+          openingMemoryPointerTargetY = normalizedY * distanceGain;
+          queueOpeningMemoryPointer();
+        }, { signal });
+        openingMemoryVisual.addEventListener("pointerleave", () => {
+          resetOpeningMemoryPointer(false);
+        }, { signal });
+      }
+      if (openingMemory instanceof HTMLElement && openingMemoryAmbientMotionEnabled) {
+        if (typeof IntersectionObserver === "function") {
+          openingMemoryAmbientObserver = new IntersectionObserver((entries) => {
+            const visible = entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.08);
+            openingMemoryAmbientVisible = visible;
+            if (visible) {
+              if (opening instanceof HTMLElement && opening.classList.contains("is-memory-revealed")) {
+                opening.classList.add("is-memory-ambient-active");
+              }
+              scheduleOpeningMemoryInkAmbient(2400);
+            } else {
+              opening?.classList.remove("is-memory-ambient-active");
+              cancelOpeningMemoryInkAmbient(true);
+              resetOpeningMemoryPointer(false);
+            }
+          }, { threshold: [0, 0.08, 0.28], rootMargin: "8% 0px 8%" });
+          openingMemoryAmbientObserver.observe(openingMemory);
+        } else {
+          openingMemoryAmbientVisible = true;
+        }
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState !== "visible") {
+            opening?.classList.remove("is-memory-ambient-active");
+            cancelOpeningMemoryInkAmbient(true);
+            resetOpeningMemoryPointer(false);
+            return;
+          }
+          if (openingMemoryAmbientVisible) {
+            if (opening instanceof HTMLElement && opening.classList.contains("is-memory-revealed")) {
+              opening.classList.add("is-memory-ambient-active");
+            }
+            scheduleOpeningMemoryInkAmbient(1600);
+          }
+        }, { signal });
       }
       let openingMemoryReplayResetPending = false;
       const resetFridgeScenePresentation = () => {
@@ -14059,16 +14272,25 @@ const gateStyle = [
         lifecycle.abort();
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
+        openingMemoryAmbientObserver?.disconnect();
+        openingMemoryAmbientObserver = null;
         if (openingMemoryRevealArmFrame) window.cancelAnimationFrame(openingMemoryRevealArmFrame);
         openingMemoryRevealArmFrame = 0;
         openingMemoryInkGeneration += 1;
         if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
         openingMemoryInkFrame = 0;
+        cancelOpeningMemoryInkAmbient(false);
+        resetOpeningMemoryPointer(true);
         openingMemoryInkResizeObserver?.disconnect();
         openingMemoryInkResizeObserver = null;
         if (openingMemoryBloomTimer) window.clearTimeout(openingMemoryBloomTimer);
         openingMemoryBloomTimer = 0;
-        opening?.classList.remove("is-memory-armed", "is-memory-revealed", "is-memory-blooming");
+        opening?.classList.remove(
+          "is-memory-armed",
+          "is-memory-revealed",
+          "is-memory-blooming",
+          "is-memory-ambient-active"
+        );
         sceneDecodeGeneration += 1;
         sceneImageWarmers.clear();
         spaceLensInitGeneration += 1;
