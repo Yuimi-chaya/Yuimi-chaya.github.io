@@ -377,6 +377,13 @@ const gateStyle = [
               height="540"
               aria-hidden="true"
             ></canvas>
+            <canvas
+              class="kisara-opening-memory-candle-canvas"
+              data-kisara-memory-candle-canvas
+              width="960"
+              height="706"
+              aria-hidden="true"
+            ></canvas>
             <span class="kisara-opening-memory-core">
               <img
                 class="kisara-opening-memory-image"
@@ -1382,8 +1389,21 @@ const gateStyle = [
       const openingMemoryInkContext = openingMemoryInkCanvas instanceof HTMLCanvasElement
         ? openingMemoryInkCanvas.getContext("2d", { alpha: true })
         : null;
+      const openingMemoryCandleCanvas = openingMemory instanceof HTMLElement
+        ? openingMemory.querySelector("[data-kisara-memory-candle-canvas]")
+        : null;
+      const openingMemoryCandleContext = openingMemoryCandleCanvas instanceof HTMLCanvasElement
+        ? openingMemoryCandleCanvas.getContext("2d", { alpha: true })
+        : null;
       const openingMemoryMaskCanvas = document.createElement("canvas");
       const openingMemoryMaskContext = openingMemoryMaskCanvas.getContext("2d", { alpha: true });
+      const openingMemoryCandleMaskCanvas = document.createElement("canvas");
+      const openingMemoryCandleMaskContext = openingMemoryCandleMaskCanvas.getContext("2d", { alpha: true });
+      const openingMemoryCandleStaticMaskCanvas = document.createElement("canvas");
+      const openingMemoryCandleStaticMaskContext = openingMemoryCandleStaticMaskCanvas.getContext("2d", { alpha: true });
+      const openingMemoryCandleMaskImage = new Image();
+      openingMemoryCandleMaskImage.decoding = "async";
+      openingMemoryCandleMaskImage.src = "/themes/kisara/assets/opening-memory-001-mask.png";
       openingMemoryMaskCanvas.width = openingMemoryInkCanvas instanceof HTMLCanvasElement
         ? openingMemoryInkCanvas.width
         : 960;
@@ -1402,6 +1422,13 @@ const gateStyle = [
       let openingMemoryInkAmbientTimer = 0;
       let openingMemoryInkAmbientLastPaint = 0;
       let openingMemoryInkAmbientGeneration = 0;
+      let openingMemoryCandleFrame = 0;
+      let openingMemoryCandleLastPaint = 0;
+      let openingMemoryCandleGeneration = 0;
+      let openingMemoryCandleProgress = 0;
+      let openingMemoryCandlePulse = 0;
+      let openingMemoryCandleGeometry = null;
+      let openingMemoryCandleNodes = [];
       let openingMemoryAmbientObserver = null;
       let openingMemoryAmbientVisible = false;
       let openingMemoryPointerFrame = 0;
@@ -1458,6 +1485,255 @@ const gateStyle = [
         createMemoryInkBrush(41047),
         createMemoryInkBrush(65537)
       ];
+
+      const openingMemoryCandleHash = (x, y, salt = 0) => {
+        const value = Math.sin((x + 1) * 12.9898 + (y + 1) * 78.233 + salt * 37.719) * 43758.5453;
+        return value - Math.floor(value);
+      };
+
+      const buildOpeningMemoryCandle = () => {
+        if (
+          !(openingMemoryVisual instanceof HTMLElement)
+          || !(openingMemoryImage instanceof HTMLImageElement)
+          || !(openingMemoryCandleCanvas instanceof HTMLCanvasElement)
+          || !openingMemoryCandleContext
+          || !openingMemoryCandleMaskContext
+          || !openingMemoryCandleStaticMaskContext
+          || openingMemoryCandleMaskImage.naturalWidth <= 0
+        ) return false;
+        const visualRect = openingMemoryVisual.getBoundingClientRect();
+        if (visualRect.width <= 0 || visualRect.height <= 0) return false;
+        const width = window.innerWidth <= 900 ? 560 : 960;
+        const height = Math.max(1, Math.round(width * (visualRect.height / visualRect.width)));
+        if (openingMemoryCandleCanvas.width !== width || openingMemoryCandleCanvas.height !== height) {
+          openingMemoryCandleCanvas.width = width;
+          openingMemoryCandleCanvas.height = height;
+        }
+        openingMemoryCandleMaskCanvas.width = width;
+        openingMemoryCandleMaskCanvas.height = height;
+        openingMemoryCandleStaticMaskCanvas.width = width;
+        openingMemoryCandleStaticMaskCanvas.height = height;
+
+        const scaleX = width / Math.max(1, openingMemoryVisual.clientWidth);
+        const scaleY = height / Math.max(1, openingMemoryVisual.clientHeight);
+        const imageLeft = openingMemoryImage.offsetLeft * scaleX;
+        const imageTop = openingMemoryImage.offsetTop * scaleY;
+        const imageWidth = openingMemoryImage.offsetWidth * scaleX;
+        const imageHeight = openingMemoryImage.offsetHeight * scaleY;
+        const candleX = imageLeft + imageWidth * 0.558;
+        const candleY = imageTop + imageHeight * 0.781;
+        const verticalSpread = 0.82;
+        const maxRadius = Math.max(
+          Math.hypot(candleX, candleY / verticalSpread),
+          Math.hypot(width - candleX, candleY / verticalSpread),
+          Math.hypot(candleX, (height - candleY) / verticalSpread),
+          Math.hypot(width - candleX, (height - candleY) / verticalSpread)
+        );
+
+        openingMemoryCandleStaticMaskContext.clearRect(0, 0, width, height);
+        openingMemoryCandleStaticMaskContext.drawImage(
+          openingMemoryCandleMaskImage,
+          0,
+          0,
+          width,
+          height
+        );
+        const maskPixels = openingMemoryCandleStaticMaskContext.getImageData(0, 0, width, height).data;
+        const step = width <= 600 ? 24 : 32;
+        const nodes = [];
+        let gridY = 0;
+        for (let y = step * 0.5; y < height; y += step, gridY += 1) {
+          let gridX = 0;
+          for (let x = step * 0.5; x < width; x += step, gridX += 1) {
+            const jitterX = (openingMemoryCandleHash(gridX, gridY, 1) - 0.5) * step * 0.78;
+            const jitterY = (openingMemoryCandleHash(gridX, gridY, 2) - 0.5) * step * 0.72;
+            const nodeX = clamp(x + jitterX, 0, width - 1);
+            const nodeY = clamp(y + jitterY, 0, height - 1);
+            const pixelIndex = (Math.floor(nodeY) * width + Math.floor(nodeX)) * 4 + 3;
+            if (maskPixels[pixelIndex] < 20) continue;
+            const deltaX = nodeX - candleX;
+            const deltaY = (nodeY - candleY) / verticalSpread;
+            const radial = clamp(Math.hypot(deltaX, deltaY) / maxRadius, 0, 1);
+            const angle = Math.atan2(deltaY, deltaX);
+            const boundaryNoise = Math.sin(angle * 3.2 + radial * 7.4) * 0.045
+              + Math.sin(nodeX * 0.031 + nodeY * 0.021) * 0.033;
+            nodes.push({
+              x: nodeX,
+              y: nodeY,
+              birth: clamp(Math.pow(radial, 0.84) + boundaryNoise - 0.075, 0, 0.94),
+              growth: 0.12 + openingMemoryCandleHash(gridX, gridY, 3) * 0.14,
+              radiusX: step * (1.02 + openingMemoryCandleHash(gridX, gridY, 4) * 0.72),
+              radiusY: step * (0.86 + openingMemoryCandleHash(gridX, gridY, 5) * 0.64),
+              rotation: angle + (openingMemoryCandleHash(gridX, gridY, 6) - 0.5) * 0.8,
+              brush: Math.floor(openingMemoryCandleHash(gridX, gridY, 7) * openingMemoryInkBrushes.length)
+            });
+          }
+        }
+        openingMemoryCandleNodes = nodes.sort((left, right) => left.birth - right.birth);
+        openingMemoryCandleGeometry = {
+          width,
+          height,
+          imageLeft,
+          imageTop,
+          imageWidth,
+          imageHeight,
+          candleX,
+          candleY,
+          maxRadius,
+          verticalSpread
+        };
+        return true;
+      };
+
+      const renderOpeningMemoryCandleMask = (progressValue) => {
+        if (!openingMemoryCandleGeometry && !buildOpeningMemoryCandle()) return false;
+        if (!openingMemoryCandleMaskContext || !openingMemoryCandleStaticMaskContext) return false;
+        const {
+          width,
+          height,
+          candleX,
+          candleY,
+          maxRadius,
+          verticalSpread
+        } = openingMemoryCandleGeometry;
+        const progress = clamp(progressValue, 0, 1);
+        const eased = 1 - Math.pow(1 - progress, 2.05);
+        const radius = maxRadius * (0.035 + eased * 0.94);
+        openingMemoryCandleMaskContext.clearRect(0, 0, width, height);
+        openingMemoryCandleMaskContext.save();
+        openingMemoryCandleMaskContext.translate(candleX, candleY);
+        openingMemoryCandleMaskContext.scale(1, verticalSpread);
+        const gradient = openingMemoryCandleMaskContext.createRadialGradient(
+          0,
+          0,
+          radius * 0.68,
+          0,
+          0,
+          radius
+        );
+        gradient.addColorStop(0, "rgba(255,255,255,1)");
+        gradient.addColorStop(0.74, "rgba(255,255,255,0.96)");
+        gradient.addColorStop(0.9, "rgba(255,255,255,0.34)");
+        gradient.addColorStop(1, "rgba(255,255,255,0)");
+        openingMemoryCandleMaskContext.fillStyle = gradient;
+        openingMemoryCandleMaskContext.beginPath();
+        openingMemoryCandleMaskContext.arc(0, 0, radius, 0, Math.PI * 2);
+        openingMemoryCandleMaskContext.fill();
+        openingMemoryCandleMaskContext.restore();
+
+        for (const node of openingMemoryCandleNodes) {
+          if (node.birth > progress) break;
+          const age = clamp((progress - node.birth) / node.growth, 0, 1);
+          const growth = 0.18 + (1 - Math.pow(1 - age, 2.2)) * 0.82;
+          openingMemoryCandleMaskContext.save();
+          openingMemoryCandleMaskContext.translate(node.x, node.y);
+          openingMemoryCandleMaskContext.rotate(node.rotation);
+          openingMemoryCandleMaskContext.globalAlpha = 0.26 + age * 0.74;
+          openingMemoryCandleMaskContext.drawImage(
+            openingMemoryInkBrushes[node.brush],
+            -node.radiusX * growth,
+            -node.radiusY * growth,
+            node.radiusX * growth * 2,
+            node.radiusY * growth * 2
+          );
+          openingMemoryCandleMaskContext.restore();
+        }
+        if (progress > 0.9) {
+          openingMemoryCandleMaskContext.globalAlpha = clamp((progress - 0.9) / 0.1, 0, 1);
+          openingMemoryCandleMaskContext.fillStyle = "#fff";
+          openingMemoryCandleMaskContext.fillRect(0, 0, width, height);
+          openingMemoryCandleMaskContext.globalAlpha = 1;
+        }
+        openingMemoryCandleMaskContext.globalCompositeOperation = "destination-in";
+        openingMemoryCandleMaskContext.drawImage(openingMemoryCandleStaticMaskCanvas, 0, 0);
+        openingMemoryCandleMaskContext.globalCompositeOperation = "source-over";
+        return true;
+      };
+
+      const openingMemoryCandlePulseWindow = (value, start, end) => {
+        if (value <= start || value >= end) return 0;
+        return Math.sin(Math.PI * ((value - start) / (end - start)));
+      };
+
+      const renderOpeningMemoryCandle = (revealProgress, pulseProgress = 0) => {
+        if (
+          !(openingMemorySource instanceof HTMLImageElement)
+          || !openingMemoryCandleContext
+          || !openingMemoryCandleGeometry
+          || !renderOpeningMemoryCandleMask(revealProgress)
+        ) return;
+        const {
+          width,
+          height,
+          imageLeft,
+          imageTop,
+          imageWidth,
+          imageHeight,
+          candleX,
+          candleY,
+          maxRadius
+        } = openingMemoryCandleGeometry;
+        const reveal = clamp(revealProgress, 0, 1);
+        const pulse = clamp(pulseProgress, 0, 1);
+        const blur = (window.innerWidth <= 900 ? 6 : 9) * Math.pow(1 - reveal, 1.45);
+        const saturation = 0.7 + reveal * 0.24;
+        const brightness = 0.6 + reveal * 0.4;
+        openingMemoryCandleContext.clearRect(0, 0, width, height);
+        openingMemoryCandleContext.save();
+        openingMemoryCandleContext.filter = `blur(${blur.toFixed(2)}px) saturate(${saturation.toFixed(3)}) brightness(${brightness.toFixed(3)})`;
+        openingMemoryCandleContext.drawImage(
+          openingMemorySource,
+          imageLeft,
+          imageTop,
+          imageWidth,
+          imageHeight
+        );
+        openingMemoryCandleContext.restore();
+
+        const revealGlow = (1 - reveal) * 0.34 + Math.sin(Math.PI * reveal) * 0.08;
+        const brightPulse = openingMemoryCandlePulseWindow(pulse, 0, 0.23)
+          + openingMemoryCandlePulseWindow(pulse, 0.5, 0.67) * 0.42;
+        const darkPulse = openingMemoryCandlePulseWindow(pulse, 0.22, 0.48)
+          + openingMemoryCandlePulseWindow(pulse, 0.66, 0.88) * 0.28;
+        const lightAmount = clamp(revealGlow + brightPulse * 0.52, 0, 0.7);
+        if (lightAmount > 0.001) {
+          const light = openingMemoryCandleContext.createRadialGradient(
+            candleX,
+            candleY,
+            0,
+            candleX,
+            candleY,
+            maxRadius * 0.78
+          );
+          light.addColorStop(0, `rgba(255,244,196,${(lightAmount * 0.88).toFixed(3)})`);
+          light.addColorStop(0.22, `rgba(255,218,143,${(lightAmount * 0.56).toFixed(3)})`);
+          light.addColorStop(0.58, `rgba(236,146,116,${(lightAmount * 0.2).toFixed(3)})`);
+          light.addColorStop(1, "rgba(217,118,110,0)");
+          openingMemoryCandleContext.globalCompositeOperation = "screen";
+          openingMemoryCandleContext.fillStyle = light;
+          openingMemoryCandleContext.fillRect(0, 0, width, height);
+        }
+        if (darkPulse > 0.001) {
+          const shade = openingMemoryCandleContext.createRadialGradient(
+            candleX,
+            candleY,
+            maxRadius * 0.08,
+            candleX,
+            candleY,
+            maxRadius
+          );
+          shade.addColorStop(0, "rgba(255,255,255,1)");
+          shade.addColorStop(0.35, `rgba(222,207,204,${(darkPulse * 0.14).toFixed(3)})`);
+          shade.addColorStop(0.72, `rgba(91,73,91,${(darkPulse * 0.3).toFixed(3)})`);
+          shade.addColorStop(1, `rgba(34,27,48,${(darkPulse * 0.46).toFixed(3)})`);
+          openingMemoryCandleContext.globalCompositeOperation = "multiply";
+          openingMemoryCandleContext.fillStyle = shade;
+          openingMemoryCandleContext.fillRect(0, 0, width, height);
+        }
+        openingMemoryCandleContext.globalCompositeOperation = "destination-in";
+        openingMemoryCandleContext.drawImage(openingMemoryCandleMaskCanvas, 0, 0);
+        openingMemoryCandleContext.globalCompositeOperation = "source-over";
+      };
 
       const measureOpeningMemoryInk = () => {
         if (
@@ -1782,6 +2058,92 @@ const gateStyle = [
         });
       };
 
+      const prepareOpeningMemoryCandle = async () => {
+        if (!(openingMemorySource instanceof HTMLImageElement)) return false;
+        const prepareImage = async (image) => {
+          if (image.complete && image.naturalWidth > 0) return true;
+          if (typeof image.decode === "function") {
+            try {
+              await image.decode();
+              return image.naturalWidth > 0;
+            } catch {
+              return false;
+            }
+          }
+          return new Promise((resolve) => {
+            image.addEventListener("load", () => resolve(true), { once: true, signal });
+            image.addEventListener("error", () => resolve(false), { once: true, signal });
+          });
+        };
+        const [sourceReady, maskReady] = await Promise.all([
+          prepareImage(openingMemorySource),
+          prepareImage(openingMemoryCandleMaskImage)
+        ]);
+        return sourceReady && maskReady;
+      };
+
+      const finishOpeningMemoryCandle = () => {
+        if (!(opening instanceof HTMLElement)) return;
+        opening.classList.add("is-memory-candle-handoff", "is-memory-candle-complete");
+        opening.classList.remove("is-memory-candle-revealing");
+        startOpeningMemoryBloom();
+      };
+
+      const playOpeningMemoryCandle = async () => {
+        const generation = ++openingMemoryCandleGeneration;
+        if (openingMemoryCandleFrame) window.cancelAnimationFrame(openingMemoryCandleFrame);
+        openingMemoryCandleFrame = 0;
+        openingMemoryCandleLastPaint = 0;
+        openingMemoryCandleProgress = 0;
+        openingMemoryCandlePulse = 0;
+        openingMemoryCandleGeometry = null;
+        opening?.classList.remove("is-memory-candle-handoff", "is-memory-candle-complete");
+        const ready = await prepareOpeningMemoryCandle();
+        if (disposed || generation !== openingMemoryCandleGeneration) return;
+        if (!ready || !buildOpeningMemoryCandle()) {
+          finishOpeningMemoryCandle();
+          return;
+        }
+        opening?.classList.add("is-memory-candle-revealing");
+        renderOpeningMemoryCandle(0, 0);
+        const startedAt = performance.now();
+        const revealDuration = 2050;
+        const pulseStart = 1900;
+        const pulseDuration = 920;
+        const handoffAt = 1580;
+        const completeAt = 2920;
+        let bloomStarted = false;
+        const paint = (timestamp) => {
+          if (disposed || generation !== openingMemoryCandleGeneration) return;
+          const paintInterval = window.innerWidth <= 900 ? 42 : 30;
+          if (timestamp - openingMemoryCandleLastPaint < paintInterval) {
+            openingMemoryCandleFrame = window.requestAnimationFrame(paint);
+            return;
+          }
+          openingMemoryCandleLastPaint = timestamp;
+          const elapsed = timestamp - startedAt;
+          const revealLinear = clamp(elapsed / revealDuration, 0, 1);
+          openingMemoryCandleProgress = 1 - Math.pow(1 - revealLinear, 1.72);
+          openingMemoryCandlePulse = clamp((elapsed - pulseStart) / pulseDuration, 0, 1);
+          if (!bloomStarted && revealLinear >= 0.5) {
+            bloomStarted = true;
+            startOpeningMemoryBloom();
+          }
+          if (elapsed >= handoffAt) opening?.classList.add("is-memory-candle-handoff");
+          renderOpeningMemoryCandle(openingMemoryCandleProgress, openingMemoryCandlePulse);
+          if (elapsed < completeAt) {
+            openingMemoryCandleFrame = window.requestAnimationFrame(paint);
+          } else {
+            openingMemoryCandleFrame = 0;
+            openingMemoryCandleProgress = 1;
+            openingMemoryCandlePulse = 1;
+            renderOpeningMemoryCandle(1, 1);
+            finishOpeningMemoryCandle();
+          }
+        };
+        openingMemoryCandleFrame = window.requestAnimationFrame(paint);
+      };
+
       const playOpeningMemoryInk = async (instant = false) => {
         cancelOpeningMemoryInkAmbient(false);
         const generation = ++openingMemoryInkGeneration;
@@ -1839,7 +2201,7 @@ const gateStyle = [
         openingMemoryRevealArmFrame = 0;
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
-        startOpeningMemoryBloom();
+        playOpeningMemoryCandle();
       };
       const armOpeningMemoryReveal = () => {
         if (
@@ -1882,6 +2244,19 @@ const gateStyle = [
         openingMemoryRevealArmFrame = 0;
         if (openingMemoryBloomTimer) window.clearTimeout(openingMemoryBloomTimer);
         openingMemoryBloomTimer = 0;
+        openingMemoryCandleGeneration += 1;
+        if (openingMemoryCandleFrame) window.cancelAnimationFrame(openingMemoryCandleFrame);
+        openingMemoryCandleFrame = 0;
+        openingMemoryCandleLastPaint = 0;
+        openingMemoryCandleProgress = 0;
+        openingMemoryCandlePulse = 0;
+        openingMemoryCandleGeometry = null;
+        openingMemoryCandleContext?.clearRect(
+          0,
+          0,
+          openingMemoryCandleCanvas instanceof HTMLCanvasElement ? openingMemoryCandleCanvas.width : 0,
+          openingMemoryCandleCanvas instanceof HTMLCanvasElement ? openingMemoryCandleCanvas.height : 0
+        );
         openingMemoryInkGeneration += 1;
         if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
         openingMemoryInkFrame = 0;
@@ -1902,7 +2277,14 @@ const gateStyle = [
           openingMemoryMaskCanvas.width,
           openingMemoryMaskCanvas.height
         );
-        opening.classList.remove("is-memory-revealed", "is-memory-blooming", "is-memory-ambient-active");
+        opening.classList.remove(
+          "is-memory-revealed",
+          "is-memory-blooming",
+          "is-memory-ambient-active",
+          "is-memory-candle-revealing",
+          "is-memory-candle-handoff",
+          "is-memory-candle-complete"
+        );
         opening.classList.add("is-memory-armed");
         armOpeningMemoryReveal();
       };
@@ -1913,15 +2295,25 @@ const gateStyle = [
         }, { signal });
         armOpeningMemoryReveal();
       } else if (opening instanceof HTMLElement && openingMemory instanceof HTMLElement) {
-        opening.classList.add("is-memory-blooming");
+        opening.classList.add(
+          "is-memory-blooming",
+          "is-memory-candle-handoff",
+          "is-memory-candle-complete"
+        );
         playOpeningMemoryInk(true);
       }
       if (openingMemoryVisual instanceof HTMLElement && typeof ResizeObserver === "function") {
         openingMemoryInkResizeObserver = new ResizeObserver(() => {
           openingMemoryInkGeometry = null;
-          if (!openingMemoryInkStarted) return;
-          buildOpeningMemoryInk();
-          renderOpeningMemoryInk(openingMemoryInkProgress);
+          openingMemoryCandleGeometry = null;
+          if (openingMemoryInkStarted) {
+            buildOpeningMemoryInk();
+            renderOpeningMemoryInk(openingMemoryInkProgress);
+          }
+          if (openingMemoryCandleFrame) {
+            buildOpeningMemoryCandle();
+            renderOpeningMemoryCandle(openingMemoryCandleProgress, openingMemoryCandlePulse);
+          }
         });
         openingMemoryInkResizeObserver.observe(openingMemoryVisual);
       }
@@ -14276,6 +14668,15 @@ const gateStyle = [
         openingMemoryAmbientObserver = null;
         if (openingMemoryRevealArmFrame) window.cancelAnimationFrame(openingMemoryRevealArmFrame);
         openingMemoryRevealArmFrame = 0;
+        openingMemoryCandleGeneration += 1;
+        if (openingMemoryCandleFrame) window.cancelAnimationFrame(openingMemoryCandleFrame);
+        openingMemoryCandleFrame = 0;
+        openingMemoryCandleContext?.clearRect(
+          0,
+          0,
+          openingMemoryCandleCanvas instanceof HTMLCanvasElement ? openingMemoryCandleCanvas.width : 0,
+          openingMemoryCandleCanvas instanceof HTMLCanvasElement ? openingMemoryCandleCanvas.height : 0
+        );
         openingMemoryInkGeneration += 1;
         if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
         openingMemoryInkFrame = 0;
@@ -14289,7 +14690,10 @@ const gateStyle = [
           "is-memory-armed",
           "is-memory-revealed",
           "is-memory-blooming",
-          "is-memory-ambient-active"
+          "is-memory-ambient-active",
+          "is-memory-candle-revealing",
+          "is-memory-candle-handoff",
+          "is-memory-candle-complete"
         );
         sceneDecodeGeneration += 1;
         sceneImageWarmers.clear();
