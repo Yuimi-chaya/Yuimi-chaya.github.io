@@ -359,35 +359,8 @@ const gateStyle = [
       <div class="kisara-opening-grid">
         <figure class="kisara-opening-memory" data-kisara-opening-memory>
           <div class="kisara-opening-memory-visual">
-            <img
-              class="kisara-opening-memory-source"
-              data-kisara-memory-source
-              src="/themes/kisara/assets/opening-memory-001-v2.webp"
-              alt=""
-              width="1920"
-              height="1080"
-              loading="lazy"
-              decoding="async"
-              aria-hidden="true"
-            />
-            <img
-              class="kisara-opening-memory-mask-source"
-              data-kisara-memory-mask-source
-              src="/themes/kisara/assets/opening-memory-001-mask.png"
-              alt=""
-              width="960"
-              height="540"
-              decoding="async"
-              aria-hidden="true"
-            />
-            <canvas
-              class="kisara-opening-memory-ink-canvas"
-              data-kisara-memory-ink-canvas
-              width="640"
-              height="360"
-              aria-hidden="true"
-            ></canvas>
-            <span class="kisara-opening-memory-core">
+            <span class="kisara-opening-memory-backdrop" aria-hidden="true"></span>
+            <span class="kisara-opening-memory-image-shell">
               <img
                 class="kisara-opening-memory-image"
                 data-kisara-opening-image
@@ -398,26 +371,7 @@ const gateStyle = [
                 loading="lazy"
                 decoding="async"
               />
-              <img
-                class="kisara-opening-memory-depth-focus"
-                src="/themes/kisara/assets/opening-memory-001-v2.webp"
-                alt=""
-                width="1920"
-                height="1080"
-                loading="lazy"
-                decoding="async"
-                aria-hidden="true"
-              />
-              <img
-                class="kisara-opening-memory-depth-foreground"
-                src="/themes/kisara/assets/opening-memory-001-v2.webp"
-                alt=""
-                width="1920"
-                height="1080"
-                loading="lazy"
-                decoding="async"
-                aria-hidden="true"
-              />
+              <span class="kisara-opening-memory-focus" aria-hidden="true"></span>
             </span>
           </div>
           <figcaption><span>图 01</span> 烛光没有回答，只把相拥的一刻留得很慢。</figcaption>
@@ -1377,194 +1331,8 @@ const gateStyle = [
       const openingMemory = opening instanceof HTMLElement
         ? opening.querySelector("[data-kisara-opening-memory]")
         : null;
-      const openingMemoryImage = openingMemory instanceof HTMLElement
-        ? openingMemory.querySelector("[data-kisara-opening-image]")
-        : null;
-      const openingMemoryVisual = openingMemory instanceof HTMLElement
-        ? openingMemory.querySelector(".kisara-opening-memory-visual")
-        : null;
-      const openingMemorySource = openingMemory instanceof HTMLElement
-        ? openingMemory.querySelector("[data-kisara-memory-source]")
-        : null;
-      const openingMemoryMaskSource = openingMemory instanceof HTMLElement
-        ? openingMemory.querySelector("[data-kisara-memory-mask-source]")
-        : null;
-      const openingMemoryInkCanvas = openingMemory instanceof HTMLElement
-        ? openingMemory.querySelector("[data-kisara-memory-ink-canvas]")
-        : null;
-      const openingMemoryInkContext = openingMemoryInkCanvas instanceof HTMLCanvasElement
-        ? openingMemoryInkCanvas.getContext("2d", { alpha: true })
-        : null;
-      const openingMemoryMaskCanvas = document.createElement("canvas");
-      const openingMemoryMaskContext = openingMemoryMaskCanvas.getContext("2d", { alpha: true });
-      openingMemoryMaskCanvas.width = openingMemoryInkCanvas instanceof HTMLCanvasElement
-        ? openingMemoryInkCanvas.width
-        : 960;
-      openingMemoryMaskCanvas.height = openingMemoryInkCanvas instanceof HTMLCanvasElement
-        ? openingMemoryInkCanvas.height
-        : 540;
-      let openingMemoryInkFrame = 0;
-      let openingMemoryInkLastPaint = 0;
-      let openingMemoryInkProgress = 0;
-      let openingMemoryInkGeneration = 0;
-      let openingMemoryInkStarted = false;
-      let openingMemoryInkMaskAlpha = null;
-      let openingMemoryInkRevealOrder = null;
-      let openingMemoryInkRevealPixels = null;
-      let openingMemoryInkResizeObserver = null;
-
-      const buildOpeningMemoryInk = () => {
-        if (
-          !(openingMemoryMaskSource instanceof HTMLImageElement)
-          || !openingMemoryMaskContext
-        ) return false;
-        const width = openingMemoryMaskCanvas.width;
-        const height = openingMemoryMaskCanvas.height;
-        openingMemoryMaskContext.clearRect(0, 0, width, height);
-        openingMemoryMaskContext.drawImage(openingMemoryMaskSource, 0, 0, width, height);
-        const sourcePixels = openingMemoryMaskContext.getImageData(0, 0, width, height).data;
-        const pixelCount = width * height;
-        const maskAlpha = new Uint8ClampedArray(pixelCount);
-        const revealOrder = new Float32Array(pixelCount);
-        for (let y = 0; y < height; y += 1) {
-          const normalizedY = y / Math.max(1, height - 1);
-          for (let x = 0; x < width; x += 1) {
-            const normalizedX = x / Math.max(1, width - 1);
-            const sourceIndex = (y * width + x) * 4;
-            const pixelIndex = y * width + x;
-            maskAlpha[pixelIndex] = sourcePixels[sourceIndex + 3];
-            const focusX = 0.31 + Math.sin(normalizedY * 5.2) * 0.025;
-            const focusY = 0.62 + Math.sin(normalizedX * 4.4 + 0.7) * 0.018;
-            const distance = Math.hypot(
-              (normalizedX - focusX) / 0.76,
-              (normalizedY - focusY) / 0.67
-            );
-            const lowFrequencyInk = (
-              Math.sin(normalizedX * 18.0 + normalizedY * 5.0)
-              + Math.sin(normalizedX * 7.0 - normalizedY * 15.0 + 1.4)
-            ) * 0.018;
-            revealOrder[pixelIndex] = clamp(
-              0.12 + distance * 0.48 + normalizedX * 0.08 + normalizedY * 0.025 + lowFrequencyInk,
-              0,
-              1
-            );
-          }
-        }
-        openingMemoryInkMaskAlpha = maskAlpha;
-        openingMemoryInkRevealOrder = revealOrder;
-        openingMemoryInkRevealPixels = openingMemoryMaskContext.createImageData(width, height);
-        return true;
-      };
-
-      const renderOpeningMemoryInk = (progressValue) => {
-        if (
-          !(openingMemoryInkCanvas instanceof HTMLCanvasElement)
-          || !(openingMemorySource instanceof HTMLImageElement)
-          || !openingMemoryInkContext
-          || !openingMemoryMaskContext
-          || !openingMemoryInkMaskAlpha
-          || !openingMemoryInkRevealOrder
-          || openingMemorySource.naturalWidth <= 0
-        ) return;
-        if (!openingMemoryInkMaskAlpha && !buildOpeningMemoryInk()) return;
-        const width = openingMemoryInkCanvas.width;
-        const height = openingMemoryInkCanvas.height;
-        const progress = clamp(progressValue, 0, 1);
-        openingMemoryMaskContext.clearRect(0, 0, width, height);
-        const revealPixels = openingMemoryInkRevealPixels ?? openingMemoryMaskContext.createImageData(width, height);
-        revealPixels.data.fill(0);
-        const revealFeather = 0.075;
-        for (let pixelIndex = 0; pixelIndex < openingMemoryInkRevealOrder.length; pixelIndex += 1) {
-          const alpha = openingMemoryInkMaskAlpha[pixelIndex];
-          if (alpha === 0) continue;
-          const order = openingMemoryInkRevealOrder[pixelIndex];
-          const normalizedReveal = clamp(
-            (progress + revealFeather - order) / (revealFeather * 2),
-            0,
-            1
-          );
-          const easedReveal = normalizedReveal * normalizedReveal * (3 - normalizedReveal * 2);
-          revealPixels.data[pixelIndex * 4 + 3] = Math.round(alpha * easedReveal);
-        }
-        openingMemoryMaskContext.putImageData(revealPixels, 0, 0);
-
-        openingMemoryInkContext.clearRect(0, 0, width, height);
-        openingMemoryInkContext.globalCompositeOperation = "source-over";
-        openingMemoryInkContext.drawImage(openingMemorySource, 0, 0, width, height);
-        openingMemoryInkContext.globalCompositeOperation = "destination-in";
-        openingMemoryInkContext.drawImage(openingMemoryMaskCanvas, 0, 0);
-        openingMemoryInkContext.globalCompositeOperation = "source-over";
-      };
-
-      const prepareOpeningMemoryInk = () => {
-        const sources = [
-          openingMemorySource,
-          openingMemoryMaskSource
-        ].filter((source) => source instanceof HTMLImageElement);
-        if (!sources.length) return Promise.resolve(false);
-        const decodeSource = (source) => {
-          if (source.complete && source.naturalWidth > 0) return Promise.resolve(true);
-          if (typeof source.decode === "function") {
-            return source.decode().then(() => true).catch(() => false);
-          }
-          return new Promise((resolve) => {
-            source.addEventListener("load", () => resolve(true), { once: true, signal });
-            source.addEventListener("error", () => resolve(false), { once: true, signal });
-          });
-        };
-        return Promise.all(sources.map(decodeSource)).then((results) => results.every(Boolean));
-      };
-
-      const playOpeningMemoryInk = async (instant = false) => {
-        const generation = ++openingMemoryInkGeneration;
-        const ready = await prepareOpeningMemoryInk();
-        if (!ready || disposed || generation !== openingMemoryInkGeneration) return;
-        openingMemoryInkStarted = true;
-        openingMemoryInkProgress = instant ? 1 : 0;
-        opening.classList.remove("is-memory-settled");
-        if (!buildOpeningMemoryInk()) return;
-        if (instant) {
-          renderOpeningMemoryInk(1);
-          opening.classList.add("is-memory-settled");
-          return;
-        }
-        if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
-        const startedAt = performance.now();
-        const duration = 2350;
-        const paint = (timestamp) => {
-          if (disposed || generation !== openingMemoryInkGeneration) return;
-          if (timestamp - openingMemoryInkLastPaint < 24 && openingMemoryInkProgress < 1) {
-            openingMemoryInkFrame = window.requestAnimationFrame(paint);
-            return;
-          }
-          openingMemoryInkLastPaint = timestamp;
-          const linear = clamp((timestamp - startedAt) / duration, 0, 1);
-          openingMemoryInkProgress = 1 - Math.pow(1 - linear, 2.15);
-          renderOpeningMemoryInk(openingMemoryInkProgress);
-          if (linear < 1) {
-            openingMemoryInkFrame = window.requestAnimationFrame(paint);
-          } else {
-            openingMemoryInkFrame = 0;
-            openingMemoryInkProgress = 1;
-            renderOpeningMemoryInk(1);
-            opening.classList.add("is-memory-settled");
-          }
-        };
-        openingMemoryInkFrame = window.requestAnimationFrame(paint);
-      };
-
       let openingMemoryObserver = null;
       let openingMemoryRevealArmFrame = 0;
-      let openingMemoryBloomTimer = 0;
-      const startOpeningMemoryBloom = () => {
-        if (!(opening instanceof HTMLElement) || disposed) return;
-        if (opening.classList.contains("is-memory-blooming")) return;
-        if (openingMemoryBloomTimer) window.clearTimeout(openingMemoryBloomTimer);
-        openingMemoryBloomTimer = 0;
-        opening.classList.remove("is-memory-settled");
-        opening.classList.add("is-memory-blooming");
-        playOpeningMemoryInk(false);
-      };
       const revealOpeningMemory = () => {
         if (!(opening instanceof HTMLElement)) return;
         if (opening.classList.contains("is-memory-revealed")) return;
@@ -1573,7 +1341,6 @@ const gateStyle = [
         openingMemoryRevealArmFrame = 0;
         openingMemoryObserver?.disconnect();
         openingMemoryObserver = null;
-        startOpeningMemoryBloom();
       };
       const armOpeningMemoryReveal = () => {
         if (
@@ -1614,46 +1381,15 @@ const gateStyle = [
         openingMemoryObserver = null;
         if (openingMemoryRevealArmFrame) window.cancelAnimationFrame(openingMemoryRevealArmFrame);
         openingMemoryRevealArmFrame = 0;
-        if (openingMemoryBloomTimer) window.clearTimeout(openingMemoryBloomTimer);
-        openingMemoryBloomTimer = 0;
-        openingMemoryInkGeneration += 1;
-        if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
-        openingMemoryInkFrame = 0;
-        openingMemoryInkLastPaint = 0;
-        openingMemoryInkProgress = 0;
-        openingMemoryInkStarted = false;
-        openingMemoryInkContext?.clearRect(
-          0,
-          0,
-          openingMemoryInkCanvas instanceof HTMLCanvasElement ? openingMemoryInkCanvas.width : 0,
-          openingMemoryInkCanvas instanceof HTMLCanvasElement ? openingMemoryInkCanvas.height : 0
-        );
-        openingMemoryMaskContext?.clearRect(
-          0,
-          0,
-          openingMemoryMaskCanvas.width,
-          openingMemoryMaskCanvas.height
-        );
-        opening.classList.remove("is-memory-revealed", "is-memory-blooming", "is-memory-settled");
+        opening.classList.remove("is-memory-revealed");
         opening.classList.add("is-memory-armed");
         armOpeningMemoryReveal();
       };
       if (opening instanceof HTMLElement && openingMemory instanceof HTMLElement && !reducedMotion) {
         opening.classList.add("is-memory-armed");
-        openingMemoryImage?.addEventListener("animationend", (event) => {
-          if (event.animationName === "kisara-memory-image-develop") startOpeningMemoryBloom();
-        }, { signal });
         armOpeningMemoryReveal();
       } else if (opening instanceof HTMLElement && openingMemory instanceof HTMLElement) {
-        opening.classList.add("is-memory-blooming");
-        playOpeningMemoryInk(true);
-      }
-      if (openingMemoryVisual instanceof HTMLElement && typeof ResizeObserver === "function") {
-        openingMemoryInkResizeObserver = new ResizeObserver(() => {
-          if (!openingMemoryInkStarted) return;
-          renderOpeningMemoryInk(openingMemoryInkProgress);
-        });
-        openingMemoryInkResizeObserver.observe(openingMemoryVisual);
+        opening.classList.add("is-memory-revealed");
       }
       let openingMemoryReplayResetPending = false;
       const resetFridgeScenePresentation = () => {
@@ -13945,14 +13681,7 @@ const gateStyle = [
         openingMemoryObserver = null;
         if (openingMemoryRevealArmFrame) window.cancelAnimationFrame(openingMemoryRevealArmFrame);
         openingMemoryRevealArmFrame = 0;
-        openingMemoryInkGeneration += 1;
-        if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
-        openingMemoryInkFrame = 0;
-        openingMemoryInkResizeObserver?.disconnect();
-        openingMemoryInkResizeObserver = null;
-        if (openingMemoryBloomTimer) window.clearTimeout(openingMemoryBloomTimer);
-        openingMemoryBloomTimer = 0;
-        opening?.classList.remove("is-memory-armed", "is-memory-revealed", "is-memory-blooming", "is-memory-settled");
+        opening?.classList.remove("is-memory-armed", "is-memory-revealed");
         sceneDecodeGeneration += 1;
         sceneImageWarmers.clear();
         spaceLensInitGeneration += 1;

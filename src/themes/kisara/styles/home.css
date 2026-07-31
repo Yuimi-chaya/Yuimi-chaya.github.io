@@ -2758,214 +2758,166 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
   aspect-ratio: 1.36;
 }
 
-.kisara-opening-memory-core {
+.kisara-opening-memory-backdrop,
+.kisara-opening-memory-image-shell,
+.kisara-opening-memory-image,
+.kisara-opening-memory-focus {
   position: absolute;
-  z-index: 3;
-  inset: 0;
-  overflow: hidden;
-  -webkit-mask-image: url("/themes/kisara/assets/opening-memory-001-mask.png");
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-image: url("/themes/kisara/assets/opening-memory-001-mask.png");
-  mask-mode: alpha;
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: 100% 100%;
-  transform-origin: 32% 64%;
+  display: block;
+  pointer-events: none;
 }
 
-.kisara-opening-memory-image,
-.kisara-opening-memory-depth-focus,
-.kisara-opening-memory-depth-foreground {
-  --kisara-memory-layer-blur: 0px;
-  --kisara-memory-stage-start-blur: 14px;
-  --kisara-memory-stage-mid-blur: 6px;
-  --kisara-memory-stage-late-blur: 1.4px;
-  --kisara-memory-layer-saturation: 0.82;
-  --kisara-memory-layer-contrast: 0.96;
-  --kisara-memory-layer-sepia: 0.16;
-  --kisara-memory-layer-brightness: 0.985;
-  --kisara-memory-layer-opacity: 1;
+.kisara-opening-memory-backdrop {
+  z-index: 1;
+  inset: -2%;
+  background:
+    radial-gradient(ellipse 48% 58% at 28% 65%, rgba(158, 64, 77, 0.14), transparent 76%),
+    radial-gradient(ellipse 54% 42% at 55% 69%, rgba(202, 126, 72, 0.18), transparent 78%),
+    url("/themes/kisara/assets/opening-memory-001-v2.webp") var(--kisara-memory-source-left) var(--kisara-memory-source-top) / auto var(--kisara-memory-source-height) no-repeat;
+  filter: blur(28px) saturate(0.66) contrast(0.9) sepia(0.18) brightness(0.9);
+  opacity: 0.28;
+  transform: scale(1.055);
+  transform-origin: 34% 66%;
+}
+
+.kisara-opening-memory-image-shell {
+  z-index: 2;
+  inset: -3% -4% -4% -3%;
+  overflow: hidden;
+  -webkit-mask-image:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.26) 5%, rgba(0, 0, 0, 0.86) 11%, #000 17% 78%, rgba(0, 0, 0, 0.9) 84%, rgba(0, 0, 0, 0.42) 93%, transparent 100%),
+    linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.48) 5%, rgba(0, 0, 0, 0.92) 11%, #000 17% 80%, rgba(0, 0, 0, 0.62) 91%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.26) 5%, rgba(0, 0, 0, 0.86) 11%, #000 17% 78%, rgba(0, 0, 0, 0.9) 84%, rgba(0, 0, 0, 0.42) 93%, transparent 100%),
+    linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.48) 5%, rgba(0, 0, 0, 0.92) 11%, #000 17% 80%, rgba(0, 0, 0, 0.62) 91%, transparent 100%);
+  mask-composite: intersect;
+}
+
+.kisara-opening-memory-image-shell::before,
+.kisara-opening-memory-image-shell::after {
   position: absolute;
+  inset: -12%;
+  z-index: 2;
+  content: "";
+  pointer-events: none;
+}
+
+.kisara-opening-memory-image-shell::before {
+  background:
+    radial-gradient(ellipse 44% 62% at 27% 64%, rgba(255, 224, 202, 0.28) 0 18%, rgba(220, 150, 122, 0.12) 43%, transparent 74%),
+    linear-gradient(108deg, rgba(244, 231, 223, 0.16), transparent 34%, rgba(174, 92, 91, 0.08) 58%, transparent 84%);
+  filter: blur(23px);
+  mix-blend-mode: screen;
+  opacity: 0.82;
+  transform: translate3d(0, 2%, 0) scale(1.04);
+}
+
+.kisara-opening-memory-image-shell::after {
+  z-index: 3;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(16, 19, 43, 0.18) 0%, transparent 25%, transparent 69%, rgba(57, 31, 37, 0.14) 100%),
+    radial-gradient(ellipse at 48% 50%, transparent 38%, rgba(34, 24, 35, 0.2) 100%);
+  opacity: 0.84;
+}
+
+.kisara-opening-memory-image {
+  z-index: 1;
   top: var(--kisara-memory-source-top);
   left: var(--kisara-memory-source-left);
-  display: block;
   width: auto;
   max-width: none;
   height: var(--kisara-memory-source-height);
   object-fit: contain;
   object-position: left top;
-  opacity: var(--kisara-memory-layer-opacity);
-  filter:
-    blur(var(--kisara-memory-layer-blur))
-    saturate(var(--kisara-memory-layer-saturation))
-    contrast(var(--kisara-memory-layer-contrast))
-    sepia(var(--kisara-memory-layer-sepia))
-    brightness(var(--kisara-memory-layer-brightness));
-  pointer-events: none;
+  opacity: 0.24;
+  filter: blur(16px) saturate(0.58) contrast(0.88) sepia(0.25) brightness(0.86);
+  transform: translate3d(-0.6%, 0.5%, 0) scale(1.04);
+  transform-origin: 32% 64%;
+  backface-visibility: hidden;
 }
 
-.kisara-opening-memory-image {
-  z-index: 1;
-  --kisara-memory-layer-blur: 2.6px;
-  --kisara-memory-layer-saturation: 0.78;
-  --kisara-memory-layer-contrast: 0.96;
-  --kisara-memory-layer-sepia: 0.1;
-  --kisara-memory-layer-brightness: 0.96;
+.kisara-opening-memory-focus {
+  z-index: 4;
+  top: 19%;
+  left: 7%;
+  width: 58%;
+  height: 76%;
+  background: radial-gradient(ellipse at 42% 62%, rgba(255, 216, 185, 0.26), rgba(191, 86, 93, 0.08) 42%, transparent 74%);
+  filter: blur(22px);
+  mix-blend-mode: screen;
+  opacity: 0.66;
+  transform: scale(0.97);
+  transform-origin: 42% 62%;
 }
 
-.kisara-opening-memory-depth-focus {
-  z-index: 2;
-  --kisara-memory-layer-blur: 0.1px;
-  --kisara-memory-stage-start-blur: 8px;
-  --kisara-memory-stage-mid-blur: 2.6px;
-  --kisara-memory-stage-late-blur: 0.3px;
-  --kisara-memory-layer-saturation: 0.94;
-  --kisara-memory-layer-contrast: 1.035;
-  --kisara-memory-layer-sepia: 0.06;
-  --kisara-memory-layer-brightness: 1.035;
-  -webkit-mask-image:
-    radial-gradient(ellipse 22% 49% at 25% 66%, #000 0 58%, rgba(0, 0, 0, 0.94) 70%, rgba(0, 0, 0, 0.42) 86%, transparent 100%),
-    radial-gradient(ellipse 13% 25% at 50% 77%, rgba(0, 0, 0, 0.9) 0 48%, rgba(0, 0, 0, 0.32) 80%, transparent 100%);
-  mask-image:
-    radial-gradient(ellipse 22% 49% at 25% 66%, #000 0 58%, rgba(0, 0, 0, 0.94) 70%, rgba(0, 0, 0, 0.42) 86%, transparent 100%),
-    radial-gradient(ellipse 13% 25% at 50% 77%, rgba(0, 0, 0, 0.9) 0 48%, rgba(0, 0, 0, 0.32) 80%, transparent 100%);
+.kisara-opening.is-memory-armed .kisara-opening-memory-image {
+  will-change: opacity, filter, transform;
 }
 
-.kisara-opening-memory-depth-foreground {
-  z-index: 3;
-  --kisara-memory-layer-blur: 7.2px;
-  --kisara-memory-stage-start-blur: 17px;
-  --kisara-memory-stage-mid-blur: 8px;
-  --kisara-memory-stage-late-blur: 3px;
-  --kisara-memory-layer-saturation: 0.7;
-  --kisara-memory-layer-contrast: 0.94;
-  --kisara-memory-layer-sepia: 0.12;
-  --kisara-memory-layer-brightness: 0.82;
-  --kisara-memory-layer-opacity: 0.82;
-  -webkit-mask-image:
-    linear-gradient(90deg, #000 0 5%, rgba(0, 0, 0, 0.78) 9%, rgba(0, 0, 0, 0.22) 15%, transparent 22%),
-    linear-gradient(180deg, #000 0 5%, rgba(0, 0, 0, 0.72) 10%, rgba(0, 0, 0, 0.18) 18%, transparent 27%),
-    linear-gradient(0deg, #000 0 4%, rgba(0, 0, 0, 0.68) 9%, rgba(0, 0, 0, 0.16) 17%, transparent 25%);
-  mask-image:
-    linear-gradient(90deg, #000 0 5%, rgba(0, 0, 0, 0.78) 9%, rgba(0, 0, 0, 0.22) 15%, transparent 22%),
-    linear-gradient(180deg, #000 0 5%, rgba(0, 0, 0, 0.72) 10%, rgba(0, 0, 0, 0.18) 18%, transparent 27%),
-    linear-gradient(0deg, #000 0 4%, rgba(0, 0, 0, 0.68) 9%, rgba(0, 0, 0, 0.16) 17%, transparent 25%);
+.kisara-opening.is-memory-revealed .kisara-opening-memory-image {
+  animation: kisara-memory-image-develop 2.45s cubic-bezier(0.18, 0.74, 0.18, 1) both;
 }
 
-.kisara-opening.is-memory-armed .kisara-opening-memory-core {
-  opacity: 0;
-  -webkit-mask-position: center;
-  -webkit-mask-size: 100% 100%;
-  mask-position: center;
-  mask-size: 100% 100%;
-  transform: none;
+.kisara-opening.is-memory-revealed .kisara-opening-memory-backdrop {
+  animation: kisara-memory-backdrop-develop 2.45s cubic-bezier(0.18, 0.74, 0.18, 1) both;
 }
 
-.kisara-opening.is-memory-revealed .kisara-opening-memory-core {
-  opacity: 0;
-  animation: none;
+.kisara-opening.is-memory-revealed .kisara-opening-memory-image-shell::before {
+  animation: kisara-memory-haze-lift 2.45s cubic-bezier(0.18, 0.74, 0.18, 1) both;
 }
 
-.kisara-opening.is-memory-settled .kisara-opening-memory-core {
-  opacity: 1;
-  animation: none;
+.kisara-opening.is-memory-revealed .kisara-opening-memory-image-shell::after {
+  animation: kisara-memory-grade-develop 2.45s ease both;
 }
 
-.kisara-opening.is-memory-armed :is(
-  .kisara-opening-memory-image,
-  .kisara-opening-memory-depth-focus,
-  .kisara-opening-memory-depth-foreground
-) {
-  opacity: 0.36;
-  filter:
-    blur(calc(var(--kisara-memory-layer-blur) + var(--kisara-memory-stage-start-blur)))
-    saturate(calc(var(--kisara-memory-layer-saturation) - 0.24))
-    contrast(0.9)
-    sepia(0.3)
-    brightness(0.98);
-  will-change: opacity, filter;
-}
-
-.kisara-opening.is-memory-revealed :is(
-  .kisara-opening-memory-image,
-  .kisara-opening-memory-depth-focus,
-  .kisara-opening-memory-depth-foreground
-) {
-  animation: kisara-memory-image-develop 2.35s cubic-bezier(0.2, 0.72, 0.18, 1) both;
+.kisara-opening.is-memory-revealed .kisara-opening-memory-focus {
+  animation: kisara-memory-focus-develop 2.45s cubic-bezier(0.18, 0.74, 0.18, 1) both;
 }
 
 @keyframes kisara-memory-image-develop {
   0% {
-    opacity: 0.36;
-    filter:
-      blur(calc(var(--kisara-memory-layer-blur) + var(--kisara-memory-stage-start-blur)))
-      saturate(calc(var(--kisara-memory-layer-saturation) - 0.24))
-      contrast(0.9)
-      sepia(0.3)
-      brightness(0.98);
+    opacity: 0.24;
+    filter: blur(16px) saturate(0.58) contrast(0.88) sepia(0.25) brightness(0.86);
+    transform: translate3d(-0.6%, 0.5%, 0) scale(1.04);
   }
-  38% {
-    opacity: 0.72;
-    filter:
-      blur(calc(var(--kisara-memory-layer-blur) + var(--kisara-memory-stage-mid-blur)))
-      saturate(calc(var(--kisara-memory-layer-saturation) - 0.12))
-      contrast(0.93)
-      sepia(0.25)
-      brightness(0.98);
+  36% {
+    opacity: 0.56;
+    filter: blur(10px) saturate(0.66) contrast(0.92) sepia(0.2) brightness(0.91);
   }
   72% {
-    opacity: 0.94;
-    filter:
-      blur(calc(var(--kisara-memory-layer-blur) + var(--kisara-memory-stage-late-blur)))
-      saturate(calc(var(--kisara-memory-layer-saturation) - 0.04))
-      contrast(var(--kisara-memory-layer-contrast))
-      sepia(calc(var(--kisara-memory-layer-sepia) + 0.03))
-      brightness(var(--kisara-memory-layer-brightness));
+    opacity: 0.9;
+    filter: blur(3.2px) saturate(0.78) contrast(0.98) sepia(0.13) brightness(0.96);
   }
   100% {
-    opacity: var(--kisara-memory-layer-opacity);
-    filter:
-      blur(var(--kisara-memory-layer-blur))
-      saturate(var(--kisara-memory-layer-saturation))
-      contrast(var(--kisara-memory-layer-contrast))
-      sepia(var(--kisara-memory-layer-sepia))
-      brightness(var(--kisara-memory-layer-brightness));
+    opacity: 1;
+    filter: blur(0.8px) saturate(0.84) contrast(1.01) sepia(0.09) brightness(0.985);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
-.kisara-opening-memory-source,
-.kisara-opening-memory-mask-source {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
+@keyframes kisara-memory-backdrop-develop {
+  0% { opacity: 0.28; transform: scale(1.055); }
+  54% { opacity: 0.42; }
+  100% { opacity: 0.34; transform: scale(1.035); }
 }
 
-.kisara-opening-memory-ink-canvas {
-  position: absolute;
-  z-index: 2;
-  top: var(--kisara-memory-source-top);
-  left: var(--kisara-memory-source-left);
-  display: block;
-  width: auto;
-  max-width: none;
-  height: var(--kisara-memory-source-height);
-  opacity: 0;
-  filter: blur(11px) saturate(0.72) contrast(0.9) sepia(0.22) brightness(0.94);
-  pointer-events: none;
-  transition: opacity 300ms ease, filter 1.35s cubic-bezier(0.2, 0.72, 0.18, 1);
+@keyframes kisara-memory-haze-lift {
+  0% { opacity: 0.82; transform: translate3d(0, 2%, 0) scale(1.04); }
+  48% { opacity: 0.48; }
+  100% { opacity: 0.16; transform: translate3d(-1.2%, -0.8%, 0) scale(1.01); }
 }
 
-.kisara-opening.is-memory-blooming .kisara-opening-memory-ink-canvas {
-  opacity: 0.98;
-  filter: blur(2.6px) saturate(0.78) contrast(0.96) sepia(0.1) brightness(0.96);
+@keyframes kisara-memory-grade-develop {
+  from { opacity: 0.84; }
+  to { opacity: 0.4; }
 }
 
-.kisara-opening.is-memory-settled .kisara-opening-memory-ink-canvas {
-  opacity: 0;
+@keyframes kisara-memory-focus-develop {
+  0% { opacity: 0.66; filter: blur(22px); transform: scale(0.97); }
+  52% { opacity: 0.44; }
+  100% { opacity: 0.22; filter: blur(13px); transform: scale(1.025); }
 }
 
 .kisara-opening-memory figcaption {
@@ -6305,44 +6257,36 @@ html.kisara-event-modal-open {
   }
 
   .kisara-opening-memory-image,
-  .kisara-opening-memory-depth-focus,
-  .kisara-opening-memory-depth-foreground,
-  .kisara-opening.is-memory-armed :is(
-    .kisara-opening-memory-image,
-    .kisara-opening-memory-depth-focus,
-    .kisara-opening-memory-depth-foreground
-  ),
-  .kisara-opening.is-memory-revealed :is(
-    .kisara-opening-memory-image,
-    .kisara-opening-memory-depth-focus,
-    .kisara-opening-memory-depth-foreground
-  ) {
-    opacity: var(--kisara-memory-layer-opacity);
-    filter:
-      blur(var(--kisara-memory-layer-blur))
-      saturate(var(--kisara-memory-layer-saturation))
-      contrast(var(--kisara-memory-layer-contrast))
-      sepia(var(--kisara-memory-layer-sepia))
-      brightness(var(--kisara-memory-layer-brightness));
-    animation: none;
-  }
-
-  .kisara-opening.is-memory-armed .kisara-opening-memory-core,
-  .kisara-opening.is-memory-revealed .kisara-opening-memory-core {
+  .kisara-opening.is-memory-armed .kisara-opening-memory-image,
+  .kisara-opening.is-memory-revealed .kisara-opening-memory-image {
     opacity: 1;
-    -webkit-mask-position: center;
-    -webkit-mask-size: 100% 100%;
-    mask-position: center;
-    mask-size: 100% 100%;
+    filter: blur(0.8px) saturate(0.84) contrast(1.01) sepia(0.09) brightness(0.985);
     transform: none;
     animation: none;
   }
 
-  .kisara-opening-memory-ink-canvas,
-  .kisara-opening.is-memory-blooming .kisara-opening-memory-ink-canvas,
-  .kisara-opening.is-memory-settled .kisara-opening-memory-ink-canvas {
-    opacity: 0;
-    transition: none;
+  .kisara-opening-memory-backdrop {
+    opacity: 0.34;
+    transform: scale(1.035);
+    animation: none;
+  }
+
+  .kisara-opening-memory-image-shell::before {
+    opacity: 0.16;
+    transform: translate3d(-1.2%, -0.8%, 0) scale(1.01);
+    animation: none;
+  }
+
+  .kisara-opening-memory-image-shell::after {
+    opacity: 0.4;
+    animation: none;
+  }
+
+  .kisara-opening-memory-focus {
+    opacity: 0.22;
+    filter: blur(13px);
+    transform: scale(1.025);
+    animation: none;
   }
 
   .kisara-event-photo::before,
@@ -6877,11 +6821,7 @@ html[data-yuimi-performance="lite"] .kisara-ambient-particles i:nth-child(n + 4)
     will-change: opacity, transform;
   }
 
-  .kisara-opening.is-memory-armed :is(
-    .kisara-opening-memory-image,
-    .kisara-opening-memory-depth-focus,
-    .kisara-opening-memory-depth-foreground
-  ) {
+  .kisara-opening.is-memory-armed .kisara-opening-memory-image {
     will-change: opacity;
   }
 

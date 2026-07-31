@@ -1375,3 +1375,11 @@
 - The shared-mask experiment is superseded. Home 001 now loads one RGBA mask and one hidden source image; the two expansion mask assets, their generator polygons, and the independent right/bottom diffusion regions are removed. Do not restore the rejected dragged-strip treatment.
 - The reveal canvas derives one connected, low-frequency reveal order from the same mask and applies it back to that mask's alpha. It does not add a second mask, random brush stamps, ribbons, or a separately moving bottom/right layer. The core image stays fixed in place and crossfades only after the masked canvas reaches its settled frame.
 - The soft reveal canvas is intentionally `640x360` and reuses its `ImageData` buffer to keep the 001 interaction lightweight; the final sharp/depth composition remains on the original image layers. `npm test` (3/3), `npm run build` (60 pages, 61 Pagefind pages), and `git diff --check` pass.
+
+### 2026-07-30 Kisara Home 001 hazy-memory rebuild
+
+- Human review rejected the single-mask rollback as another visible layer handoff. Its runtime Canvas, generated reveal order, fixed core mask, and duplicate focus/foreground image layers are superseded and must not be restored as the active 001 treatment.
+- Home 001 now renders one foreground copy of `opening-memory-001-v2.webp` inside one fixed, wide edge blend. The image develops continuously from low-opacity blur and muted contrast into a restrained final focus; a cached same-source blurred underpainting bridges the top/right fade into matching pixels while the haze, grade, and focal glow remain stationary and never exchange masks.
+- The reveal is CSS-only. The per-frame `640x360` pixel loop, hidden image/mask sources, offscreen mask Canvas, ResizeObserver repaint, and bloom/settled state machine are removed. Resetting 001 only toggles `is-memory-armed` and `is-memory-revealed` before rearming the existing IntersectionObserver.
+- The old generated mask asset and preparation script remain in the repository only as rollback evidence and are no longer referenced by Home 001. Do not delete or reuse them without a new explicit visual decision.
+- `git diff --check`, `npm test` (3/3), and `npm run build` pass; Astro generated 60 pages and Pagefind indexed 61 pages. Exact haze weight, edge softness, and final focus remain pending direct human visual review.
