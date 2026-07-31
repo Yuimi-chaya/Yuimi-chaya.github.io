@@ -1480,7 +1480,8 @@ const gateStyle = [
           driftX = 0,
           driftY = 0,
           alphaMin = 0.28,
-          alphaMax = 0.58
+          alphaMax = 0.58,
+          emit = true
         }) => {
           for (let index = 0; index < count; index += 1) {
             const angle = random() * Math.PI * 2;
@@ -1496,7 +1497,7 @@ const gateStyle = [
               + (random() - 0.5) * 7;
             if (x < -20 || x > width + 20 || y < -20 || y > height + 20) continue;
             const radius = (radiusMin + random() * (radiusMax - radiusMin)) * (1 - distance * 0.18);
-            nodes.push({
+            const node = {
               x,
               y,
               radiusX: radius * (0.92 + random() * 0.58),
@@ -1506,10 +1507,28 @@ const gateStyle = [
               growth: 0.16 + random() * 0.16,
               alpha: (alphaMin + random() * (alphaMax - alphaMin)) * (1 - distance * 0.3),
               brush: Math.floor(random() * openingMemoryInkBrushes.length)
-            });
+            };
+            if (emit) nodes.push(node);
           }
         };
 
+        // Keep the accepted random sequence without restoring the rejected upper ink cluster.
+        addWash({
+          centerX: coreRight * 0.34,
+          centerY: coreBottom * 0.25,
+          fieldRadiusX: coreRight * 0.22,
+          fieldRadiusY: height * 0.06,
+          count: 64,
+          birthStart: 0.12,
+          birthEnd: 0.72,
+          radiusMin: 12,
+          radiusMax: 30,
+          driftX: width * 0.018,
+          driftY: height * -0.012,
+          alphaMin: 0.27,
+          alphaMax: 0.5,
+          emit: false
+        });
         addWash({
           centerX: coreRight * 0.9,
           centerY: coreBottom * 0.58,
@@ -1555,7 +1574,7 @@ const gateStyle = [
           alphaMin: 0.3,
           alphaMax: 0.6
         });
-        openingMemoryInkNodes = nodes;
+        openingMemoryInkNodes = nodes.sort((left, right) => left.birth - right.birth);
         return true;
       };
 
