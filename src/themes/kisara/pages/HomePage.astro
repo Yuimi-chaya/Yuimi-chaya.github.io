@@ -1420,8 +1420,6 @@ const gateStyle = [
       let openingMemoryPointerTargetY = 0;
       let openingMemoryPointerCurrentX = 0;
       let openingMemoryPointerCurrentY = 0;
-      let openingMemoryPointerVelocityX = 0;
-      let openingMemoryPointerVelocityY = 0;
       const openingMemoryAmbientMotionEnabled = !reducedMotion && window.matchMedia(
         "(hover: hover) and (pointer: fine) and (min-width: 901px)"
       ).matches;
@@ -1805,22 +1803,12 @@ const gateStyle = [
 
       const animateOpeningMemoryPointer = () => {
         openingMemoryPointerFrame = 0;
-        openingMemoryPointerVelocityX = (
-          openingMemoryPointerVelocityX
-          + (openingMemoryPointerTargetX - openingMemoryPointerCurrentX) * 0.052
-        ) * 0.82;
-        openingMemoryPointerVelocityY = (
-          openingMemoryPointerVelocityY
-          + (openingMemoryPointerTargetY - openingMemoryPointerCurrentY) * 0.052
-        ) * 0.82;
-        openingMemoryPointerCurrentX += openingMemoryPointerVelocityX;
-        openingMemoryPointerCurrentY += openingMemoryPointerVelocityY;
+        openingMemoryPointerCurrentX += (openingMemoryPointerTargetX - openingMemoryPointerCurrentX) * 0.115;
+        openingMemoryPointerCurrentY += (openingMemoryPointerTargetY - openingMemoryPointerCurrentY) * 0.115;
         applyOpeningMemoryPointer();
         if (
           Math.abs(openingMemoryPointerTargetX - openingMemoryPointerCurrentX) > 0.002
           || Math.abs(openingMemoryPointerTargetY - openingMemoryPointerCurrentY) > 0.002
-          || Math.abs(openingMemoryPointerVelocityX) > 0.001
-          || Math.abs(openingMemoryPointerVelocityY) > 0.001
         ) {
           openingMemoryPointerFrame = window.requestAnimationFrame(animateOpeningMemoryPointer);
         } else if (!openingMemoryPointerActive) {
@@ -1843,8 +1831,6 @@ const gateStyle = [
           openingMemoryPointerFrame = 0;
           openingMemoryPointerCurrentX = 0;
           openingMemoryPointerCurrentY = 0;
-          openingMemoryPointerVelocityX = 0;
-          openingMemoryPointerVelocityY = 0;
           opening?.classList.remove("is-memory-panorama-active");
           applyOpeningMemoryPointer();
           return;
@@ -2182,30 +2168,41 @@ const gateStyle = [
         && openingMemoryVisual instanceof HTMLElement
         && openingMemoryAmbientMotionEnabled
       ) {
-        opening.addEventListener("pointermove", (event) => {
+        window.addEventListener("pointermove", (event) => {
           if (
             !opening.classList.contains("is-memory-revealed")
             || !opening.classList.contains("is-memory-candle-complete")
+            || !openingMemoryAmbientVisible
           ) return;
-          const rect = openingMemoryVisual.getBoundingClientRect();
-          if (rect.width <= 0 || rect.height <= 0) return;
-          const insideVisual = event.clientX >= rect.left
-            && event.clientX <= rect.right
-            && event.clientY >= rect.top
-            && event.clientY <= rect.bottom;
+          const visualRect = openingMemoryVisual.getBoundingClientRect();
+          const inkRect = openingMemoryInkCanvas instanceof HTMLCanvasElement
+            ? openingMemoryInkCanvas.getBoundingClientRect()
+            : visualRect;
+          const openingRect = opening.getBoundingClientRect();
+          const left = Math.max(openingRect.left, Math.min(visualRect.left, inkRect.left));
+          const right = Math.min(openingRect.right, Math.max(visualRect.right, inkRect.right));
+          const top = Math.max(openingRect.top, Math.min(visualRect.top, inkRect.top));
+          const bottom = Math.min(openingRect.bottom, Math.max(visualRect.bottom, inkRect.bottom));
+          const width = right - left;
+          const height = bottom - top;
+          if (width <= 0 || height <= 0) return;
+          const insideVisual = event.clientX >= left
+            && event.clientX <= right
+            && event.clientY >= top
+            && event.clientY <= bottom;
           if (!insideVisual) {
             if (openingMemoryPointerActive) resetOpeningMemoryPointer(false);
             return;
           }
           openingMemoryPointerActive = true;
           opening.classList.add("is-memory-panorama-active");
-          const normalizedX = clamp(((event.clientX - rect.left) / rect.width) * 2 - 1, -1, 1);
-          const normalizedY = clamp(((event.clientY - rect.top) / rect.height) * 2 - 1, -1, 1);
+          const normalizedX = clamp(((event.clientX - left) / width) * 2 - 1, -1, 1);
+          const normalizedY = clamp(((event.clientY - top) / height) * 2 - 1, -1, 1);
           openingMemoryPointerTargetX = normalizedX;
           openingMemoryPointerTargetY = normalizedY * 0.78;
           queueOpeningMemoryPointer();
         }, { signal });
-        opening.addEventListener("pointerleave", () => {
+        window.addEventListener("blur", () => {
           resetOpeningMemoryPointer(false);
         }, { signal });
       }
