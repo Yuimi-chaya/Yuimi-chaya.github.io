@@ -1383,3 +1383,11 @@
 - The reveal is CSS-only. The per-frame `640x360` pixel loop, hidden image/mask sources, offscreen mask Canvas, ResizeObserver repaint, and bloom/settled state machine are removed. Resetting 001 only toggles `is-memory-armed` and `is-memory-revealed` before rearming the existing IntersectionObserver.
 - The old generated mask asset and preparation script remain in the repository only as rollback evidence and are no longer referenced by Home 001. Do not delete or reuse them without a new explicit visual decision.
 - `git diff --check`, `npm test` (3/3), and `npm run build` pass; Astro generated 60 pages and Pagefind indexed 61 pages. Exact haze weight, edge softness, and final focus remain pending direct human visual review.
+
+### 2026-07-31 Kisara Home 001 forensic recovery
+
+- The user clarified that the desired version was an uncommitted state between `1f1a80b` and `14ebc0e`, not either commit. The authoritative boundary was recovered from the Codex session JSONL at `2026-07-30T22:23:31Z` (`2026-07-31 06:23:31 +08:00`): remove only the detached upper `addWash()` group while retaining the original right, bottom, and lower-right diffusion fields.
+- The later unrequested experiment began at `2026-07-30T22:30:01Z`: it removed those fields, introduced `drawRibbon()` strips, then replaced the restored field parameters immediately before `14ebc0e`. That aesthetic expansion was not authorized and is superseded.
+- Recovery reverses `04dab79`, `2b83f83`, and `b0ff627` without rewriting history, preserving every later unrelated homepage feature. The recovered 001 tree matches `14ebc0e` exactly except for the three `addWash()` blocks restored to their pre-experiment values from the session log; no ribbon code or upper wash remains.
+- Regenerating `opening-memory-001-mask.png` with the recovered script produced the identical SHA-256 before and after generation: `C5B474FE11C2053DC9630F0FA4311DEA25AAC6D38C777F3259ADFFB9212DCFFD`.
+- Hard process rule: once a visual task is in final polish, do not broaden a narrowly reported defect into a subjective redesign. Ask first, and create a Git checkpoint before any visual change that exceeds the user's explicit description. Do not treat end-of-turn autonomy as permission to alter accepted aesthetics.
