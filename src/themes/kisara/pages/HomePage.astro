@@ -1523,7 +1523,7 @@ const gateStyle = [
               alpha: (alphaMin + random() * (alphaMax - alphaMin)) * (1 - distance * 0.3),
               brush: Math.floor(random() * openingMemoryInkBrushes.length),
               pulsePhase: angle * 2.1 + index * 0.37 + distance * 4.8,
-              pulseStrength: 0.01 + distance * 0.016
+              pulseStrength: 0.025 + distance * 0.04
             };
             if (emit) nodes.push(node);
           }
@@ -1657,7 +1657,7 @@ const gateStyle = [
         }
       };
 
-      const scheduleOpeningMemoryInkAmbient = (delay = 5200) => {
+      const scheduleOpeningMemoryInkAmbient = (delay = 1200) => {
         if (
           !openingMemoryAmbientMotionEnabled
           || !openingMemoryAmbientVisible
@@ -1678,7 +1678,7 @@ const gateStyle = [
             || disposed
           ) return;
           const startedAt = performance.now();
-          const duration = 1750;
+          const duration = 1950;
           const paint = (timestamp) => {
             if (
               generation !== openingMemoryInkAmbientGeneration
@@ -1699,7 +1699,7 @@ const gateStyle = [
               openingMemoryInkAmbientFrame = 0;
               openingMemoryInkAmbientLastPaint = 0;
               renderOpeningMemoryInk(1, 0);
-              scheduleOpeningMemoryInkAmbient(7200 + Math.random() * 3600);
+              scheduleOpeningMemoryInkAmbient(5200 + Math.random() * 2500);
             }
           };
           openingMemoryInkAmbientFrame = window.requestAnimationFrame(paint);
@@ -1710,34 +1710,34 @@ const gateStyle = [
         if (!(openingMemoryVisual instanceof HTMLElement)) return;
         openingMemoryVisual.style.setProperty(
           "--kisara-memory-pointer-background-x",
-          `${(-openingMemoryPointerCurrentX * 1.1).toFixed(3)}px`
+          `${(-openingMemoryPointerCurrentX * 3.8).toFixed(3)}px`
         );
         openingMemoryVisual.style.setProperty(
           "--kisara-memory-pointer-background-y",
-          `${(-openingMemoryPointerCurrentY * 0.78).toFixed(3)}px`
+          `${(-openingMemoryPointerCurrentY * 2.5).toFixed(3)}px`
         );
         openingMemoryVisual.style.setProperty(
           "--kisara-memory-pointer-focus-x",
-          `${(openingMemoryPointerCurrentX * 0.18).toFixed(3)}px`
+          `${(openingMemoryPointerCurrentX * 0.35).toFixed(3)}px`
         );
         openingMemoryVisual.style.setProperty(
           "--kisara-memory-pointer-focus-y",
-          `${(openingMemoryPointerCurrentY * 0.14).toFixed(3)}px`
+          `${(openingMemoryPointerCurrentY * 0.28).toFixed(3)}px`
         );
         openingMemoryVisual.style.setProperty(
           "--kisara-memory-pointer-foreground-x",
-          `${(openingMemoryPointerCurrentX * 1.65).toFixed(3)}px`
+          `${(openingMemoryPointerCurrentX * 6.5).toFixed(3)}px`
         );
         openingMemoryVisual.style.setProperty(
           "--kisara-memory-pointer-foreground-y",
-          `${(openingMemoryPointerCurrentY * 1.18).toFixed(3)}px`
+          `${(openingMemoryPointerCurrentY * 4.8).toFixed(3)}px`
         );
       };
 
       const animateOpeningMemoryPointer = () => {
         openingMemoryPointerFrame = 0;
-        openingMemoryPointerCurrentX += (openingMemoryPointerTargetX - openingMemoryPointerCurrentX) * 0.14;
-        openingMemoryPointerCurrentY += (openingMemoryPointerTargetY - openingMemoryPointerCurrentY) * 0.14;
+        openingMemoryPointerCurrentX += (openingMemoryPointerTargetX - openingMemoryPointerCurrentX) * 0.11;
+        openingMemoryPointerCurrentY += (openingMemoryPointerTargetY - openingMemoryPointerCurrentY) * 0.11;
         applyOpeningMemoryPointer();
         if (
           Math.abs(openingMemoryPointerTargetX - openingMemoryPointerCurrentX) > 0.002
@@ -1925,16 +1925,16 @@ const gateStyle = [
         });
         openingMemoryInkResizeObserver.observe(openingMemoryVisual);
       }
-      if (openingMemoryVisual instanceof HTMLElement && openingMemoryAmbientMotionEnabled) {
-        openingMemoryVisual.addEventListener("pointerenter", () => {
-          openingMemoryPointerActive = true;
-        }, { signal });
-        openingMemoryVisual.addEventListener("pointermove", (event) => {
+      if (
+        opening instanceof HTMLElement
+        && openingMemoryVisual instanceof HTMLElement
+        && openingMemoryAmbientMotionEnabled
+      ) {
+        opening.addEventListener("pointermove", (event) => {
           if (
-            !openingMemoryPointerActive
-            || !(opening instanceof HTMLElement)
-            || !opening.classList.contains("is-memory-revealed")
+            !opening.classList.contains("is-memory-revealed")
           ) return;
+          openingMemoryPointerActive = true;
           const rect = openingMemoryVisual.getBoundingClientRect();
           if (rect.width <= 0 || rect.height <= 0) return;
           const normalizedX = clamp(((event.clientX - rect.left) / rect.width) * 2 - 1, -1, 1);
@@ -1945,7 +1945,7 @@ const gateStyle = [
           openingMemoryPointerTargetY = normalizedY * distanceGain;
           queueOpeningMemoryPointer();
         }, { signal });
-        openingMemoryVisual.addEventListener("pointerleave", () => {
+        opening.addEventListener("pointerleave", () => {
           resetOpeningMemoryPointer(false);
         }, { signal });
       }
@@ -1958,7 +1958,7 @@ const gateStyle = [
               if (opening instanceof HTMLElement && opening.classList.contains("is-memory-revealed")) {
                 opening.classList.add("is-memory-ambient-active");
               }
-              scheduleOpeningMemoryInkAmbient(2400);
+              scheduleOpeningMemoryInkAmbient(1200);
             } else {
               opening?.classList.remove("is-memory-ambient-active");
               cancelOpeningMemoryInkAmbient(true);
@@ -1980,7 +1980,7 @@ const gateStyle = [
             if (opening instanceof HTMLElement && opening.classList.contains("is-memory-revealed")) {
               opening.classList.add("is-memory-ambient-active");
             }
-            scheduleOpeningMemoryInkAmbient(1600);
+            scheduleOpeningMemoryInkAmbient(900);
           }
         }, { signal });
       }
