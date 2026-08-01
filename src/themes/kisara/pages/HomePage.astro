@@ -1305,6 +1305,7 @@ const gateStyle = [
       let openingEdgeRenderHandle = 0;
       let openingEdgeRenderUsesIdleCallback = false;
       const openingEdgeRenderQueue = [];
+      const openingEdgeSamplingEnabled = false;
       const activateOpeningBridgePortal = () => {
         if (
           !(gateVisualShell instanceof HTMLElement)
@@ -1322,6 +1323,14 @@ const gateStyle = [
         opening?.classList.remove("is-opening-bridge-live");
         openingBridgePortalActive = false;
         openingEdgeLiveSyncTimestamp = 0;
+      };
+      const invalidateOpeningEdgeLiveSurfaces = () => {
+        openingEdgeRecords.forEach((record) => {
+          record.renderedLiveBackground = "";
+          record.renderedLiveGeometry = "";
+        });
+        renderedOpeningEdgeFlareBackground = "";
+        renderedOpeningEdgeFlareGeometry = "";
       };
       const startOpeningBridgeDissolve = () => {
         if (openingBridgeHandoffFrame) window.cancelAnimationFrame(openingBridgeHandoffFrame);
@@ -1638,6 +1647,7 @@ const gateStyle = [
         image.src = new URL(source, document.baseURI).href;
       });
       const renderOpeningEdgeTexture = (record) => {
+        if (!openingEdgeSamplingEnabled) return false;
         if (!(opening instanceof HTMLElement) || !record) return false;
         const { sampler, layer, continuationSurface, kind, position } = record;
         if (
@@ -1646,6 +1656,9 @@ const gateStyle = [
           || !(continuationSurface instanceof HTMLElement)
         ) return false;
         const gateRect = gate.getBoundingClientRect();
+        const openingRect = opening.getBoundingClientRect();
+        const alignmentTolerance = clamp(window.innerHeight * 0.08, 32, 96);
+        if (Math.abs(openingRect.top) > alignmentTolerance) return false;
         const projection = createOpeningEdgeProjection(layer, sampler, position);
         if (!projection) return false;
         const textureWidth = Math.max(96, Math.min(720, Math.round(gateRect.width)));
@@ -1744,6 +1757,7 @@ const gateStyle = [
         scheduleOpeningEdgeRenderQueue();
       };
       const ensureOpeningEdgeSampler = (record, priority = false) => {
+        if (!openingEdgeSamplingEnabled) return Promise.resolve(null);
         if (!record || !record.source || record.samplerFailed) return Promise.resolve(null);
         if (record.sampler) {
           if (!record.textureReady) queueOpeningEdgeTexture(record, priority);
@@ -1765,6 +1779,7 @@ const gateStyle = [
         return record.samplerPromise;
       };
       const primeCurrentOpeningEdgeTextures = () => {
+        if (!openingEdgeSamplingEnabled) return;
         openingEdgeRecords.forEach((record) => {
           if ((openingEdgeState[record.id]?.opacity ?? 0) > 0.015) {
             ensureOpeningEdgeSampler(record, true);
@@ -1772,6 +1787,7 @@ const gateStyle = [
         });
       };
       const refreshOpeningEdgeTextures = () => {
+        if (!openingEdgeSamplingEnabled) return;
         openingEdgeRecords.forEach((record) => {
           record.textureReady = false;
           queueOpeningEdgeTexture(record, (openingEdgeState[record.id]?.opacity ?? 0) > 0.02);
@@ -1818,6 +1834,7 @@ const gateStyle = [
         }
       };
       const syncOpeningEdgeLiveGeometry = (force = false) => {
+        if (!openingEdgeSamplingEnabled) return;
         if (!(openingEdge instanceof HTMLElement)) return;
         if (openingBridgePortalActive) return;
         if (!force && lockedOpeningEdgeState !== null) return;
@@ -12478,11 +12495,13 @@ const gateStyle = [
       };
 
       const restoreLiveOpeningBridge = () => {
+        deactivateOpeningBridgePortal();
+        invalidateOpeningEdgeLiveSurfaces();
+        syncOpeningEdgeLiveGeometry(true);
         const activated = activateOpeningBridgePortal();
         if (!activated) return false;
         openingEdgeLiveSyncTimestamp = 0;
         primeCurrentOpeningEdgeTextures();
-        openingBridgeRecoveryPending = false;
         return true;
       };
 
@@ -12491,7 +12510,9 @@ const gateStyle = [
         gate.classList.remove("is-opening-bridge-live");
         opening?.classList.remove("is-opening-bridge-live");
         if (opening instanceof HTMLElement) void opening.offsetHeight;
-        return restoreLiveOpeningBridge();
+        const restored = restoreLiveOpeningBridge();
+        if (restored) openingBridgeRecoveryPending = false;
+        return restored;
       };
 
       const restoreOpeningBridgePresentation = () => {
@@ -12506,7 +12527,13 @@ const gateStyle = [
           openingBridgeRecoveryPending = false;
           return false;
         }
-        if (isOpeningStopCurrent()) return restoreLiveOpeningBridge();
+        const openingStopCurrent = isOpeningStopCurrent();
+        if (openingStopCurrent) {
+          const restored = restoreLiveOpeningBridge();
+          if (restored) openingBridgeRecoveryPending = false;
+          return restored;
+        }
+        if (restoreWindowOpen) return false;
 
         deactivateOpeningBridgePortal();
         gateVisualResetPending = false;
@@ -12534,6 +12561,11 @@ const gateStyle = [
             restoreOpeningBridgePresentation();
           });
         });
+      };
+      const requestOpeningBridgeRecovery = () => {
+        if (disposed || document.visibilityState === "hidden" || pageMode !== "next") return;
+        openingBridgeRecoveryPending = true;
+        scheduleOpeningBridgeRecovery();
       };
 
       const getReturnToGateThreshold = () => {
@@ -13524,12 +13556,13 @@ const gateStyle = [
         if (foundSelfActive) return;
         refreshOpeningMemoryPresentation();
         refreshFridgeScenePresentation();
+        if (pageMode === "next") openingBridgeRecoveryPending = true;
         const keptLiveBridge = openingBridgeResumeLive && restoreLiveOpeningBridge();
         openingBridgeResumeLive = false;
         startEnergyAnimation();
         startPostReleaseAnimation();
         scheduleWarningWarmup(true);
-        if (!keptLiveBridge) scheduleOpeningBridgeRecovery();
+        if (keptLiveBridge || openingBridgeRecoveryPending) scheduleOpeningBridgeRecovery();
       }, { signal });
 
       const cleanup = () => {
@@ -13643,11 +13676,28 @@ const gateStyle = [
         scheduleWarningWarmup();
         scheduleOpeningBridgeRecovery();
       }
+      const scheduleRestoreWindowClose = (delay = 420) => {
+        if (restoreSyncTimer) window.clearTimeout(restoreSyncTimer);
+        restoreSyncTimer = window.setTimeout(() => {
+          restoreSyncTimer = 0;
+          restoreWindowOpen = false;
+          window.removeEventListener("scroll", syncRestoredPosition);
+          if (pageMode === "next") requestOpeningBridgeRecovery();
+        }, delay);
+      };
       const syncRestoredPosition = () => {
-        if (!restoreWindowOpen || scrollFrame || pageMode !== "gate" || window.scrollY <= 2) return;
-        pageMode = "next";
-        gateVisualResetPending = true;
-        finalizeGateResetForNextPage();
+        if (!restoreWindowOpen || scrollFrame || window.scrollY <= 2) return;
+        if (pageMode === "gate") {
+          pageMode = "next";
+          gateVisualResetPending = true;
+          finalizeGateResetForNextPage();
+          openingBridgeRecoveryPending = true;
+          activateFreshOpeningBridge();
+        } else if (!openingBridgePortalActive) {
+          openingBridgeRecoveryPending = true;
+          restoreLiveOpeningBridge();
+        }
+        scheduleRestoreWindowClose();
       };
       const syncDeferredGateReset = () => {
         if (!gateVisualResetPending || pageMode !== "next" || scrollFrame) return;
@@ -13675,21 +13725,15 @@ const gateStyle = [
         returnToGate();
       };
       window.addEventListener("pageshow", syncRestoredPosition, { signal });
-      window.addEventListener("pageshow", scheduleOpeningBridgeRecovery, { signal });
-      window.addEventListener("focus", scheduleOpeningBridgeRecovery, { signal });
+      window.addEventListener("pageshow", requestOpeningBridgeRecovery, { signal });
+      window.addEventListener("focus", requestOpeningBridgeRecovery, { signal });
       window.addEventListener("scroll", syncRestoredPosition, { passive: true, signal });
       window.addEventListener("scroll", syncGateModeFromScroll, { passive: true, signal });
       window.addEventListener("scroll", syncDeferredGateReset, { passive: true, signal });
       window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
         if (disposed) return;
+        scheduleRestoreWindowClose(900);
         syncRestoredPosition();
-        restoreSyncTimer = window.setTimeout(() => {
-          restoreSyncTimer = 0;
-          if (disposed) return;
-          syncRestoredPosition();
-          restoreWindowOpen = false;
-          window.removeEventListener("scroll", syncRestoredPosition);
-        }, 420);
       }));
         })();
       } catch (error) {
