@@ -379,42 +379,41 @@ const gateStyle = [
             ></canvas>
             <span class="kisara-opening-memory-candle-reveal">
               <span class="kisara-opening-memory-core">
-                <img
-                  class="kisara-opening-memory-image"
-                  data-kisara-opening-image
-                  src="/themes/kisara/assets/opening-memory-001-v2.webp"
-                  alt="昏暗烛光里，木更从身后抱住修的旧日片段"
-                  width="1920"
-                  height="1080"
-                  loading="lazy"
-                  decoding="async"
-                />
-                <img
-                  class="kisara-opening-memory-depth-focus"
-                  src="/themes/kisara/assets/opening-memory-001-v2.webp"
-                  alt=""
-                  width="1920"
-                  height="1080"
-                  loading="lazy"
-                  decoding="async"
+                <span class="kisara-opening-memory-shot is-wide">
+                  <img
+                    class="kisara-opening-memory-image"
+                    data-kisara-opening-image
+                    src="/themes/kisara/assets/opening-memory-001-v2.webp"
+                    alt="昏暗烛光里，木更从身后抱住修的旧日片段"
+                    width="1920"
+                    height="1080"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </span>
+                <span
+                  class="kisara-opening-memory-shot is-closeup"
+                  data-kisara-opening-closeup-shot
                   aria-hidden="true"
-                />
-                <img
-                  class="kisara-opening-memory-depth-foreground"
-                  src="/themes/kisara/assets/opening-memory-001-v2.webp"
-                  alt=""
-                  width="1920"
-                  height="1080"
-                  loading="lazy"
-                  decoding="async"
-                  aria-hidden="true"
-                />
+                >
+                  <img
+                    class="kisara-opening-memory-closeup-image"
+                    data-kisara-opening-closeup-image
+                    src="/themes/kisara/assets/opening-memory-001-closeup.webp"
+                    alt=""
+                    width="1920"
+                    height="1080"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </span>
               </span>
             </span>
             <span class="kisara-opening-memory-candle-field" aria-hidden="true">
               <i class="kisara-opening-memory-candle-light"></i>
               <i class="kisara-opening-memory-candle-shade"></i>
             </span>
+            <span class="kisara-opening-memory-shot-bloom" aria-hidden="true"></span>
           </div>
           <figcaption><span>图 01</span> 烛光没有回答，只把相拥的一刻留得很慢。</figcaption>
         </figure>
@@ -1376,6 +1375,12 @@ const gateStyle = [
       const openingMemoryImage = openingMemory instanceof HTMLElement
         ? openingMemory.querySelector("[data-kisara-opening-image]")
         : null;
+      const openingMemoryCloseupShot = openingMemory instanceof HTMLElement
+        ? openingMemory.querySelector("[data-kisara-opening-closeup-shot]")
+        : null;
+      const openingMemoryCloseupImage = openingMemory instanceof HTMLElement
+        ? openingMemory.querySelector("[data-kisara-opening-closeup-image]")
+        : null;
       const openingMemoryVisual = openingMemory instanceof HTMLElement
         ? openingMemory.querySelector(".kisara-opening-memory-visual")
         : null;
@@ -1412,6 +1417,9 @@ const gateStyle = [
       let openingMemoryCandleGeneration = 0;
       let openingMemoryCandleProgress = 0;
       let openingMemoryCandleGeometry = null;
+      let openingMemoryCloseupGeneration = 0;
+      let openingMemoryCloseupStartTimer = 0;
+      let openingMemoryCloseupCompleteTimer = 0;
       let openingMemoryAmbientObserver = null;
       let openingMemoryAmbientVisible = false;
       let openingMemoryPointerFrame = 0;
@@ -1724,87 +1732,47 @@ const gateStyle = [
           1
         );
         openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-background-x",
-          `${(-openingMemoryPointerCurrentX * 16.5).toFixed(3)}px`
+          "--kisara-memory-closeup-x",
+          `${(-openingMemoryPointerCurrentX * 7.2).toFixed(3)}px`
         );
         openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-background-y",
-          `${(-openingMemoryPointerCurrentY * 9.5).toFixed(3)}px`
+          "--kisara-memory-closeup-y",
+          `${(-openingMemoryPointerCurrentY * 4.4).toFixed(3)}px`
         );
         openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-focus-x",
-          `${(openingMemoryPointerCurrentX * 4.8).toFixed(3)}px`
+          "--kisara-memory-closeup-tilt-x",
+          `${(-openingMemoryPointerCurrentY * 0.12).toFixed(4)}deg`
         );
         openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-focus-y",
-          `${(openingMemoryPointerCurrentY * 3.2).toFixed(3)}px`
+          "--kisara-memory-closeup-tilt-y",
+          `${(openingMemoryPointerCurrentX * 0.18).toFixed(4)}deg`
         );
         openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-foreground-x",
-          `${(openingMemoryPointerCurrentX * 28).toFixed(3)}px`
-        );
-        openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-foreground-y",
-          `${(openingMemoryPointerCurrentY * 17.5).toFixed(3)}px`
-        );
-        openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-background-tilt-x",
-          `${(-openingMemoryPointerCurrentY * 0.42).toFixed(4)}deg`
-        );
-        openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-background-tilt-y",
-          `${(openingMemoryPointerCurrentX * 0.62).toFixed(4)}deg`
-        );
-        openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-focus-tilt-x",
-          `${(-openingMemoryPointerCurrentY * 0.68).toFixed(4)}deg`
-        );
-        openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-focus-tilt-y",
-          `${(openingMemoryPointerCurrentX * 0.92).toFixed(4)}deg`
-        );
-        openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-foreground-tilt-x",
-          `${(-openingMemoryPointerCurrentY * 0.96).toFixed(4)}deg`
-        );
-        openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-foreground-tilt-y",
-          `${(openingMemoryPointerCurrentX * 1.28).toFixed(4)}deg`
-        );
-        openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-background-scale",
-          (pointerDistance * 0.004).toFixed(5)
-        );
-        openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-focus-scale",
-          (pointerDistance * 0.008).toFixed(5)
-        );
-        openingMemoryVisual.style.setProperty(
-          "--kisara-memory-pointer-foreground-scale",
-          (pointerDistance * 0.014).toFixed(5)
+          "--kisara-memory-closeup-scale",
+          (pointerDistance * 0.006).toFixed(5)
         );
         openingMemoryVisual.style.setProperty(
           "--kisara-memory-panorama-light-x",
-          `${(72 + openingMemoryPointerCurrentX * 4.5).toFixed(3)}%`
+          `${(72 + openingMemoryPointerCurrentX * 2.2).toFixed(3)}%`
         );
         openingMemoryVisual.style.setProperty(
           "--kisara-memory-panorama-light-y",
-          `${(82 + openingMemoryPointerCurrentY * 3.2).toFixed(3)}%`
+          `${(82 + openingMemoryPointerCurrentY * 1.6).toFixed(3)}%`
         );
         openingMemoryVisual.style.setProperty(
           "--kisara-memory-panorama-shadow-x",
-          `${(31 - openingMemoryPointerCurrentX * 7).toFixed(3)}%`
+          `${(31 - openingMemoryPointerCurrentX * 3.4).toFixed(3)}%`
         );
         openingMemoryVisual.style.setProperty(
           "--kisara-memory-panorama-shadow-y",
-          `${(32 - openingMemoryPointerCurrentY * 5).toFixed(3)}%`
+          `${(32 - openingMemoryPointerCurrentY * 2.5).toFixed(3)}%`
         );
       };
 
       const animateOpeningMemoryPointer = () => {
         openingMemoryPointerFrame = 0;
-        openingMemoryPointerCurrentX += (openingMemoryPointerTargetX - openingMemoryPointerCurrentX) * 0.115;
-        openingMemoryPointerCurrentY += (openingMemoryPointerTargetY - openingMemoryPointerCurrentY) * 0.115;
+        openingMemoryPointerCurrentX += (openingMemoryPointerTargetX - openingMemoryPointerCurrentX) * 0.16;
+        openingMemoryPointerCurrentY += (openingMemoryPointerTargetY - openingMemoryPointerCurrentY) * 0.16;
         applyOpeningMemoryPointer();
         if (
           Math.abs(openingMemoryPointerTargetX - openingMemoryPointerCurrentX) > 0.002
@@ -1836,6 +1804,60 @@ const gateStyle = [
           return;
         }
         queueOpeningMemoryPointer();
+      };
+
+      const resetOpeningMemoryCloseup = () => {
+        openingMemoryCloseupGeneration += 1;
+        if (openingMemoryCloseupStartTimer) window.clearTimeout(openingMemoryCloseupStartTimer);
+        if (openingMemoryCloseupCompleteTimer) window.clearTimeout(openingMemoryCloseupCompleteTimer);
+        openingMemoryCloseupStartTimer = 0;
+        openingMemoryCloseupCompleteTimer = 0;
+        opening?.classList.remove(
+          "is-memory-closeup-shifting",
+          "is-memory-closeup-complete"
+        );
+      };
+
+      const prepareOpeningMemoryCloseup = async () => {
+        if (!(openingMemoryCloseupImage instanceof HTMLImageElement)) return false;
+        openingMemoryCloseupImage.loading = "eager";
+        if (openingMemoryCloseupImage.complete && openingMemoryCloseupImage.naturalWidth > 0) return true;
+        const decode = typeof openingMemoryCloseupImage.decode === "function"
+          ? openingMemoryCloseupImage.decode().then(() => true).catch(() => false)
+          : new Promise((resolve) => {
+            openingMemoryCloseupImage.addEventListener("load", () => resolve(true), { once: true });
+            openingMemoryCloseupImage.addEventListener("error", () => resolve(false), { once: true });
+          });
+        return decode;
+      };
+
+      const startOpeningMemoryCloseup = async () => {
+        if (
+          !(opening instanceof HTMLElement)
+          || !(openingMemoryCloseupShot instanceof HTMLElement)
+          || reducedMotion
+          || disposed
+        ) return;
+        const generation = ++openingMemoryCloseupGeneration;
+        if (openingMemoryCloseupStartTimer) window.clearTimeout(openingMemoryCloseupStartTimer);
+        if (openingMemoryCloseupCompleteTimer) window.clearTimeout(openingMemoryCloseupCompleteTimer);
+        openingMemoryCloseupStartTimer = 0;
+        openingMemoryCloseupCompleteTimer = 0;
+        opening.classList.remove("is-memory-closeup-shifting", "is-memory-closeup-complete");
+        const ready = await prepareOpeningMemoryCloseup();
+        if (!ready || disposed || generation !== openingMemoryCloseupGeneration) return;
+        openingMemoryCloseupStartTimer = window.setTimeout(() => {
+          openingMemoryCloseupStartTimer = 0;
+          if (disposed || generation !== openingMemoryCloseupGeneration) return;
+          cancelOpeningMemoryInkAmbient(true);
+          resetOpeningMemoryPointer(true);
+          opening.classList.add("is-memory-closeup-shifting");
+          openingMemoryCloseupCompleteTimer = window.setTimeout(() => {
+            openingMemoryCloseupCompleteTimer = 0;
+            if (disposed || generation !== openingMemoryCloseupGeneration) return;
+            opening.classList.add("is-memory-closeup-complete");
+          }, 1980);
+        }, 520);
       };
 
       const prepareOpeningMemoryInk = () => {
@@ -2003,6 +2025,7 @@ const gateStyle = [
           opening?.classList.add("is-memory-candle-complete");
           resetOpeningMemoryCandleReveal();
           startOpeningMemoryBloom();
+          startOpeningMemoryCloseup();
           return;
         }
         openingMemoryCandleGeometry = measureOpeningMemoryCandleGeometry();
@@ -2011,6 +2034,7 @@ const gateStyle = [
           opening?.classList.add("is-memory-candle-complete");
           resetOpeningMemoryCandleReveal();
           startOpeningMemoryBloom();
+          startOpeningMemoryCloseup();
           return;
         }
         opening?.classList.add("is-memory-blooming");
@@ -2036,6 +2060,7 @@ const gateStyle = [
             opening?.classList.remove("is-memory-candle-revealing");
             resetOpeningMemoryCandleReveal();
             scheduleOpeningMemoryInkAmbient();
+            startOpeningMemoryCloseup();
           }
         };
         openingMemoryCandleFrame = window.requestAnimationFrame(paint);
@@ -2110,6 +2135,7 @@ const gateStyle = [
         openingMemoryCandleProgress = 0;
         openingMemoryCandleGeometry = null;
         resetOpeningMemoryCandleReveal();
+        resetOpeningMemoryCloseup();
         openingMemoryInkGeneration += 1;
         if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
         openingMemoryInkFrame = 0;
@@ -2171,7 +2197,7 @@ const gateStyle = [
         window.addEventListener("pointermove", (event) => {
           if (
             !opening.classList.contains("is-memory-revealed")
-            || !opening.classList.contains("is-memory-candle-complete")
+            || !opening.classList.contains("is-memory-closeup-complete")
             || !openingMemoryAmbientVisible
           ) return;
           const visualRect = openingMemoryVisual.getBoundingClientRect();
@@ -14539,6 +14565,7 @@ const gateStyle = [
         openingMemoryCandleProgress = 0;
         openingMemoryCandleGeometry = null;
         resetOpeningMemoryCandleReveal();
+        resetOpeningMemoryCloseup();
         openingMemoryInkGeneration += 1;
         if (openingMemoryInkFrame) window.cancelAnimationFrame(openingMemoryInkFrame);
         openingMemoryInkFrame = 0;
