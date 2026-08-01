@@ -2,7 +2,7 @@
   <div class="kisara-opening-video-media" aria-hidden="true">
     <img
       class="kisara-opening-video-poster is-first"
-      src="/themes/kisara/assets/opening-memory-001-first.webp"
+      src="/themes/kisara/assets/opening-memory-001-first.webp?v=b207a3d7"
       alt=""
       width="1920"
       height="1080"
@@ -12,8 +12,8 @@
     <video
       class="kisara-opening-video"
       data-memory-video
-      src="/themes/kisara/assets/opening-memory-001.mp4"
-      poster="/themes/kisara/assets/opening-memory-001-first.webp"
+      src="/themes/kisara/assets/opening-memory-001.mp4?v=26026bec"
+      poster="/themes/kisara/assets/opening-memory-001-first.webp?v=b207a3d7"
       preload="auto"
       muted
       playsinline
@@ -21,7 +21,7 @@
     ></video>
     <img
       class="kisara-opening-video-poster is-last"
-      src="/themes/kisara/assets/opening-memory-001-last.webp"
+      src="/themes/kisara/assets/opening-memory-001-last.webp?v=85ffa275"
       alt=""
       width="1920"
       height="1080"
@@ -75,6 +75,11 @@
         let state: "armed" | "playing" | "settled" = "armed";
         let generation = 0;
         let recoveryFrame = 0;
+        let playbackWatchdog = 0;
+        let playbackRetryTimer = 0;
+        let stallRecoveries = 0;
+        let reloadPipelineOnResume = false;
+        let playbackEndedHandler: (() => void) | null = null;
 
         const setVideoTime = (time: number) => {
           try {
@@ -89,8 +94,45 @@
           this.classList.add("is-memory-video-frame-ready");
         };
 
+        const clearPlaybackTimers = () => {
+          if (playbackWatchdog) window.clearTimeout(playbackWatchdog);
+          if (playbackRetryTimer) window.clearTimeout(playbackRetryTimer);
+          if (playbackEndedHandler) video.removeEventListener("ended", playbackEndedHandler);
+          playbackWatchdog = 0;
+          playbackRetryTimer = 0;
+          playbackEndedHandler = null;
+        };
+
+        const setArmedPresentation = () => {
+          state = "armed";
+          video.pause();
+          setVideoTime(0);
+          this.classList.remove(
+            "is-memory-video-playing",
+            "is-memory-video-frame-ready",
+            "is-memory-video-settled"
+          );
+          this.classList.add("is-memory-video-armed");
+        };
+
+        const resetActivePlayback = (reloadPipeline = false) => {
+          generation += 1;
+          clearPlaybackTimers();
+          setArmedPresentation();
+          if (reloadPipeline) {
+            try {
+              video.load();
+            } catch {
+              // A fresh play attempt can still rebuild the media pipeline.
+            }
+          }
+        };
+
         const finish = () => {
           generation += 1;
+          clearPlaybackTimers();
+          stallRecoveries = 0;
+          reloadPipelineOnResume = false;
           state = "settled";
           video.pause();
           if (Number.isFinite(video.duration) && video.duration > 0) {
@@ -104,7 +146,65 @@
           this.classList.add("is-memory-video-settled");
         };
 
-        const play = async () => {
+        const recoverStalledPlayback = (playGeneration: number) => {
+          if (
+            signal.aborted
+            || playGeneration !== generation
+            || state !== "playing"
+          ) return;
+
+          const shouldRetry = stallRecoveries < 2;
+          const shouldReload = stallRecoveries === 0;
+          stallRecoveries += 1;
+          resetActivePlayback(shouldReload);
+          if (!shouldRetry || document.hidden || !sceneVisible || waitingForFreshEntry) return;
+
+          const retryGeneration = generation;
+          playbackRetryTimer = window.setTimeout(() => {
+            playbackRetryTimer = 0;
+            if (
+              signal.aborted
+              || retryGeneration !== generation
+              || state !== "armed"
+              || document.hidden
+              || !sceneVisible
+              || waitingForFreshEntry
+            ) return;
+            void play(true);
+          }, shouldReload ? 120 : 260);
+        };
+
+        const schedulePlaybackWatchdog = (playGeneration: number, baseline = 0) => {
+          if (playbackWatchdog) window.clearTimeout(playbackWatchdog);
+          playbackWatchdog = window.setTimeout(() => {
+            playbackWatchdog = 0;
+            if (
+              signal.aborted
+              || playGeneration !== generation
+              || state !== "playing"
+              || document.hidden
+              || !sceneVisible
+            ) return;
+
+            const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+            if (
+              Number.isFinite(video.duration)
+              && video.duration > 0
+              && currentTime >= video.duration - 0.08
+            ) {
+              finish();
+              return;
+            }
+            if (!video.paused && currentTime > baseline + 0.025) {
+              markFrameReady();
+              schedulePlaybackWatchdog(playGeneration, currentTime);
+              return;
+            }
+            recoverStalledPlayback(playGeneration);
+          }, baseline > 0.025 ? 700 : 1300);
+        };
+
+        const play = async (isRecoveryRetry = false) => {
           if (
             document.hidden
             || !sceneVisible
@@ -112,6 +212,7 @@
             || state === "playing"
             || state === "settled"
           ) return;
+          if (!isRecoveryRetry) stallRecoveries = 0;
           if (reducedMotion) {
             finish();
             return;
@@ -124,6 +225,13 @@
           this.classList.remove("is-memory-video-armed", "is-memory-video-settled");
           this.classList.add("is-memory-video-playing");
           this.classList.remove("is-memory-video-frame-ready");
+          const handleEnded = () => {
+            if (playGeneration !== generation || state !== "playing") return;
+            finish();
+          };
+          playbackEndedHandler = handleEnded;
+          video.addEventListener("ended", handleEnded, { once: true });
+          schedulePlaybackWatchdog(playGeneration, 0);
 
           try {
             await video.play();
@@ -134,25 +242,17 @@
               markFrameReady();
             }
           } catch {
-            if (signal.aborted || playGeneration !== generation) return;
-            state = "armed";
-            this.classList.remove("is-memory-video-playing", "is-memory-video-frame-ready");
-            this.classList.add("is-memory-video-armed");
+            recoverStalledPlayback(playGeneration);
           }
         };
 
         const arm = (waitForExit = false) => {
           generation += 1;
-          state = "armed";
+          clearPlaybackTimers();
+          stallRecoveries = 0;
+          reloadPipelineOnResume = false;
           waitingForFreshEntry = waitForExit && sceneVisible;
-          video.pause();
-          setVideoTime(0);
-          this.classList.remove(
-            "is-memory-video-playing",
-            "is-memory-video-frame-ready",
-            "is-memory-video-settled"
-          );
-          this.classList.add("is-memory-video-armed");
+          setArmedPresentation();
           requestAnimationFrame(() => {
             if (!signal.aborted && sceneVisible && !waitingForFreshEntry) void play();
           });
@@ -171,12 +271,7 @@
           if (!sceneVisible) {
             waitingForFreshEntry = false;
             if (state === "playing") {
-              state = "armed";
-              generation += 1;
-              video.pause();
-              setVideoTime(0);
-              this.classList.remove("is-memory-video-playing", "is-memory-video-frame-ready");
-              this.classList.add("is-memory-video-armed");
+              resetActivePlayback();
             }
             return;
           }
@@ -185,11 +280,7 @@
             else return;
           }
           if (state === "playing" && video.paused) {
-            state = "armed";
-            generation += 1;
-            setVideoTime(0);
-            this.classList.remove("is-memory-video-playing", "is-memory-video-frame-ready");
-            this.classList.add("is-memory-video-armed");
+            resetActivePlayback();
           }
           if (state === "armed") void play();
         };
@@ -204,8 +295,32 @@
           });
         };
 
-        video.addEventListener("ended", finish, { signal });
+        const interruptForLifecycle = () => {
+          if (state !== "playing") return;
+          resetActivePlayback();
+          stallRecoveries = 0;
+          reloadPipelineOnResume = true;
+        };
+
+        const recoverAfterLifecycle = () => {
+          if (document.hidden) return;
+          if (reloadPipelineOnResume) {
+            reloadPipelineOnResume = false;
+            try {
+              video.load();
+            } catch {
+              // The visibility sync below will still make a fresh play attempt.
+            }
+          }
+          scheduleVisibilitySync();
+        };
+
         video.addEventListener("playing", markFrameReady, { signal });
+        video.addEventListener("timeupdate", () => {
+          if (state === "playing" && video.currentTime > 0.025) {
+            markFrameReady();
+          }
+        }, { signal });
         window.addEventListener("pointerdown", () => {
           if (sceneVisible && state === "armed") void play();
         }, { signal });
@@ -214,19 +329,16 @@
         }, { passive: true, signal });
         document.addEventListener("visibilitychange", () => {
           if (document.hidden) {
-            if (state === "playing") {
-              state = "armed";
-              generation += 1;
-              video.pause();
-              setVideoTime(0);
-              this.classList.remove("is-memory-video-playing", "is-memory-video-frame-ready");
-              this.classList.add("is-memory-video-armed");
-            }
+            interruptForLifecycle();
             return;
           }
-          scheduleVisibilitySync();
+          recoverAfterLifecycle();
         }, { signal });
-        window.addEventListener("pageshow", scheduleVisibilitySync, { signal });
+        window.addEventListener("pagehide", interruptForLifecycle, { signal });
+        window.addEventListener("pageshow", recoverAfterLifecycle, { signal });
+        window.addEventListener("focus", recoverAfterLifecycle, { signal });
+        document.addEventListener("freeze", interruptForLifecycle, { signal });
+        document.addEventListener("resume", recoverAfterLifecycle, { signal });
 
         if ("IntersectionObserver" in window) {
           this.observer = new IntersectionObserver((entries) => {
@@ -249,6 +361,7 @@
         this.refreshScene = scheduleVisibilitySync;
         signal.addEventListener("abort", () => {
           generation += 1;
+          clearPlaybackTimers();
           video.pause();
           if (recoveryFrame) window.cancelAnimationFrame(recoveryFrame);
           recoveryFrame = 0;

@@ -8,8 +8,8 @@ import { Icon } from "astro-icon/components";
       <video
         class="kisara-fridge-video"
         data-fridge-video
-        src="/themes/kisara/assets/fridge-opening-002.mp4"
-        poster="/themes/kisara/assets/fridge-opening-002-first.webp"
+        src="/themes/kisara/assets/fridge-opening-002.mp4?v=ad1cc7d0"
+        poster="/themes/kisara/assets/fridge-opening-002-first.webp?v=7d47ede4"
         preload="auto"
         muted
         playsinline
@@ -17,7 +17,7 @@ import { Icon } from "astro-icon/components";
       ></video>
       <img
         class="kisara-fridge-last-frame"
-        src="/themes/kisara/assets/fridge-opening-002-last.webp"
+        src="/themes/kisara/assets/fridge-opening-002-last.webp?v=1602e527"
         alt=""
         width="1920"
         height="1080"
@@ -202,6 +202,12 @@ import { Icon } from "astro-icon/components";
         let opened = false;
         let waitingForFreshEntry = false;
         let recoveryFrame = 0;
+        let playbackGeneration = 0;
+        let playbackWatchdog = 0;
+        let playbackRetryTimer = 0;
+        let stallRecoveries = 0;
+        let reloadPipelineOnResume = false;
+        let playbackEndedHandler: (() => void) | null = null;
         let animationFrame = 0;
         let lastFrameAt = 0;
         let boundsWidth = 1;
@@ -442,6 +448,15 @@ import { Icon } from "astro-icon/components";
 
         const finishOpening = () => {
           if (opened) return;
+          playbackGeneration += 1;
+          if (playbackWatchdog) window.clearTimeout(playbackWatchdog);
+          if (playbackRetryTimer) window.clearTimeout(playbackRetryTimer);
+          if (playbackEndedHandler) video.removeEventListener("ended", playbackEndedHandler);
+          playbackWatchdog = 0;
+          playbackRetryTimer = 0;
+          playbackEndedHandler = null;
+          stallRecoveries = 0;
+          reloadPipelineOnResume = false;
           openingStarted = false;
           opened = true;
           video.pause();
@@ -452,20 +467,112 @@ import { Icon } from "astro-icon/components";
           else launchBodies();
         };
 
-        const startOpening = () => {
+        const clearPlaybackTimers = () => {
+          if (playbackWatchdog) window.clearTimeout(playbackWatchdog);
+          if (playbackRetryTimer) window.clearTimeout(playbackRetryTimer);
+          if (playbackEndedHandler) video.removeEventListener("ended", playbackEndedHandler);
+          playbackWatchdog = 0;
+          playbackRetryTimer = 0;
+          playbackEndedHandler = null;
+        };
+
+        const setSealedPresentation = () => {
+          openingStarted = false;
+          video.pause();
+          try {
+            video.currentTime = 0;
+          } catch {
+            // Metadata can return after a suspended media pipeline is rebuilt.
+          }
+          this.classList.add("is-fridge-resetting");
+          this.classList.remove("is-fridge-playing", "is-fridge-open");
+          if (status) status.textContent = "SEALED";
+        };
+
+        const resetActiveOpening = (reloadPipeline = false) => {
+          playbackGeneration += 1;
+          clearPlaybackTimers();
+          setSealedPresentation();
+          if (reloadPipeline) {
+            try {
+              video.load();
+            } catch {
+              // A later play attempt can still recreate the decoder.
+            }
+          }
+        };
+
+        const recoverStalledOpening = (playGeneration: number) => {
+          if (
+            signal.aborted
+            || playGeneration !== playbackGeneration
+            || !openingStarted
+            || opened
+          ) return;
+
+          const shouldRetry = stallRecoveries < 2;
+          const shouldReload = stallRecoveries === 0;
+          stallRecoveries += 1;
+          resetActiveOpening(shouldReload);
+          if (!shouldRetry || document.hidden || !sceneVisible || waitingForFreshEntry) return;
+
+          const retryGeneration = playbackGeneration;
+          playbackRetryTimer = window.setTimeout(() => {
+            playbackRetryTimer = 0;
+            if (
+              signal.aborted
+              || retryGeneration !== playbackGeneration
+              || openingStarted
+              || opened
+              || document.hidden
+              || !sceneVisible
+              || waitingForFreshEntry
+            ) return;
+            startOpening(true);
+          }, shouldReload ? 120 : 260);
+        };
+
+        const schedulePlaybackWatchdog = (playGeneration: number, baseline = 0) => {
+          if (playbackWatchdog) window.clearTimeout(playbackWatchdog);
+          playbackWatchdog = window.setTimeout(() => {
+            playbackWatchdog = 0;
+            if (
+              signal.aborted
+              || playGeneration !== playbackGeneration
+              || !openingStarted
+              || opened
+              || document.hidden
+              || !sceneVisible
+            ) return;
+
+            const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+            if (
+              Number.isFinite(video.duration)
+              && video.duration > 0
+              && currentTime >= video.duration - 0.08
+            ) {
+              finishOpening();
+              return;
+            }
+            if (!video.paused && currentTime > baseline + 0.025) {
+              schedulePlaybackWatchdog(playGeneration, currentTime);
+              return;
+            }
+            recoverStalledOpening(playGeneration);
+          }, baseline > 0.025 ? 700 : 1300);
+        };
+
+        const startOpening = (isRecoveryRetry = false) => {
           if (!sceneVisible || waitingForFreshEntry || openingStarted || opened) return;
+          if (!isRecoveryRetry) stallRecoveries = 0;
+          const playGeneration = ++playbackGeneration;
           openingStarted = true;
           this.classList.remove("is-fridge-resetting", "is-fridge-open");
           this.classList.add("is-fridge-playing");
           if (status) status.textContent = "OPENING";
 
           if (reducedMotion) {
-            const seekToEnd = () => {
-              if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Math.max(0, video.duration - 0.04);
-              finishOpening();
-            };
-            if (video.readyState >= 1) seekToEnd();
-            else video.addEventListener("loadedmetadata", seekToEnd, { once: true, signal });
+            finishOpening();
             return;
           }
 
@@ -475,32 +582,30 @@ import { Icon } from "astro-icon/components";
           } catch {
             // Metadata can finish loading between reset and play().
           }
-          void video.play().catch(() => {
-            openingStarted = false;
-            const retry = () => {
-              if (!sceneVisible || opened || signal.aborted) return;
-              startOpening();
-            };
-            window.addEventListener("pointerdown", retry, { once: true, signal });
-            window.addEventListener("wheel", retry, { once: true, passive: true, signal });
-          });
+          const handleEnded = () => {
+            if (
+              playGeneration !== playbackGeneration
+              || !openingStarted
+              || opened
+            ) return;
+            finishOpening();
+          };
+          playbackEndedHandler = handleEnded;
+          video.addEventListener("ended", handleEnded, { once: true });
+          schedulePlaybackWatchdog(playGeneration, 0);
+          void video.play().catch(() => recoverStalledOpening(playGeneration));
         };
 
         const armOpening = (waitForExit = false) => {
+          playbackGeneration += 1;
+          clearPlaybackTimers();
+          stallRecoveries = 0;
+          reloadPipelineOnResume = false;
           clearLaunchTimers();
           stopLoop();
           opened = false;
-          openingStarted = false;
           waitingForFreshEntry = waitForExit && sceneVisible;
-          video.pause();
-          try {
-            video.currentTime = 0;
-          } catch {
-            // currentTime becomes writable after metadata is available.
-          }
-          this.classList.add("is-fridge-resetting");
-          this.classList.remove("is-fridge-playing", "is-fridge-open");
-          if (status) status.textContent = "SEALED";
+          setSealedPresentation();
           resetBodies();
           requestAnimationFrame(() => {
             if (!signal.aborted && sceneVisible && !waitingForFreshEntry) startOpening();
@@ -521,16 +626,7 @@ import { Icon } from "astro-icon/components";
             waitingForFreshEntry = false;
             stopLoop();
             if (openingStarted && !opened) {
-              openingStarted = false;
-              video.pause();
-              try {
-                video.currentTime = 0;
-              } catch {
-                // Metadata can be restored after the page becomes visible.
-              }
-              this.classList.add("is-fridge-resetting");
-              this.classList.remove("is-fridge-playing", "is-fridge-open");
-              if (status) status.textContent = "SEALED";
+              resetActiveOpening();
             }
             return;
           }
@@ -543,12 +639,7 @@ import { Icon } from "astro-icon/components";
             return;
           }
           if (openingStarted && video.paused) {
-            openingStarted = false;
-            try {
-              video.currentTime = 0;
-            } catch {
-              // The next play attempt will seek again after metadata returns.
-            }
+            resetActiveOpening();
           }
           startOpening();
         };
@@ -561,6 +652,27 @@ import { Icon } from "astro-icon/components";
               if (!signal.aborted) syncSceneAfterVisibility();
             });
           });
+        };
+
+        const interruptForLifecycle = () => {
+          cancelActiveDrag();
+          if (!openingStarted || opened) return;
+          resetActiveOpening();
+          stallRecoveries = 0;
+          reloadPipelineOnResume = true;
+        };
+
+        const recoverAfterLifecycle = () => {
+          if (document.hidden) return;
+          if (reloadPipelineOnResume) {
+            reloadPipelineOnResume = false;
+            try {
+              video.load();
+            } catch {
+              // The visibility sync below will still attempt a clean replay.
+            }
+          }
+          scheduleVisibilitySync();
         };
 
         const beginDrag = (body: FridgeBody, event: PointerEvent) => {
@@ -653,8 +765,13 @@ import { Icon } from "astro-icon/components";
           }, { signal });
         });
 
-        video.addEventListener("ended", finishOpening, { signal });
         replay?.addEventListener("click", () => armOpening(false), { signal });
+        window.addEventListener("pointerdown", () => {
+          if (sceneVisible && !waitingForFreshEntry && !openingStarted && !opened) startOpening();
+        }, { signal });
+        window.addEventListener("wheel", () => {
+          if (sceneVisible && !waitingForFreshEntry && !openingStarted && !opened) startOpening();
+        }, { passive: true, signal });
         window.addEventListener("pointermove", (event) => {
           if (activeDrag) moveDrag(activeDrag, event);
         }, { signal });
@@ -665,13 +782,16 @@ import { Icon } from "astro-icon/components";
         window.addEventListener("blur", cancelActiveDrag, { signal });
         document.addEventListener("visibilitychange", () => {
           if (document.hidden) {
-            cancelActiveDrag();
-            if (openingStarted && !opened) video.pause();
+            interruptForLifecycle();
             return;
           }
-          scheduleVisibilitySync();
+          recoverAfterLifecycle();
         }, { signal });
-        window.addEventListener("pageshow", scheduleVisibilitySync, { signal });
+        window.addEventListener("pagehide", interruptForLifecycle, { signal });
+        window.addEventListener("pageshow", recoverAfterLifecycle, { signal });
+        window.addEventListener("focus", recoverAfterLifecycle, { signal });
+        document.addEventListener("freeze", interruptForLifecycle, { signal });
+        document.addEventListener("resume", recoverAfterLifecycle, { signal });
         window.addEventListener("resize", measureBodies, { passive: true, signal });
 
         if (typeof ResizeObserver === "function") {
@@ -690,6 +810,7 @@ import { Icon } from "astro-icon/components";
             } else {
               waitingForFreshEntry = false;
               stopLoop();
+              if (openingStarted && !opened) resetActiveOpening();
             }
           }, { threshold: [0, 0.12, 0.42], rootMargin: "5% 0px 5%" });
           this.observer.observe(this);
@@ -700,6 +821,8 @@ import { Icon } from "astro-icon/components";
         this.resetScene = () => armOpening(true);
         this.refreshScene = scheduleVisibilitySync;
         signal.addEventListener("abort", () => {
+          playbackGeneration += 1;
+          clearPlaybackTimers();
           clearLaunchTimers();
           stopLoop();
           video.pause();
