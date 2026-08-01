@@ -15,6 +15,16 @@ import { Icon } from "astro-icon/components";
         playsinline
         aria-label="木更打开冰箱并向冰箱内张望"
       ></video>
+      <img
+        class="kisara-fridge-last-frame"
+        src="/themes/kisara/assets/fridge-opening-002-last.webp"
+        alt=""
+        width="1920"
+        height="1080"
+        loading="eager"
+        decoding="async"
+        aria-hidden="true"
+      />
       <span class="kisara-fridge-grade" aria-hidden="true"></span>
     </div>
 
@@ -164,9 +174,14 @@ import { Icon } from "astro-icon/components";
       observer: IntersectionObserver | null = null;
       resizeObserver: ResizeObserver | null = null;
       resetScene: (() => void) | null = null;
+      refreshScene: (() => void) | null = null;
 
       resetPresentation() {
         this.resetScene?.();
+      }
+
+      refreshPresentationAfterVisibility() {
+        this.refreshScene?.();
       }
 
       connectedCallback() {
@@ -186,6 +201,7 @@ import { Icon } from "astro-icon/components";
         let openingStarted = false;
         let opened = false;
         let waitingForFreshEntry = false;
+        let recoveryFrame = 0;
         let animationFrame = 0;
         let lastFrameAt = 0;
         let boundsWidth = 1;
@@ -491,6 +507,62 @@ import { Icon } from "astro-icon/components";
           });
         };
 
+        const measureSceneVisibility = () => {
+          const rect = this.getBoundingClientRect();
+          const viewportHeight = Math.max(1, window.innerHeight);
+          const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
+          return visibleHeight / Math.max(1, Math.min(rect.height, viewportHeight)) >= 0.12;
+        };
+
+        const syncSceneAfterVisibility = () => {
+          const wasVisible = sceneVisible;
+          sceneVisible = measureSceneVisibility();
+          if (!sceneVisible) {
+            waitingForFreshEntry = false;
+            stopLoop();
+            if (openingStarted && !opened) {
+              openingStarted = false;
+              video.pause();
+              try {
+                video.currentTime = 0;
+              } catch {
+                // Metadata can be restored after the page becomes visible.
+              }
+              this.classList.add("is-fridge-resetting");
+              this.classList.remove("is-fridge-playing", "is-fridge-open");
+              if (status) status.textContent = "SEALED";
+            }
+            return;
+          }
+          if (waitingForFreshEntry) {
+            if (!wasVisible) waitingForFreshEntry = false;
+            else return;
+          }
+          if (opened) {
+            ensureLoop();
+            return;
+          }
+          if (openingStarted && video.paused) {
+            openingStarted = false;
+            try {
+              video.currentTime = 0;
+            } catch {
+              // The next play attempt will seek again after metadata returns.
+            }
+          }
+          startOpening();
+        };
+
+        const scheduleVisibilitySync = () => {
+          if (recoveryFrame) window.cancelAnimationFrame(recoveryFrame);
+          recoveryFrame = window.requestAnimationFrame(() => {
+            recoveryFrame = window.requestAnimationFrame(() => {
+              recoveryFrame = 0;
+              if (!signal.aborted) syncSceneAfterVisibility();
+            });
+          });
+        };
+
         const beginDrag = (body: FridgeBody, event: PointerEvent) => {
           if (!body.active || !opened) return;
           event.preventDefault();
@@ -592,8 +664,14 @@ import { Icon } from "astro-icon/components";
         window.addEventListener("pointercancel", cancelActiveDrag, { signal });
         window.addEventListener("blur", cancelActiveDrag, { signal });
         document.addEventListener("visibilitychange", () => {
-          if (document.hidden) cancelActiveDrag();
+          if (document.hidden) {
+            cancelActiveDrag();
+            if (openingStarted && !opened) video.pause();
+            return;
+          }
+          scheduleVisibilitySync();
         }, { signal });
+        window.addEventListener("pageshow", scheduleVisibilitySync, { signal });
         window.addEventListener("resize", measureBodies, { passive: true, signal });
 
         if (typeof ResizeObserver === "function") {
@@ -620,10 +698,13 @@ import { Icon } from "astro-icon/components";
         }
 
         this.resetScene = () => armOpening(true);
+        this.refreshScene = scheduleVisibilitySync;
         signal.addEventListener("abort", () => {
           clearLaunchTimers();
           stopLoop();
           video.pause();
+          if (recoveryFrame) window.cancelAnimationFrame(recoveryFrame);
+          recoveryFrame = 0;
         }, { once: true });
         resetBodies();
         if (!("IntersectionObserver" in window)) startOpening();
@@ -637,6 +718,7 @@ import { Icon } from "astro-icon/components";
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
         this.resetScene = null;
+        this.refreshScene = null;
       }
     }
 

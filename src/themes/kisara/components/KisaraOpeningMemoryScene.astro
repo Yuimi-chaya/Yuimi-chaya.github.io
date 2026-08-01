@@ -1,0 +1,270 @@
+<kisara-opening-memory-scene class="kisara-opening-video-scene is-memory-video-armed" data-kisara-opening-memory>
+  <div class="kisara-opening-video-media" aria-hidden="true">
+    <img
+      class="kisara-opening-video-poster is-first"
+      src="/themes/kisara/assets/opening-memory-001-first.webp"
+      alt=""
+      width="1920"
+      height="1080"
+      loading="eager"
+      decoding="async"
+    />
+    <video
+      class="kisara-opening-video"
+      data-memory-video
+      src="/themes/kisara/assets/opening-memory-001.mp4"
+      poster="/themes/kisara/assets/opening-memory-001-first.webp"
+      preload="auto"
+      muted
+      playsinline
+      disablepictureinpicture
+    ></video>
+    <img
+      class="kisara-opening-video-poster is-last"
+      src="/themes/kisara/assets/opening-memory-001-last.webp"
+      alt=""
+      width="1920"
+      height="1080"
+      loading="eager"
+      decoding="async"
+    />
+    <span class="kisara-opening-video-grade"></span>
+  </div>
+
+  <header class="kisara-opening-video-copy">
+    <p class="kisara-section-index">MEMORY CLAUSE / 001</p>
+    <h2 id="kisara-opening-title">
+      <span>Some memories</span>
+      <em>refuse to stay small.</em>
+    </h2>
+    <p class="kisara-opening-video-lead">后来才明白，记忆不会把事情讲完整。</p>
+    <p class="kisara-opening-video-body">它只会在某个瞬间，把一句话、一束光，或者没能说出口的下一句，突然放得很大。</p>
+    <p class="kisara-opening-video-note">这个博客也一样。先把舍不得丢掉的技术、交互和情绪留在纸面上，等以后再翻回来。</p>
+  </header>
+
+  <p class="kisara-opening-video-clause">ARTICLE 263 / MEMORY MAGNIFICATION</p>
+</kisara-opening-memory-scene>
+
+<script>
+  if (!customElements.get("kisara-opening-memory-scene")) {
+    class KisaraOpeningMemoryScene extends HTMLElement {
+      controller: AbortController | null = null;
+      observer: IntersectionObserver | null = null;
+      resetScene: (() => void) | null = null;
+      refreshScene: (() => void) | null = null;
+
+      resetPresentation() {
+        this.resetScene?.();
+      }
+
+      refreshPresentationAfterVisibility() {
+        this.refreshScene?.();
+      }
+
+      connectedCallback() {
+        this.controller?.abort();
+        const controller = new AbortController();
+        this.controller = controller;
+        const { signal } = controller;
+        const video = this.querySelector<HTMLVideoElement>("[data-memory-video]");
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!video) return;
+
+        let sceneVisible = false;
+        let waitingForFreshEntry = false;
+        let state: "armed" | "playing" | "settled" = "armed";
+        let generation = 0;
+        let recoveryFrame = 0;
+
+        const setVideoTime = (time: number) => {
+          try {
+            video.currentTime = time;
+          } catch {
+            // Metadata can finish loading between lifecycle transitions.
+          }
+        };
+
+        const markFrameReady = () => {
+          if (state !== "playing" || signal.aborted) return;
+          this.classList.add("is-memory-video-frame-ready");
+        };
+
+        const finish = () => {
+          generation += 1;
+          state = "settled";
+          video.pause();
+          if (Number.isFinite(video.duration) && video.duration > 0) {
+            setVideoTime(Math.max(0, video.duration - 0.04));
+          }
+          this.classList.remove(
+            "is-memory-video-armed",
+            "is-memory-video-playing",
+            "is-memory-video-frame-ready"
+          );
+          this.classList.add("is-memory-video-settled");
+        };
+
+        const play = async () => {
+          if (
+            document.hidden
+            || !sceneVisible
+            || waitingForFreshEntry
+            || state === "playing"
+            || state === "settled"
+          ) return;
+          if (reducedMotion) {
+            finish();
+            return;
+          }
+
+          const playGeneration = ++generation;
+          state = "playing";
+          video.pause();
+          setVideoTime(0);
+          this.classList.remove("is-memory-video-armed", "is-memory-video-settled");
+          this.classList.add("is-memory-video-playing");
+          this.classList.remove("is-memory-video-frame-ready");
+
+          try {
+            await video.play();
+            if (signal.aborted || playGeneration !== generation || state !== "playing") return;
+            if ("requestVideoFrameCallback" in video) {
+              video.requestVideoFrameCallback(() => markFrameReady());
+            } else {
+              markFrameReady();
+            }
+          } catch {
+            if (signal.aborted || playGeneration !== generation) return;
+            state = "armed";
+            this.classList.remove("is-memory-video-playing", "is-memory-video-frame-ready");
+            this.classList.add("is-memory-video-armed");
+          }
+        };
+
+        const arm = (waitForExit = false) => {
+          generation += 1;
+          state = "armed";
+          waitingForFreshEntry = waitForExit && sceneVisible;
+          video.pause();
+          setVideoTime(0);
+          this.classList.remove(
+            "is-memory-video-playing",
+            "is-memory-video-frame-ready",
+            "is-memory-video-settled"
+          );
+          this.classList.add("is-memory-video-armed");
+          requestAnimationFrame(() => {
+            if (!signal.aborted && sceneVisible && !waitingForFreshEntry) void play();
+          });
+        };
+
+        const measureVisibility = () => {
+          const rect = this.getBoundingClientRect();
+          const viewportHeight = Math.max(1, window.innerHeight);
+          const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
+          return visibleHeight / Math.max(1, Math.min(rect.height, viewportHeight)) >= 0.16;
+        };
+
+        const syncVisibility = () => {
+          const wasVisible = sceneVisible;
+          sceneVisible = measureVisibility();
+          if (!sceneVisible) {
+            waitingForFreshEntry = false;
+            if (state === "playing") {
+              state = "armed";
+              generation += 1;
+              video.pause();
+              setVideoTime(0);
+              this.classList.remove("is-memory-video-playing", "is-memory-video-frame-ready");
+              this.classList.add("is-memory-video-armed");
+            }
+            return;
+          }
+          if (waitingForFreshEntry) {
+            if (!wasVisible) waitingForFreshEntry = false;
+            else return;
+          }
+          if (state === "playing" && video.paused) {
+            state = "armed";
+            generation += 1;
+            setVideoTime(0);
+            this.classList.remove("is-memory-video-playing", "is-memory-video-frame-ready");
+            this.classList.add("is-memory-video-armed");
+          }
+          if (state === "armed") void play();
+        };
+
+        const scheduleVisibilitySync = () => {
+          if (recoveryFrame) window.cancelAnimationFrame(recoveryFrame);
+          recoveryFrame = window.requestAnimationFrame(() => {
+            recoveryFrame = window.requestAnimationFrame(() => {
+              recoveryFrame = 0;
+              if (!signal.aborted) syncVisibility();
+            });
+          });
+        };
+
+        video.addEventListener("ended", finish, { signal });
+        video.addEventListener("playing", markFrameReady, { signal });
+        window.addEventListener("pointerdown", () => {
+          if (sceneVisible && state === "armed") void play();
+        }, { signal });
+        window.addEventListener("wheel", () => {
+          if (sceneVisible && state === "armed") void play();
+        }, { passive: true, signal });
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) {
+            if (state === "playing") {
+              state = "armed";
+              generation += 1;
+              video.pause();
+              setVideoTime(0);
+              this.classList.remove("is-memory-video-playing", "is-memory-video-frame-ready");
+              this.classList.add("is-memory-video-armed");
+            }
+            return;
+          }
+          scheduleVisibilitySync();
+        }, { signal });
+        window.addEventListener("pageshow", scheduleVisibilitySync, { signal });
+
+        if ("IntersectionObserver" in window) {
+          this.observer = new IntersectionObserver((entries) => {
+            const entry = entries[entries.length - 1];
+            sceneVisible = Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.16);
+            if (!sceneVisible) {
+              waitingForFreshEntry = false;
+              if (state === "playing") arm(false);
+              return;
+            }
+            if (!waitingForFreshEntry && state === "armed") void play();
+          }, { threshold: [0, 0.16, 0.42], rootMargin: "4% 0px 4%" });
+          this.observer.observe(this);
+        } else {
+          sceneVisible = true;
+          void play();
+        }
+
+        this.resetScene = () => arm(true);
+        this.refreshScene = scheduleVisibilitySync;
+        signal.addEventListener("abort", () => {
+          generation += 1;
+          video.pause();
+          if (recoveryFrame) window.cancelAnimationFrame(recoveryFrame);
+          recoveryFrame = 0;
+        }, { once: true });
+      }
+
+      disconnectedCallback() {
+        this.controller?.abort();
+        this.controller = null;
+        this.observer?.disconnect();
+        this.observer = null;
+        this.resetScene = null;
+        this.refreshScene = null;
+      }
+    }
+
+    customElements.define("kisara-opening-memory-scene", KisaraOpeningMemoryScene);
+  }
+</script>
