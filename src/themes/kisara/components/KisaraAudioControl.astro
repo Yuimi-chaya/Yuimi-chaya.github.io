@@ -569,6 +569,31 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
 
     const stepTrack = (direction) => {
       autoplayBlocked = false;
+      const currentTrack = activeTrack();
+      const currentIsConsumableSecret = isSecretTrack(currentTrack)
+        && currentTrack?.consumeAfterPlayback === true;
+      const requestedTrack = tracks[(trackIndex + direction + tracks.length) % tracks.length];
+
+      if (currentIsConsumableSecret && requestedTrack?.id) {
+        const shouldPlay = secretSession.playbackMode === "interrupt"
+          ? secretSession.normalEnabled !== false
+          : enabled;
+        const consumedId = currentTrack.id;
+        consumeSecretTrack(consumedId);
+        secretSession.playbackMode = "playlist";
+        enabled = shouldPlay;
+        const nextIndex = tracks.findIndex((track) => track.id === requestedTrack.id);
+        selectTrack(nextIndex >= 0 ? nextIndex : 0, {
+          time: 0,
+          autoplay: shouldPlay,
+          secretMode: "playlist"
+        });
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio-consumed", {
+          detail: { trackId: consumedId, reason: "manual-skip" }
+        }));
+        return;
+      }
+
       if (isSecretTrack() && secretSession.playbackMode === "interrupt") {
         enabled = secretSession.normalEnabled !== false;
       }
@@ -586,6 +611,19 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       );
       const preservedIndex = tracks.findIndex((track) => track.id === activeId);
       if (preservedIndex >= 0) trackIndex = preservedIndex;
+    };
+
+    const consumeSecretTrack = (trackId) => {
+      if (!secretTrackIds.has(trackId) || !unlockedIds.has(trackId)) return false;
+      unlockedIds.delete(trackId);
+      secretSession.unlockedIds = [...unlockedIds];
+      secretSession.unlocked = unlockedIds.size > 0;
+      secretSession.active = false;
+      secretSession.activeTrackId = "";
+      secretSession.secretTime = 0;
+      secretSession.playbackMode = "playlist";
+      syncUnlockedSecretTracks();
+      return true;
     };
 
     const unlockSecretTrack = (event) => {
@@ -749,6 +787,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
         && endedTrack?.consumeAfterPlayback === true
       ) {
         const wasInterrupt = secretSession.playbackMode === "interrupt";
+        const consumedId = endedTrack.id;
         const nextTrackId = wasInterrupt
           ? secretSession.normalTrackId
           : tracks[(trackIndex + 1) % tracks.length]?.id ?? baseTracks[0]?.id;
@@ -756,14 +795,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
           ? Math.max(0, Number(secretSession.normalTime) || 0)
           : 0;
         const shouldResume = wasInterrupt ? secretSession.normalEnabled !== false : true;
-        unlockedIds.delete(endedTrack.id);
-        secretSession.unlockedIds = [...unlockedIds];
-        secretSession.unlocked = unlockedIds.size > 0;
-        secretSession.active = false;
-        secretSession.activeTrackId = "";
-        secretSession.secretTime = 0;
-        secretSession.playbackMode = "playlist";
-        syncUnlockedSecretTracks();
+        consumeSecretTrack(consumedId);
         const nextIndex = tracks.findIndex((track) => track.id === nextTrackId);
         enabled = shouldResume;
         selectTrack(nextIndex >= 0 ? nextIndex : 0, {
@@ -773,7 +805,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
           secretMode: "playlist"
         });
         window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio-consumed", {
-          detail: { trackId: endedTrack.id }
+          detail: { trackId: consumedId, reason: "ended" }
         }));
         return;
       }
