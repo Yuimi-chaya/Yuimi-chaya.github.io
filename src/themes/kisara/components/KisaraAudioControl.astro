@@ -35,6 +35,13 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     title={`播放主题音乐《${initialTrack.title}》`}
   >
     <span class="kisara-audio-emblem" aria-hidden="true">
+      <img
+        class="kisara-audio-memory-image"
+        src="/themes/kisara/assets/memory-return-player.webp"
+        alt=""
+        loading="eager"
+        decoding="async"
+      />
       <span class="kisara-audio-icon kisara-audio-icon-play"></span>
       <span class="kisara-audio-icon kisara-audio-icon-pause"></span>
       <span class="kisara-audio-bars"><i></i><i></i><i></i><i></i><i></i></span>
@@ -106,15 +113,20 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
             : [];
         const unlockedIds = storedUnlockedIds.filter((id) => persistentSecretTrackIds.has(id));
         const activeTrackId = unlockedIds.includes(stored.activeTrackId) ? stored.activeTrackId : "";
-        storedSecretSession = {
-          ...stored,
-          unlockedIds,
-          unlocked: unlockedIds.length > 0,
-          active: Boolean(stored.active && activeTrackId),
-          activeTrackId,
-          secretTime: activeTrackId ? Math.max(0, Number(stored.secretTime) || 0) : 0
-        };
-        sessionStorage.setItem(secretSessionKey, JSON.stringify(storedSecretSession));
+        if (unlockedIds.length > 0) {
+          storedSecretSession = {
+            ...stored,
+            unlockedIds,
+            unlocked: true,
+            active: Boolean(stored.active && activeTrackId),
+            activeTrackId,
+            playbackMode: activeTrackId && stored.playbackMode === "interrupt" ? "interrupt" : "playlist",
+            secretTime: activeTrackId ? Math.max(0, Number(stored.secretTime) || 0) : 0
+          };
+          sessionStorage.setItem(secretSessionKey, JSON.stringify(storedSecretSession));
+        } else {
+          sessionStorage.removeItem(secretSessionKey);
+        }
       }
     } catch {}
     const secretSession = window.__yuimiKisaraSecretAudioSession ?? {
@@ -147,9 +159,12 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     secretSession.unlocked = unlockedIds.size > 0;
     secretSession.playbackMode = secretSession.playbackMode === "interrupt" ? "interrupt" : "playlist";
     window.__yuimiKisaraSecretAudioSession = secretSession;
+    const orderedUnlockedSecretTracks = () => [...unlockedIds]
+      .map((id) => secretTracks.find((track) => track.id === id))
+      .filter(Boolean);
     const tracks = [
       ...baseTracks,
-      ...secretTracks.filter((track) => unlockedIds.has(track.id))
+      ...orderedUnlockedSecretTracks()
     ];
     const storageKey = audioConfig.storageKey;
     const legacyStorageKey = audioConfig.legacyStorageKey;
@@ -271,17 +286,21 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       secretSession.secretTime = secretTime;
       if (secretActive) secretSession.secretEnabled = enabled;
       try {
-        sessionStorage.setItem(secretSessionKey, JSON.stringify({
-          unlockedIds: persistentUnlockedIds,
-          active: persistentSecretActive,
-          activeTrackId: persistentSecretActive ? track.id : "",
-          playbackMode: secretSession.playbackMode,
-          normalTrackId: secretSession.normalTrackId,
-          normalTime: secretSession.normalTime,
-          normalEnabled: secretSession.normalEnabled,
-          secretEnabled: secretSession.secretEnabled,
-          secretTime: persistentSecretActive ? secretTime : 0
-        }));
+        if (persistentUnlockedIds.length > 0) {
+          sessionStorage.setItem(secretSessionKey, JSON.stringify({
+            unlockedIds: persistentUnlockedIds,
+            active: persistentSecretActive,
+            activeTrackId: persistentSecretActive ? track.id : "",
+            playbackMode: persistentSecretActive ? secretSession.playbackMode : "playlist",
+            normalTrackId: secretSession.normalTrackId,
+            normalTime: secretSession.normalTime,
+            normalEnabled: secretSession.normalEnabled,
+            secretEnabled: secretSession.secretEnabled,
+            secretTime: persistentSecretActive ? secretTime : 0
+          }));
+        } else {
+          sessionStorage.removeItem(secretSessionKey);
+        }
         lastSecretStoredTime = secretTime;
       } catch {}
     };
@@ -559,7 +578,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       tracks.splice(
         baseTracks.length,
         tracks.length - baseTracks.length,
-        ...secretTracks.filter((track) => unlockedIds.has(track.id))
+        ...orderedUnlockedSecretTracks()
       );
       const preservedIndex = tracks.findIndex((track) => track.id === activeId);
       if (preservedIndex >= 0) trackIndex = preservedIndex;
@@ -715,24 +734,31 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       if (
         isSecretTrack(endedTrack)
         && endedTrack?.consumeAfterPlayback === true
-        && secretSession.playbackMode === "playlist"
       ) {
-        const nextTrackId = tracks[(trackIndex + 1) % tracks.length]?.id ?? baseTracks[0]?.id;
+        const wasInterrupt = secretSession.playbackMode === "interrupt";
+        const nextTrackId = wasInterrupt
+          ? secretSession.normalTrackId
+          : tracks[(trackIndex + 1) % tracks.length]?.id ?? baseTracks[0]?.id;
+        const nextTrackTime = wasInterrupt
+          ? Math.max(0, Number(secretSession.normalTime) || 0)
+          : 0;
+        const shouldResume = wasInterrupt ? secretSession.normalEnabled !== false : true;
         unlockedIds.delete(endedTrack.id);
         secretSession.unlockedIds = [...unlockedIds];
         secretSession.unlocked = unlockedIds.size > 0;
         secretSession.active = false;
         secretSession.activeTrackId = "";
         secretSession.secretTime = 0;
+        secretSession.playbackMode = "playlist";
+        syncUnlockedSecretTracks();
         const nextIndex = tracks.findIndex((track) => track.id === nextTrackId);
+        enabled = shouldResume;
         selectTrack(nextIndex >= 0 ? nextIndex : 0, {
-          time: 0,
-          autoplay: true,
+          time: nextTrackTime,
+          autoplay: shouldResume,
+          persist: !wasInterrupt,
           secretMode: "playlist"
         });
-        syncUnlockedSecretTracks();
-        updateTrackUi();
-        persistSecretSession();
         window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio-consumed", {
           detail: { trackId: endedTrack.id }
         }));

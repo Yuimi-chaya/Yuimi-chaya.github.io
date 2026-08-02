@@ -23,7 +23,8 @@ export const kisaraSecretAudioTracks = [
     title: "ココロスペアキー",
     src: "/themes/kisara/audio/kokoro-spare-key.mp3",
     variant: "demon",
-    persistAcrossReload: true
+    persistAcrossReload: false,
+    consumeAfterPlayback: true
   },
   {
     id: "kioku-kikan",

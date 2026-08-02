@@ -243,15 +243,20 @@ const themedNotFoundRedirectScript = `(() => {
                 : [];
             const unlockedIds = storedUnlockedIds.filter((id) => persistentSecretIds.has(id));
             const activeTrackId = unlockedIds.includes(stored.activeTrackId) ? stored.activeTrackId : "";
-            storedSecretSession = {
-              ...stored,
-              unlockedIds,
-              unlocked: unlockedIds.length > 0,
-              active: Boolean(stored.active && activeTrackId),
-              activeTrackId,
-              secretTime: activeTrackId ? Math.max(0, Number(stored.secretTime) || 0) : 0
-            };
-            sessionStorage.setItem(audioConfig.secretSessionKey, JSON.stringify(storedSecretSession));
+            if (unlockedIds.length > 0) {
+              storedSecretSession = {
+                ...stored,
+                unlockedIds,
+                unlocked: true,
+                active: Boolean(stored.active && activeTrackId),
+                activeTrackId,
+                playbackMode: activeTrackId && stored.playbackMode === "interrupt" ? "interrupt" : "playlist",
+                secretTime: activeTrackId ? Math.max(0, Number(stored.secretTime) || 0) : 0
+              };
+              sessionStorage.setItem(audioConfig.secretSessionKey, JSON.stringify(storedSecretSession));
+            } else {
+              sessionStorage.removeItem(audioConfig.secretSessionKey);
+            }
           }
         } catch {}
         if (storedSecretSession) window.__yuimiKisaraSecretAudioSession = storedSecretSession;
