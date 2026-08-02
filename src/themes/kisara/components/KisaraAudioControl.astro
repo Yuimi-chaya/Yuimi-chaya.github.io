@@ -159,6 +159,10 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     secretSession.unlocked = unlockedIds.size > 0;
     secretSession.playbackMode = secretSession.playbackMode === "interrupt" ? "interrupt" : "playlist";
     window.__yuimiKisaraSecretAudioSession = secretSession;
+    const acceptedSecretGrantIds = window.__yuimiKisaraAcceptedSecretAudioGrants instanceof Set
+      ? window.__yuimiKisaraAcceptedSecretAudioGrants
+      : new Set();
+    window.__yuimiKisaraAcceptedSecretAudioGrants = acceptedSecretGrantIds;
     const orderedUnlockedSecretTracks = () => [...unlockedIds]
       .map((id) => secretTracks.find((track) => track.id === id))
       .filter(Boolean);
@@ -591,6 +595,15 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       const requestedId = typeof detail.trackId === "string" ? detail.trackId : legacySecretTrack?.id;
       const secretTrack = secretTracks.find((track) => track.id === requestedId);
       if (!secretTrack) return;
+      const grantId = typeof detail.grantId === "string" ? detail.grantId.trim() : "";
+      if (grantId && acceptedSecretGrantIds.has(grantId)) return;
+      if (grantId) {
+        acceptedSecretGrantIds.add(grantId);
+        if (acceptedSecretGrantIds.size > 32) {
+          const oldestGrantId = acceptedSecretGrantIds.values().next().value;
+          if (oldestGrantId) acceptedSecretGrantIds.delete(oldestGrantId);
+        }
+      }
       const shouldPlayNow = detail.autoplay === true;
       if (!unlockedIds.has(secretTrack.id)) {
         unlockedIds.add(secretTrack.id);

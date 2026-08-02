@@ -469,7 +469,7 @@ const gateStyle = [
                 <span aria-hidden="true"></span>
                 <strong>「并肩留下的片刻」</strong>
                 <blockquote>照片没有证明过去从未改变，只证明有人认真地把想留下的人，贴回了记忆里。</blockquote>
-                <div class="kisara-event-reward-actions">
+                <div class="kisara-event-reward-actions" data-event-reward-actions>
                   <button type="button" data-event-secret-play><Icon name="tabler:player-play" />立即播放?!</button>
                   <button class="is-secondary" type="button" data-event-secret-save><Icon name="tabler:archive" />先收下吧</button>
                 </div>
@@ -506,6 +506,7 @@ const gateStyle = [
           const closeButton = this.querySelector<HTMLButtonElement>("[data-event-close]");
           const playSecretButton = this.querySelector<HTMLButtonElement>("[data-event-secret-play]");
           const saveSecretButton = this.querySelector<HTMLButtonElement>("[data-event-secret-save]");
+          const rewardActions = this.querySelector<HTMLElement>("[data-event-reward-actions]");
           const progress = this.querySelector<HTMLElement>("[data-event-progress]");
           const status = this.querySelector<HTMLElement>("[data-event-status]");
           const command = this.querySelector<HTMLElement>("[data-event-command]");
@@ -517,6 +518,23 @@ const gateStyle = [
 
           if (!hotspot || !clue || !reward || !closeButton || !playSecretButton || !saveSecretButton) return;
           this.reward = reward;
+
+          let secretGrantCycle = 0;
+          let secretGrantId = "";
+          let secretGranted = false;
+
+          const setSecretGrantState = (claimed: boolean) => {
+            secretGranted = claimed;
+            playSecretButton.disabled = claimed;
+            saveSecretButton.disabled = claimed;
+            rewardActions?.toggleAttribute("data-claimed", claimed);
+          };
+
+          const beginSecretGrantCycle = () => {
+            secretGrantCycle += 1;
+            secretGrantId = `home-003-${Date.now().toString(36)}-${secretGrantCycle.toString(36)}`;
+            setSecretGrantState(false);
+          };
 
           const copy = {
             idle: {
@@ -901,9 +919,14 @@ const gateStyle = [
           clue.addEventListener("click", openReward, { signal });
           closeButton.addEventListener("click", closeReward, { signal });
           const completeReward = (autoplay: boolean) => {
+            if (secretGranted) {
+              closeReward();
+              return;
+            }
+            setSecretGrantState(true);
             setState("solved");
             window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio", {
-              detail: { trackId: "kokoro-spare-key", autoplay }
+              detail: { trackId: "kokoro-spare-key", autoplay, grantId: secretGrantId }
             }));
             closeReward();
           };
@@ -917,6 +940,7 @@ const gateStyle = [
 
           this.resetScene = () => {
             closeReward();
+            beginSecretGrantCycle();
             setState("idle");
             armCameraFocus();
           };
@@ -926,6 +950,7 @@ const gateStyle = [
             cancelCameraPan();
             cancelCameraSearch();
           }, { once: true });
+          beginSecretGrantCycle();
           setState("idle");
           armCameraFocus();
         }
