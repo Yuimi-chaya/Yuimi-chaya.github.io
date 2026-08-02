@@ -75,11 +75,97 @@
         let state: "armed" | "playing" | "settled" = "armed";
         let generation = 0;
         let recoveryFrame = 0;
+        let copySyncFrame = 0;
         let playbackWatchdog = 0;
         let playbackRetryTimer = 0;
         let stallRecoveries = 0;
         let reloadPipelineOnResume = false;
         let playbackEndedHandler: (() => void) | null = null;
+
+        const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+        const easePhase = (value: number, start: number, end: number) => {
+          const progress = clamp((value - start) / Math.max(0.001, end - start));
+          return progress * progress * (3 - 2 * progress);
+        };
+
+        const setCopyTimeline = (mediaTime = 0, complete = false) => {
+          const duration = Number.isFinite(video.duration) && video.duration > 0
+            ? video.duration
+            : 1.584917;
+          const timeline = complete ? 1 : clamp(mediaTime / duration);
+          const lift = easePhase(timeline, 0.42, 0.65);
+          const magnify = easePhase(timeline, 0.65, 0.97);
+          const compact = window.innerWidth <= 620;
+          const medium = !compact && window.innerWidth <= 900;
+          const finalScale = compact ? 0.8 : 0.88;
+          const initialScale = compact ? 0.62 : 0.69;
+          const initialOffset = compact ? 34 : medium ? 62 : 86;
+          const ruleProgress = easePhase(timeline, 0.74, 0.99);
+
+          this.style.setProperty(
+            "--kisara-opening-copy-scale",
+            (initialScale + (finalScale - initialScale) * magnify).toFixed(4)
+          );
+          this.style.setProperty(
+            "--kisara-opening-copy-offset-y",
+            `${(initialOffset * (1 - lift)).toFixed(2)}px`
+          );
+          this.style.setProperty(
+            "--kisara-opening-index-opacity",
+            easePhase(timeline, 0.36, 0.54).toFixed(4)
+          );
+          this.style.setProperty(
+            "--kisara-opening-title-opacity",
+            easePhase(timeline, 0.42, 0.62).toFixed(4)
+          );
+          this.style.setProperty(
+            "--kisara-opening-accent-opacity",
+            easePhase(timeline, 0.5, 0.72).toFixed(4)
+          );
+          this.style.setProperty(
+            "--kisara-opening-lead-opacity",
+            easePhase(timeline, 0.54, 0.76).toFixed(4)
+          );
+          this.style.setProperty(
+            "--kisara-opening-body-opacity",
+            (0.96 * easePhase(timeline, 0.62, 0.88)).toFixed(4)
+          );
+          this.style.setProperty(
+            "--kisara-opening-note-opacity",
+            (0.9 * easePhase(timeline, 0.7, 0.98)).toFixed(4)
+          );
+          this.style.setProperty(
+            "--kisara-opening-clause-opacity",
+            (0.72 * easePhase(timeline, 0.76, 1)).toFixed(4)
+          );
+          this.style.setProperty("--kisara-opening-rule-opacity", ruleProgress.toFixed(4));
+          this.style.setProperty(
+            "--kisara-opening-rule-scale",
+            (0.18 + 0.82 * ruleProgress).toFixed(4)
+          );
+        };
+
+        const stopCopySync = () => {
+          if (copySyncFrame) window.cancelAnimationFrame(copySyncFrame);
+          copySyncFrame = 0;
+        };
+
+        const startCopySync = (playGeneration: number) => {
+          stopCopySync();
+          const sync = () => {
+            if (
+              signal.aborted
+              || playGeneration !== generation
+              || state !== "playing"
+            ) {
+              copySyncFrame = 0;
+              return;
+            }
+            setCopyTimeline(video.currentTime);
+            copySyncFrame = window.requestAnimationFrame(sync);
+          };
+          copySyncFrame = window.requestAnimationFrame(sync);
+        };
 
         const setVideoTime = (time: number) => {
           try {
@@ -95,6 +181,7 @@
         };
 
         const clearPlaybackTimers = () => {
+          stopCopySync();
           if (playbackWatchdog) window.clearTimeout(playbackWatchdog);
           if (playbackRetryTimer) window.clearTimeout(playbackRetryTimer);
           if (playbackEndedHandler) video.removeEventListener("ended", playbackEndedHandler);
@@ -107,6 +194,7 @@
           state = "armed";
           video.pause();
           setVideoTime(0);
+          setCopyTimeline(0);
           this.classList.remove(
             "is-memory-video-playing",
             "is-memory-video-frame-ready",
@@ -138,6 +226,7 @@
           if (Number.isFinite(video.duration) && video.duration > 0) {
             setVideoTime(Math.max(0, video.duration - 0.04));
           }
+          setCopyTimeline(video.duration, true);
           this.classList.remove(
             "is-memory-video-armed",
             "is-memory-video-playing",
@@ -236,6 +325,7 @@
           try {
             await video.play();
             if (signal.aborted || playGeneration !== generation || state !== "playing") return;
+            startCopySync(playGeneration);
             if ("requestVideoFrameCallback" in video) {
               video.requestVideoFrameCallback(() => markFrameReady());
             } else {
@@ -319,8 +409,12 @@
         video.addEventListener("timeupdate", () => {
           if (state === "playing" && video.currentTime > 0.025) {
             markFrameReady();
+            setCopyTimeline(video.currentTime);
           }
         }, { signal });
+        window.addEventListener("resize", () => {
+          setCopyTimeline(video.currentTime, state === "settled");
+        }, { passive: true, signal });
         window.addEventListener("pointerdown", () => {
           if (sceneVisible && state === "armed") void play();
         }, { signal });
