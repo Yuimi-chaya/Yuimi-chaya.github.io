@@ -161,6 +161,14 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       blocked: "READY / PLAY",
       error: "OFFLINE"
     };
+    const memoryStateLabels = {
+      loading: "MEMORY ALIGNING",
+      playing: "MEMORY RETURNING",
+      paused: "MEMORY HELD",
+      memory: "MEMORY / HOLD",
+      blocked: "MEMORY READY",
+      error: "MEMORY LOST"
+    };
     let enabled = true;
     let trackIndex = 0;
     let restoreTime = 0;
@@ -304,12 +312,15 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       if (previous instanceof HTMLButtonElement) previous.disabled = suspended;
       if (next instanceof HTMLButtonElement) next.disabled = suspended;
       if (status) {
+        const labels = track.variant === "memory" ? memoryStateLabels : stateLabels;
         if (isSecretTrack(track)) {
           const unlockedSecrets = tracks.slice(baseTracks.length);
           const secretPosition = unlockedSecrets.findIndex((candidate) => candidate.id === track.id) + 1;
           const position = String(Math.max(1, secretPosition)).padStart(2, "0");
           const total = String(Math.max(1, unlockedSecrets.length)).padStart(2, "0");
-          status.textContent = `SECRET ${position} / ${total} · ${stateLabels[state] ?? stateLabels.paused}`;
+          status.textContent = track.variant === "memory"
+            ? labels[state] ?? labels.paused
+            : `SECRET ${position} / ${total} · ${labels[state] ?? labels.paused}`;
         } else {
           const position = String(trackIndex + 1).padStart(2, "0");
           const total = String(baseTracks.length).padStart(2, "0");
