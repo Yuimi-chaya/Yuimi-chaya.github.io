@@ -177,13 +177,12 @@ const kitchenCatalog = {
     </div>
     <div class="kisara-works-steam" aria-hidden="true"><i></i><i></i><i></i></div>
 
-    <div class="kisara-works-recipe-script">
-      <p class="kisara-works-script-meta"><span>MIS EN PLACE / 04</span><em>{String(kitchenIngredients.length).padStart(2, "0")} INGREDIENTS</em></p>
-      <h1 id="kisara-works-title">切到能用为止。</h1>
-      <p class="kisara-works-script-line"><span>眼泪算调味，</span><strong>成品才算交付。</strong></p>
-      <p class="kisara-works-script-note">场景、插件、模型、页面和那些暂时说不清的机关，都先当成食材处理。挑一份，它会直接落到下面的砧板上。</p>
+    <div class="kisara-works-editorial">
+      <p class="kisara-works-editorial-meta"><span>04</span><em>KISARA KITCHEN / WORKS</em></p>
+      <h1 id="kisara-works-title"><span>WORKS,</span><em>one layer at a time.</em></h1>
+      <p class="kisara-works-editorial-lead">Scenes, plugins, models and pages all begin as loose ingredients. Pick one and send it to the board.</p>
 
-      <div class="kisara-works-prep-scatter" data-works-prep-scatter aria-label="选择一份技术食材送上砧板">
+      <div class="kisara-works-prep-rail" data-works-prep-scatter aria-label="选择一份技术食材送上砧板">
         {kitchenIngredients.map((ingredient, index) => (
           <button
             type="button"
@@ -192,17 +191,18 @@ const kitchenCatalog = {
             data-works-prep-project={ingredient.project.title}
             style={`--prep-order: ${index}; --prep-color: ${ingredient.color};`}
           >
-            <span>{ingredient.code}</span><small>{ingredient.name}</small>
+            <i aria-hidden="true"></i><span>{ingredient.code}</span><small>{ingredient.english}</small>
           </button>
         ))}
       </div>
 
-      <p class="kisara-works-prep-response" aria-live="polite">
+      <p class="kisara-works-editorial-response" aria-live="polite">
         <span data-works-prep-response>PREP TABLE / WAITING</span>
-        <strong data-works-prep-project-output>点一种，先送上砧板。</strong>
+        <strong data-works-prep-project-output>SELECT AN INGREDIENT</strong>
       </p>
     </div>
 
+    <div class="kisara-works-title-cut" aria-hidden="true"><i></i><i></i></div>
     <div class="kisara-works-onion-rings" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="kisara-works-cut-trail" aria-hidden="true"><span></span><i></i><i></i><i></i><i></i></div>
     <a class="kisara-works-intro-jump" href="#kisara-kitchen-lab">
@@ -1197,7 +1197,7 @@ const kitchenCatalog = {
         if (!(hero instanceof HTMLElement)) return;
         hero.dataset.prepFocus = "idle";
         if (heroPrepResponse) heroPrepResponse.textContent = "PREP TABLE / WAITING";
-        if (heroPrepProject) heroPrepProject.textContent = "点一种，先送上砧板。";
+        if (heroPrepProject) heroPrepProject.textContent = "SELECT AN INGREDIENT";
       }, { signal });
 
       root.dataset.kitchenReady = "true";

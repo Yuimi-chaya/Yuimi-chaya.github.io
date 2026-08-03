@@ -33,6 +33,9 @@ const gamePresentation = {
     status: "FLIGHT PATH / OPEN"
   }
 } as const;
+
+const gamePanicCharacters = Array.from("まだ送ってない。");
+const gameCorrectionCharacters = Array.from("ちょっと待って、説明を——");
 ---
 
 <KisaraLayout title="Games | Kisara" description="Yuimi Lab 的小游戏收藏。" stylesheets={[gamesStylesheet]}>
@@ -66,10 +69,18 @@ const gamePresentation = {
         <i></i><i></i><i></i><i></i><i></i>
       </div>
 
-      <div class="kisara-game-draft">
-        <p class="kisara-game-draft-meta"><span>16:32:08</span><em>DRAFT / NOT SENT</em></p>
-        <h1 id="kisara-game-hero-title"><span lang="ja">まだ送ってない。</span><small>NOT SENT YET</small></h1>
-        <p class="kisara-game-draft-line"><span lang="ja">ちょっと待って、説明を——</span><i aria-hidden="true"></i></p>
+      <div class="kisara-game-type-storm">
+        <p class="kisara-game-type-meta"><span>16:32:08</span><em>DRAFT / NOT SENT</em></p>
+        <h1 id="kisara-game-hero-title" aria-label="まだ送ってない。">
+          <span class="kisara-game-type-main" lang="ja" aria-hidden="true">
+            {gamePanicCharacters.map((character, index) => <i style={`--type-order: ${index};`}>{character}</i>)}
+          </span>
+          <small aria-hidden="true"><b>NOT</b><b>SENT</b><b>YET</b></small>
+        </h1>
+        <p class="kisara-game-type-correction" lang="ja" aria-hidden="true">
+          {gameCorrectionCharacters.map((character, index) => <span style={`--correction-order: ${index};`}>{character}</span>)}
+        </p>
+        <div class="kisara-game-type-stamps" aria-hidden="true"><span>WAIT</span><span>DELETE</span><span>EXPLAIN</span><span>FAILED</span></div>
         <div class="kisara-game-send-state"><strong>SEND FAILED</strong><span>GESTURE INPUT &gt; MESSAGE INPUT</span></div>
       </div>
 

@@ -52,9 +52,9 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
     </div>
 
     <div class="kisara-blog-index-spine">
-      <p class="kisara-blog-file-code"><span>FILE 03</span><strong>FIELD NOTES</strong></p>
-      <h1 id="kisara-blog-hero-title"><span>四个人，</span><em>把同一段关系<br />记成了不同版本。</em></h1>
-      <p class="kisara-blog-index-lead">这里也一样。开发、部署、兴趣和偶尔跑偏的念头，不急着整理成标准答案，只把当时看见的那一面留下来。</p>
+      <p class="kisara-blog-file-code"><span>03</span><strong>TRANSMISSION ARCHIVE</strong></p>
+      <h1 id="kisara-blog-hero-title"><span>Every signal</span><em>leaves a trace.</em></h1>
+      <p class="kisara-blog-index-lead">开发记录、部署笔记和兴趣电波。这里不负责把灵感整理得太规矩，只负责让它们还能被再次找到。</p>
       <p class="kisara-blog-index-date"><span>LAST DEVELOPED</span><time>{latestPostDate}</time></p>
     </div>
 
@@ -265,10 +265,13 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         hero.dataset.castFocus = "all";
         lockedCastFocus = "all";
         const images = Array.from(hero.querySelectorAll(".kisara-blog-scene-bg, .kisara-blog-character"));
-        await Promise.all(images.map((image) => {
-          if (!(image instanceof HTMLImageElement) || image.complete) return Promise.resolve();
-          return image.decode().catch(() => undefined);
-        }));
+        await Promise.race([
+          Promise.all(images.map((image) => {
+            if (!(image instanceof HTMLImageElement) || image.complete) return Promise.resolve();
+            return image.decode().catch(() => undefined);
+          })),
+          new Promise((resolve) => window.setTimeout(resolve, 420))
+        ]);
         if (signal.aborted) return;
         void hero.offsetWidth;
         requestAnimationFrame(() => {
