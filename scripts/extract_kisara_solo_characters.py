@@ -96,7 +96,7 @@ def write_cv(path: Path, image: np.ndarray) -> None:
     ok, encoded = cv2.imencode(path.suffix, image)
     if not ok:
         raise ValueError(f"Unable to encode {path}")
-    encoded.tofile(str(path))
+    path.write_bytes(encoded.tobytes())
 
 
 def parse_hex(value: str) -> np.ndarray:
@@ -630,6 +630,128 @@ def repair_internal_artifacts(
     return repaired, stats
 
 
+def refine_reported_artifacts(
+    name: str,
+    rgba: np.ndarray,
+    original_source_bgr: np.ndarray,
+) -> tuple[np.ndarray, dict[str, int]]:
+    repaired = rgba.copy()
+    source_rgb = cv2.cvtColor(original_source_bgr, cv2.COLOR_BGR2RGB)
+    stats: dict[str, int] = {}
+
+    if name == "kisara":
+        roi = np.zeros(repaired.shape[:2], dtype=bool)
+        roi[190:440, 840:1090] = True
+        key_rgb = np.array([0.0, 240.0, 90.0], dtype=np.float32)
+        distance = np.linalg.norm(source_rgb.astype(np.float32) - key_rgb[None, None, :], axis=2)
+        chroma_alpha = smoothstep(24.0, 66.0, distance) * 255.0
+        previous_alpha = repaired[..., 3].copy()
+        repaired[..., 3][roi] = np.minimum(repaired[..., 3][roi], chroma_alpha[roi]).astype(np.uint8)
+        source = source_rgb.astype(np.int16)
+        certain_background = (
+            roi
+            & (source[..., 1] > source[..., 0] + 35)
+            & (source[..., 1] > source[..., 2] + 25)
+            & (source[..., 1] > 120)
+        )
+        repaired[..., 3][certain_background] = 0
+
+        alpha = repaired[..., 3]
+        green_edge = (
+            roi
+            & (alpha > 0)
+            & (alpha < 245)
+            & (source[..., 1] > source[..., 0] + 18)
+            & (source[..., 1] > source[..., 2] + 10)
+        )
+        safe = roi & (alpha > 248) & ~green_edge
+        if np.any(safe) and np.any(green_edge):
+            _, nearest = distance_transform_edt(~safe, return_indices=True)
+            repaired[green_edge, :3] = repaired[nearest[0][green_edge], nearest[1][green_edge], :3]
+
+        stats["false_fill_removed"] = int(np.count_nonzero(previous_alpha > repaired[..., 3]))
+        stats["green_edge_decontaminated"] = int(np.count_nonzero(green_edge))
+
+    elif name == "ayano":
+        roi = np.zeros(repaired.shape[:2], dtype=bool)
+        roi[57:315, 560:824] = True
+        source = source_rgb.astype(np.float32)
+        key_rgb = np.array([255.0, 0.0, 184.0], dtype=np.float32)
+        distance = np.linalg.norm(source - key_rgb[None, None, :], axis=2)
+        blue_score = source[..., 2] - source[..., 0]
+        chroma_alpha = smoothstep(28.0, 74.0, distance) * smoothstep(-12.0, 32.0, blue_score) * 255.0
+        candidate = roi & (chroma_alpha > 2)
+        component_count, labels, component_stats, _ = cv2.connectedComponentsWithStats(
+            candidate.astype(np.uint8),
+            8,
+        )
+        near_existing = cv2.dilate(
+            (repaired[..., 3] > 12).astype(np.uint8),
+            np.ones((5, 5), dtype=np.uint8),
+            iterations=1,
+        ) > 0
+        keep = np.zeros(candidate.shape, dtype=bool)
+        for label in range(1, component_count):
+            component = labels == label
+            area = int(component_stats[label, cv2.CC_STAT_AREA])
+            if area >= 4 and np.any(component & near_existing):
+                keep |= component
+
+        add_alpha = np.where(keep, chroma_alpha, 0).astype(np.uint8)
+        added = keep & (add_alpha > repaired[..., 3])
+        repaired[..., 3] = np.maximum(repaired[..., 3], add_alpha)
+        repaired[added, :3] = source_rgb[added]
+        edge_added = added & (add_alpha < 220)
+        if np.any(edge_added):
+            edge_rgb = repaired[..., :3].astype(np.int16)
+            red_cap = (edge_rgb[..., 2] * 0.58 + edge_rgb[..., 1] * 0.22).astype(np.int16)
+            edge_rgb[..., 0][edge_added] = np.minimum(edge_rgb[..., 0][edge_added], red_cap[edge_added])
+            repaired[..., :3] = np.clip(edge_rgb, 0, 255).astype(np.uint8)
+
+        stats["hair_pixels_restored"] = int(np.count_nonzero(added))
+        stats["restored_edge_despill"] = int(np.count_nonzero(edge_added))
+
+    elif name == "sharon":
+        source_hsv = cv2.cvtColor(source_rgb, cv2.COLOR_RGB2HSV)
+        region = np.zeros(repaired.shape[:2], dtype=bool)
+        region[235:305, 860:950] = True
+        cyan = (
+            region
+            & (repaired[..., 3] > 20)
+            & (source_hsv[..., 0] >= 72)
+            & (source_hsv[..., 0] <= 105)
+            & (source_hsv[..., 1] > 90)
+            & (source_hsv[..., 2] > 85)
+        )
+        repair = cv2.morphologyEx(
+            cyan.astype(np.uint8),
+            cv2.MORPH_CLOSE,
+            np.ones((3, 3), dtype=np.uint8),
+        ) > 0
+        repair = cv2.dilate(
+            repair.astype(np.uint8),
+            np.ones((3, 3), dtype=np.uint8),
+            iterations=1,
+        ) > 0
+        replacement = repaired[..., :3].copy()
+        replacement[:-30] = repaired[30:, :, :3]
+        feather = cv2.GaussianBlur(repair.astype(np.float32), (0, 0), 0.95)
+        feather = np.clip(
+            np.maximum(repair.astype(np.float32), feather * 0.66),
+            0.0,
+            1.0,
+        )[..., None]
+        repaired[..., :3] = np.clip(
+            repaired[..., :3] * (1.0 - feather) + replacement * feather,
+            0,
+            255,
+        ).astype(np.uint8)
+        stats["cyan_thigh_pixels_repaired"] = int(np.count_nonzero(repair))
+
+    repaired[repaired[..., 3] == 0, :3] = 0
+    return repaired, stats
+
+
 def warp_premultiplied(rgba: np.ndarray, matrix: np.ndarray, size: tuple[int, int]) -> np.ndarray:
     alpha = rgba[..., 3:4].astype(np.float32) / 255.0
     premultiplied = rgba[..., :3].astype(np.float32) * alpha
@@ -765,7 +887,8 @@ def main() -> None:
         layer_name = str(config["layer"])
         source_path = input_dir / str(config["source"])
         rough_path = rough_dir / str(config["rough"])
-        source_bgr = read_cv(source_path, cv2.IMREAD_COLOR)
+        original_source_bgr = read_cv(source_path, cv2.IMREAD_COLOR)
+        source_bgr = original_source_bgr.copy()
         source_bgr, pre_repair_stats = pre_repair_source(character_id, source_bgr)
         key_rgb = parse_hex(str(config["key"]))
 
@@ -783,6 +906,11 @@ def main() -> None:
             rgba,
             rough,
             alignment,
+        )
+        rgba, reported_repair_stats = refine_reported_artifacts(
+            character_id,
+            rgba,
+            original_source_bgr,
         )
         edge_repair_stats: dict[str, int] = {}
         if character_id == "kisara":
@@ -809,6 +937,7 @@ def main() -> None:
             "matting": matte_stats,
             "repairs": repair_stats,
             "artifact_repairs": artifact_repair_stats,
+            "reported_repairs": reported_repair_stats,
             "edge_repairs": edge_repair_stats,
             "alignment": alignment_stats,
             "stage_bbox": list(stage_bbox),
