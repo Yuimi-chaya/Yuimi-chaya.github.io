@@ -2,7 +2,7 @@
 import KisaraLayout from "../layouts/KisaraLayout.astro";
 import projectsStylesheet from "../styles/projects.css?url";
 import { Icon } from "astro-icon/components";
-import { projectEntries, projectTechLines } from "@/core/data/projects";
+import { projectEntries } from "@/core/data/projects";
 
 const getProject = (id: string) => projectEntries.find((project) => project.id === id)!;
 
@@ -163,7 +163,7 @@ const kitchenCatalog = {
 ---
 
 <KisaraLayout title="Works | Kisara" description="Yuimi Lab 的项目与实验记录。" stylesheets={[projectsStylesheet]}>
-  <section class="kisara-works-intro" aria-labelledby="kisara-works-title">
+  <section class="kisara-works-intro" data-kisara-works-hero data-intro-state="idle" data-route-state="idle" aria-labelledby="kisara-works-title">
     <div class="kisara-works-intro-media">
       <img
         src="/themes/kisara/assets/work-kitchen-hero.webp"
@@ -173,26 +173,23 @@ const kitchenCatalog = {
         fetchpriority="high"
         decoding="async"
       />
+      <span class="kisara-works-counter-light" aria-hidden="true"></span>
     </div>
-    <div class="kisara-works-intro-inner">
-      <p class="kisara-works-kicker"><span>04</span> KISARA KITCHEN / WORKS</p>
-      <div class="kisara-works-title-row">
-        <div class="kisara-works-title-copy">
-          <h1 id="kisara-works-title">Works,<br /><em>one layer at a time.</em></h1>
-          <p>插件、模型、场景和网页机关，都是一层一层试出来的。偶尔切歪，偶尔流泪，最后总能端出点有意思的东西。</p>
-        </div>
-        <dl>
-          <div><dt>INGREDIENTS</dt><dd>{String(kitchenIngredients.length).padStart(2, "0")}</dd></div>
-          <div><dt>TECH LINES</dt><dd>{String(projectTechLines.length + 1).padStart(2, "0")}</dd></div>
-          <div><dt>CURRENT MODE</dt><dd>STILL COOKING</dd></div>
-        </dl>
-      </div>
+    <div class="kisara-works-steam" aria-hidden="true"><i></i><i></i><i></i></div>
+
+    <div class="kisara-works-prep-note">
+      <p class="kisara-works-prep-meta"><span>04 / 今日备菜</span><em>{String(kitchenIngredients.length).padStart(2, "0")} 种技术食材</em></p>
+      <h1 id="kisara-works-title">先把洋葱切完，<br /><strong>再把想法做出来。</strong></h1>
+      <p>插件、模型、场景与网页机关，都是在一次次试味里成形的。偶尔切歪，偶尔流泪，最后总要端出点能玩的东西。</p>
+      <div class="kisara-works-prep-list" aria-hidden="true"><span>SCENE</span><i></i><span>PLUGIN</span><i></i><span>INTERACTION</span></div>
     </div>
-    <p class="kisara-works-onion-signal" aria-hidden="true"><span>ONION ALERT</span><strong>涙レベル / 01</strong></p>
+
+    <div class="kisara-works-onion-rings" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="kisara-works-cut-trail" aria-hidden="true"><span></span><i></i><i></i><i></i><i></i></div>
     <a class="kisara-works-intro-jump" href="#kisara-kitchen-lab">
-      <span>OPEN KISARA'S KITCHEN</span><Icon name="tabler:chevron-down" aria-hidden="true" />
+      <span>把下一份食材带到砧板</span><Icon name="tabler:chevron-down" aria-hidden="true" />
     </a>
-    <div class="kisara-works-hero-blend" aria-hidden="true"></div>
+    <div class="kisara-works-hero-blend" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   </section>
 
   <section id="kisara-kitchen-lab" class="kisara-kitchen-lab" data-kisara-kitchen>
@@ -365,7 +362,12 @@ const kitchenCatalog = {
       window.__yuimiKisaraInnerCleanup?.();
       const lifecycle = new AbortController();
       const signal = lifecycle.signal;
+      const hero = document.querySelector("[data-kisara-works-hero]");
+      const heroImage = hero?.querySelector(".kisara-works-intro-media img");
       let pointerFrame = 0;
+      let heroPointerFrame = 0;
+      let heroScrollFrame = 0;
+      let heroIntroTimer = 0;
       let dragFrame = 0;
       let blendTimer = 0;
       let chopTimer = 0;
@@ -374,11 +376,18 @@ const kitchenCatalog = {
       let kitchenScrollToken = 0;
       let dragGhost = null;
       let dragState = null;
+      let heroPointerTargetX = 0;
+      let heroPointerTargetY = 0;
+      let heroPointerRenderedX = 0;
+      let heroPointerRenderedY = 0;
       const settlingGhosts = new Set();
 
       const cleanup = () => {
         lifecycle.abort();
         if (pointerFrame) cancelAnimationFrame(pointerFrame);
+        if (heroPointerFrame) cancelAnimationFrame(heroPointerFrame);
+        if (heroScrollFrame) cancelAnimationFrame(heroScrollFrame);
+        if (heroIntroTimer) window.clearTimeout(heroIntroTimer);
         if (dragFrame) cancelAnimationFrame(dragFrame);
         if (blendTimer) window.clearTimeout(blendTimer);
         if (chopTimer) window.clearTimeout(chopTimer);
@@ -392,6 +401,104 @@ const kitchenCatalog = {
 
       window.__yuimiKisaraInnerCleanup = cleanup;
       document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
+
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+      const heroReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        || document.documentElement.dataset.yuimiPerformance !== "full";
+      const heroFinePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+      const finishHeroIntro = () => {
+        if (!(hero instanceof HTMLElement)) return;
+        if (heroIntroTimer) window.clearTimeout(heroIntroTimer);
+        heroIntroTimer = 0;
+        hero.dataset.introState = "complete";
+      };
+
+      const playHeroIntro = async () => {
+        if (!(hero instanceof HTMLElement)) return;
+        hero.dataset.routeState = "idle";
+        hero.dataset.introState = heroReducedMotion ? "complete" : "idle";
+        if (heroReducedMotion) return;
+        if (heroImage instanceof HTMLImageElement && !heroImage.complete) {
+          await heroImage.decode().catch(() => undefined);
+        }
+        if (signal.aborted) return;
+        void hero.offsetWidth;
+        window.requestAnimationFrame(() => {
+          if (signal.aborted) return;
+          hero.dataset.introState = "playing";
+          heroIntroTimer = window.setTimeout(finishHeroIntro, 1320);
+        });
+      };
+
+      const syncHeroScroll = () => {
+        heroScrollFrame = 0;
+        if (!(hero instanceof HTMLElement)) return;
+        const rect = hero.getBoundingClientRect();
+        const progress = clamp(-rect.top / Math.max(1, rect.height * 0.62), 0, 1);
+        hero.style.setProperty("--works-scroll-progress", progress.toFixed(4));
+      };
+
+      const scheduleHeroScroll = () => {
+        if (!heroScrollFrame) heroScrollFrame = window.requestAnimationFrame(syncHeroScroll);
+      };
+
+      if (hero instanceof HTMLElement) {
+        window.addEventListener("scroll", scheduleHeroScroll, { passive: true, signal });
+        window.addEventListener("resize", scheduleHeroScroll, { passive: true, signal });
+        scheduleHeroScroll();
+
+        if (heroFinePointer && !heroReducedMotion) {
+          const renderHeroPointer = () => {
+            heroPointerFrame = 0;
+            heroPointerRenderedX += (heroPointerTargetX - heroPointerRenderedX) * 0.15;
+            heroPointerRenderedY += (heroPointerTargetY - heroPointerRenderedY) * 0.15;
+            hero.style.setProperty("--works-pointer-x", `${heroPointerRenderedX.toFixed(2)}px`);
+            hero.style.setProperty("--works-pointer-y", `${heroPointerRenderedY.toFixed(2)}px`);
+            if (Math.abs(heroPointerTargetX - heroPointerRenderedX) > 0.04 || Math.abs(heroPointerTargetY - heroPointerRenderedY) > 0.04) {
+              heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
+            }
+          };
+          const scheduleHeroPointer = () => {
+            if (!heroPointerFrame) heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
+          };
+          hero.addEventListener("pointermove", (event) => {
+            const rect = hero.getBoundingClientRect();
+            heroPointerTargetX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 9, -4.5, 4.5);
+            heroPointerTargetY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 6, -3, 3);
+            scheduleHeroPointer();
+          }, { signal });
+          hero.addEventListener("pointerleave", () => {
+            heroPointerTargetX = 0;
+            heroPointerTargetY = 0;
+            scheduleHeroPointer();
+          }, { signal });
+        }
+
+        document.addEventListener("astro:before-preparation", (event) => {
+          if (typeof event.loader !== "function") return;
+          const load = event.loader;
+          event.loader = async () => {
+            hero.dataset.routeState = "pending";
+            try {
+              await load();
+            } catch (error) {
+              hero.dataset.routeState = "idle";
+              throw error;
+            }
+            if (signal.aborted) return;
+            hero.dataset.routeState = "leaving";
+            if (!heroReducedMotion) await new Promise((resolve) => window.setTimeout(resolve, 210));
+          };
+        }, { signal });
+
+        window.addEventListener("pageshow", (event) => {
+          if (!event.persisted) return;
+          finishHeroIntro();
+          scheduleHeroScroll();
+        }, { signal });
+        playHeroIntro();
+      }
 
       const root = document.querySelector("[data-kisara-kitchen]");
       if (!(root instanceof HTMLElement)) return;

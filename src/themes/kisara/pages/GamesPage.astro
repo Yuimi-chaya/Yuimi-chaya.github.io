@@ -43,6 +43,7 @@ const gamePresentation = {
       data-game-scene
       data-scene-position="active"
       data-intro-state="idle"
+      data-route-state="idle"
       aria-labelledby="kisara-game-hero-title"
     >
       <div class="kisara-game-hero-media" aria-hidden="true">
@@ -59,30 +60,27 @@ const gamePresentation = {
         >
           <source src="/themes/kisara/assets/game-message-hero.mp4" type="video/mp4" />
         </video>
-        <span class="kisara-game-hero-scan"></span>
+        <span class="kisara-game-hero-light"></span>
       </div>
 
-      <div class="kisara-game-message-current" aria-hidden="true">
-        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      <div class="kisara-game-message-echoes" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i>
       </div>
 
-      <div class="kisara-game-hero-copy">
-        <p><span>05</span> INTERRUPTED TRANSMISSION</p>
-        <h1 id="kisara-game-hero-title"><span>MESSAGE</span><em>OVERFLOW</em></h1>
-        <div>
-          <strong>KISARA / LIVE</strong>
-          <p>解释可以晚一点。她的手已经快过了消息撤回。</p>
-        </div>
+      <div class="kisara-game-interruption">
+        <p class="kisara-game-interruption-meta"><span>AYANO / 16:32</span><em>MESSAGE / UNSENT</em></p>
+        <h1 id="kisara-game-hero-title">解释还没发出去，<br /><strong>手先动了。</strong></h1>
+        <div class="kisara-game-interruption-status"><i></i><span>撤回速度：追不上</span><small>BUFFER 05 / LIVE</small></div>
       </div>
 
-      <div class="kisara-game-hero-readout" aria-hidden="true">
-        <span>AYANO</span>
-        <i></i>
-        <strong>SIGNAL LOCKED</strong>
+      <div class="kisara-game-hero-caption" aria-hidden="true">
+        <span>挥手过快</span><i></i><small>MESSAGE STILL MOVING</small>
       </div>
+
+      <div class="kisara-game-transition-cuts" aria-hidden="true"><i></i><i></i><i></i></div>
 
       <button class="kisara-game-scene-step is-next" type="button" data-game-scene-next aria-label="进入街机厅">
-        <span>AFTER HOURS</span>
+        <span>去街机厅冷静一下</span>
         <Icon name="tabler:chevron-down" aria-hidden="true" />
       </button>
     </section>
@@ -278,6 +276,11 @@ const gamePresentation = {
       let pointerY = 0;
       let renderedPointerX = 0;
       let renderedPointerY = 0;
+      let heroPointerFrame = 0;
+      let heroPointerX = 0;
+      let heroPointerY = 0;
+      let renderedHeroPointerX = 0;
+      let renderedHeroPointerY = 0;
       let heroReady = false;
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -288,6 +291,7 @@ const gamePresentation = {
         window.clearTimeout(wheelTimer);
         if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
         if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
+        if (heroPointerFrame) window.cancelAnimationFrame(heroPointerFrame);
         if (heroVideo instanceof HTMLVideoElement) heroVideo.pause();
         if (gameFrame instanceof HTMLIFrameElement) {
           gameFrame.src = "about:blank";
@@ -297,6 +301,27 @@ const gamePresentation = {
       };
       window.__yuimiKisaraInnerCleanup = cleanup;
       document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
+
+      document.addEventListener("astro:before-preparation", (event) => {
+        if (!(hero instanceof HTMLElement) || typeof event.loader !== "function") return;
+        const load = event.loader;
+        event.loader = async () => {
+          const resumeVideoOnFailure = heroVideo instanceof HTMLVideoElement && !heroVideo.paused;
+          if (heroVideo instanceof HTMLVideoElement) heroVideo.pause();
+          hero.dataset.routeState = "pending";
+          try {
+            await load();
+          } catch (error) {
+            hero.dataset.routeState = "idle";
+            if (resumeVideoOnFailure && heroVideo instanceof HTMLVideoElement) void heroVideo.play().catch(() => undefined);
+            throw error;
+          }
+          if (signal.aborted) return;
+          page.style.setProperty("--game-cut-shift", "0%");
+          hero.dataset.routeState = "leaving";
+          await new Promise((resolve) => window.setTimeout(resolve, 190));
+        };
+      }, { signal });
 
       const setActiveScene = (nextScene) => {
         activeScene = clamp(nextScene, 0, scenes.length - 1);
@@ -334,6 +359,7 @@ const gamePresentation = {
         root.style.scrollBehavior = "auto";
         page.dataset.transitionDirection = targetScene > previousScene ? "down" : "up";
         page.style.setProperty("--game-scene-progress", "0");
+        page.style.setProperty("--game-cut-shift", targetScene > previousScene ? "-120%" : "120%");
         let current = window.scrollY;
         let velocity = 0;
         let lastTimestamp = performance.now();
@@ -348,6 +374,7 @@ const gamePresentation = {
           scrollFrame = 0;
           root.style.scrollBehavior = previousScrollBehavior;
           page.dataset.transitionDirection = "idle";
+          page.style.setProperty("--game-cut-shift", targetScene > previousScene ? "120%" : "-120%");
         };
 
         const step = (timestamp) => {
@@ -361,6 +388,8 @@ const gamePresentation = {
           window.scrollTo(0, current);
           const progress = clamp(1 - Math.abs(destination - current) / distanceTotal, 0, 1);
           page.style.setProperty("--game-scene-progress", String(progress));
+          const cutProgress = targetScene > previousScene ? -120 + progress * 240 : 120 - progress * 240;
+          page.style.setProperty("--game-cut-shift", `${cutProgress.toFixed(2)}%`);
           if (!sceneStateSwapped && progress >= 0.34) {
             sceneStateSwapped = true;
             setActiveScene(targetScene);
@@ -463,7 +492,7 @@ const gamePresentation = {
         page.dataset.mediaState = "ready";
         if (!(hero instanceof HTMLElement)) return;
         hero.dataset.introState = reducedMotion ? "complete" : "playing";
-        if (!reducedMotion) introTimer = window.setTimeout(() => { hero.dataset.introState = "complete"; }, 1780);
+        if (!reducedMotion) introTimer = window.setTimeout(() => { hero.dataset.introState = "complete"; }, 1320);
       };
       if (heroVideo instanceof HTMLVideoElement) {
         heroVideo.muted = true;
@@ -509,6 +538,33 @@ const gamePresentation = {
           pointerX = 0;
           pointerY = 0;
           schedulePointer();
+        }, { signal });
+      }
+
+      if (hero instanceof HTMLElement && finePointer && !reducedMotion) {
+        const renderHeroPointer = () => {
+          heroPointerFrame = 0;
+          renderedHeroPointerX += (heroPointerX - renderedHeroPointerX) * 0.14;
+          renderedHeroPointerY += (heroPointerY - renderedHeroPointerY) * 0.14;
+          hero.style.setProperty("--game-hero-pointer-x", `${renderedHeroPointerX.toFixed(2)}px`);
+          hero.style.setProperty("--game-hero-pointer-y", `${renderedHeroPointerY.toFixed(2)}px`);
+          if (Math.abs(heroPointerX - renderedHeroPointerX) > 0.04 || Math.abs(heroPointerY - renderedHeroPointerY) > 0.04) {
+            heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
+          }
+        };
+        const scheduleHeroPointer = () => {
+          if (!heroPointerFrame) heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
+        };
+        hero.addEventListener("pointermove", (event) => {
+          const rect = hero.getBoundingClientRect();
+          heroPointerX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 10, -5, 5);
+          heroPointerY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 7, -3.5, 3.5);
+          scheduleHeroPointer();
+        }, { signal });
+        hero.addEventListener("pointerleave", () => {
+          heroPointerX = 0;
+          heroPointerY = 0;
+          scheduleHeroPointer();
         }, { signal });
       }
 

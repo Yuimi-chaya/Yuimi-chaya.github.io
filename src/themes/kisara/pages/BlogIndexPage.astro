@@ -11,6 +11,9 @@ const posts = await getPublishedPosts();
 const categories = Array.from(new Set(posts.map((post) => post.data.category)));
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" });
 const timelineDateFormatter = new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit" });
+const latestPostDate = posts[0]
+  ? dateFormatter.format(posts[0].data.updatedDate ?? posts[0].data.pubDate)
+  : "--";
 const timelineYears = posts.reduce((groups, post) => {
   const year = (post.data.updatedDate ?? post.data.pubDate).getFullYear();
   let group = groups.find((item) => item.year === year);
@@ -26,7 +29,7 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
 ---
 
 <KisaraLayout title="Blog | Kisara" description="Yuimi Lab 的文章记录。" stylesheets={[blogStylesheet]}>
-  <section class="kisara-blog-hero" data-kisara-blog-hero data-intro-state="idle">
+  <section class="kisara-blog-hero" data-kisara-blog-hero data-intro-state="idle" data-route-state="idle" aria-labelledby="kisara-blog-hero-title">
     <div class="kisara-blog-scene" aria-hidden="true">
       <img
         class="kisara-blog-scene-bg"
@@ -42,21 +45,28 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         <img class="kisara-blog-character is-ayano" src="/themes/kisara/assets/blog/ayano-middle-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" />
         <img class="kisara-blog-character is-shu" src="/themes/kisara/assets/blog/shu-middle-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="auto" />
         <img class="kisara-blog-character is-kisara" src="/themes/kisara/assets/blog/kisara-front-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
-        <span class="kisara-blog-pair-sync" aria-hidden="true"></span>
+        <span class="kisara-blog-group-focus" aria-hidden="true"></span>
       </div>
       <div class="kisara-blog-scene-veil"></div>
-      <div class="kisara-blog-scanline"></div>
+      <div class="kisara-blog-exposure" aria-hidden="true"><i></i><i></i><i></i></div>
     </div>
 
-    <div class="kisara-blog-hero-copy">
-      <p class="kisara-blog-kicker"><span>03</span> TRANSMISSION ARCHIVE</p>
-      <h1><span>Every signal</span><strong>leaves a trace.</strong></h1>
-      <p>开发记录、部署笔记和兴趣电波。这里不负责把灵感整理得太规矩，只负责让它们还能被再次找到。</p>
-      <dl>
-        <div><dt>LOGS</dt><dd>{String(posts.length).padStart(2, "0")}</dd></div>
-        <div><dt>CHANNELS</dt><dd>{String(categories.length).padStart(2, "0")}</dd></div>
-        <div><dt>STATUS</dt><dd>ONLINE</dd></div>
-      </dl>
+    <div class="kisara-blog-hero-layout">
+      <aside class="kisara-blog-ledger" aria-label="归档统计">
+        <span>ARCHIVE / 03</span>
+        <strong>{String(posts.length).padStart(2, "0")}</strong>
+        <small>篇记录仍在这里</small>
+      </aside>
+
+      <div class="kisara-blog-reading-note">
+        <p class="kisara-blog-note-meta"><span>LAST UPDATE</span><time>{latestPostDate}</time></p>
+        <h1 id="kisara-blog-hero-title">有些事情没有按顺序发生，<br /><em>但可以按顺序重新读一遍。</em></h1>
+        <p>开发、部署、兴趣与偶尔跑偏的想法。这里保留的不是标准答案，而是它们被写下时的上下文。</p>
+      </div>
+    </div>
+
+    <div class="kisara-blog-reading-trace" aria-hidden="true">
+      <span></span><i></i><small>{String(categories.length).padStart(2, "0")} CHANNELS / READY TO READ</small>
     </div>
 
     <div class="kisara-blog-intro-controls" aria-label="头图演出控制">
@@ -69,9 +79,11 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
     </div>
 
     <a class="kisara-blog-enter" href="#kisara-blog-archive">
-      <span>OPEN ARCHIVE</span>
+      <span>继续翻页</span>
       <Icon name="tabler:arrow-down" aria-hidden="true" />
     </a>
+
+    <div class="kisara-blog-route-shutter" aria-hidden="true"><i></i><i></i></div>
   </section>
 
   <section id="kisara-blog-archive" class="kisara-blog-archive" data-kisara-archive>
@@ -222,10 +234,20 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
       const hero = document.querySelector("[data-kisara-blog-hero]");
       const archive = document.querySelector("[data-kisara-archive]");
       let introTimer = 0;
+      let pointerFrame = 0;
+      let scrollFrame = 0;
+      let pointerTargetX = 0;
+      let pointerTargetY = 0;
+      let pointerRenderedX = 0;
+      let pointerRenderedY = 0;
+
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
       const cleanup = () => {
         lifecycle.abort();
         window.clearTimeout(introTimer);
+        if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
+        if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
         if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
       };
       window.__yuimiKisaraInnerCleanup = cleanup;
@@ -246,7 +268,8 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         }
 
         hero.dataset.introState = "idle";
-        const images = Array.from(hero.querySelectorAll(".kisara-blog-character"));
+        hero.dataset.routeState = "idle";
+        const images = Array.from(hero.querySelectorAll(".kisara-blog-scene-bg, .kisara-blog-character"));
         await Promise.all(images.map((image) => {
           if (!(image instanceof HTMLImageElement) || image.complete) return Promise.resolve();
           return image.decode().catch(() => undefined);
@@ -256,16 +279,76 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         requestAnimationFrame(() => {
           if (signal.aborted) return;
           hero.dataset.introState = "playing";
-          introTimer = window.setTimeout(finishIntro, 2050);
+          introTimer = window.setTimeout(finishIntro, 1280);
         });
       };
+
+      const syncScroll = () => {
+        scrollFrame = 0;
+        if (!(hero instanceof HTMLElement)) return;
+        const rect = hero.getBoundingClientRect();
+        const progress = clamp(-rect.top / Math.max(1, rect.height * 0.58), 0, 1);
+        hero.style.setProperty("--blog-scroll-progress", progress.toFixed(4));
+      };
+
+      const scheduleScrollSync = () => {
+        if (!scrollFrame) scrollFrame = window.requestAnimationFrame(syncScroll);
+      };
+
+      if (hero instanceof HTMLElement && window.matchMedia("(hover: hover) and (pointer: fine)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        const renderPointer = () => {
+          pointerFrame = 0;
+          pointerRenderedX += (pointerTargetX - pointerRenderedX) * 0.16;
+          pointerRenderedY += (pointerTargetY - pointerRenderedY) * 0.16;
+          hero.style.setProperty("--blog-pointer-x", `${pointerRenderedX.toFixed(2)}px`);
+          hero.style.setProperty("--blog-pointer-y", `${pointerRenderedY.toFixed(2)}px`);
+          if (Math.abs(pointerTargetX - pointerRenderedX) > 0.04 || Math.abs(pointerTargetY - pointerRenderedY) > 0.04) {
+            pointerFrame = window.requestAnimationFrame(renderPointer);
+          }
+        };
+        const schedulePointer = () => {
+          if (!pointerFrame) pointerFrame = window.requestAnimationFrame(renderPointer);
+        };
+        hero.addEventListener("pointermove", (event) => {
+          const rect = hero.getBoundingClientRect();
+          pointerTargetX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 12, -6, 6);
+          pointerTargetY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 8, -4, 4);
+          schedulePointer();
+        }, { signal });
+        hero.addEventListener("pointerleave", () => {
+          pointerTargetX = 0;
+          pointerTargetY = 0;
+          schedulePointer();
+        }, { signal });
+      }
+
+      window.addEventListener("scroll", scheduleScrollSync, { passive: true, signal });
+      window.addEventListener("resize", scheduleScrollSync, { passive: true, signal });
+      scheduleScrollSync();
+
+      document.addEventListener("astro:before-preparation", (event) => {
+        if (!(hero instanceof HTMLElement) || typeof event.loader !== "function") return;
+        const load = event.loader;
+        event.loader = async () => {
+          hero.dataset.routeState = "pending";
+          try {
+            await load();
+          } catch (error) {
+            hero.dataset.routeState = "idle";
+            throw error;
+          }
+          if (signal.aborted) return;
+          hero.dataset.routeState = "leaving";
+          await new Promise((resolve) => window.setTimeout(resolve, 190));
+        };
+      }, { signal });
 
       hero?.querySelector("[data-blog-replay]")?.addEventListener("click", playIntro, { signal });
       hero?.querySelector("[data-blog-skip]")?.addEventListener("click", finishIntro, { signal });
       window.addEventListener("pageshow", (event) => {
         if (!event.persisted) return;
-        if (document.documentElement.dataset.yuimiPerformance === "full") playIntro();
-        else finishIntro();
+        finishIntro();
+        scheduleScrollSync();
       }, { signal });
       playIntro();
 
