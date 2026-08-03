@@ -3864,8 +3864,8 @@ body[data-kisara-page="projects"] .kisara-theme-button {
 
 .kisara-works-slice-fruit.kisara-ingredient {
   position: absolute;
-  top: var(--fruit-y);
-  left: var(--fruit-x);
+  top: 0;
+  left: 0;
   display: block;
   width: 76px;
   min-width: 76px;
@@ -3878,14 +3878,15 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   cursor: default;
   touch-action: auto;
   animation: none;
-  transform: translate(-50%, -50%) rotate(var(--fruit-tilt));
+  opacity: 0;
+  transform: translate3d(-120px, 120%, 0);
   transition: none;
+  will-change: transform;
 }
 
 .kisara-works-slice-fruit.kisara-ingredient:hover,
 .kisara-works-slice-fruit.kisara-ingredient:focus-visible {
   background: transparent;
-  transform: translate(-50%, -50%) rotate(var(--fruit-tilt));
 }
 
 .kisara-works-slice-fruit-piece {
@@ -3894,14 +3895,133 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   display: grid;
   place-items: center;
   transform-origin: center;
+  will-change: transform;
 }
 
 .kisara-works-slice-fruit-piece .kisara-ingredient-shape {
+  width: 64px;
+  height: 64px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  clip-path: none !important;
+  transform: none !important;
   transition: none;
 }
 
+.kisara-works-slice-fruit-piece .kisara-ingredient-shape::before,
+.kisara-works-slice-fruit-piece .kisara-ingredient-shape::after {
+  z-index: 1;
+}
+
+.kisara-works-slice-fruit[data-shape="cube"] .kisara-ingredient-shape::before {
+  position: absolute;
+  inset: 5px 3px 4px;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 46% 54% 49% 51% / 52% 47% 53% 48%;
+  content: "";
+  background:
+    radial-gradient(circle at 31% 24%, rgba(255, 255, 255, 0.48) 0 7%, transparent 8%),
+    radial-gradient(circle at 48% 42%, color-mix(in srgb, var(--ingredient) 72%, white), var(--ingredient) 64%, color-mix(in srgb, var(--ingredient) 74%, #2b2637));
+  box-shadow: inset -7px -8px 12px rgba(28, 22, 40, 0.2), 0 9px 16px color-mix(in srgb, var(--ingredient) 25%, transparent);
+  transform: rotate(-6deg) scaleX(1.04);
+}
+
+.kisara-works-slice-fruit[data-shape="cube"] .kisara-ingredient-shape::after {
+  position: absolute;
+  top: 0;
+  left: 36px;
+  width: 18px;
+  height: 11px;
+  border: 0;
+  border-radius: 80% 8% 78% 8%;
+  content: "";
+  background: color-mix(in srgb, var(--ingredient) 50%, #7eb579);
+  transform: rotate(24deg);
+}
+
+.kisara-works-slice-fruit[data-shape="ice"] .kisara-ingredient-shape::before {
+  position: absolute;
+  inset: 2px;
+  width: auto;
+  height: auto;
+  border: 0;
+  content: "";
+  background:
+    linear-gradient(132deg, rgba(255, 255, 255, 0.6), transparent 32%),
+    linear-gradient(318deg, rgba(255, 255, 255, 0.16), transparent 46%),
+    var(--ingredient);
+  clip-path: polygon(46% 0, 84% 13%, 100% 52%, 73% 96%, 25% 100%, 0 63%, 13% 20%);
+  box-shadow: 0 10px 17px color-mix(in srgb, var(--ingredient) 24%, transparent);
+  transform: rotate(7deg);
+}
+
+.kisara-works-slice-fruit[data-shape="ice"] .kisara-ingredient-shape::after {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  width: 21px;
+  height: 3px;
+  border: 0;
+  border-radius: 999px;
+  content: "";
+  background: rgba(255, 255, 255, 0.54);
+  transform: rotate(-27deg);
+}
+
+.kisara-works-slice-fruit[data-shape="orange"] .kisara-ingredient-shape::before {
+  position: absolute;
+  inset: 3px;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 50%;
+  content: "";
+  background:
+    repeating-conic-gradient(from 7deg, rgba(255, 255, 255, 0.14) 0 7deg, transparent 7deg 54deg),
+    radial-gradient(circle at 42% 38%, #f5a355, var(--ingredient) 62%, #c45d26 100%);
+  box-shadow: inset -7px -8px 10px rgba(120, 56, 25, 0.16), 0 9px 16px rgba(151, 74, 31, 0.22);
+}
+
+.kisara-works-slice-fruit[data-shape="star"] .kisara-ingredient-shape::before {
+  position: absolute;
+  inset: 1px;
+  width: auto;
+  height: auto;
+  border: 0;
+  content: "";
+  clip-path: polygon(50% 0, 62% 32%, 98% 36%, 70% 58%, 80% 96%, 50% 74%, 20% 96%, 30% 58%, 2% 36%, 38% 32%);
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 255, 255, 0.48), transparent 18%),
+    linear-gradient(145deg, color-mix(in srgb, var(--ingredient) 68%, white), var(--ingredient) 62%, color-mix(in srgb, var(--ingredient) 78%, #6f2148));
+  box-shadow: 0 9px 16px color-mix(in srgb, var(--ingredient) 24%, transparent);
+  transform: rotate(-7deg);
+}
+
+.kisara-works-slice-fruit[data-shape="star"] .kisara-ingredient-shape::after {
+  display: none;
+}
+
+.kisara-works-slice-fruit[data-shape="leaf"] .kisara-ingredient-shape::before {
+  position: absolute;
+  inset: 4px 6px 5px;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 76% 12% 72% 18%;
+  content: "";
+  background:
+    linear-gradient(48deg, transparent 47%, rgba(255, 255, 255, 0.38) 48% 51%, transparent 52%),
+    linear-gradient(138deg, #7fc3a9, var(--ingredient) 68%, #337d69);
+  box-shadow: 0 9px 15px rgba(45, 105, 87, 0.22);
+  transform: rotate(-34deg) scale(0.94);
+}
+
 .kisara-works-slice-fruit-piece.is-whole {
-  animation: kisara-works-fruit-float 4.8s ease-in-out var(--fruit-delay) infinite;
+  opacity: 1;
 }
 
 .kisara-works-slice-fruit-piece.is-left,
@@ -3919,15 +4039,14 @@ body[data-kisara-page="projects"] .kisara-theme-button {
 
 .kisara-works-slice-fruit.is-sliced .is-whole {
   opacity: 0;
-  animation: none;
 }
 
 .kisara-works-slice-fruit.is-sliced .is-left {
-  animation: kisara-works-fruit-left 720ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
+  opacity: 1;
 }
 
 .kisara-works-slice-fruit.is-sliced .is-right {
-  animation: kisara-works-fruit-right 720ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
+  opacity: 1;
 }
 
 .kisara-works-slice-trails {
@@ -3996,23 +4115,6 @@ body[data-kisara-page="projects"] .kisara-theme-button {
 .kisara-works-intro.is-knife-active .kisara-works-editorial h1 [data-cut-copy]::after {
   filter: drop-shadow(0 3px 0 rgba(190, 47, 105, 0.18));
   transform: translate3d(6px, 4px, 0) rotate(0.8deg);
-}
-
-@keyframes kisara-works-fruit-float {
-  0%, 100% { transform: translate3d(0, -3px, 0) rotate(-3deg); }
-  50% { transform: translate3d(3px, 5px, 0) rotate(4deg); }
-}
-
-@keyframes kisara-works-fruit-left {
-  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
-  54% { opacity: 1; }
-  100% { opacity: 0; transform: translate3d(-34px, 48px, 0) rotate(-32deg); }
-}
-
-@keyframes kisara-works-fruit-right {
-  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
-  54% { opacity: 1; }
-  100% { opacity: 0; transform: translate3d(38px, 42px, 0) rotate(38deg); }
 }
 
 @keyframes kisara-works-slice-trail {

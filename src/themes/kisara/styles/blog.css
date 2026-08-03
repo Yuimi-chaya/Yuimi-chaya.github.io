@@ -1756,7 +1756,10 @@
 }
 
 .kisara-blog-character {
-  transition: opacity 460ms ease, filter 460ms ease !important;
+  transition:
+    opacity 820ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 960ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 1150ms cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .kisara-blog-hero[data-cast-focus]:not([data-cast-focus="all"]) .kisara-blog-character {
@@ -1884,8 +1887,8 @@
 .kisara-blog-index-spine h1 span,
 .kisara-blog-index-spine h1 em {
   display: block;
-  overflow: hidden;
-  clip-path: inset(0 100% 0 0);
+  overflow: visible;
+  clip-path: inset(-20% 100% -30% 0);
   transform: translateX(-14px);
   transition:
     clip-path 760ms cubic-bezier(0.18, 0.76, 0.18, 1) 220ms,
@@ -1937,7 +1940,7 @@
 .kisara-blog-hero[data-intro-state="complete"] .kisara-blog-index-spine h1 span,
 .kisara-blog-hero[data-intro-state="playing"] .kisara-blog-index-spine h1 em,
 .kisara-blog-hero[data-intro-state="complete"] .kisara-blog-index-spine h1 em {
-  clip-path: inset(0);
+  clip-path: inset(-20% -4% -30% -4%);
   transform: translateX(0);
 }
 
@@ -2269,8 +2272,10 @@
 }
 
 .kisara-blog-character.is-sharon {
-  --cast-x: -5.2%;
-  --cast-y: 2.4%;
+  --cast-x: -2.5%;
+  --cast-y: 4.6%;
+  --cast-origin-x: 53%;
+  --cast-origin-y: 24%;
   --cast-enter-x: 10%;
   --cast-enter-y: -6%;
   --cast-delay: 40ms;
@@ -2279,6 +2284,8 @@
 .kisara-blog-character.is-ayano {
   --cast-x: -4.8%;
   --cast-y: 2.8%;
+  --cast-origin-x: 79%;
+  --cast-origin-y: 42%;
   --cast-enter-x: 9%;
   --cast-enter-y: -5%;
   --cast-delay: 170ms;
@@ -2287,6 +2294,8 @@
 .kisara-blog-character.is-shu {
   --cast-x: 0.4%;
   --cast-y: 3.2%;
+  --cast-origin-x: 45%;
+  --cast-origin-y: 46%;
   --cast-enter-x: -9%;
   --cast-enter-y: 5%;
   --cast-delay: 300ms;
@@ -2295,6 +2304,8 @@
 .kisara-blog-character.is-kisara {
   --cast-x: -1.2%;
   --cast-y: 4.4%;
+  --cast-origin-x: 59%;
+  --cast-origin-y: 66%;
   --cast-enter-x: 7%;
   --cast-enter-y: 9%;
   --cast-delay: 430ms;
@@ -2304,8 +2315,11 @@
 .kisara-blog-hero[data-intro-state="complete"] .kisara-blog-character {
   opacity: 1;
   transform: translate3d(var(--cast-x), var(--cast-y), 0) scale(1) !important;
-  transform-origin: 58% 58%;
-  transition: opacity 260ms ease, filter 320ms ease, transform 380ms cubic-bezier(0.18, 0.78, 0.2, 1);
+  transform-origin: var(--cast-origin-x, 58%) var(--cast-origin-y, 58%);
+  transition:
+    opacity 820ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 960ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 1150ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-character {
@@ -2318,8 +2332,9 @@
 }
 
 .kisara-blog-hero[data-cast-focus]:not([data-cast-focus="all"]) .kisara-blog-character {
-  opacity: 0.3;
-  filter: saturate(0.5) brightness(0.66) contrast(0.96) blur(0.6px);
+  opacity: 0.62;
+  filter: saturate(0.7) brightness(0.8) contrast(0.99) blur(0.18px);
+  transform: translate3d(var(--cast-x), var(--cast-y), 0) scale(0.984) !important;
 }
 
 .kisara-blog-hero[data-cast-focus="kisara"] .kisara-blog-character.is-kisara,
@@ -2327,8 +2342,8 @@
 .kisara-blog-hero[data-cast-focus="ayano"] .kisara-blog-character.is-ayano,
 .kisara-blog-hero[data-cast-focus="sharon"] .kisara-blog-character.is-sharon {
   opacity: 1;
-  filter: saturate(1.08) brightness(1.08) contrast(1.04) drop-shadow(0 18px 26px rgba(3, 5, 19, 0.56));
-  transform: translate3d(var(--cast-x), calc(var(--cast-y) - 1.2%), 0) scale(1.055) !important;
+  filter: saturate(1.06) brightness(1.06) contrast(1.025) drop-shadow(0 15px 24px rgba(3, 5, 19, 0.46));
+  transform: translate3d(var(--cast-x), var(--cast-y), 0) scale(1.07) !important;
 }
 
 .kisara-blog-scene-veil {
@@ -2407,42 +2422,32 @@
   cursor: crosshair;
   pointer-events: auto;
   transform: translate3d(0, 0, 0);
-  transition: transform 260ms cubic-bezier(0.18, 0.78, 0.2, 1);
+  transition: filter 620ms ease;
 }
 
 .kisara-blog-cast-pickers button::before {
-  position: absolute;
-  inset: 0;
-  content: "";
-  opacity: 0;
-  background:
-    linear-gradient(#ff7897, #ff7897) top left / 28px 1px no-repeat,
-    linear-gradient(#ff7897, #ff7897) top left / 1px 28px no-repeat,
-    linear-gradient(rgba(151, 196, 255, 0.9), rgba(151, 196, 255, 0.9)) right bottom / 34px 1px no-repeat,
-    linear-gradient(rgba(151, 196, 255, 0.9), rgba(151, 196, 255, 0.9)) right bottom / 1px 34px no-repeat,
-    linear-gradient(120deg, transparent 36%, rgba(255, 116, 151, 0.08), transparent 64%);
-  filter: drop-shadow(0 0 7px rgba(255, 101, 141, 0.34));
-  transition: opacity 180ms ease;
+  display: none;
 }
 
 .kisara-blog-cast-pickers button span {
   position: absolute;
   right: 10px;
   bottom: 9px;
-  padding: 4px 7px;
+  padding: 2px 0;
   color: #fff;
-  background: rgba(6, 8, 25, 0.54);
+  background: transparent;
   font: 800 0.52rem/1 "Courier New", monospace;
+  text-shadow: 0 2px 8px rgba(3, 5, 19, 0.92), 0 0 9px rgba(255, 111, 148, 0.42);
   opacity: 0;
   transform: translateY(5px);
-  transition: opacity 180ms ease, transform 220ms ease;
+  transition: opacity 460ms ease, transform 560ms cubic-bezier(0.22, 0.62, 0.24, 1);
 }
 
 .kisara-blog-cast-pickers button:hover,
 .kisara-blog-cast-pickers button:focus-visible,
 .kisara-blog-cast-pickers button[aria-pressed="true"] {
   outline: 0;
-  transform: translate3d(0, -4px, 0) scale(1.018);
+  filter: drop-shadow(0 0 10px rgba(255, 113, 151, 0.16));
 }
 
 .kisara-blog-cast-pickers button:hover::before,
@@ -2455,7 +2460,7 @@
   transform: translateY(0);
 }
 
-.kisara-blog-cast-pickers .is-sharon { top: 0; left: 40%; width: 30%; height: 29%; clip-path: polygon(8% 0, 100% 0, 92% 82%, 28% 100%, 0 54%); }
+.kisara-blog-cast-pickers .is-sharon { top: 3%; left: 43%; width: 30%; height: 29%; clip-path: polygon(8% 0, 100% 0, 92% 82%, 28% 100%, 0 54%); }
 .kisara-blog-cast-pickers .is-shu { z-index: 2; top: 17%; left: 37%; width: 23%; height: 58%; clip-path: polygon(18% 0, 82% 0, 100% 92%, 12% 100%, 0 22%); }
 .kisara-blog-cast-pickers .is-kisara { z-index: 4; top: 37%; left: 51%; width: 30%; height: 60%; clip-path: polygon(16% 0, 92% 4%, 100% 78%, 74% 100%, 0 94%, 2% 24%); }
 .kisara-blog-cast-pickers .is-ayano { z-index: 3; top: 11%; right: 0; width: 27%; height: 76%; clip-path: polygon(18% 0, 100% 0, 100% 100%, 12% 96%, 0 36%); }

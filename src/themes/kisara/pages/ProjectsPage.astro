@@ -81,15 +81,6 @@ const kitchenIngredients = [
   }
 ] as const;
 
-const heroFruitPlacements = [
-  { x: "55%", y: "17%", tilt: "-9deg", delay: "-1.2s" },
-  { x: "72%", y: "23%", tilt: "7deg", delay: "-2.8s" },
-  { x: "87%", y: "38%", tilt: "-5deg", delay: "-0.6s" },
-  { x: "61%", y: "55%", tilt: "11deg", delay: "-3.5s" },
-  { x: "78%", y: "67%", tilt: "-12deg", delay: "-2.1s" },
-  { x: "91%", y: "73%", tilt: "6deg", delay: "-4.2s" }
-] as const;
-
 const kitchenRecipes = [
   {
     ingredients: ["blender", "unity"],
@@ -189,22 +180,19 @@ const kitchenCatalog = {
     <div class="kisara-works-slice-field" data-works-slice-field aria-hidden="true">
       <div class="kisara-works-slice-trails" data-works-slice-trails></div>
       <p class="kisara-works-slice-score"><span>CUT TEST</span><output data-works-slice-score>00</output></p>
-      {kitchenIngredients.map((ingredient, index) => {
-        const placement = heroFruitPlacements[index];
-        return (
+      {kitchenIngredients.map((ingredient) => (
           <span
             class="kisara-works-slice-fruit kisara-ingredient"
             data-works-slice-fruit
             data-shape={ingredient.shape}
             data-fruit-id={ingredient.id}
-            style={`--ingredient: ${ingredient.color}; --ingredient-soft: ${ingredient.soft}; --fruit-x: ${placement.x}; --fruit-y: ${placement.y}; --fruit-tilt: ${placement.tilt}; --fruit-delay: ${placement.delay};`}
+            style={`--ingredient: ${ingredient.color}; --ingredient-soft: ${ingredient.soft};`}
           >
             <span class="kisara-works-slice-fruit-piece is-whole"><span class="kisara-ingredient-shape"><Icon name={ingredient.icon} /><i></i><i></i></span></span>
             <span class="kisara-works-slice-fruit-piece is-left"><span class="kisara-ingredient-shape"><Icon name={ingredient.icon} /><i></i><i></i></span></span>
             <span class="kisara-works-slice-fruit-piece is-right"><span class="kisara-ingredient-shape"><Icon name={ingredient.icon} /><i></i><i></i></span></span>
           </span>
-        );
-      })}
+      ))}
     </div>
 
     <div class="kisara-works-editorial">
@@ -418,9 +406,15 @@ const kitchenCatalog = {
       const sliceScore = hero?.querySelector("[data-works-slice-score]");
       const sliceFruits = Array.from(hero?.querySelectorAll("[data-works-slice-fruit]") || []);
       const sliceTimers = new Set();
+      const fruitPhysics = new Map();
       let pointerFrame = 0;
       let heroPointerFrame = 0;
       let heroScrollFrame = 0;
+      let fruitPhysicsFrame = 0;
+      let fruitPhysicsLastTime = 0;
+      let fruitPhysicsReady = false;
+      let fruitPhysicsVisible = true;
+      let fruitPhysicsObserver = null;
       let heroIntroTimer = 0;
       let dragFrame = 0;
       let blendTimer = 0;
@@ -444,6 +438,8 @@ const kitchenCatalog = {
         if (pointerFrame) cancelAnimationFrame(pointerFrame);
         if (heroPointerFrame) cancelAnimationFrame(heroPointerFrame);
         if (heroScrollFrame) cancelAnimationFrame(heroScrollFrame);
+        if (fruitPhysicsFrame) cancelAnimationFrame(fruitPhysicsFrame);
+        fruitPhysicsObserver?.disconnect();
         if (heroIntroTimer) window.clearTimeout(heroIntroTimer);
         if (titleCutTimer) window.clearTimeout(titleCutTimer);
         sliceTimers.forEach((timer) => window.clearTimeout(timer));
@@ -463,9 +459,149 @@ const kitchenCatalog = {
       document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+      const performanceTier = document.documentElement.dataset.yuimiPerformance;
       const heroReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        || document.documentElement.dataset.yuimiPerformance !== "full";
+        || performanceTier === "mobile"
+        || performanceTier === "lite";
       const heroFinePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+      const fruitPhysicsEnabled = heroFinePointer && !heroReducedMotion && sliceField instanceof HTMLElement;
+      const fruitGravity = 1650;
+      const fruitDiameter = 76;
+
+      const resetFruitPieces = (state) => {
+        state.whole?.style.removeProperty("transform");
+        state.left?.style.removeProperty("transform");
+        state.right?.style.removeProperty("transform");
+      };
+
+      const queueFruit = (state, wait = 0.4) => {
+        state.phase = "waiting";
+        state.wait = wait;
+        state.splitLeft = null;
+        state.splitRight = null;
+        state.fruit.classList.remove("is-sliced");
+        state.fruit.style.opacity = "0";
+        resetFruitPieces(state);
+      };
+
+      const launchFruit = (state) => {
+        if (!(sliceField instanceof HTMLElement)) return;
+        const width = Math.max(360, sliceField.clientWidth);
+        const height = Math.max(360, sliceField.clientHeight);
+        const edge = Math.min(92, Math.max(54, width * 0.08));
+        state.x = edge + Math.random() * Math.max(1, width - edge * 2);
+        state.y = height + 54 + Math.random() * 34;
+        const rise = height * (0.62 + Math.random() * 0.26);
+        state.vy = -Math.sqrt(2 * fruitGravity * rise);
+        state.vx = (Math.random() - 0.5) * 250;
+        if (state.x < width * 0.28) state.vx = Math.abs(state.vx) + 36;
+        if (state.x > width * 0.72) state.vx = -Math.abs(state.vx) - 36;
+        state.angle = -22 + Math.random() * 44;
+        state.angularVelocity = (Math.random() < 0.5 ? -1 : 1) * (135 + Math.random() * 185);
+        state.phase = "whole";
+        renderFruit(state);
+        state.fruit.style.opacity = "1";
+      };
+
+      const renderFruit = (state) => {
+        state.fruit.style.transform = `translate3d(${(state.x - fruitDiameter / 2).toFixed(2)}px, ${(state.y - fruitDiameter / 2).toFixed(2)}px, 0) rotate(${state.angle.toFixed(2)}deg)`;
+        if (state.phase !== "sliced") return;
+        if (state.splitLeft && state.left) {
+          state.left.style.transform = `translate3d(${state.splitLeft.x.toFixed(2)}px, ${state.splitLeft.y.toFixed(2)}px, 0) rotate(${state.splitLeft.angle.toFixed(2)}deg)`;
+        }
+        if (state.splitRight && state.right) {
+          state.right.style.transform = `translate3d(${state.splitRight.x.toFixed(2)}px, ${state.splitRight.y.toFixed(2)}px, 0) rotate(${state.splitRight.angle.toFixed(2)}deg)`;
+        }
+      };
+
+      const requestFruitPhysicsFrame = () => {
+        if (!fruitPhysicsEnabled || !fruitPhysicsReady || !fruitPhysicsVisible || fruitPhysicsFrame || signal.aborted) return;
+        fruitPhysicsFrame = window.requestAnimationFrame(runFruitPhysics);
+      };
+
+      function runFruitPhysics(timestamp) {
+        fruitPhysicsFrame = 0;
+        if (!fruitPhysicsReady || !fruitPhysicsVisible || signal.aborted || !(sliceField instanceof HTMLElement)) return;
+        const dt = fruitPhysicsLastTime ? Math.min(0.032, Math.max(0, (timestamp - fruitPhysicsLastTime) / 1000)) : 0;
+        fruitPhysicsLastTime = timestamp;
+        const height = Math.max(360, sliceField.clientHeight);
+
+        fruitPhysics.forEach((state) => {
+          if (state.phase === "waiting") {
+            state.wait -= dt;
+            if (state.wait <= 0) launchFruit(state);
+            return;
+          }
+
+          state.vy += fruitGravity * dt;
+          state.x += state.vx * dt;
+          state.y += state.vy * dt;
+          state.angle += state.angularVelocity * dt;
+
+          if (state.phase === "sliced") {
+            [state.splitLeft, state.splitRight].forEach((piece) => {
+              if (!piece) return;
+              piece.x += piece.vx * dt;
+              piece.y += piece.vy * dt;
+              piece.angle += piece.angularVelocity * dt;
+            });
+          }
+
+          renderFruit(state);
+          const splitDepth = state.phase === "sliced"
+            ? Math.max(state.splitLeft?.y || 0, state.splitRight?.y || 0)
+            : 0;
+          if (state.vy > 0 && state.y + splitDepth > height + 130) {
+            queueFruit(state, 0.26 + Math.random() * 0.78);
+          }
+        });
+
+        requestFruitPhysicsFrame();
+      }
+
+      const startFruitPhysics = () => {
+        if (!fruitPhysicsEnabled) return;
+        if (!fruitPhysicsReady) {
+          sliceFruits.forEach((fruit, index) => {
+            if (!(fruit instanceof HTMLElement)) return;
+            const state = {
+              fruit,
+              whole: fruit.querySelector(".is-whole"),
+              left: fruit.querySelector(".is-left"),
+              right: fruit.querySelector(".is-right"),
+              phase: "waiting",
+              wait: 0,
+              x: 0,
+              y: 0,
+              vx: 0,
+              vy: 0,
+              angle: 0,
+              angularVelocity: 0,
+              splitLeft: null,
+              splitRight: null
+            };
+            fruitPhysics.set(fruit, state);
+            queueFruit(state, 0.18 + index * 0.3 + Math.random() * 0.18);
+          });
+          fruitPhysicsReady = true;
+        }
+        fruitPhysicsLastTime = 0;
+        requestFruitPhysicsFrame();
+      };
+
+      if (fruitPhysicsEnabled && hero instanceof HTMLElement && "IntersectionObserver" in window) {
+        fruitPhysicsObserver = new IntersectionObserver(([entry]) => {
+          fruitPhysicsVisible = Boolean(entry?.isIntersecting);
+          fruitPhysicsLastTime = 0;
+          if (!fruitPhysicsVisible && fruitPhysicsFrame) {
+            cancelAnimationFrame(fruitPhysicsFrame);
+            fruitPhysicsFrame = 0;
+          } else {
+            requestFruitPhysicsFrame();
+          }
+        }, { threshold: 0.02 });
+        fruitPhysicsObserver.observe(hero);
+      }
 
       const finishHeroIntro = () => {
         if (!(hero instanceof HTMLElement)) return;
@@ -486,6 +622,7 @@ const kitchenCatalog = {
         window.requestAnimationFrame(() => {
           if (signal.aborted) return;
           hero.dataset.introState = "playing";
+          startFruitPhysics();
           heroIntroTimer = window.setTimeout(finishHeroIntro, 1580);
         });
       };
@@ -536,7 +673,32 @@ const kitchenCatalog = {
       };
 
       const sliceFruit = (fruit, start, end) => {
-        if (!(fruit instanceof HTMLElement) || fruit.classList.contains("is-sliced")) return;
+        const state = fruitPhysics.get(fruit);
+        if (!(fruit instanceof HTMLElement) || !state || state.phase !== "whole") return;
+        const cutX = end.x - start.x;
+        const cutY = end.y - start.y;
+        const cutLength = Math.max(1, Math.hypot(cutX, cutY));
+        const normalX = -cutY / cutLength;
+        const normalY = cutX / cutLength;
+        const separation = clamp(145 + cutLength * 0.32, 150, 235);
+        state.phase = "sliced";
+        state.vy -= 24;
+        state.splitLeft = {
+          x: 0,
+          y: 0,
+          vx: normalX * separation - 24,
+          vy: normalY * separation - 36,
+          angle: 0,
+          angularVelocity: -250 - Math.random() * 90
+        };
+        state.splitRight = {
+          x: 0,
+          y: 0,
+          vx: -normalX * separation + 24,
+          vy: -normalY * separation - 36,
+          angle: 0,
+          angularVelocity: 250 + Math.random() * 90
+        };
         fruit.classList.add("is-sliced");
         sliceCount += 1;
         if (sliceScore) sliceScore.textContent = String(sliceCount).padStart(2, "0");
@@ -553,24 +715,21 @@ const kitchenCatalog = {
           }, 520);
         }
 
-        const timer = window.setTimeout(() => {
-          sliceTimers.delete(timer);
-          fruit.classList.remove("is-sliced");
-        }, 1650);
-        sliceTimers.add(timer);
       };
 
-      const sliceHeroFruits = (event, rect) => {
+      const sliceHeroFruits = (event) => {
         if (!(sliceField instanceof HTMLElement)) return;
-        const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        const fieldRect = sliceField.getBoundingClientRect();
+        const point = { x: event.clientX - fieldRect.left, y: event.clientY - fieldRect.top };
+        if (point.x < 0 || point.y < 0 || point.x > fieldRect.width || point.y > fieldRect.height) {
+          lastSlicePoint = null;
+          return;
+        }
         const start = lastSlicePoint || point;
-        sliceFruits.forEach((fruit) => {
-          if (!(fruit instanceof HTMLElement) || fruit.classList.contains("is-sliced")) return;
-          const center = {
-            x: sliceField.offsetLeft + fruit.offsetLeft,
-            y: sliceField.offsetTop + fruit.offsetTop
-          };
-          const radius = Math.min(fruit.offsetWidth, fruit.offsetHeight) * 0.46;
+        fruitPhysics.forEach((state, fruit) => {
+          if (state.phase !== "whole") return;
+          const center = { x: state.x, y: state.y };
+          const radius = fruitDiameter * 0.46;
           if (pointToSegmentDistance(center, start, point) <= radius) sliceFruit(fruit, start, point);
         });
         lastSlicePoint = point;
@@ -599,7 +758,7 @@ const kitchenCatalog = {
             const rect = hero.getBoundingClientRect();
             heroPointerTargetX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 9, -4.5, 4.5);
             heroPointerTargetY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 6, -3, 3);
-            sliceHeroFruits(event, rect);
+            sliceHeroFruits(event);
             scheduleHeroPointer();
           }, { signal });
           hero.addEventListener("pointerleave", () => {
@@ -613,6 +772,7 @@ const kitchenCatalog = {
         window.addEventListener("pageshow", (event) => {
           if (!event.persisted) return;
           finishHeroIntro();
+          startFruitPhysics();
           scheduleHeroScroll();
         }, { signal });
         playHeroIntro();
