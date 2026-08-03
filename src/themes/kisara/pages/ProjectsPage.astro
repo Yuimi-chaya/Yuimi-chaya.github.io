@@ -163,7 +163,7 @@ const kitchenCatalog = {
 ---
 
 <KisaraLayout title="Works | Kisara" description="Yuimi Lab 的项目与实验记录。" stylesheets={[projectsStylesheet]}>
-  <section class="kisara-works-intro" data-kisara-works-hero data-intro-state="idle" data-route-state="idle" aria-labelledby="kisara-works-title">
+  <section class="kisara-works-intro" data-kisara-works-hero data-intro-state="idle" data-prep-focus="idle" aria-labelledby="kisara-works-title">
     <div class="kisara-works-intro-media">
       <img
         src="/themes/kisara/assets/work-kitchen-hero.webp"
@@ -177,17 +177,36 @@ const kitchenCatalog = {
     </div>
     <div class="kisara-works-steam" aria-hidden="true"><i></i><i></i><i></i></div>
 
-    <div class="kisara-works-prep-note">
-      <p class="kisara-works-prep-meta"><span>04 / 今日备菜</span><em>{String(kitchenIngredients.length).padStart(2, "0")} 种技术食材</em></p>
-      <h1 id="kisara-works-title">先把洋葱切完，<br /><strong>再把想法做出来。</strong></h1>
-      <p>插件、模型、场景与网页机关，都是在一次次试味里成形的。偶尔切歪，偶尔流泪，最后总要端出点能玩的东西。</p>
-      <div class="kisara-works-prep-list" aria-hidden="true"><span>SCENE</span><i></i><span>PLUGIN</span><i></i><span>INTERACTION</span></div>
+    <div class="kisara-works-recipe-script">
+      <p class="kisara-works-script-meta"><span>MIS EN PLACE / 04</span><em>{String(kitchenIngredients.length).padStart(2, "0")} INGREDIENTS</em></p>
+      <h1 id="kisara-works-title">切到能用为止。</h1>
+      <p class="kisara-works-script-line"><span>眼泪算调味，</span><strong>成品才算交付。</strong></p>
+      <p class="kisara-works-script-note">场景、插件、模型、页面和那些暂时说不清的机关，都先当成食材处理。挑一份，它会直接落到下面的砧板上。</p>
+
+      <div class="kisara-works-prep-scatter" data-works-prep-scatter aria-label="选择一份技术食材送上砧板">
+        {kitchenIngredients.map((ingredient, index) => (
+          <button
+            type="button"
+            data-works-prep-id={ingredient.id}
+            data-works-prep-note={ingredient.note}
+            data-works-prep-project={ingredient.project.title}
+            style={`--prep-order: ${index}; --prep-color: ${ingredient.color};`}
+          >
+            <span>{ingredient.code}</span><small>{ingredient.name}</small>
+          </button>
+        ))}
+      </div>
+
+      <p class="kisara-works-prep-response" aria-live="polite">
+        <span data-works-prep-response>PREP TABLE / WAITING</span>
+        <strong data-works-prep-project-output>点一种，先送上砧板。</strong>
+      </p>
     </div>
 
     <div class="kisara-works-onion-rings" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="kisara-works-cut-trail" aria-hidden="true"><span></span><i></i><i></i><i></i><i></i></div>
     <a class="kisara-works-intro-jump" href="#kisara-kitchen-lab">
-      <span>把下一份食材带到砧板</span><Icon name="tabler:chevron-down" aria-hidden="true" />
+      <span><small>NO ORDER YET</small><strong>OPEN PREP TABLE</strong></span><Icon name="tabler:chevron-down" aria-hidden="true" />
     </a>
     <div class="kisara-works-hero-blend" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   </section>
@@ -416,7 +435,6 @@ const kitchenCatalog = {
 
       const playHeroIntro = async () => {
         if (!(hero instanceof HTMLElement)) return;
-        hero.dataset.routeState = "idle";
         hero.dataset.introState = heroReducedMotion ? "complete" : "idle";
         if (heroReducedMotion) return;
         if (heroImage instanceof HTMLImageElement && !heroImage.complete) {
@@ -427,7 +445,7 @@ const kitchenCatalog = {
         window.requestAnimationFrame(() => {
           if (signal.aborted) return;
           hero.dataset.introState = "playing";
-          heroIntroTimer = window.setTimeout(finishHeroIntro, 1320);
+          heroIntroTimer = window.setTimeout(finishHeroIntro, 1580);
         });
       };
 
@@ -474,23 +492,6 @@ const kitchenCatalog = {
             scheduleHeroPointer();
           }, { signal });
         }
-
-        document.addEventListener("astro:before-preparation", (event) => {
-          if (typeof event.loader !== "function") return;
-          const load = event.loader;
-          event.loader = async () => {
-            hero.dataset.routeState = "pending";
-            try {
-              await load();
-            } catch (error) {
-              hero.dataset.routeState = "idle";
-              throw error;
-            }
-            if (signal.aborted) return;
-            hero.dataset.routeState = "leaving";
-            if (!heroReducedMotion) await new Promise((resolve) => window.setTimeout(resolve, 210));
-          };
-        }, { signal });
 
         window.addEventListener("pageshow", (event) => {
           if (!event.persisted) return;
@@ -1166,6 +1167,37 @@ const kitchenCatalog = {
             scrollToBoard();
           });
         }
+      }, { signal });
+
+      const heroPrepButtons = Array.from(hero?.querySelectorAll("[data-works-prep-id]") || []);
+      const heroPrepResponse = hero?.querySelector("[data-works-prep-response]");
+      const heroPrepProject = hero?.querySelector("[data-works-prep-project-output]");
+      const setHeroPrepFocus = (button) => {
+        if (!(hero instanceof HTMLElement) || !(button instanceof HTMLElement)) return;
+        const id = button.dataset.worksPrepId;
+        if (!id) return;
+        hero.dataset.prepFocus = id;
+        if (heroPrepResponse) heroPrepResponse.textContent = button.dataset.worksPrepNote || "PREP TABLE / READY";
+        if (heroPrepProject) heroPrepProject.textContent = button.dataset.worksPrepProject || "送上砧板";
+      };
+
+      heroPrepButtons.forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) return;
+        button.addEventListener("pointerenter", () => setHeroPrepFocus(button), { signal });
+        button.addEventListener("focus", () => setHeroPrepFocus(button), { signal });
+        button.addEventListener("click", () => {
+          const id = button.dataset.worksPrepId;
+          if (!id) return;
+          setHeroPrepFocus(button);
+          addToBoard(id);
+          scrollToBoard();
+        }, { signal });
+      });
+      hero?.querySelector("[data-works-prep-scatter]")?.addEventListener("pointerleave", () => {
+        if (!(hero instanceof HTMLElement)) return;
+        hero.dataset.prepFocus = "idle";
+        if (heroPrepResponse) heroPrepResponse.textContent = "PREP TABLE / WAITING";
+        if (heroPrepProject) heroPrepProject.textContent = "点一种，先送上砧板。";
       }, { signal });
 
       root.dataset.kitchenReady = "true";

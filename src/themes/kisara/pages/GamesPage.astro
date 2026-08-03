@@ -43,7 +43,6 @@ const gamePresentation = {
       data-game-scene
       data-scene-position="active"
       data-intro-state="idle"
-      data-route-state="idle"
       aria-labelledby="kisara-game-hero-title"
     >
       <div class="kisara-game-hero-media" aria-hidden="true">
@@ -67,20 +66,23 @@ const gamePresentation = {
         <i></i><i></i><i></i><i></i><i></i>
       </div>
 
-      <div class="kisara-game-interruption">
-        <p class="kisara-game-interruption-meta"><span>AYANO / 16:32</span><em>MESSAGE / UNSENT</em></p>
-        <h1 id="kisara-game-hero-title">解释还没发出去，<br /><strong>手先动了。</strong></h1>
-        <div class="kisara-game-interruption-status"><i></i><span>撤回速度：追不上</span><small>BUFFER 05 / LIVE</small></div>
+      <div class="kisara-game-draft">
+        <p class="kisara-game-draft-meta"><span>16:32:08</span><em>DRAFT / NOT SENT</em></p>
+        <h1 id="kisara-game-hero-title"><span lang="ja">まだ送ってない。</span><small>NOT SENT YET</small></h1>
+        <p class="kisara-game-draft-line"><span lang="ja">ちょっと待って、説明を——</span><i aria-hidden="true"></i></p>
+        <div class="kisara-game-send-state"><strong>SEND FAILED</strong><span>GESTURE INPUT &gt; MESSAGE INPUT</span></div>
       </div>
 
-      <div class="kisara-game-hero-caption" aria-hidden="true">
-        <span>挥手过快</span><i></i><small>MESSAGE STILL MOVING</small>
+      <div class="kisara-game-hand-meter" aria-hidden="true">
+        <p><span>HAND VELOCITY</span><output data-game-input-speed>00</output></p>
+        <i><b></b></i>
+        <small>MOVE POINTER / SEE PANIC</small>
       </div>
 
       <div class="kisara-game-transition-cuts" aria-hidden="true"><i></i><i></i><i></i></div>
 
       <button class="kisara-game-scene-step is-next" type="button" data-game-scene-next aria-label="进入街机厅">
-        <span>去街机厅冷静一下</span>
+        <span>INSERT COIN / LEAVE CHAT</span>
         <Icon name="tabler:chevron-down" aria-hidden="true" />
       </button>
     </section>
@@ -281,6 +283,11 @@ const gamePresentation = {
       let heroPointerY = 0;
       let renderedHeroPointerX = 0;
       let renderedHeroPointerY = 0;
+      let heroInputEnergy = 0;
+      let heroInputTarget = 0;
+      let heroLastPointerX = 0;
+      let heroLastPointerY = 0;
+      let heroLastPointerAt = 0;
       let heroReady = false;
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -303,23 +310,17 @@ const gamePresentation = {
       document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
 
       document.addEventListener("astro:before-preparation", (event) => {
-        if (!(hero instanceof HTMLElement) || typeof event.loader !== "function") return;
+        if (typeof event.loader !== "function") return;
         const load = event.loader;
         event.loader = async () => {
           const resumeVideoOnFailure = heroVideo instanceof HTMLVideoElement && !heroVideo.paused;
           if (heroVideo instanceof HTMLVideoElement) heroVideo.pause();
-          hero.dataset.routeState = "pending";
           try {
             await load();
           } catch (error) {
-            hero.dataset.routeState = "idle";
             if (resumeVideoOnFailure && heroVideo instanceof HTMLVideoElement) void heroVideo.play().catch(() => undefined);
             throw error;
           }
-          if (signal.aborted) return;
-          page.style.setProperty("--game-cut-shift", "0%");
-          hero.dataset.routeState = "leaving";
-          await new Promise((resolve) => window.setTimeout(resolve, 190));
         };
       }, { signal });
 
@@ -492,7 +493,7 @@ const gamePresentation = {
         page.dataset.mediaState = "ready";
         if (!(hero instanceof HTMLElement)) return;
         hero.dataset.introState = reducedMotion ? "complete" : "playing";
-        if (!reducedMotion) introTimer = window.setTimeout(() => { hero.dataset.introState = "complete"; }, 1320);
+        if (!reducedMotion) introTimer = window.setTimeout(() => { hero.dataset.introState = "complete"; }, 1680);
       };
       if (heroVideo instanceof HTMLVideoElement) {
         heroVideo.muted = true;
@@ -542,13 +543,23 @@ const gamePresentation = {
       }
 
       if (hero instanceof HTMLElement && finePointer && !reducedMotion) {
+        const speedOutput = hero.querySelector("[data-game-input-speed]");
         const renderHeroPointer = () => {
           heroPointerFrame = 0;
           renderedHeroPointerX += (heroPointerX - renderedHeroPointerX) * 0.14;
           renderedHeroPointerY += (heroPointerY - renderedHeroPointerY) * 0.14;
+          heroInputEnergy += (heroInputTarget - heroInputEnergy) * 0.3;
+          heroInputTarget *= 0.92;
           hero.style.setProperty("--game-hero-pointer-x", `${renderedHeroPointerX.toFixed(2)}px`);
           hero.style.setProperty("--game-hero-pointer-y", `${renderedHeroPointerY.toFixed(2)}px`);
-          if (Math.abs(heroPointerX - renderedHeroPointerX) > 0.04 || Math.abs(heroPointerY - renderedHeroPointerY) > 0.04) {
+          hero.style.setProperty("--game-input-energy", heroInputEnergy.toFixed(3));
+          if (speedOutput) speedOutput.textContent = String(Math.round(heroInputEnergy * 99)).padStart(2, "0");
+          if (
+            Math.abs(heroPointerX - renderedHeroPointerX) > 0.04
+            || Math.abs(heroPointerY - renderedHeroPointerY) > 0.04
+            || heroInputEnergy > 0.008
+            || heroInputTarget > 0.008
+          ) {
             heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
           }
         };
@@ -557,13 +568,24 @@ const gamePresentation = {
         };
         hero.addEventListener("pointermove", (event) => {
           const rect = hero.getBoundingClientRect();
-          heroPointerX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 10, -5, 5);
-          heroPointerY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 7, -3.5, 3.5);
+          const now = event.timeStamp || performance.now();
+          if (heroLastPointerAt > 0) {
+            const elapsed = Math.max(8, now - heroLastPointerAt);
+            const distance = Math.hypot(event.clientX - heroLastPointerX, event.clientY - heroLastPointerY);
+            heroInputTarget = Math.max(heroInputTarget, clamp(distance / elapsed / 0.9, 0, 1));
+          }
+          heroLastPointerX = event.clientX;
+          heroLastPointerY = event.clientY;
+          heroLastPointerAt = now;
+          heroPointerX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 4.4, -2.2, 2.2);
+          heroPointerY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 3.2, -1.6, 1.6);
           scheduleHeroPointer();
         }, { signal });
         hero.addEventListener("pointerleave", () => {
           heroPointerX = 0;
           heroPointerY = 0;
+          heroInputTarget = 0;
+          heroLastPointerAt = 0;
           scheduleHeroPointer();
         }, { signal });
       }

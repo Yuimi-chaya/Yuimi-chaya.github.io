@@ -29,7 +29,7 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
 ---
 
 <KisaraLayout title="Blog | Kisara" description="Yuimi Lab 的文章记录。" stylesheets={[blogStylesheet]}>
-  <section class="kisara-blog-hero" data-kisara-blog-hero data-intro-state="idle" data-route-state="idle" aria-labelledby="kisara-blog-hero-title">
+  <section class="kisara-blog-hero" data-kisara-blog-hero data-intro-state="idle" data-cast-focus="all" aria-labelledby="kisara-blog-hero-title">
     <div class="kisara-blog-scene" aria-hidden="true">
       <img
         class="kisara-blog-scene-bg"
@@ -45,28 +45,29 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         <img class="kisara-blog-character is-ayano" src="/themes/kisara/assets/blog/ayano-middle-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" />
         <img class="kisara-blog-character is-shu" src="/themes/kisara/assets/blog/shu-middle-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="auto" />
         <img class="kisara-blog-character is-kisara" src="/themes/kisara/assets/blog/kisara-front-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
-        <span class="kisara-blog-group-focus" aria-hidden="true"></span>
       </div>
       <div class="kisara-blog-scene-veil"></div>
-      <div class="kisara-blog-exposure" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="kisara-blog-develop-line" aria-hidden="true"><i></i></div>
+      <p class="kisara-blog-contact-mark" aria-hidden="true"><span>CONTACT SHEET</span><strong>03 / {String(posts.length).padStart(2, "0")}</strong></p>
     </div>
 
-    <div class="kisara-blog-hero-layout">
-      <aside class="kisara-blog-ledger" aria-label="归档统计">
-        <span>ARCHIVE / 03</span>
-        <strong>{String(posts.length).padStart(2, "0")}</strong>
-        <small>篇记录仍在这里</small>
-      </aside>
-
-      <div class="kisara-blog-reading-note">
-        <p class="kisara-blog-note-meta"><span>LAST UPDATE</span><time>{latestPostDate}</time></p>
-        <h1 id="kisara-blog-hero-title">有些事情没有按顺序发生，<br /><em>但可以按顺序重新读一遍。</em></h1>
-        <p>开发、部署、兴趣与偶尔跑偏的想法。这里保留的不是标准答案，而是它们被写下时的上下文。</p>
-      </div>
+    <div class="kisara-blog-index-spine">
+      <p class="kisara-blog-file-code"><span>FILE 03</span><strong>FIELD NOTES</strong></p>
+      <h1 id="kisara-blog-hero-title"><span>四个人，</span><em>把同一段关系<br />记成了不同版本。</em></h1>
+      <p class="kisara-blog-index-lead">这里也一样。开发、部署、兴趣和偶尔跑偏的念头，不急着整理成标准答案，只把当时看见的那一面留下来。</p>
+      <p class="kisara-blog-index-date"><span>LAST DEVELOPED</span><time>{latestPostDate}</time></p>
     </div>
 
-    <div class="kisara-blog-reading-trace" aria-hidden="true">
-      <span></span><i></i><small>{String(categories.length).padStart(2, "0")} CHANNELS / READY TO READ</small>
+    <div class="kisara-blog-cast-note" aria-live="polite">
+      <small data-blog-cast-label>RELATIONSHIP FILE</small>
+      <strong data-blog-cast-copy>四个人都在场，答案仍然互相矛盾。</strong>
+    </div>
+
+    <div class="kisara-blog-cast-index" data-blog-cast-index aria-label="切换人物视点">
+      <button type="button" data-blog-cast="kisara" aria-pressed="false"><span>01</span><strong>KISARA</strong><small>MEMORY</small></button>
+      <button type="button" data-blog-cast="shu" aria-pressed="false"><span>02</span><strong>SHU</strong><small>LOSS</small></button>
+      <button type="button" data-blog-cast="ayano" aria-pressed="false"><span>03</span><strong>AYANO</strong><small>PAST</small></button>
+      <button type="button" data-blog-cast="sharon" aria-pressed="false"><span>04</span><strong>SHARON</strong><small>CONTRACT</small></button>
     </div>
 
     <div class="kisara-blog-intro-controls" aria-label="头图演出控制">
@@ -79,11 +80,9 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
     </div>
 
     <a class="kisara-blog-enter" href="#kisara-blog-archive">
-      <span>继续翻页</span>
-      <Icon name="tabler:arrow-down" aria-hidden="true" />
+      <span><small>{String(categories.length).padStart(2, "0")} CHANNELS</small><strong>OPEN THE ARCHIVE</strong></span>
+      <Icon name="tabler:chevron-down" aria-hidden="true" />
     </a>
-
-    <div class="kisara-blog-route-shutter" aria-hidden="true"><i></i><i></i></div>
   </section>
 
   <section id="kisara-blog-archive" class="kisara-blog-archive" data-kisara-archive>
@@ -234,19 +233,14 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
       const hero = document.querySelector("[data-kisara-blog-hero]");
       const archive = document.querySelector("[data-kisara-archive]");
       let introTimer = 0;
-      let pointerFrame = 0;
       let scrollFrame = 0;
-      let pointerTargetX = 0;
-      let pointerTargetY = 0;
-      let pointerRenderedX = 0;
-      let pointerRenderedY = 0;
+      let lockedCastFocus = "all";
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
       const cleanup = () => {
         lifecycle.abort();
         window.clearTimeout(introTimer);
-        if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
         if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
         if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
       };
@@ -268,7 +262,8 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         }
 
         hero.dataset.introState = "idle";
-        hero.dataset.routeState = "idle";
+        hero.dataset.castFocus = "all";
+        lockedCastFocus = "all";
         const images = Array.from(hero.querySelectorAll(".kisara-blog-scene-bg, .kisara-blog-character"));
         await Promise.all(images.map((image) => {
           if (!(image instanceof HTMLImageElement) || image.complete) return Promise.resolve();
@@ -279,7 +274,7 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         requestAnimationFrame(() => {
           if (signal.aborted) return;
           hero.dataset.introState = "playing";
-          introTimer = window.setTimeout(finishIntro, 1280);
+          introTimer = window.setTimeout(finishIntro, 1540);
         });
       };
 
@@ -295,53 +290,45 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         if (!scrollFrame) scrollFrame = window.requestAnimationFrame(syncScroll);
       };
 
-      if (hero instanceof HTMLElement && window.matchMedia("(hover: hover) and (pointer: fine)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        const renderPointer = () => {
-          pointerFrame = 0;
-          pointerRenderedX += (pointerTargetX - pointerRenderedX) * 0.16;
-          pointerRenderedY += (pointerTargetY - pointerRenderedY) * 0.16;
-          hero.style.setProperty("--blog-pointer-x", `${pointerRenderedX.toFixed(2)}px`);
-          hero.style.setProperty("--blog-pointer-y", `${pointerRenderedY.toFixed(2)}px`);
-          if (Math.abs(pointerTargetX - pointerRenderedX) > 0.04 || Math.abs(pointerTargetY - pointerRenderedY) > 0.04) {
-            pointerFrame = window.requestAnimationFrame(renderPointer);
-          }
-        };
-        const schedulePointer = () => {
-          if (!pointerFrame) pointerFrame = window.requestAnimationFrame(renderPointer);
-        };
-        hero.addEventListener("pointermove", (event) => {
-          const rect = hero.getBoundingClientRect();
-          pointerTargetX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 12, -6, 6);
-          pointerTargetY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 8, -4, 4);
-          schedulePointer();
-        }, { signal });
-        hero.addEventListener("pointerleave", () => {
-          pointerTargetX = 0;
-          pointerTargetY = 0;
-          schedulePointer();
-        }, { signal });
-      }
-
       window.addEventListener("scroll", scheduleScrollSync, { passive: true, signal });
       window.addEventListener("resize", scheduleScrollSync, { passive: true, signal });
       scheduleScrollSync();
 
-      document.addEventListener("astro:before-preparation", (event) => {
-        if (!(hero instanceof HTMLElement) || typeof event.loader !== "function") return;
-        const load = event.loader;
-        event.loader = async () => {
-          hero.dataset.routeState = "pending";
-          try {
-            await load();
-          } catch (error) {
-            hero.dataset.routeState = "idle";
-            throw error;
-          }
-          if (signal.aborted) return;
-          hero.dataset.routeState = "leaving";
-          await new Promise((resolve) => window.setTimeout(resolve, 190));
-        };
-      }, { signal });
+      const castVoices = {
+        all: ["RELATIONSHIP FILE", "四个人都在场，答案仍然互相矛盾。"],
+        kisara: ["KISARA / MEMORY", "记得太多，反而最像被留下的人。"],
+        shu: ["SHU / LOSS", "靠遗忘继续前进，却总在别人的记忆里出现。"],
+        ayano: ["AYANO / PAST", "想把过去说清楚的人，往往最晚收到回复。"],
+        sharon: ["SHARON / CONTRACT", "从旧契约里追来，也把局面重新写了一遍。"]
+      };
+      const castIndex = hero?.querySelector("[data-blog-cast-index]");
+      const castButtons = Array.from(hero?.querySelectorAll("[data-blog-cast]") || []);
+      const castLabel = hero?.querySelector("[data-blog-cast-label]");
+      const castCopy = hero?.querySelector("[data-blog-cast-copy]");
+      const setCastFocus = (id) => {
+        if (!(hero instanceof HTMLElement) || !castVoices[id]) return;
+        hero.dataset.castFocus = id;
+        const [label, copy] = castVoices[id];
+        if (castLabel) castLabel.textContent = label;
+        if (castCopy) castCopy.textContent = copy;
+        castButtons.forEach((button) => {
+          if (!(button instanceof HTMLButtonElement)) return;
+          button.setAttribute("aria-pressed", String(button.dataset.blogCast === id));
+        });
+      };
+
+      castButtons.forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) return;
+        const id = button.dataset.blogCast;
+        if (!id) return;
+        button.addEventListener("pointerenter", () => setCastFocus(id), { signal });
+        button.addEventListener("focus", () => setCastFocus(id), { signal });
+        button.addEventListener("click", () => {
+          lockedCastFocus = lockedCastFocus === id ? "all" : id;
+          setCastFocus(lockedCastFocus);
+        }, { signal });
+      });
+      castIndex?.addEventListener("pointerleave", () => setCastFocus(lockedCastFocus), { signal });
 
       hero?.querySelector("[data-blog-replay]")?.addEventListener("click", playIntro, { signal });
       hero?.querySelector("[data-blog-skip]")?.addEventListener("click", finishIntro, { signal });

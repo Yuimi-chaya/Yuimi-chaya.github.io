@@ -1,0 +1,223 @@
+<div
+  class="kisara-route-relay"
+  data-kisara-route-relay
+  data-phase="idle"
+  data-from="home"
+  data-to="home"
+  aria-hidden="true"
+  transition:persist="kisara-route-relay"
+></div>
+
+<script is:inline data-astro-rerun>
+  (() => {
+    const root = document.querySelector("[data-kisara-route-relay]");
+    if (!(root instanceof HTMLElement)) return;
+
+    const previous = window.__yuimiKisaraRouteRelay;
+    if (previous?.root === root) return;
+    previous?.dispose?.();
+
+    const lifecycle = new AbortController();
+    const signal = lifecycle.signal;
+    let serial = 0;
+    let revealTimer = 0;
+    let activeRoute = null;
+
+    const routeKey = (pathname) => {
+      const cleanPath = pathname
+        .replace(/^\/themes\/kisara(?=\/|$)/, "")
+        .replace(/^\/themes\/(?:blank|fuyukawa-kagari)(?=\/|$)/, "");
+      const segment = cleanPath.split("/").filter(Boolean)[0] || "home";
+      if (["blog", "games", "projects", "about"].includes(segment)) return segment;
+      return segment === "home" ? "home" : "other";
+    };
+
+    const clearTimer = () => {
+      if (revealTimer) window.clearTimeout(revealTimer);
+      revealTimer = 0;
+    };
+
+    const setDocumentState = (phase, from, to) => {
+      document.documentElement.dataset.kisaraRoutePhase = phase;
+      document.documentElement.dataset.kisaraRouteFrom = from;
+      document.documentElement.dataset.kisaraRouteTo = to;
+      if (document.body) {
+        document.body.dataset.kisaraRoutePhase = phase;
+        document.body.dataset.kisaraRouteFrom = from;
+        document.body.dataset.kisaraRouteTo = to;
+      }
+    };
+
+    const clearDocumentState = () => {
+      delete document.documentElement.dataset.kisaraRoutePhase;
+      delete document.documentElement.dataset.kisaraRouteFrom;
+      delete document.documentElement.dataset.kisaraRouteTo;
+      if (document.body) {
+        delete document.body.dataset.kisaraRoutePhase;
+        delete document.body.dataset.kisaraRouteFrom;
+        delete document.body.dataset.kisaraRouteTo;
+      }
+    };
+
+    const setPhase = (phase) => {
+      root.dataset.phase = phase;
+      if (activeRoute) setDocumentState(phase, activeRoute.from, activeRoute.to);
+    };
+
+    const reset = () => {
+      clearTimer();
+      activeRoute = null;
+      root.dataset.phase = "idle";
+      clearDocumentState();
+    };
+
+    const waitForCover = (duration, abortSignal) => new Promise((resolve) => {
+      let timer = window.setTimeout(() => {
+        timer = 0;
+        resolve();
+      }, duration);
+      abortSignal?.addEventListener("abort", () => {
+        if (timer) window.clearTimeout(timer);
+        timer = 0;
+        resolve();
+      }, { once: true });
+    });
+
+    const reveal = () => {
+      if (!activeRoute) return;
+      const route = activeRoute;
+      root.dataset.phase = "covered";
+      setDocumentState("covered", route.from, route.to);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (activeRoute !== route) return;
+          setPhase("revealing");
+          const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            || document.documentElement.dataset.yuimiPerformance !== "full";
+          revealTimer = window.setTimeout(reset, reduced ? 90 : 340);
+        });
+      });
+    };
+
+    document.addEventListener("astro:before-preparation", (event) => {
+      if (typeof event.loader !== "function" || event.from?.href === event.to?.href) return;
+
+      const from = routeKey(event.from?.pathname || window.location.pathname);
+      const to = routeKey(event.to?.pathname || window.location.pathname);
+      const navigationSerial = ++serial;
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        || document.documentElement.dataset.yuimiPerformance !== "full";
+      const originalLoader = event.loader;
+      activeRoute = { from, to, serial: navigationSerial };
+      clearTimer();
+      root.dataset.from = from;
+      root.dataset.to = to;
+      setPhase("pending");
+
+      event.loader = async () => {
+        try {
+          await originalLoader();
+        } catch (error) {
+          if (navigationSerial === serial) reset();
+          throw error;
+        }
+        if (event.signal?.aborted || navigationSerial !== serial) {
+          if (navigationSerial === serial) reset();
+          return;
+        }
+        setPhase("covering");
+        await waitForCover(reduced ? 80 : from === to ? 160 : 235, event.signal);
+        if (event.signal?.aborted || navigationSerial !== serial) {
+          if (navigationSerial === serial) reset();
+          return;
+        }
+        setPhase("covered");
+      };
+    }, { signal });
+
+    document.addEventListener("astro:before-swap", (event) => {
+      if (!activeRoute || !(event.newDocument instanceof Document)) return;
+      event.newDocument.documentElement.dataset.kisaraRoutePhase = "covered";
+      event.newDocument.documentElement.dataset.kisaraRouteFrom = activeRoute.from;
+      event.newDocument.documentElement.dataset.kisaraRouteTo = activeRoute.to;
+      if (event.newDocument.body) {
+        event.newDocument.body.dataset.kisaraRoutePhase = "covered";
+        event.newDocument.body.dataset.kisaraRouteFrom = activeRoute.from;
+        event.newDocument.body.dataset.kisaraRouteTo = activeRoute.to;
+      }
+    }, { signal });
+
+    document.addEventListener("astro:after-swap", reveal, { signal });
+    document.addEventListener("astro:page-load", () => {
+      if (activeRoute && root.dataset.phase === "covered") reveal();
+    }, { signal });
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) reset();
+    }, { signal });
+
+    window.__yuimiKisaraRouteRelay = {
+      root,
+      reset,
+      dispose: () => {
+        clearTimer();
+        lifecycle.abort();
+        clearDocumentState();
+      }
+    };
+  })();
+</script>
+
+<style is:global>
+  .kisara-route-relay {
+    position: fixed;
+    z-index: 9998;
+    inset: 0;
+    visibility: hidden;
+    opacity: 0;
+    background: #101426;
+    pointer-events: none;
+  }
+
+  .kisara-route-relay[data-to="home"] { background: #0b1635; }
+  .kisara-route-relay[data-to="blog"] { background: #120e20; }
+  .kisara-route-relay[data-to="games"] { background: #0a1420; }
+  .kisara-route-relay[data-to="projects"] { background: #6b555d; }
+  .kisara-route-relay[data-to="about"] { background: #654b5c; }
+
+  .kisara-route-relay[data-phase="pending"],
+  .kisara-route-relay[data-phase="covering"],
+  .kisara-route-relay[data-phase="covered"],
+  .kisara-route-relay[data-phase="revealing"] {
+    visibility: visible;
+  }
+
+  .kisara-route-relay[data-phase="covering"],
+  .kisara-route-relay[data-phase="covered"] {
+    opacity: 1;
+  }
+
+  .kisara-route-relay[data-phase="covering"] {
+    animation: kisara-route-cover 220ms cubic-bezier(0.32, 0, 0.18, 1) both;
+  }
+
+  .kisara-route-relay[data-phase="revealing"] {
+    animation: kisara-route-reveal 320ms cubic-bezier(0.18, 0.64, 0.18, 1) both;
+  }
+
+  @keyframes kisara-route-cover {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes kisara-route-reveal {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kisara-route-relay[data-phase="covering"],
+    .kisara-route-relay[data-phase="revealing"] {
+      animation-duration: 80ms !important;
+    }
+  }
+</style>

@@ -3101,3 +3101,371 @@ body[data-kisara-page="projects"] .kisara-theme-button {
     opacity: 1;
   }
 }
+
+/* Mise-en-place hero */
+.kisara-works-intro {
+  min-height: max(700px, 100svh);
+  overflow: hidden;
+}
+
+.kisara-works-intro-media img,
+.kisara-works-intro[data-intro-state="playing"] .kisara-works-intro-media img,
+.kisara-works-intro[data-intro-state="complete"] .kisara-works-intro-media img {
+  object-position: 61% 45%;
+  transform: translate3d(calc(var(--works-pointer-x) * 0.34), calc(var(--works-pointer-y) * 0.28), 0) scale(1.045);
+}
+
+.kisara-works-intro::before {
+  background:
+    linear-gradient(90deg, rgba(250, 246, 237, 0.96) 0%, rgba(250, 246, 237, 0.78) 28%, rgba(250, 246, 237, 0.16) 58%, transparent 76%),
+    linear-gradient(180deg, rgba(250, 246, 237, 0.12), transparent 55%, rgba(245, 235, 218, 0.74) 100%);
+}
+
+.kisara-works-steam {
+  transform: translate3d(calc(var(--works-pointer-x) * 0.45), 0, 0);
+  transition: transform 420ms ease-out;
+}
+
+.kisara-works-recipe-script {
+  position: absolute;
+  z-index: 8;
+  top: clamp(132px, 18vh, 190px);
+  left: clamp(34px, 5vw, 82px);
+  width: min(44vw, 560px);
+  color: #332b3c;
+  transform: rotate(-6.4deg);
+  transform-origin: left top;
+}
+
+.kisara-works-script-meta {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 0 0 16px;
+  color: rgba(73, 61, 78, 0.62);
+  font: 700 0.58rem/1 "Courier New", monospace;
+  opacity: 0;
+  transform: translateX(-12px);
+  transition: opacity 360ms ease 100ms, transform 560ms cubic-bezier(0.18, 0.78, 0.2, 1) 100ms;
+}
+
+.kisara-works-script-meta::before {
+  width: 30px;
+  height: 2px;
+  content: "";
+  background: #c53d73;
+  transform: rotate(4deg);
+}
+
+.kisara-works-script-meta span { color: #b62d67; }
+.kisara-works-script-meta em { font-style: normal; }
+
+.kisara-works-recipe-script h1 {
+  width: max-content;
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: #392d40;
+  font-family: KaiTi, STKaiti, "Songti SC", serif;
+  font-size: clamp(2.4rem, 4.6vw, 5rem);
+  font-weight: 700;
+  line-height: 1;
+  clip-path: inset(0 100% 0 0);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.48);
+  transform: translateX(-12px);
+}
+
+.kisara-works-script-line {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 14px 0 0 34px;
+  color: rgba(63, 51, 67, 0.74);
+  font-family: KaiTi, STKaiti, "Microsoft YaHei", sans-serif;
+  font-size: clamp(1rem, 1.55vw, 1.35rem);
+  opacity: 0;
+  transform: translateY(7px);
+  transition: opacity 420ms ease 560ms, transform 520ms ease 560ms;
+}
+
+.kisara-works-script-line strong {
+  position: relative;
+  color: #c22f6d;
+  font-weight: 700;
+}
+
+.kisara-works-script-line strong::after {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  left: -4px;
+  height: 2px;
+  content: "";
+  background: rgba(194, 47, 109, 0.66);
+  transform: scaleX(0) rotate(-1.2deg);
+  transform-origin: left center;
+}
+
+.kisara-works-script-note {
+  max-width: 430px;
+  margin: 21px 0 0 18px;
+  color: rgba(64, 55, 68, 0.68);
+  font-size: 0.82rem;
+  line-height: 1.72;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 420ms ease 700ms, transform 520ms ease 700ms;
+}
+
+.kisara-works-prep-scatter {
+  position: relative;
+  height: 142px;
+  margin: 22px 0 0 10px;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 460ms ease 780ms, transform 640ms cubic-bezier(0.18, 0.78, 0.2, 1) 780ms;
+}
+
+.kisara-works-prep-scatter button {
+  position: absolute;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 4px 2px 6px;
+  border: 0;
+  color: rgba(58, 49, 63, 0.62);
+  background: transparent;
+  cursor: pointer;
+  transform: rotate(var(--prep-rotate, 0deg));
+  transition: color 180ms ease, transform 240ms ease;
+}
+
+.kisara-works-prep-scatter button::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, var(--prep-color), transparent);
+  transform: scaleX(0.22) rotate(-1deg);
+  transform-origin: left center;
+  transition: transform 260ms cubic-bezier(0.18, 0.78, 0.2, 1);
+}
+
+.kisara-works-prep-scatter button span {
+  color: var(--prep-color);
+  font: 800 0.72rem/1 "Segoe UI", sans-serif;
+}
+
+.kisara-works-prep-scatter button small {
+  font: 700 0.58rem/1 KaiTi, STKaiti, sans-serif;
+}
+
+.kisara-works-prep-scatter button:nth-child(1) { top: 4px; left: 2%; --prep-rotate: -2deg; }
+.kisara-works-prep-scatter button:nth-child(2) { top: 0; left: 35%; --prep-rotate: 3deg; }
+.kisara-works-prep-scatter button:nth-child(3) { top: 12px; left: 68%; --prep-rotate: -4deg; }
+.kisara-works-prep-scatter button:nth-child(4) { top: 66px; left: 9%; --prep-rotate: 4deg; }
+.kisara-works-prep-scatter button:nth-child(5) { top: 74px; left: 43%; --prep-rotate: -3deg; }
+.kisara-works-prep-scatter button:nth-child(6) { top: 62px; left: 72%; --prep-rotate: 2deg; }
+
+.kisara-works-prep-scatter button:hover,
+.kisara-works-prep-scatter button:focus-visible {
+  color: #2f2635;
+  outline: 0;
+  transform: translateY(-3px) rotate(var(--prep-rotate, 0deg));
+}
+
+.kisara-works-prep-scatter button:hover::after,
+.kisara-works-prep-scatter button:focus-visible::after {
+  transform: scaleX(1) rotate(-1deg);
+}
+
+.kisara-works-prep-response {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  margin: -6px 0 0 18px;
+  color: rgba(74, 62, 79, 0.54);
+  opacity: 0;
+  transition: opacity 360ms ease 980ms;
+}
+
+.kisara-works-prep-response::before {
+  grid-column: 1 / -1;
+  width: min(100%, 360px);
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, rgba(181, 48, 105, 0.44), transparent);
+}
+
+.kisara-works-prep-response span {
+  color: #ac3869;
+  font: 700 0.5rem/1 "Courier New", monospace;
+}
+
+.kisara-works-prep-response strong {
+  overflow: hidden;
+  color: rgba(57, 47, 61, 0.68);
+  font: 600 0.7rem/1.2 KaiTi, STKaiti, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kisara-works-intro[data-intro-state="playing"] .kisara-works-script-meta,
+.kisara-works-intro[data-intro-state="complete"] .kisara-works-script-meta,
+.kisara-works-intro[data-intro-state="playing"] .kisara-works-script-line,
+.kisara-works-intro[data-intro-state="complete"] .kisara-works-script-line,
+.kisara-works-intro[data-intro-state="playing"] .kisara-works-script-note,
+.kisara-works-intro[data-intro-state="complete"] .kisara-works-script-note,
+.kisara-works-intro[data-intro-state="playing"] .kisara-works-prep-scatter,
+.kisara-works-intro[data-intro-state="complete"] .kisara-works-prep-scatter,
+.kisara-works-intro[data-intro-state="playing"] .kisara-works-prep-response,
+.kisara-works-intro[data-intro-state="complete"] .kisara-works-prep-response {
+  opacity: calc(1 - var(--works-scroll-progress));
+  transform: translate3d(0, calc(var(--works-scroll-progress) * -13px), 0);
+}
+
+.kisara-works-intro[data-intro-state="playing"] .kisara-works-recipe-script h1 {
+  animation: kisara-works-script-write 720ms steps(7, end) 240ms both;
+}
+
+.kisara-works-intro[data-intro-state="complete"] .kisara-works-recipe-script h1 {
+  clip-path: inset(0);
+  transform: translateX(0);
+}
+
+.kisara-works-intro[data-intro-state="playing"] .kisara-works-script-line strong::after,
+.kisara-works-intro[data-intro-state="complete"] .kisara-works-script-line strong::after {
+  transform: scaleX(1) rotate(-1.2deg);
+  transition: transform 520ms cubic-bezier(0.18, 0.78, 0.2, 1) 920ms;
+}
+
+.kisara-works-intro-jump {
+  right: clamp(26px, 4vw, 62px);
+  bottom: 28px;
+  left: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 11px;
+  color: rgba(61, 52, 65, 0.68);
+  text-align: left;
+  transform: none;
+}
+
+.kisara-works-intro-jump span {
+  display: grid;
+  gap: 3px;
+}
+
+.kisara-works-intro-jump small {
+  color: rgba(172, 56, 105, 0.7);
+  font: 700 0.46rem/1 "Courier New", monospace;
+}
+
+.kisara-works-intro-jump strong {
+  font: 750 0.6rem/1 "Segoe UI", sans-serif;
+}
+
+.kisara-works-intro-jump svg {
+  width: 17px;
+  height: 17px;
+  color: #b5366c;
+  transition: transform 220ms ease;
+}
+
+.kisara-works-intro-jump:hover svg,
+.kisara-works-intro-jump:focus-visible svg {
+  transform: translate3d(3px, 3px, 0);
+}
+
+.kisara-works-onion-rings {
+  top: 53%;
+  left: 4.5%;
+  opacity: 0.18;
+  transform: rotate(-12deg) scale(0.82);
+}
+
+.kisara-works-cut-trail {
+  opacity: 0.44;
+}
+
+@keyframes kisara-works-script-write {
+  from { clip-path: inset(0 100% 0 0); transform: translateX(-12px); }
+  to { clip-path: inset(0); transform: translateX(0); }
+}
+
+@media (max-width: 900px) {
+  .kisara-works-intro-media img,
+  .kisara-works-intro[data-intro-state="playing"] .kisara-works-intro-media img,
+  .kisara-works-intro[data-intro-state="complete"] .kisara-works-intro-media img {
+    object-position: 64% 43%;
+    transform: scale(1.08);
+  }
+  .kisara-works-intro::before {
+    background:
+      linear-gradient(180deg, rgba(250, 246, 237, 0.12), rgba(250, 246, 237, 0.1) 42%, rgba(247, 239, 225, 0.86) 71%, #f5ead8 100%),
+      linear-gradient(90deg, rgba(250, 246, 237, 0.38), transparent 68%);
+  }
+  .kisara-works-recipe-script {
+    top: auto;
+    right: 22px;
+    bottom: 116px;
+    left: 22px;
+    width: auto;
+    transform: rotate(-3.4deg);
+  }
+  .kisara-works-recipe-script h1 { font-size: clamp(2.1rem, 9vw, 3.7rem); }
+  .kisara-works-script-note { max-width: 620px; margin-top: 14px; font-size: 0.76rem; line-height: 1.55; }
+  .kisara-works-prep-scatter {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px 14px;
+    height: auto;
+    margin-top: 15px;
+  }
+  .kisara-works-prep-scatter button:nth-child(n) {
+    position: relative;
+    top: auto;
+    left: auto;
+    justify-content: flex-start;
+    transform: rotate(0deg);
+  }
+  .kisara-works-prep-response { margin-top: 10px; }
+  .kisara-works-onion-rings { display: none; }
+  .kisara-works-intro-jump { right: 18px; bottom: 74px; }
+}
+
+@media (max-width: 560px) {
+  .kisara-works-recipe-script { right: 16px; bottom: 116px; left: 16px; }
+  .kisara-works-script-meta em { display: none; }
+  .kisara-works-recipe-script h1 { font-size: clamp(1.9rem, 10vw, 3rem); }
+  .kisara-works-script-line { margin-top: 10px; margin-left: 16px; font-size: 0.94rem; }
+  .kisara-works-script-note {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-left: 10px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .kisara-works-prep-scatter { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 12px; margin-left: 6px; }
+  .kisara-works-prep-scatter button { padding-block: 3px; }
+  .kisara-works-prep-response { display: none; }
+  .kisara-works-intro-jump { bottom: 70px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kisara-works-recipe-script h1,
+  .kisara-works-script-meta,
+  .kisara-works-script-line,
+  .kisara-works-script-note,
+  .kisara-works-prep-scatter,
+  .kisara-works-prep-response {
+    opacity: 1 !important;
+    clip-path: none !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
