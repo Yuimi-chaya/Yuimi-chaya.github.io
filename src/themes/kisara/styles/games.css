@@ -2715,3 +2715,303 @@ body[data-kisara-page="games"] .kisara-header.is-inner-header {
     transition: none !important;
   }
 }
+
+/* Terminal outbox and delivered-message field */
+.kisara-game-terminal {
+  position: absolute;
+  z-index: 13;
+  top: clamp(116px, 16vh, 164px);
+  left: clamp(42px, 6vw, 90px);
+  display: grid;
+  grid-template-rows: auto minmax(78px, auto) auto;
+  width: min(40vw, 540px);
+  min-height: 154px;
+  overflow: hidden;
+  border: 1px solid rgba(183, 223, 255, 0.34);
+  color: rgba(236, 246, 255, 0.9);
+  background: rgba(3, 8, 19, 0.14);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 18px 58px rgba(0, 5, 15, 0.18),
+    0 0 calc(7px + var(--game-input-energy) * 18px) rgba(255, 82, 126, 0.12);
+  opacity: 0;
+  backdrop-filter: blur(5px) saturate(0.78);
+  transform: translate3d(-24px, 8px, 0) rotate(-1.2deg);
+  transition:
+    opacity 420ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 620ms cubic-bezier(0.16, 0.78, 0.18, 1);
+}
+
+.kisara-game-terminal::before,
+.kisara-game-terminal::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+}
+
+.kisara-game-terminal::before {
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(117, 211, 255, 0.08) 1px, transparent 1px) 0 0 / 34px 100%,
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px) 0 0 / 100% 26px;
+  opacity: 0.38;
+  mask-image: linear-gradient(90deg, #000, transparent 72%);
+}
+
+.kisara-game-terminal::after {
+  top: 0;
+  bottom: 0;
+  left: -30%;
+  width: 24%;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 115, 151, 0.2), rgba(132, 214, 255, 0.16), transparent);
+  transform: skewX(-18deg);
+}
+
+.kisara-game-terminal header,
+.kisara-game-terminal footer {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 11px;
+  min-height: 30px;
+  padding: 0 14px;
+  color: rgba(196, 224, 246, 0.62);
+  font: 750 0.54rem/1 "Courier New", monospace;
+  text-transform: uppercase;
+}
+
+.kisara-game-terminal header {
+  border-bottom: 1px solid rgba(180, 222, 255, 0.16);
+}
+
+.kisara-game-terminal footer {
+  border-top: 1px solid rgba(180, 222, 255, 0.12);
+}
+
+.kisara-game-terminal header i {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(114, 209, 255, 0.42), transparent);
+}
+
+.kisara-game-terminal header em,
+.kisara-game-terminal footer em {
+  color: #ff86a2;
+  font-style: normal;
+}
+
+.kisara-game-terminal-line {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 9px;
+  align-items: center;
+  gap: 8px;
+  min-height: 78px;
+  padding: 17px 17px 19px;
+  font-family: "Yu Gothic UI", Meiryo, "Microsoft YaHei", sans-serif;
+}
+
+.kisara-game-terminal-line > span {
+  align-self: start;
+  color: #7ed8ff;
+  font: 800 1rem/1.4 "Courier New", monospace;
+}
+
+.kisara-game-terminal-line p {
+  min-height: 1.45em;
+  margin: 0;
+  color: rgba(250, 252, 255, 0.96);
+  font-size: 1.22rem;
+  font-weight: 650;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-shadow:
+    calc(var(--game-input-energy) * -4px) 0 rgba(94, 209, 255, 0.28),
+    calc(var(--game-input-energy) * 5px) 0 rgba(255, 82, 126, 0.3),
+    0 4px 18px rgba(0, 4, 14, 0.72);
+}
+
+.kisara-game-terminal-line > i {
+  width: 7px;
+  height: 1.35em;
+  background: #ff7798;
+  box-shadow: 0 0 10px rgba(255, 89, 132, 0.62);
+  opacity: 0;
+}
+
+.kisara-game-terminal[data-message-state="typing"] .kisara-game-terminal-line > i {
+  animation: kisara-game-terminal-caret 620ms steps(2, end) infinite;
+}
+
+.kisara-game-terminal[data-message-state="sending"] {
+  border-color: rgba(255, 112, 149, 0.68);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 18px 58px rgba(0, 5, 15, 0.18),
+    0 0 24px rgba(255, 82, 126, 0.24);
+}
+
+.kisara-game-terminal[data-message-state="sending"]::after {
+  animation: kisara-game-terminal-send 240ms ease both;
+}
+
+.kisara-game-terminal[data-message-state="sending"] .kisara-game-terminal-line {
+  animation: kisara-game-terminal-kick 180ms steps(2, end) both;
+}
+
+.kisara-game-terminal[data-message-state="complete"] {
+  border-color: rgba(141, 211, 255, 0.2);
+  background: rgba(3, 8, 19, 0.08);
+  opacity: 0.76;
+  transform: translate3d(0, 0, 0) rotate(-1.2deg) scale(0.985);
+}
+
+.kisara-game-hero[data-intro-state="playing"] .kisara-game-terminal,
+.kisara-game-hero[data-intro-state="complete"] .kisara-game-terminal {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) rotate(-1.2deg);
+}
+
+.kisara-game-sent-field {
+  position: absolute;
+  z-index: 10;
+  inset: 70px 0 88px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.kisara-game-sent-field p {
+  position: absolute;
+  top: var(--sent-y);
+  left: var(--sent-x);
+  max-width: 86vw;
+  margin: 0;
+  color: rgba(247, 250, 255, 0.88);
+  font: 950 7.4rem/0.78 "Arial Black", Impact, "Yu Gothic UI", sans-serif;
+  letter-spacing: 0;
+  opacity: 0;
+  text-shadow:
+    calc(var(--game-input-energy) * -8px) 0 rgba(94, 209, 255, 0.34),
+    calc(var(--game-input-energy) * 9px) 0 rgba(255, 82, 126, 0.38),
+    0 12px 32px rgba(0, 4, 15, 0.58);
+  transform: rotate(var(--sent-rotate)) scale(calc(var(--sent-scale) + 0.48));
+  transform-origin: center;
+  white-space: nowrap;
+}
+
+.kisara-game-sent-field p:nth-child(2) {
+  color: rgba(255, 111, 149, 0.13);
+  font-size: 10rem;
+  -webkit-text-stroke: 1px rgba(255, 155, 180, 0.84);
+}
+
+.kisara-game-sent-field p:nth-child(3) {
+  color: transparent;
+  font-size: 5.7rem;
+  -webkit-text-stroke: 1px rgba(197, 229, 255, 0.68);
+}
+
+.kisara-game-sent-field p:nth-child(4) {
+  color: rgba(255, 232, 239, 0.82);
+  font-size: 6.25rem;
+}
+
+.kisara-game-sent-field p.is-sent {
+  animation: kisara-game-message-land 620ms cubic-bezier(0.12, 0.82, 0.18, 1) both;
+}
+
+.kisara-games[data-active-scene="1"] .kisara-game-terminal,
+.kisara-games[data-active-scene="1"] .kisara-game-sent-field {
+  opacity: 0;
+  transform: translate3d(-24px, -12px, 0);
+  transition: opacity 180ms ease, transform 260ms ease;
+}
+
+@keyframes kisara-game-message-land {
+  0% {
+    opacity: 0;
+    filter: blur(5px);
+    transform: rotate(var(--sent-rotate)) scale(calc(var(--sent-scale) + 0.48));
+  }
+  58% {
+    opacity: 1;
+    filter: blur(0);
+    transform: rotate(0deg) scale(calc(var(--sent-scale) - 0.06));
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: rotate(var(--sent-rotate)) scale(var(--sent-scale));
+  }
+}
+
+@keyframes kisara-game-terminal-caret {
+  0%, 42% { opacity: 1; }
+  43%, 100% { opacity: 0; }
+}
+
+@keyframes kisara-game-terminal-send {
+  0% { left: -30%; opacity: 0; }
+  28% { opacity: 1; }
+  100% { left: 108%; opacity: 0; }
+}
+
+@keyframes kisara-game-terminal-kick {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  40% { transform: translate3d(-4px, 1px, 0); }
+  70% { transform: translate3d(3px, -1px, 0); }
+}
+
+@media (max-width: 760px) {
+  .kisara-game-terminal {
+    top: 104px;
+    right: 17px;
+    left: 17px;
+    width: auto;
+    min-height: 136px;
+    backdrop-filter: blur(4px) saturate(0.78);
+  }
+
+  .kisara-game-terminal-line {
+    min-height: 66px;
+    padding: 13px 14px 15px;
+  }
+
+  .kisara-game-terminal-line p {
+    font-size: 0.98rem;
+  }
+
+  .kisara-game-sent-field {
+    inset: 70px 0 104px;
+  }
+
+  .kisara-game-sent-field p {
+    max-width: 94vw;
+    font-size: 3.25rem;
+  }
+
+  .kisara-game-sent-field p:nth-child(2) { top: 32%; left: 52%; font-size: 4.7rem; }
+  .kisara-game-sent-field p:nth-child(3) { top: 58%; left: 2%; font-size: 2.75rem; }
+  .kisara-game-sent-field p:nth-child(4) { top: 72%; left: 24%; font-size: 3rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kisara-game-terminal,
+  .kisara-game-sent-field,
+  .kisara-game-sent-field p,
+  .kisara-game-terminal-line {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .kisara-game-sent-field p {
+    opacity: 0.74 !important;
+    filter: none !important;
+    transform: rotate(var(--sent-rotate)) scale(var(--sent-scale)) !important;
+  }
+}

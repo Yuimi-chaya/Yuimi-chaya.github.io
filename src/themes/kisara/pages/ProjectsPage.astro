@@ -81,6 +81,15 @@ const kitchenIngredients = [
   }
 ] as const;
 
+const heroFruitPlacements = [
+  { x: "55%", y: "17%", tilt: "-9deg", delay: "-1.2s" },
+  { x: "72%", y: "23%", tilt: "7deg", delay: "-2.8s" },
+  { x: "87%", y: "38%", tilt: "-5deg", delay: "-0.6s" },
+  { x: "61%", y: "55%", tilt: "11deg", delay: "-3.5s" },
+  { x: "78%", y: "67%", tilt: "-12deg", delay: "-2.1s" },
+  { x: "91%", y: "73%", tilt: "6deg", delay: "-4.2s" }
+] as const;
+
 const kitchenRecipes = [
   {
     ingredients: ["blender", "unity"],
@@ -177,9 +186,30 @@ const kitchenCatalog = {
     </div>
     <div class="kisara-works-steam" aria-hidden="true"><i></i><i></i><i></i></div>
 
+    <div class="kisara-works-slice-field" data-works-slice-field aria-hidden="true">
+      <div class="kisara-works-slice-trails" data-works-slice-trails></div>
+      <p class="kisara-works-slice-score"><span>CUT TEST</span><output data-works-slice-score>00</output></p>
+      {kitchenIngredients.map((ingredient, index) => {
+        const placement = heroFruitPlacements[index];
+        return (
+          <span
+            class="kisara-works-slice-fruit kisara-ingredient"
+            data-works-slice-fruit
+            data-shape={ingredient.shape}
+            data-fruit-id={ingredient.id}
+            style={`--ingredient: ${ingredient.color}; --ingredient-soft: ${ingredient.soft}; --fruit-x: ${placement.x}; --fruit-y: ${placement.y}; --fruit-tilt: ${placement.tilt}; --fruit-delay: ${placement.delay};`}
+          >
+            <span class="kisara-works-slice-fruit-piece is-whole"><span class="kisara-ingredient-shape"><Icon name={ingredient.icon} /><i></i><i></i></span></span>
+            <span class="kisara-works-slice-fruit-piece is-left"><span class="kisara-ingredient-shape"><Icon name={ingredient.icon} /><i></i><i></i></span></span>
+            <span class="kisara-works-slice-fruit-piece is-right"><span class="kisara-ingredient-shape"><Icon name={ingredient.icon} /><i></i><i></i></span></span>
+          </span>
+        );
+      })}
+    </div>
+
     <div class="kisara-works-editorial">
       <p class="kisara-works-editorial-meta"><span>04</span><em>KISARA KITCHEN / WORKS</em></p>
-      <h1 id="kisara-works-title"><span>WORKS,</span><em>one layer at a time.</em></h1>
+      <h1 id="kisara-works-title"><span data-cut-copy="WORKS,">WORKS,</span><em data-cut-copy="one layer at a time.">one layer at a time.</em></h1>
       <p class="kisara-works-editorial-lead">Scenes, plugins, models and pages all begin as loose ingredients. Pick one and send it to the board.</p>
 
       <div class="kisara-works-prep-rail" data-works-prep-scatter aria-label="选择一份技术食材送上砧板">
@@ -383,6 +413,11 @@ const kitchenCatalog = {
       const signal = lifecycle.signal;
       const hero = document.querySelector("[data-kisara-works-hero]");
       const heroImage = hero?.querySelector(".kisara-works-intro-media img");
+      const sliceField = hero?.querySelector("[data-works-slice-field]");
+      const sliceTrails = hero?.querySelector("[data-works-slice-trails]");
+      const sliceScore = hero?.querySelector("[data-works-slice-score]");
+      const sliceFruits = Array.from(hero?.querySelectorAll("[data-works-slice-fruit]") || []);
+      const sliceTimers = new Set();
       let pointerFrame = 0;
       let heroPointerFrame = 0;
       let heroScrollFrame = 0;
@@ -399,6 +434,9 @@ const kitchenCatalog = {
       let heroPointerTargetY = 0;
       let heroPointerRenderedX = 0;
       let heroPointerRenderedY = 0;
+      let lastSlicePoint = null;
+      let sliceCount = 0;
+      let titleCutTimer = 0;
       const settlingGhosts = new Set();
 
       const cleanup = () => {
@@ -407,6 +445,9 @@ const kitchenCatalog = {
         if (heroPointerFrame) cancelAnimationFrame(heroPointerFrame);
         if (heroScrollFrame) cancelAnimationFrame(heroScrollFrame);
         if (heroIntroTimer) window.clearTimeout(heroIntroTimer);
+        if (titleCutTimer) window.clearTimeout(titleCutTimer);
+        sliceTimers.forEach((timer) => window.clearTimeout(timer));
+        sliceTimers.clear();
         if (dragFrame) cancelAnimationFrame(dragFrame);
         if (blendTimer) window.clearTimeout(blendTimer);
         if (chopTimer) window.clearTimeout(chopTimer);
@@ -461,6 +502,80 @@ const kitchenCatalog = {
         if (!heroScrollFrame) heroScrollFrame = window.requestAnimationFrame(syncHeroScroll);
       };
 
+      const pointToSegmentDistance = (point, start, end) => {
+        const segmentX = end.x - start.x;
+        const segmentY = end.y - start.y;
+        const lengthSquared = segmentX * segmentX + segmentY * segmentY;
+        if (!lengthSquared) return Math.hypot(point.x - start.x, point.y - start.y);
+        const projection = clamp(
+          ((point.x - start.x) * segmentX + (point.y - start.y) * segmentY) / lengthSquared,
+          0,
+          1
+        );
+        return Math.hypot(
+          point.x - (start.x + segmentX * projection),
+          point.y - (start.y + segmentY * projection)
+        );
+      };
+
+      const appendSliceTrail = (start, end) => {
+        if (!(sliceTrails instanceof HTMLElement)) return;
+        const length = Math.max(18, Math.hypot(end.x - start.x, end.y - start.y));
+        const angle = Math.atan2(end.y - start.y, end.x - start.x) * 180 / Math.PI;
+        const trail = document.createElement("i");
+        trail.style.setProperty("--slice-left", `${start.x.toFixed(2)}px`);
+        trail.style.setProperty("--slice-top", `${start.y.toFixed(2)}px`);
+        trail.style.setProperty("--slice-length", `${length.toFixed(2)}px`);
+        trail.style.setProperty("--slice-angle", `${angle.toFixed(2)}deg`);
+        sliceTrails.append(trail);
+        const timer = window.setTimeout(() => {
+          sliceTimers.delete(timer);
+          trail.remove();
+        }, 440);
+        sliceTimers.add(timer);
+      };
+
+      const sliceFruit = (fruit, start, end) => {
+        if (!(fruit instanceof HTMLElement) || fruit.classList.contains("is-sliced")) return;
+        fruit.classList.add("is-sliced");
+        sliceCount += 1;
+        if (sliceScore) sliceScore.textContent = String(sliceCount).padStart(2, "0");
+        appendSliceTrail(start, end);
+
+        if (hero instanceof HTMLElement) {
+          hero.classList.remove("is-knife-active");
+          void hero.offsetWidth;
+          hero.classList.add("is-knife-active");
+          if (titleCutTimer) window.clearTimeout(titleCutTimer);
+          titleCutTimer = window.setTimeout(() => {
+            titleCutTimer = 0;
+            hero.classList.remove("is-knife-active");
+          }, 520);
+        }
+
+        const timer = window.setTimeout(() => {
+          sliceTimers.delete(timer);
+          fruit.classList.remove("is-sliced");
+        }, 1650);
+        sliceTimers.add(timer);
+      };
+
+      const sliceHeroFruits = (event, rect) => {
+        if (!(sliceField instanceof HTMLElement)) return;
+        const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        const start = lastSlicePoint || point;
+        sliceFruits.forEach((fruit) => {
+          if (!(fruit instanceof HTMLElement) || fruit.classList.contains("is-sliced")) return;
+          const center = {
+            x: sliceField.offsetLeft + fruit.offsetLeft,
+            y: sliceField.offsetTop + fruit.offsetTop
+          };
+          const radius = Math.min(fruit.offsetWidth, fruit.offsetHeight) * 0.46;
+          if (pointToSegmentDistance(center, start, point) <= radius) sliceFruit(fruit, start, point);
+        });
+        lastSlicePoint = point;
+      };
+
       if (hero instanceof HTMLElement) {
         window.addEventListener("scroll", scheduleHeroScroll, { passive: true, signal });
         window.addEventListener("resize", scheduleHeroScroll, { passive: true, signal });
@@ -484,11 +599,13 @@ const kitchenCatalog = {
             const rect = hero.getBoundingClientRect();
             heroPointerTargetX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 9, -4.5, 4.5);
             heroPointerTargetY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 6, -3, 3);
+            sliceHeroFruits(event, rect);
             scheduleHeroPointer();
           }, { signal });
           hero.addEventListener("pointerleave", () => {
             heroPointerTargetX = 0;
             heroPointerTargetY = 0;
+            lastSlicePoint = null;
             scheduleHeroPointer();
           }, { signal });
         }

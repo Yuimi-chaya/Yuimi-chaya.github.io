@@ -34,8 +34,12 @@ const gamePresentation = {
   }
 } as const;
 
-const gamePanicCharacters = Array.from("まだ送ってない。");
-const gameCorrectionCharacters = Array.from("ちょっと待って、説明を——");
+const gameMessageBursts = [
+  { draft: "綾乃、今どこ。", display: "WHERE.", x: "3%", y: "17%", rotate: "-7deg", scale: "1.08" },
+  { draft: "既読だけつけるの、ずるい。", display: "既読", x: "63%", y: "14%", rotate: "5deg", scale: "0.9" },
+  { draft: "偶然って、何回まで偶然なの。", display: "COINCIDENCE?", x: "8%", y: "55%", rotate: "2.5deg", scale: "0.82" },
+  { draft: "その隣、私の場所なんだけど。", display: "そこ、私の。", x: "49%", y: "66%", rotate: "-4deg", scale: "0.92" }
+] as const;
 ---
 
 <KisaraLayout title="Games | Kisara" description="Yuimi Lab 的小游戏收藏。" stylesheets={[gamesStylesheet]}>
@@ -69,19 +73,31 @@ const gameCorrectionCharacters = Array.from("ちょっと待って、説明を�
         <i></i><i></i><i></i><i></i><i></i>
       </div>
 
-      <div class="kisara-game-type-storm">
-        <p class="kisara-game-type-meta"><span>16:32:08</span><em>DRAFT / NOT SENT</em></p>
-        <h1 id="kisara-game-hero-title" aria-label="まだ送ってない。">
-          <span class="kisara-game-type-main" lang="ja" aria-hidden="true">
-            {gamePanicCharacters.map((character, index) => <i style={`--type-order: ${index};`}>{character}</i>)}
-          </span>
-          <small aria-hidden="true"><b>NOT</b><b>SENT</b><b>YET</b></small>
-        </h1>
-        <p class="kisara-game-type-correction" lang="ja" aria-hidden="true">
-          {gameCorrectionCharacters.map((character, index) => <span style={`--correction-order: ${index};`}>{character}</span>)}
-        </p>
-        <div class="kisara-game-type-stamps" aria-hidden="true"><span>WAIT</span><span>DELETE</span><span>EXPLAIN</span><span>FAILED</span></div>
-        <div class="kisara-game-send-state"><strong>SEND FAILED</strong><span>GESTURE INPUT &gt; MESSAGE INPUT</span></div>
+      <div class="kisara-game-sent-field" data-game-sent-field aria-hidden="true">
+        {gameMessageBursts.map((message, index) => (
+          <p
+            data-game-sent-burst={index}
+            data-game-message-draft={message.draft}
+            style={`--sent-x: ${message.x}; --sent-y: ${message.y}; --sent-rotate: ${message.rotate}; --sent-scale: ${message.scale}; --sent-order: ${index};`}
+          >{message.display}</p>
+        ))}
+      </div>
+
+      <div class="kisara-game-terminal" data-game-terminal data-message-state="idle">
+        <header>
+          <span>private://ayano</span>
+          <i aria-hidden="true"></i>
+          <em>OUTBOX / LIVE</em>
+        </header>
+        <div class="kisara-game-terminal-line">
+          <span aria-hidden="true">&gt;</span>
+          <p id="kisara-game-hero-title" lang="ja" data-game-terminal-copy aria-live="off"></p>
+          <i aria-hidden="true"></i>
+        </div>
+        <footer>
+          <span data-game-terminal-status>QUEUE 01 / {String(gameMessageBursts.length).padStart(2, "0")}</span>
+          <em data-game-terminal-action>COMPOSING</em>
+        </footer>
       </div>
 
       <div class="kisara-game-hand-meter" aria-hidden="true">
@@ -277,7 +293,8 @@ const gameCorrectionCharacters = Array.from("ちょっと待って、説明を�
       const arcade = page.querySelector("[data-kisara-arcade]");
       let gameFrame = null;
       let heroVideo = null;
-      let introTimer = 0;
+      const messageTimers = new Map();
+      let messageRun = 0;
       let scrollFrame = 0;
       let pointerFrame = 0;
       let wheelTimer = 0;
@@ -302,10 +319,88 @@ const gameCorrectionCharacters = Array.from("ちょっと待って、説明を�
       let heroReady = false;
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+      const terminal = hero?.querySelector("[data-game-terminal]");
+      const terminalCopy = hero?.querySelector("[data-game-terminal-copy]");
+      const terminalStatus = hero?.querySelector("[data-game-terminal-status]");
+      const terminalAction = hero?.querySelector("[data-game-terminal-action]");
+      const sentBursts = Array.from(hero?.querySelectorAll("[data-game-sent-burst]") || []);
+      const terminalMessages = sentBursts.map((burst) => burst.dataset.gameMessageDraft || "");
+
+      const waitForMessageFrame = (delay) => new Promise((resolve) => {
+        if (signal.aborted) {
+          resolve(false);
+          return;
+        }
+        const timer = window.setTimeout(() => {
+          messageTimers.delete(timer);
+          resolve(!signal.aborted);
+        }, delay);
+        messageTimers.set(timer, resolve);
+      });
+
+      const resetMessageField = () => {
+        if (terminalCopy) terminalCopy.textContent = "";
+        if (terminalStatus) terminalStatus.textContent = `QUEUE 01 / ${String(terminalMessages.length).padStart(2, "0")}`;
+        if (terminalAction) terminalAction.textContent = "COMPOSING";
+        if (terminal instanceof HTMLElement) terminal.dataset.messageState = "idle";
+        sentBursts.forEach((burst) => burst.classList.remove("is-sent"));
+      };
+
+      const finishMessageField = () => {
+        if (terminalCopy) terminalCopy.textContent = "";
+        if (terminalStatus) terminalStatus.textContent = `${String(terminalMessages.length).padStart(2, "0")} MESSAGES / DELIVERED`;
+        if (terminalAction) terminalAction.textContent = "NO DRAFT";
+        if (terminal instanceof HTMLElement) terminal.dataset.messageState = "complete";
+        sentBursts.forEach((burst) => burst.classList.add("is-sent"));
+        if (hero instanceof HTMLElement) hero.dataset.introState = "complete";
+      };
+
+      const playMessageField = async () => {
+        const run = ++messageRun;
+        resetMessageField();
+        if (reducedMotion || !terminalMessages.length) {
+          finishMessageField();
+          return;
+        }
+
+        for (let messageIndex = 0; messageIndex < terminalMessages.length; messageIndex += 1) {
+          const message = terminalMessages[messageIndex];
+          if (terminalStatus) terminalStatus.textContent = `QUEUE ${String(messageIndex + 1).padStart(2, "0")} / ${String(terminalMessages.length).padStart(2, "0")}`;
+          if (terminalAction) terminalAction.textContent = "COMPOSING";
+          if (terminal instanceof HTMLElement) terminal.dataset.messageState = "typing";
+
+          for (let characterIndex = 1; characterIndex <= message.length; characterIndex += 1) {
+            if (signal.aborted || run !== messageRun) return;
+            if (terminalCopy) terminalCopy.textContent = message.slice(0, characterIndex);
+            if (!await waitForMessageFrame(characterIndex === 1 ? 90 : 38)) return;
+          }
+
+          if (!await waitForMessageFrame(260)) return;
+          if (terminal instanceof HTMLElement) terminal.dataset.messageState = "sending";
+          if (terminalAction) terminalAction.textContent = "SENT";
+          sentBursts[messageIndex]?.classList.add("is-sent");
+          if (!await waitForMessageFrame(170)) return;
+
+          for (let characterIndex = message.length - 1; characterIndex >= 0; characterIndex -= 1) {
+            if (signal.aborted || run !== messageRun) return;
+            if (terminalCopy) terminalCopy.textContent = message.slice(0, characterIndex);
+            if (!await waitForMessageFrame(16)) return;
+          }
+
+          if (!await waitForMessageFrame(130)) return;
+        }
+
+        if (run === messageRun && !signal.aborted) finishMessageField();
+      };
 
       const cleanup = () => {
         lifecycle.abort();
-        window.clearTimeout(introTimer);
+        messageRun += 1;
+        messageTimers.forEach((resolve, timer) => {
+          window.clearTimeout(timer);
+          resolve(false);
+        });
+        messageTimers.clear();
         window.clearTimeout(wheelTimer);
         if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
         if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
@@ -504,7 +599,7 @@ const gameCorrectionCharacters = Array.from("ちょっと待って、説明を�
         page.dataset.mediaState = "ready";
         if (!(hero instanceof HTMLElement)) return;
         hero.dataset.introState = reducedMotion ? "complete" : "playing";
-        if (!reducedMotion) introTimer = window.setTimeout(() => { hero.dataset.introState = "complete"; }, 1680);
+        void playMessageField();
       };
       if (heroVideo instanceof HTMLVideoElement) {
         heroVideo.muted = true;

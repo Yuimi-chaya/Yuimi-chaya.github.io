@@ -51,16 +51,25 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
       <p class="kisara-blog-contact-mark" aria-hidden="true"><span>CONTACT SHEET</span><strong>03 / {String(posts.length).padStart(2, "0")}</strong></p>
     </div>
 
-    <div class="kisara-blog-index-spine">
-      <p class="kisara-blog-file-code"><span>03</span><strong>TRANSMISSION ARCHIVE</strong></p>
-      <h1 id="kisara-blog-hero-title"><span>Every signal</span><em>leaves a trace.</em></h1>
-      <p class="kisara-blog-index-lead">开发记录、部署笔记和兴趣电波。这里不负责把灵感整理得太规矩，只负责让它们还能被再次找到。</p>
-      <p class="kisara-blog-index-date"><span>LAST DEVELOPED</span><time>{latestPostDate}</time></p>
+    <div class="kisara-blog-copy-stack">
+      <div class="kisara-blog-index-spine">
+        <p class="kisara-blog-file-code"><span>03</span><strong>TRANSMISSION ARCHIVE</strong></p>
+        <h1 id="kisara-blog-hero-title"><span>Every signal</span><em>leaves a trace.</em></h1>
+        <p class="kisara-blog-index-lead">开发记录、部署笔记和兴趣电波。这里不负责把灵感整理得太规矩，只负责让它们还能被再次找到。</p>
+        <p class="kisara-blog-index-date"><span>LAST DEVELOPED</span><time>{latestPostDate}</time></p>
+      </div>
+
+      <div class="kisara-blog-cast-note" aria-live="polite">
+        <small data-blog-cast-label>RELATIONSHIP FILE</small>
+        <strong data-blog-cast-copy>四个人都在场，答案仍然互相矛盾。</strong>
+      </div>
     </div>
 
-    <div class="kisara-blog-cast-note" aria-live="polite">
-      <small data-blog-cast-label>RELATIONSHIP FILE</small>
-      <strong data-blog-cast-copy>四个人都在场，答案仍然互相矛盾。</strong>
+    <div class="kisara-blog-cast-pickers" data-blog-cast-pickers aria-label="人物选择区域">
+      <button class="is-sharon" type="button" data-blog-character-pick="sharon" aria-label="选择莎朗" aria-pressed="false"><span>SHARON</span></button>
+      <button class="is-shu" type="button" data-blog-character-pick="shu" aria-label="选择修" aria-pressed="false"><span>SHU</span></button>
+      <button class="is-kisara" type="button" data-blog-character-pick="kisara" aria-label="选择木更" aria-pressed="false"><span>KISARA</span></button>
+      <button class="is-ayano" type="button" data-blog-character-pick="ayano" aria-label="选择绫乃" aria-pressed="false"><span>AYANO</span></button>
     </div>
 
     <div class="kisara-blog-cast-index" data-blog-cast-index aria-label="切换人物视点">
@@ -306,6 +315,9 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
       };
       const castIndex = hero?.querySelector("[data-blog-cast-index]");
       const castButtons = Array.from(hero?.querySelectorAll("[data-blog-cast]") || []);
+      const castPickers = hero?.querySelector("[data-blog-cast-pickers]");
+      const characterPickers = Array.from(hero?.querySelectorAll("[data-blog-character-pick]") || []);
+      const castControls = [...castButtons, ...characterPickers];
       const castLabel = hero?.querySelector("[data-blog-cast-label]");
       const castCopy = hero?.querySelector("[data-blog-cast-copy]");
       const setCastFocus = (id) => {
@@ -314,15 +326,16 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         const [label, copy] = castVoices[id];
         if (castLabel) castLabel.textContent = label;
         if (castCopy) castCopy.textContent = copy;
-        castButtons.forEach((button) => {
+        castControls.forEach((button) => {
           if (!(button instanceof HTMLButtonElement)) return;
-          button.setAttribute("aria-pressed", String(button.dataset.blogCast === id));
+          const controlId = button.dataset.blogCast || button.dataset.blogCharacterPick;
+          button.setAttribute("aria-pressed", String(controlId === id));
         });
       };
 
-      castButtons.forEach((button) => {
+      castControls.forEach((button) => {
         if (!(button instanceof HTMLButtonElement)) return;
-        const id = button.dataset.blogCast;
+        const id = button.dataset.blogCast || button.dataset.blogCharacterPick;
         if (!id) return;
         button.addEventListener("pointerenter", () => setCastFocus(id), { signal });
         button.addEventListener("focus", () => setCastFocus(id), { signal });
@@ -332,6 +345,7 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         }, { signal });
       });
       castIndex?.addEventListener("pointerleave", () => setCastFocus(lockedCastFocus), { signal });
+      castPickers?.addEventListener("pointerleave", () => setCastFocus(lockedCastFocus), { signal });
 
       hero?.querySelector("[data-blog-replay]")?.addEventListener("click", playIntro, { signal });
       hero?.querySelector("[data-blog-skip]")?.addEventListener("click", finishIntro, { signal });
