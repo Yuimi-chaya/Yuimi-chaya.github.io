@@ -40,17 +40,17 @@
     <p class="kisara-opening-video-lead">这里是 Yuimi Lab，一份还在继续生长的个人博客。</p>
     <p class="kisara-opening-video-body">
       文章、作品、游戏，以及关于我的一些碎片，都收在这里。<br /><br />
-      后宫总会起火，别让她们看见不该看的东西
+      <span class="kisara-opening-easter-hint" data-kisara-opening-hint="chibi-jealousy"><span class="kisara-opening-easter-hint-fragment">后宫总会起火，</span><span class="kisara-opening-easter-hint-fragment">别让她们看见不该看的东西</span></span>
       <br />
-      争吵被舞台记住两次，飞来的也许不再是台词
+      <span class="kisara-opening-easter-hint" data-kisara-opening-hint="chibi-apple"><span class="kisara-opening-easter-hint-fragment">争吵被舞台记住两次，</span><span class="kisara-opening-easter-hint-fragment">飞来的也许不再是台词</span></span>
       <br />
-      契约改写以前停下，回到起点，或许会遇见崭新的她
+      <span class="kisara-opening-easter-hint" data-kisara-opening-hint="found-self"><span class="kisara-opening-easter-hint-fragment">契约改写以前停下，</span><span class="kisara-opening-easter-hint-fragment">回到起点，或许会遇见崭新的她</span></span>
       <br />
-      照片不会开口，胶带边缘未必守得住秘密
+      <span class="kisara-opening-easter-hint" data-kisara-opening-hint="photo-archive"><span class="kisara-opening-easter-hint-fragment">照片不会开口，</span><span class="kisara-opening-easter-hint-fragment">胶带边缘未必守得住秘密</span></span>
       <br />
-      被归还的记忆不会立刻歌唱，它总要等十一段旧旋律走完
+      <span class="kisara-opening-easter-hint" data-kisara-opening-hint="memory-return"><span class="kisara-opening-easter-hint-fragment">被归还的记忆不会立刻歌唱，</span><span class="kisara-opening-easter-hint-fragment">它总要等十一段旧旋律走完</span></span>
       <br />
-      让没发出去的话一直颤抖，屏幕另一侧或许也会开始注视你
+      <span class="kisara-opening-easter-hint" data-kisara-opening-hint="game-shake"><span class="kisara-opening-easter-hint-fragment">让没发出去的话一直颤抖，</span><span class="kisara-opening-easter-hint-fragment">屏幕另一侧或许也会开始注视你</span></span>
     </p>
     <p class="kisara-opening-video-note">技术搭起骨架，动画与交互把脑海里的画面一点点落实。</p>
   </header>
@@ -81,9 +81,48 @@
         const { signal } = controller;
         const video = this.querySelector<HTMLVideoElement>("[data-memory-video]");
         const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const hintNodes = Array.from(
+          this.querySelectorAll<HTMLElement>("[data-kisara-opening-hint]")
+        );
+        let sceneVisible = false;
+
+        const animateHint = (node: HTMLElement) => {
+          if (reducedMotion) return;
+          node.classList.remove("is-hint-drawing");
+          void node.offsetWidth;
+          node.classList.add("is-hint-drawing");
+          delete node.dataset.hintPending;
+        };
+
+        const achieveHint = (id: string, animate = false) => {
+          const node = hintNodes.find((candidate) => candidate.dataset.kisaraOpeningHint === id);
+          if (!node || node.classList.contains("is-hint-achieved")) return;
+          node.classList.add("is-hint-achieved");
+          if (!animate || reducedMotion) return;
+          if (sceneVisible) animateHint(node);
+          else node.dataset.hintPending = "true";
+        };
+
+        hintNodes.forEach((node) => {
+          const id = node.dataset.kisaraOpeningHint;
+          if (id && window.__yuimiKisaraEasterLedger?.has(id)) achieveHint(id);
+        });
+        window.addEventListener("yuimi:kisara-opening-hint-achieved", (event) => {
+          const detail = event instanceof CustomEvent && event.detail && typeof event.detail === "object"
+            ? event.detail
+            : {};
+          if (typeof detail.id === "string") achieveHint(detail.id, true);
+        }, { signal });
+
+        const revealPendingHints = () => {
+          if (!sceneVisible || reducedMotion) return;
+          hintNodes.forEach((node) => {
+            if (node.dataset.hintPending === "true") animateHint(node);
+          });
+        };
+
         if (!video) return;
 
-        let sceneVisible = false;
         let waitingForFreshEntry = false;
         let state: "armed" | "playing" | "settled" = "armed";
         let generation = 0;
@@ -378,6 +417,7 @@
             }
             return;
           }
+          revealPendingHints();
           if (waitingForFreshEntry) {
             if (!wasVisible) waitingForFreshEntry = false;
             else return;
@@ -456,11 +496,13 @@
               if (state === "playing") arm(false);
               return;
             }
+            revealPendingHints();
             if (!waitingForFreshEntry && state === "armed") void play();
           }, { threshold: [0, 0.16, 0.42], rootMargin: "4% 0px 4%" });
           this.observer.observe(this);
         } else {
           sceneVisible = true;
+          revealPendingHints();
           void play();
         }
 

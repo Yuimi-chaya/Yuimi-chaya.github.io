@@ -114,6 +114,61 @@ const themedNotFoundRedirectScript = `(() => {
 
       initKisaraRouteWarmup();
     </script>
+    <script is:inline>
+      (() => {
+        if (window.__yuimiKisaraEasterLedger?.version === 1) return;
+
+        const storageKey = "yuimi-kisara-opening-hints-v1";
+        const eventName = "yuimi:kisara-opening-hint-achieved";
+        const validIds = new Set([
+          "chibi-jealousy",
+          "chibi-apple",
+          "found-self",
+          "photo-archive",
+          "memory-return",
+          "game-shake"
+        ]);
+        const achieved = new Set();
+
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(storageKey) ?? "null");
+          const storedIds = Array.isArray(stored)
+            ? stored
+            : stored?.version === 1 && Array.isArray(stored.achieved)
+              ? stored.achieved
+              : [];
+          storedIds.forEach((id) => {
+            if (validIds.has(id)) achieved.add(id);
+          });
+          if (sessionStorage.getItem("yuimi-kisara-game-shake-easter-v2") === "consumed") {
+            achieved.add("game-shake");
+          }
+        } catch {}
+
+        const persist = () => {
+          try {
+            sessionStorage.setItem(storageKey, JSON.stringify({
+              version: 1,
+              achieved: [...achieved]
+            }));
+          } catch {}
+        };
+
+        window.__yuimiKisaraEasterLedger = {
+          version: 1,
+          has: (id) => achieved.has(id),
+          mark: (id) => {
+            if (!validIds.has(id) || achieved.has(id)) return false;
+            achieved.add(id);
+            persist();
+            window.dispatchEvent(new CustomEvent(eventName, { detail: { id } }));
+            return true;
+          },
+          values: () => [...achieved]
+        };
+        persist();
+      })();
+    </script>
     <script is:inline define:vars={{ isHome }}>
       (() => {
         window.__yuimiKisaraHomeBootController?.dispose?.();

@@ -1255,12 +1255,13 @@ const characters = [
       revealBubble(id, node, bubble, emoji, duration, animateFigure);
     };
 
-    const setImageBubble = (id, source, announcement, duration = 2100) => {
+    const setImageBubble = (id, source, announcement, duration = 2100, onReady = null) => {
       const node = nodes.get(id);
       const bubble = node?.querySelector("[data-chibi-bubble]");
       if (!(node instanceof HTMLElement) || !(bubble instanceof HTMLElement)) return;
 
       const image = document.createElement("img");
+      if (typeof onReady === "function") image.addEventListener("load", onReady, { once: true });
       image.src = source;
       image.alt = "";
       image.width = 694;
@@ -1433,7 +1434,9 @@ const characters = [
       root.style.setProperty("--scene-accent", "255, 73, 117");
       schedule(() => {
         if (token !== sceneToken) return;
-        setImageBubble("kisara", jealousyBubbleSource, "你又在想着别的女人了对吧", 2200);
+        setImageBubble("kisara", jealousyBubbleSource, "你又在想着别的女人了对吧", 2200, () => {
+          if (token === sceneToken) window.__yuimiKisaraEasterLedger?.mark("chibi-jealousy");
+        });
       }, 100);
       schedule(() => {
         if (token !== sceneToken) return;
@@ -1473,6 +1476,7 @@ const characters = [
       };
 
       if (reducedMotion.matches) {
+        window.__yuimiKisaraEasterLedger?.mark("chibi-apple");
         animateClass(kisaraNode, "is-apple-throw", 1);
         schedule(playImpact, 180);
         schedule(() => {
@@ -1486,6 +1490,7 @@ const characters = [
         if (token !== sceneToken || !appleActive) return;
 
         if (mediaReady && appleCutscene instanceof HTMLElement) {
+          window.__yuimiKisaraEasterLedger?.mark("chibi-apple");
           appleCutscene.classList.remove("is-active");
           void appleCutscene.offsetWidth;
           appleCutscene.classList.add("is-active");
