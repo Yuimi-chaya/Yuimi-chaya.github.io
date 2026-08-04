@@ -114,9 +114,9 @@ const gameMessageBursts = [
         <span class="kisara-game-overdrive-frame"><i></i><i></i><i></i><i></i></span>
         <span class="kisara-game-overdrive-tears"><i></i><i></i><i></i></span>
         <p>
-          <small data-game-easter-hint>INPUT PEAK DETECTED</small>
-          <strong><output data-game-easter-progress>00</output><span>/ 100</span></strong>
-          <em>KEEP THE POINTER MOVING</em>
+          <small data-game-easter-hint>SHAKE THE MESSAGE APART</small>
+          <strong><output data-game-easter-progress>5.0</output><span>SEC</span></strong>
+          <em>KEEP MOVING AFTER THE LIMIT LOCKS</em>
         </p>
       </div>
 
@@ -346,7 +346,9 @@ const gameMessageBursts = [
       let heroLastPointerX = 0;
       let heroLastPointerY = 0;
       let heroLastPointerAt = 0;
-      let heroMotionActiveUntil = 0;
+      let heroLastMotionAt = 0;
+      let heroShakeTravel = 0;
+      let heroShakeLatched = false;
       let heroPressureMs = 0;
       let heroPressureLastFrame = 0;
       let heroPressureStage = 0;
@@ -360,6 +362,8 @@ const gameMessageBursts = [
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
       const GAME_SHAKE_EASTER_SESSION_KEY = "yuimi-kisara-game-shake-easter-v1";
+      const GAME_SHAKE_TRAVEL_TARGET = 620;
+      const GAME_SHAKE_HOLD_DURATION = 5000;
       let gameShakeEasterConsumed = false;
       try {
         gameShakeEasterConsumed = sessionStorage.getItem(GAME_SHAKE_EASTER_SESSION_KEY) === "consumed";
@@ -692,7 +696,9 @@ const gameMessageBursts = [
         if (gameShakeEasterConsumed || activeScene !== 0 || !(shakeEaster instanceof HTMLElement)) return;
         gameShakeEasterConsumed = true;
         try { sessionStorage.setItem(GAME_SHAKE_EASTER_SESSION_KEY, "consumed"); } catch {}
-        heroPressureMs = 5000;
+        heroPressureMs = GAME_SHAKE_HOLD_DURATION;
+        heroShakeTravel = GAME_SHAKE_TRAVEL_TARGET;
+        heroShakeLatched = true;
         heroPressureStage = 4;
         if (hero instanceof HTMLElement) {
           hero.dataset.easterPressure = "4";
@@ -725,42 +731,72 @@ const gameMessageBursts = [
         heroPressureMs = 0;
         heroPressureLastFrame = 0;
         heroPressureStage = 0;
-        heroMotionActiveUntil = 0;
+        heroLastMotionAt = 0;
+        heroShakeTravel = 0;
+        heroShakeLatched = false;
         if (hero instanceof HTMLElement) {
           hero.dataset.easterPressure = "0";
           hero.style.setProperty("--game-easter-charge", "0");
         }
-        if (shakeEasterProgress) shakeEasterProgress.textContent = "00";
-        if (shakeEasterHint) shakeEasterHint.textContent = "INPUT PEAK DETECTED";
+        if (shakeEasterProgress) shakeEasterProgress.textContent = "5.0";
+        if (shakeEasterHint) shakeEasterHint.textContent = "SHAKE THE MESSAGE APART";
       };
 
       const updateGameShakePressure = (timestamp) => {
         if (gameShakeEasterConsumed || activeScene !== 0 || !(hero instanceof HTMLElement)) return;
         const delta = heroPressureLastFrame > 0 ? clamp(timestamp - heroPressureLastFrame, 0, 34) : 0;
         heroPressureLastFrame = timestamp;
-        const motionActive = timestamp <= heroMotionActiveUntil;
-        if (motionActive) heroPressureMs = Math.min(5000, heroPressureMs + delta);
-        else if (timestamp - heroMotionActiveUntil > 180) heroPressureMs = Math.max(0, heroPressureMs - delta * 0.72);
+        const idleFor = heroLastMotionAt > 0 ? timestamp - heroLastMotionAt : Number.POSITIVE_INFINITY;
 
-        const progress = clamp(heroPressureMs / 5000, 0, 1);
-        const stage = progress >= 0.82 ? 3 : progress >= 0.5 ? 2 : progress >= 0.2 ? 1 : 0;
-        hero.style.setProperty("--game-easter-charge", progress.toFixed(4));
+        if (!heroShakeLatched) {
+          if (idleFor > 150) heroShakeTravel = Math.max(0, heroShakeTravel - delta * 0.68);
+          if (heroShakeTravel >= GAME_SHAKE_TRAVEL_TARGET) {
+            heroShakeTravel = GAME_SHAKE_TRAVEL_TARGET;
+            heroShakeLatched = true;
+            heroPressureMs = 0;
+          }
+        } else if (idleFor <= 260) {
+          heroPressureMs = Math.min(GAME_SHAKE_HOLD_DURATION, heroPressureMs + delta);
+        } else if (idleFor > 680) {
+          heroShakeLatched = false;
+          heroPressureMs = 0;
+          heroShakeTravel = GAME_SHAKE_TRAVEL_TARGET * 0.18;
+        }
+
+        const shakeIntensity = clamp(heroShakeTravel / GAME_SHAKE_TRAVEL_TARGET, 0, 1);
+        const holdProgress = clamp(heroPressureMs / GAME_SHAKE_HOLD_DURATION, 0, 1);
+        const visualCharge = heroShakeLatched
+          ? 0.22 + holdProgress * 0.78
+          : Math.pow(shakeIntensity, 2) * 0.14;
+        const stage = !heroShakeLatched
+          ? 0
+          : holdProgress >= 0.72
+            ? 3
+            : holdProgress >= 0.34
+              ? 2
+              : 1;
+        hero.style.setProperty("--game-easter-charge", visualCharge.toFixed(4));
         if (stage !== heroPressureStage) {
           heroPressureStage = stage;
           hero.dataset.easterPressure = String(stage);
         }
-        if (shakeEasterProgress) shakeEasterProgress.textContent = String(Math.floor(progress * 100)).padStart(2, "0");
+        if (shakeEasterProgress) {
+          const remainingSeconds = Math.max(0, (GAME_SHAKE_HOLD_DURATION - heroPressureMs) / 1000);
+          shakeEasterProgress.textContent = remainingSeconds.toFixed(1);
+        }
         if (shakeEasterHint) {
           shakeEasterHint.textContent = stage >= 3
             ? "THE SIGNAL IS LOOKING BACK"
             : stage === 2
-              ? "DO NOT LET THE NOISE DROP"
+              ? "DO NOT LET THE MESSAGE SETTLE"
               : stage === 1
-                ? "INPUT PEAK DETECTED"
-                : "KEEP THE POINTER MOVING";
+                ? "LIMIT LOCKED / KEEP MOVING"
+                : shakeIntensity >= 0.58
+                  ? "ALMOST UNSTABLE / SHAKE HARDER"
+                  : "SHAKE THE MESSAGE APART";
         }
-        if (progress >= 0.2) preloadGameShakeEaster();
-        if (progress >= 1) triggerGameShakeEaster();
+        if (shakeIntensity >= 0.52) preloadGameShakeEaster();
+        if (heroPressureMs >= GAME_SHAKE_HOLD_DURATION) triggerGameShakeEaster();
       };
 
       if (shakeEasterVideo instanceof HTMLVideoElement) {
@@ -845,17 +881,21 @@ const gameMessageBursts = [
           renderedHeroPointerY += (heroPointerY - renderedHeroPointerY) * 0.14;
           heroInputEnergy += (heroInputTarget - heroInputEnergy) * 0.34;
           heroInputTarget *= 0.95;
+          updateGameShakePressure(timestamp);
+          const travelEnergy = clamp(heroShakeTravel / GAME_SHAKE_TRAVEL_TARGET, 0, 1);
+          const displayedInputEnergy = heroShakeLatched ? 1 : Math.max(heroInputEnergy, travelEnergy * 0.76);
           hero.style.setProperty("--game-hero-pointer-x", `${renderedHeroPointerX.toFixed(2)}px`);
           hero.style.setProperty("--game-hero-pointer-y", `${renderedHeroPointerY.toFixed(2)}px`);
-          hero.style.setProperty("--game-input-energy", heroInputEnergy.toFixed(3));
-          if (speedOutput) speedOutput.textContent = String(Math.round(heroInputEnergy * 99)).padStart(2, "0");
-          updateGameShakePressure(timestamp);
+          hero.style.setProperty("--game-input-energy", displayedInputEnergy.toFixed(3));
+          if (speedOutput) speedOutput.textContent = String(Math.round(displayedInputEnergy * 99)).padStart(2, "0");
           if (
             Math.abs(heroPointerX - renderedHeroPointerX) > 0.04
             || Math.abs(heroPointerY - renderedHeroPointerY) > 0.04
             || heroInputEnergy > 0.008
             || heroInputTarget > 0.008
             || heroPressureMs > 0
+            || heroShakeTravel > 0
+            || heroShakeLatched
           ) {
             heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
           }
@@ -873,7 +913,15 @@ const gameMessageBursts = [
             const travelEnergy = clamp(distance / 18, 0, 1);
             const motionEnergy = Math.max(velocityEnergy, travelEnergy * 0.94);
             heroInputTarget = Math.max(heroInputTarget, motionEnergy);
-            if (motionEnergy >= 0.26) heroMotionActiveUntil = performance.now() + 190;
+            if (distance >= 1.5) {
+              heroLastMotionAt = performance.now();
+              if (!heroShakeLatched) {
+                heroShakeTravel = Math.min(
+                  GAME_SHAKE_TRAVEL_TARGET,
+                  heroShakeTravel + Math.min(distance, 54) * (0.72 + motionEnergy * 0.46)
+                );
+              }
+            }
           }
           heroLastPointerX = event.clientX;
           heroLastPointerY = event.clientY;
@@ -887,7 +935,6 @@ const gameMessageBursts = [
           heroPointerY = 0;
           heroInputTarget = 0;
           heroLastPointerAt = 0;
-          heroMotionActiveUntil = 0;
           scheduleHeroPointer();
         }, { signal });
       }
