@@ -743,6 +743,30 @@ def refine_reported_artifacts(
         stats["green_edge_decontaminated"] = int(np.count_nonzero(green_edge))
 
     elif name == "ayano":
+        # The reference-color repair can make key-colored pixels beside Ayano's
+        # cheek opaque. Clear only the confirmed floating component while
+        # preserving the real blue strand that crosses the same small region.
+        face_roi = np.zeros(repaired.shape[:2], dtype=bool)
+        face_roi[150:235, 900:980] = True
+        key_rgb = np.array([255.0, 0.0, 184.0], dtype=np.float32)
+        key_distance = np.linalg.norm(source_rgb.astype(np.float32) - key_rgb[None, None, :], axis=2)
+        false_face_fill = face_roi & (key_distance < 42.0) & (repaired[..., 3] > 20)
+        component_count, labels, component_stats, _ = cv2.connectedComponentsWithStats(
+            false_face_fill.astype(np.uint8),
+            8,
+        )
+        removed_face_fill = np.zeros(false_face_fill.shape, dtype=bool)
+        for label in range(1, component_count):
+            x = int(component_stats[label, cv2.CC_STAT_LEFT])
+            y = int(component_stats[label, cv2.CC_STAT_TOP])
+            width = int(component_stats[label, cv2.CC_STAT_WIDTH])
+            height = int(component_stats[label, cv2.CC_STAT_HEIGHT])
+            area = int(component_stats[label, cv2.CC_STAT_AREA])
+            if area >= 120 and x >= 910 and y >= 155 and width >= 18 and height >= 24:
+                removed_face_fill |= labels == label
+        repaired[removed_face_fill] = 0
+        stats["false_face_fill_removed"] = int(np.count_nonzero(removed_face_fill))
+
         roi = np.zeros(repaired.shape[:2], dtype=bool)
         roi[57:315, 560:824] = True
         source = source_rgb.astype(np.float32)
