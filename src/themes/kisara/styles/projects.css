@@ -3862,7 +3862,8 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   font-size: 1.2rem;
 }
 
-.kisara-works-slice-fruit.kisara-ingredient {
+.kisara-works-slice-fruit.kisara-ingredient,
+.kisara-works-slice-pig {
   position: absolute;
   top: 0;
   left: 0;
@@ -3884,6 +3885,35 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   transform: translate3d(-120px, 120%, 0);
   transition: none;
   will-change: transform;
+}
+
+.kisara-works-slice-pig {
+  width: 104px;
+  min-width: 104px;
+  height: 89px;
+  min-height: 89px;
+  filter: drop-shadow(0 12px 12px rgba(105, 43, 67, 0.2));
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.kisara-works-slice-pig img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: saturate(0.94) brightness(1.02);
+  transform-origin: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.kisara-works-slice-pig.is-hit img {
+  animation: kisara-works-pig-hit 260ms cubic-bezier(0.18, 0.78, 0.2, 1);
+}
+
+.kisara-works-slice-pig.is-fading img {
+  filter: saturate(0.72) brightness(1.08) blur(0.35px);
 }
 
 .kisara-works-slice-fruit.kisara-ingredient:hover,
@@ -4071,6 +4101,37 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   animation: kisara-works-slice-trail 420ms ease-out both;
 }
 
+.kisara-works-pig-impact {
+  position: absolute;
+  z-index: 9;
+  top: var(--pig-impact-top);
+  left: var(--pig-impact-left);
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 247, 250, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(210, 54, 113, 0.3), 0 0 16px rgba(206, 49, 110, 0.46);
+  transform: translate(-50%, -50%) rotate(var(--pig-impact-angle)) scale(0.35);
+  pointer-events: none;
+  animation: kisara-works-pig-impact 500ms ease-out both;
+}
+
+.kisara-works-pig-impact::before,
+.kisara-works-pig-impact::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32px;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, transparent, #fff 22% 78%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+.kisara-works-pig-impact::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
 .kisara-works-editorial h1 span[data-cut-copy],
 .kisara-works-editorial h1 em[data-cut-copy] {
   position: relative;
@@ -4123,6 +4184,18 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   0% { opacity: 0; transform: rotate(var(--slice-angle)) scaleX(0.12); }
   24% { opacity: 1; }
   100% { opacity: 0; transform: rotate(var(--slice-angle)) scaleX(1); }
+}
+
+@keyframes kisara-works-pig-hit {
+  0%, 100% { transform: scale(1); }
+  38% { transform: scale(1.1, 0.9); }
+  72% { transform: scale(0.96, 1.04); }
+}
+
+@keyframes kisara-works-pig-impact {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--pig-impact-angle)) scale(0.25); }
+  28% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--pig-impact-angle)) scale(1.65); }
 }
 
 @keyframes kisara-works-title-half-top {

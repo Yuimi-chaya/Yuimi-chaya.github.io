@@ -193,6 +193,20 @@ const kitchenCatalog = {
             <span class="kisara-works-slice-fruit-piece is-right"><span class="kisara-ingredient-shape"><Icon name={ingredient.icon} /><i></i><i></i></span></span>
           </span>
       ))}
+      <span
+        class="kisara-works-slice-fruit kisara-works-slice-pig"
+        data-works-slice-fruit
+        data-fruit-kind="pig"
+      >
+        <img
+          src="/themes/fuyukawa-kagari/assets/mini-pig-scroll.webp"
+          alt=""
+          width="1899"
+          height="1625"
+          loading="eager"
+          decoding="async"
+        />
+      </span>
     </div>
 
     <div class="kisara-works-editorial">
@@ -467,6 +481,8 @@ const kitchenCatalog = {
       const fruitPhysicsEnabled = heroFinePointer && !heroReducedMotion && sliceField instanceof HTMLElement;
       const fruitGravity = 1650;
       const fruitDiameter = 76;
+      const pigWidth = 104;
+      const pigHeight = 89;
 
       const resetFruitPieces = (state) => {
         state.whole?.style.removeProperty("transform");
@@ -479,7 +495,11 @@ const kitchenCatalog = {
         state.wait = wait;
         state.splitLeft = null;
         state.splitRight = null;
+        state.bounceCount = 0;
+        state.fadeElapsed = 0;
+        state.hitCooldown = 0;
         state.fruit.classList.remove("is-sliced");
+        state.fruit.classList.remove("is-hit", "is-fading");
         state.fruit.style.opacity = "0";
         resetFruitPieces(state);
       };
@@ -488,23 +508,30 @@ const kitchenCatalog = {
         if (!(sliceField instanceof HTMLElement)) return;
         const width = Math.max(360, sliceField.clientWidth);
         const height = Math.max(360, sliceField.clientHeight);
-        const edge = Math.min(92, Math.max(54, width * 0.08));
+        const edge = Math.max(state.width / 2 + 8, Math.min(92, Math.max(54, width * 0.08)));
         state.x = edge + Math.random() * Math.max(1, width - edge * 2);
         state.y = height + 54 + Math.random() * 34;
-        const rise = height * (0.62 + Math.random() * 0.26);
+        const rise = height * (state.isPig ? 0.56 + Math.random() * 0.2 : 0.62 + Math.random() * 0.26);
         state.vy = -Math.sqrt(2 * fruitGravity * rise);
-        state.vx = (Math.random() - 0.5) * 250;
+        state.vx = (Math.random() - 0.5) * (state.isPig ? 190 : 250);
         if (state.x < width * 0.28) state.vx = Math.abs(state.vx) + 36;
         if (state.x > width * 0.72) state.vx = -Math.abs(state.vx) - 36;
         state.angle = -22 + Math.random() * 44;
-        state.angularVelocity = (Math.random() < 0.5 ? -1 : 1) * (135 + Math.random() * 185);
+        state.angularVelocity = (Math.random() < 0.5 ? -1 : 1) * (
+          state.isPig ? 70 + Math.random() * 90 : 135 + Math.random() * 185
+        );
+        state.bounceCount = 0;
+        state.maxBounces = state.isPig ? 3 + Math.floor(Math.random() * 3) : 0;
+        state.fadeElapsed = 0;
+        state.hitCooldown = 0;
         state.phase = "whole";
+        state.fruit.classList.remove("is-hit", "is-fading");
         renderFruit(state);
         state.fruit.style.opacity = "1";
       };
 
       const renderFruit = (state) => {
-        state.fruit.style.transform = `translate3d(${(state.x - fruitDiameter / 2).toFixed(2)}px, ${(state.y - fruitDiameter / 2).toFixed(2)}px, 0) rotate(${state.angle.toFixed(2)}deg)`;
+        state.fruit.style.transform = `translate3d(${(state.x - state.width / 2).toFixed(2)}px, ${(state.y - state.height / 2).toFixed(2)}px, 0) rotate(${state.angle.toFixed(2)}deg)`;
         if (state.phase !== "sliced") return;
         if (state.splitLeft && state.left) {
           state.left.style.transform = `translate3d(${state.splitLeft.x.toFixed(2)}px, ${state.splitLeft.y.toFixed(2)}px, 0) rotate(${state.splitLeft.angle.toFixed(2)}deg)`;
@@ -512,6 +539,13 @@ const kitchenCatalog = {
         if (state.splitRight && state.right) {
           state.right.style.transform = `translate3d(${state.splitRight.x.toFixed(2)}px, ${state.splitRight.y.toFixed(2)}px, 0) rotate(${state.splitRight.angle.toFixed(2)}deg)`;
         }
+      };
+
+      const beginPigFade = (state) => {
+        if (!state.isPig || state.phase === "fading" || state.phase === "waiting") return;
+        state.phase = "fading";
+        state.fadeElapsed = 0;
+        state.fruit.classList.add("is-fading");
       };
 
       const requestFruitPhysicsFrame = () => {
@@ -524,6 +558,7 @@ const kitchenCatalog = {
         if (!fruitPhysicsReady || !fruitPhysicsVisible || signal.aborted || !(sliceField instanceof HTMLElement)) return;
         const dt = fruitPhysicsLastTime ? Math.min(0.032, Math.max(0, (timestamp - fruitPhysicsLastTime) / 1000)) : 0;
         fruitPhysicsLastTime = timestamp;
+        const width = Math.max(360, sliceField.clientWidth);
         const height = Math.max(360, sliceField.clientHeight);
 
         fruitPhysics.forEach((state) => {
@@ -537,6 +572,40 @@ const kitchenCatalog = {
           state.x += state.vx * dt;
           state.y += state.vy * dt;
           state.angle += state.angularVelocity * dt;
+          state.hitCooldown = Math.max(0, state.hitCooldown - dt);
+
+          if (state.isPig) {
+            let bounced = false;
+            const halfWidth = state.width / 2;
+            const halfHeight = state.height / 2;
+            if (state.x - halfWidth < 0 && state.vx < 0) {
+              state.x = halfWidth;
+              state.vx = Math.abs(state.vx) * 0.72;
+              bounced = true;
+            } else if (state.x + halfWidth > width && state.vx > 0) {
+              state.x = width - halfWidth;
+              state.vx = -Math.abs(state.vx) * 0.72;
+              bounced = true;
+            }
+            if (state.y - halfHeight < 0 && state.vy < 0) {
+              state.y = halfHeight;
+              state.vy = Math.abs(state.vy) * 0.66;
+              bounced = true;
+            }
+            if (bounced) {
+              state.angularVelocity = clamp(-state.angularVelocity * 0.78, -720, 720);
+              state.bounceCount += 1;
+              if (state.bounceCount >= state.maxBounces) beginPigFade(state);
+            }
+            if (state.phase === "fading") {
+              state.fadeElapsed += dt;
+              state.fruit.style.opacity = Math.max(0, 1 - state.fadeElapsed / 0.9).toFixed(3);
+              if (state.fadeElapsed >= 0.9) {
+                queueFruit(state, 5.8 + Math.random() * 7.4);
+                return;
+              }
+            }
+          }
 
           if (state.phase === "sliced") {
             [state.splitLeft, state.splitRight].forEach((piece) => {
@@ -550,9 +619,9 @@ const kitchenCatalog = {
           renderFruit(state);
           const splitDepth = state.phase === "sliced"
             ? Math.max(state.splitLeft?.y || 0, state.splitRight?.y || 0)
-            : 0;
+            : state.height / 2;
           if (state.vy > 0 && state.y + splitDepth > height + 130) {
-            queueFruit(state, 0.26 + Math.random() * 0.78);
+            queueFruit(state, state.isPig ? 5.8 + Math.random() * 7.4 : 0.26 + Math.random() * 0.78);
           }
         });
 
@@ -564,11 +633,17 @@ const kitchenCatalog = {
         if (!fruitPhysicsReady) {
           sliceFruits.forEach((fruit, index) => {
             if (!(fruit instanceof HTMLElement)) return;
+            const isPig = fruit.dataset.fruitKind === "pig";
             const state = {
               fruit,
               whole: fruit.querySelector(".is-whole"),
               left: fruit.querySelector(".is-left"),
               right: fruit.querySelector(".is-right"),
+              isPig,
+              width: isPig ? pigWidth : fruitDiameter,
+              height: isPig ? pigHeight : fruitDiameter,
+              hitRadiusX: isPig ? pigWidth * 0.46 : fruitDiameter * 0.46,
+              hitRadiusY: isPig ? pigHeight * 0.43 : fruitDiameter * 0.46,
               phase: "waiting",
               wait: 0,
               x: 0,
@@ -577,11 +652,18 @@ const kitchenCatalog = {
               vy: 0,
               angle: 0,
               angularVelocity: 0,
+              bounceCount: 0,
+              maxBounces: 0,
+              fadeElapsed: 0,
+              hitCooldown: 0,
               splitLeft: null,
               splitRight: null
             };
             fruitPhysics.set(fruit, state);
-            queueFruit(state, 0.18 + index * 0.3 + Math.random() * 0.18);
+            queueFruit(
+              state,
+              isPig ? 4.8 + Math.random() * 5.2 : 0.18 + index * 0.3 + Math.random() * 0.18
+            );
           });
           fruitPhysicsReady = true;
         }
@@ -655,6 +737,31 @@ const kitchenCatalog = {
         );
       };
 
+      const segmentEllipseCollision = (start, end, state) => {
+        const deltaX = (end.x - start.x) / state.hitRadiusX;
+        const deltaY = (end.y - start.y) / state.hitRadiusY;
+        const startX = (start.x - state.x) / state.hitRadiusX;
+        const startY = (start.y - state.y) / state.hitRadiusY;
+        const c = startX * startX + startY * startY - 1;
+        if (c <= 0) return { t: 0, x: start.x, y: start.y };
+        const a = deltaX * deltaX + deltaY * deltaY;
+        if (a < 0.000001) return null;
+        const b = 2 * (startX * deltaX + startY * deltaY);
+        const discriminant = b * b - 4 * a * c;
+        if (discriminant < 0) return null;
+        const root = Math.sqrt(discriminant);
+        const candidates = [(-b - root) / (2 * a), (-b + root) / (2 * a)]
+          .filter((value) => value >= 0 && value <= 1)
+          .sort((left, right) => left - right);
+        if (!candidates.length) return null;
+        const t = candidates[0];
+        return {
+          t,
+          x: start.x + (end.x - start.x) * t,
+          y: start.y + (end.y - start.y) * t
+        };
+      };
+
       const appendSliceTrail = (start, end) => {
         if (!(sliceTrails instanceof HTMLElement)) return;
         const length = Math.max(18, Math.hypot(end.x - start.x, end.y - start.y));
@@ -672,9 +779,52 @@ const kitchenCatalog = {
         sliceTimers.add(timer);
       };
 
+      const appendPigImpact = (point, angle) => {
+        if (!(sliceTrails instanceof HTMLElement)) return;
+        const impact = document.createElement("b");
+        impact.className = "kisara-works-pig-impact";
+        impact.style.setProperty("--pig-impact-left", `${point.x.toFixed(2)}px`);
+        impact.style.setProperty("--pig-impact-top", `${point.y.toFixed(2)}px`);
+        impact.style.setProperty("--pig-impact-angle", `${angle.toFixed(2)}deg`);
+        sliceTrails.append(impact);
+        const timer = window.setTimeout(() => {
+          sliceTimers.delete(timer);
+          impact.remove();
+        }, 520);
+        sliceTimers.add(timer);
+      };
+
+      const hitPig = (state, start, end, collision) => {
+        const moveX = end.x - start.x;
+        const moveY = end.y - start.y;
+        const distance = Math.hypot(moveX, moveY);
+        if (distance < 1) return;
+        const directionX = moveX / distance;
+        const directionY = moveY / distance;
+        const elapsed = clamp((end.time - start.time) / 1000, 0.008, 0.08);
+        const pointerSpeed = clamp(distance / elapsed, 180, 2800);
+        const angle = Math.atan2(moveY, moveX) * 180 / Math.PI;
+        if (Math.hypot(collision.x - start.x, collision.y - start.y) > 4) {
+          appendSliceTrail(start, collision);
+        }
+        if (state.hitCooldown > 0) return;
+        const impulse = clamp(250 + pointerSpeed * 0.34, 330, 1180);
+        state.vx = clamp(state.vx * 0.42 + directionX * impulse, -1350, 1350);
+        state.vy = clamp(state.vy * 0.42 + directionY * impulse, -1450, 1150);
+        const leverX = collision.x - state.x;
+        const leverY = collision.y - state.y;
+        const torque = (directionX * leverY - directionY * leverX) * pointerSpeed * 0.11;
+        state.angularVelocity = clamp(state.angularVelocity * 0.35 - torque, -720, 720);
+        state.hitCooldown = 0.13;
+        state.fruit.classList.remove("is-hit");
+        void state.fruit.offsetWidth;
+        state.fruit.classList.add("is-hit");
+        appendPigImpact(collision, angle);
+      };
+
       const sliceFruit = (fruit, start, end) => {
         const state = fruitPhysics.get(fruit);
-        if (!(fruit instanceof HTMLElement) || !state || state.phase !== "whole") return;
+        if (!(fruit instanceof HTMLElement) || !state || state.isPig || state.phase !== "whole") return;
         const cutX = end.x - start.x;
         const cutY = end.y - start.y;
         const cutLength = Math.max(1, Math.hypot(cutX, cutY));
@@ -720,17 +870,34 @@ const kitchenCatalog = {
       const sliceHeroFruits = (event) => {
         if (!(sliceField instanceof HTMLElement)) return;
         const fieldRect = sliceField.getBoundingClientRect();
-        const point = { x: event.clientX - fieldRect.left, y: event.clientY - fieldRect.top };
+        const point = {
+          x: event.clientX - fieldRect.left,
+          y: event.clientY - fieldRect.top,
+          time: event.timeStamp || performance.now()
+        };
         if (point.x < 0 || point.y < 0 || point.x > fieldRect.width || point.y > fieldRect.height) {
           lastSlicePoint = null;
           return;
         }
         const start = lastSlicePoint || point;
+        let blockedEnd = point;
+        let pigCollision = null;
+        fruitPhysics.forEach((state) => {
+          if (!state.isPig || state.phase !== "whole") return;
+          const collision = segmentEllipseCollision(start, point, state);
+          if (!collision || (pigCollision && collision.t >= pigCollision.collision.t)) return;
+          pigCollision = { state, collision };
+        });
+        if (pigCollision) {
+          blockedEnd = { ...pigCollision.collision, time: point.time };
+          hitPig(pigCollision.state, start, point, pigCollision.collision);
+        }
         fruitPhysics.forEach((state, fruit) => {
-          if (state.phase !== "whole") return;
+          if (state.isPig || state.phase !== "whole") return;
           const center = { x: state.x, y: state.y };
-          const radius = fruitDiameter * 0.46;
-          if (pointToSegmentDistance(center, start, point) <= radius) sliceFruit(fruit, start, point);
+          if (pointToSegmentDistance(center, start, blockedEnd) <= state.hitRadiusX) {
+            sliceFruit(fruit, start, blockedEnd);
+          }
         });
         lastSlicePoint = point;
       };

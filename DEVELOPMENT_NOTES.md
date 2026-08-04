@@ -1552,3 +1552,11 @@
 - A naturally completed easter video enables a page-local `afterglow` state. The countdown/HUD charge clears when the overlay leaves, while the three text layers retain maximum shake until the route is actually left; closing or failing the video before completion does not create the aftermath.
 - The Scramble audio `playing` listener no longer resets pressure during its own active visual sequence. This preserves a continuous maximum shake through video entry, playback, fade-out, and afterglow instead of visibly stopping and restarting at the handoff.
 - `git diff --check`, `npm test` (11/11), and `npm run build` (60 pages, 61-page Pagefind index) pass. The user verified the progressive hold, uninterrupted video handoff, and persistent page-local afterglow in the real browser.
+
+### 2026-08-04 Kisara Works pig obstacle
+
+- The desktop Works fruit field now reuses Fuyukawa's transparent `public/themes/fuyukawa-kagari/assets/mini-pig-scroll.webp` as one dedicated `104x89` special body. Its initial and repeat waits are substantially longer than the six normal ingredients, keeping it a low-frequency interruption without changing the accepted fruit launch cadence.
+- The pig is never sent through the fruit split path. Pointer segments are tested against its elliptical body first; the visible blade trail ends at the earliest pig contact and the shortened segment is then used for ordinary fruit slicing, so food behind the pig cannot be cut through it.
+- Accepted pig contacts derive bounded linear impulse and torque from the pointer segment's direction, distance, and elapsed time. Side and top boundaries use damped reflection while the bottom remains open; after a randomized three-to-five wall contacts, a pig still in play fades for `0.9s` before returning to its longer queue.
+- Pig hit squash and a short impact ring provide collision feedback without adding score or triggering the Works title cut. Mobile, lite, coarse-pointer, and reduced-motion profiles retain the existing disabled fruit field.
+- `git diff --check`, `npm test` (14/14), and `npm run build` (60 pages, 61-page Pagefind index) pass. Final size, frequency, force, and rebound feel are reserved for the user's browser acceptance.
