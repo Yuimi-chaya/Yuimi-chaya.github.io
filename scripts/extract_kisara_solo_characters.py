@@ -518,6 +518,76 @@ def repair_kisara_edges(rgba: np.ndarray) -> tuple[np.ndarray, dict[str, int]]:
     }
 
 
+def repair_kisara_shoulder_pollution(
+    rgba: np.ndarray,
+    original_source_bgr: np.ndarray,
+) -> tuple[np.ndarray, dict[str, int]]:
+    repaired = rgba.copy()
+    source = cv2.cvtColor(original_source_bgr, cv2.COLOR_BGR2RGB).astype(np.int16)
+    roi = np.zeros(repaired.shape[:2], dtype=bool)
+    roi[250:365, 915:1090] = True
+    source_green = (
+        (source[..., 1] > source[..., 0] + 28)
+        & (source[..., 1] > source[..., 2] + 20)
+        & (source[..., 1] > 110)
+    )
+    source_red = (
+        (source[..., 0] > source[..., 1] + 62)
+        & (source[..., 0] > source[..., 2] + 32)
+    )
+
+    removed = np.zeros(repaired.shape[:2], dtype=bool)
+    recolored = np.zeros(repaired.shape[:2], dtype=bool)
+    for _ in range(2):
+        rgb = repaired[..., :3].astype(np.int16)
+        alpha = repaired[..., 3]
+        output_red = (
+            roi
+            & (alpha > 12)
+            & (rgb[..., 0] > rgb[..., 1] + 34)
+            & (rgb[..., 0] > rgb[..., 2] + 18)
+        )
+        false_fragment = output_red & source_green
+        shifted_hair = output_red & ~source_green & ~source_red
+        safe_hair = (
+            roi
+            & (alpha > 90)
+            & (rgb[..., 0] > 155)
+            & (rgb[..., 2] > 145)
+            & (rgb[..., 0] > rgb[..., 1] + 22)
+            & (rgb[..., 2] > rgb[..., 1] + 15)
+            & (np.abs(rgb[..., 0] - rgb[..., 2]) < 68)
+            & ~output_red
+        )
+
+        repaired[false_fragment, 3] = 0
+        repaired[false_fragment, :3] = 0
+        removed |= false_fragment
+        recolored |= shifted_hair
+        if np.any(safe_hair) and np.any(shifted_hair):
+            _, nearest = distance_transform_edt(~safe_hair, return_indices=True)
+            nearby = rgb[nearest[0][shifted_hair], nearest[1][shifted_hair]]
+            restored = nearby * 0.72 + source[shifted_hair] * 0.28
+            repaired[shifted_hair, :3] = np.clip(restored, 0, 255).astype(np.uint8)
+
+    orphan_strand = np.zeros(repaired.shape[:2], dtype=np.uint8)
+    strand_points = np.array(
+        ((943, 289), (950, 295), (958, 300), (965, 304), (973, 310), (980, 313)),
+        dtype=np.int32,
+    )
+    cv2.polylines(orphan_strand, [strand_points], False, 255, 5, cv2.LINE_AA)
+    remove_strand = (orphan_strand > 16) & (repaired[..., 3] > 0)
+    remove_strand[300:311, 954:963] |= repaired[300:311, 954:963, 3] > 0
+    repaired[remove_strand] = 0
+
+    repaired[repaired[..., 3] == 0, :3] = 0
+    return repaired, {
+        "false_red_fragments_removed": int(np.count_nonzero(removed)),
+        "red_shifted_hair_recolored": int(np.count_nonzero(recolored)),
+        "orphan_strand_pixels_removed": int(np.count_nonzero(remove_strand)),
+    }
+
+
 def build_artifact_mask(
     rgba: np.ndarray,
     rect: tuple[int, int, int, int],
@@ -913,8 +983,13 @@ def main() -> None:
             original_source_bgr,
         )
         edge_repair_stats: dict[str, int] = {}
+        shoulder_repair_stats: dict[str, int] = {}
         if character_id == "kisara":
             rgba, edge_repair_stats = repair_kisara_edges(rgba)
+            rgba, shoulder_repair_stats = repair_kisara_shoulder_pollution(
+                rgba,
+                original_source_bgr,
+            )
         stage_bbox = tuple(int(value) for value in config["stage_bbox"])
         runtime = place_runtime(rgba, stage_bbox)
 
@@ -939,6 +1014,7 @@ def main() -> None:
             "artifact_repairs": artifact_repair_stats,
             "reported_repairs": reported_repair_stats,
             "edge_repairs": edge_repair_stats,
+            "shoulder_repairs": shoulder_repair_stats,
             "alignment": alignment_stats,
             "stage_bbox": list(stage_bbox),
             "quality": quality_metrics(rgba, key_rgb),
