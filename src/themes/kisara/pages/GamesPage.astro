@@ -361,16 +361,11 @@ const gameMessageBursts = [
       let heroReady = false;
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-      const GAME_SHAKE_EASTER_SESSION_KEY = "yuimi-kisara-game-shake-easter-v2";
       const GAME_SHAKE_TRAVEL_TARGET = 620;
       const GAME_SHAKE_HOLD_DURATION = 5000;
       const gameShakeEasterViewport = window.matchMedia("(min-width: 761px)");
       let gameShakeEasterAttempt = 0;
       let gameShakeEasterArming = false;
-      let gameShakeEasterConsumed = false;
-      try {
-        gameShakeEasterConsumed = sessionStorage.getItem(GAME_SHAKE_EASTER_SESSION_KEY) === "consumed";
-      } catch {}
       const terminal = hero?.querySelector("[data-game-terminal]");
       const terminalCopy = hero?.querySelector("[data-game-terminal-copy]");
       const terminalStatus = hero?.querySelector("[data-game-terminal-status]");
@@ -653,6 +648,28 @@ const gameMessageBursts = [
       const shakeEasterClose = page.querySelector("[data-game-shake-close]");
       const shakeEasterHint = page.querySelector("[data-game-easter-hint]");
       const shakeEasterProgress = page.querySelector("[data-game-easter-progress]");
+      const audioPlayer = document.querySelector("[data-kisara-audio-player]");
+      const themeAudio = audioPlayer?.querySelector("[data-kisara-theme-audio]");
+
+      const isDarekareScramblePlaying = () => (
+        audioPlayer instanceof HTMLElement
+        && audioPlayer.dataset.secretVariant === "scramble"
+        && themeAudio instanceof HTMLAudioElement
+        && !themeAudio.paused
+        && !themeAudio.ended
+      );
+
+      const isGameShakeSequenceActive = () => (
+        gameShakeEasterArming
+        || (shakeEaster instanceof HTMLElement && shakeEaster.dataset.state !== "idle")
+      );
+
+      const canChargeGameShakeEaster = () => (
+        activeScene === 0
+        && gameShakeEasterViewport.matches
+        && !isGameShakeSequenceActive()
+        && !isDarekareScramblePlaying()
+      );
 
       const setShakeEasterScrollLock = (locked) => {
         if (locked === shakeEasterScrollLocked) return;
@@ -679,8 +696,7 @@ const gameMessageBursts = [
         const finish = () => {
           shakeEaster.dataset.state = "idle";
           shakeEaster.setAttribute("aria-hidden", "true");
-          if (gameShakeEasterConsumed) page.dataset.easterState = "consumed";
-          else delete page.dataset.easterState;
+          delete page.dataset.easterState;
           resetGameShakePressure();
           setShakeEasterScrollLock(false);
         };
@@ -693,17 +709,14 @@ const gameMessageBursts = [
       };
 
       const preloadGameShakeEaster = () => {
-        if (shakeEasterPreloaded || gameShakeEasterConsumed) return;
+        if (shakeEasterPreloaded) return;
         shakeEasterPreloaded = true;
         if (shakeEasterVideo instanceof HTMLVideoElement) shakeEasterVideo.load();
       };
 
       const triggerGameShakeEaster = () => {
         if (
-          gameShakeEasterConsumed
-          || gameShakeEasterArming
-          || activeScene !== 0
-          || !gameShakeEasterViewport.matches
+          !canChargeGameShakeEaster()
           || !(shakeEaster instanceof HTMLElement)
         ) return;
         gameShakeEasterArming = true;
@@ -731,16 +744,13 @@ const gameMessageBursts = [
           .then(() => {
             if (signal.aborted || attempt !== gameShakeEasterAttempt || !gameShakeEasterArming) return;
             gameShakeEasterArming = false;
-            gameShakeEasterConsumed = true;
-            try { sessionStorage.setItem(GAME_SHAKE_EASTER_SESSION_KEY, "consumed"); } catch {}
             window.__yuimiKisaraEasterLedger?.mark("game-shake");
             page.dataset.easterState = "playing";
             shakeEaster.dataset.state = "playing";
             window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio", {
               detail: {
                 trackId: "darekare-scramble",
-                autoplay: true,
-                grantId: "game-shake-easter-v1"
+                autoplay: true
               }
             }));
           })
@@ -768,10 +778,7 @@ const gameMessageBursts = [
 
       const updateGameShakePressure = (timestamp) => {
         if (
-          gameShakeEasterConsumed
-          || gameShakeEasterArming
-          || activeScene !== 0
-          || !gameShakeEasterViewport.matches
+          !canChargeGameShakeEaster()
           || !(hero instanceof HTMLElement)
         ) return;
         const delta = heroPressureLastFrame > 0 ? clamp(timestamp - heroPressureLastFrame, 0, 34) : 0;
@@ -840,11 +847,16 @@ const gameMessageBursts = [
         }, { signal });
         shakeEasterVideo.addEventListener("error", () => releaseGameShakeEaster(), { signal });
       }
+      if (themeAudio instanceof HTMLAudioElement) {
+        themeAudio.addEventListener("playing", () => {
+          if (isDarekareScramblePlaying()) resetGameShakePressure();
+        }, { signal });
+      }
       shakeEasterClose?.addEventListener("click", () => releaseGameShakeEaster(), { signal });
       gameShakeEasterViewport.addEventListener("change", () => {
         if (gameShakeEasterViewport.matches) return;
         if (shakeEaster instanceof HTMLElement && shakeEaster.dataset.state !== "idle") releaseGameShakeEaster(true);
-        else if (!gameShakeEasterConsumed) resetGameShakePressure();
+        else resetGameShakePressure();
       }, { signal });
       window.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && shakeEaster instanceof HTMLElement && shakeEaster.dataset.state !== "idle") {
@@ -956,7 +968,7 @@ const gameMessageBursts = [
             heroInputTarget = Math.max(heroInputTarget, motionEnergy);
             if (distance >= 1.5) {
               heroLastMotionAt = performance.now();
-              if (!heroShakeLatched) {
+              if (canChargeGameShakeEaster() && !heroShakeLatched) {
                 heroShakeTravel = Math.min(
                   GAME_SHAKE_TRAVEL_TARGET,
                   heroShakeTravel + Math.min(distance, 54) * (0.72 + motionEnergy * 0.46)

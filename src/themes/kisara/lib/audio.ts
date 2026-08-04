@@ -41,8 +41,7 @@ export const kisaraSecretAudioTracks = [
     src: "/themes/kisara/audio/darekare-scramble.mp3",
     variant: "scramble",
     persistAcrossReload: false,
-    consumeAfterPlayback: true,
-    singleUseSession: true
+    consumeAfterPlayback: true
   }
 ] as const;
 

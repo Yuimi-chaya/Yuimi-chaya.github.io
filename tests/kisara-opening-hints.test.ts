@@ -44,9 +44,8 @@ test("Each opening hint is marked only from its accepted trigger path", () => {
   assert.match(gamesSource, /mark\("game-shake"\)/);
 
   const gamePlayIndex = gamesSource.indexOf("Promise.resolve(shakeEasterVideo.play())");
-  const gameConsumedIndex = gamesSource.indexOf("gameShakeEasterConsumed = true;", gamePlayIndex);
-  const gameHintIndex = gamesSource.indexOf('mark("game-shake")', gameConsumedIndex);
-  assert.ok(gamePlayIndex >= 0 && gameConsumedIndex > gamePlayIndex && gameHintIndex > gameConsumedIndex);
+  const gameHintIndex = gamesSource.indexOf('mark("game-shake")', gamePlayIndex);
+  assert.ok(gamePlayIndex >= 0 && gameHintIndex > gamePlayIndex);
 
   const rewardIndex = homeSource.indexOf("const completeReward = (autoplay: boolean) => {");
   const solvedIndex = homeSource.indexOf('setState("solved")', rewardIndex);

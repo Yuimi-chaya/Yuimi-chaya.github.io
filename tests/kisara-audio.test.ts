@@ -9,9 +9,10 @@ test("Kisara secret tracks are one-shot unlocks within the current document", ()
   }
 });
 
-test("Darekare Scramble can only be granted once per tab session", () => {
+test("Darekare Scramble is consumed per playback but can be granted again later", () => {
   const scramble = kisaraSecretAudioTracks.find((track) => track.id === "darekare-scramble");
   assert.ok(scramble, "Darekare Scramble must be registered as a secret track");
-  assert.equal(scramble.singleUseSession, true);
+  assert.equal("singleUseSession" in scramble, false);
+  assert.equal(scramble.consumeAfterPlayback, true);
   assert.equal(scramble.variant, "scramble");
 });
