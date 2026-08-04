@@ -53,6 +53,7 @@ const gameMessageBursts = [
       data-game-scene
       data-scene-position="active"
       data-intro-state="idle"
+      data-easter-pressure="0"
       aria-labelledby="kisara-game-hero-title"
     >
       <div class="kisara-game-hero-media" aria-hidden="true">
@@ -107,6 +108,16 @@ const gameMessageBursts = [
         <p><span>HAND VELOCITY</span><output data-game-input-speed>00</output></p>
         <i><b></b></i>
         <small>MOVE POINTER / SEE PANIC</small>
+      </div>
+
+      <div class="kisara-game-overdrive" data-game-overdrive aria-hidden="true">
+        <span class="kisara-game-overdrive-frame"><i></i><i></i><i></i><i></i></span>
+        <span class="kisara-game-overdrive-tears"><i></i><i></i><i></i></span>
+        <p>
+          <small data-game-easter-hint>INPUT PEAK DETECTED</small>
+          <strong><output data-game-easter-progress>00</output><span>/ 100</span></strong>
+          <em>KEEP THE POINTER MOVING</em>
+        </p>
       </div>
 
       <div class="kisara-game-transition-cuts" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -279,6 +290,22 @@ const gameMessageBursts = [
       <button type="button" data-game-scene-jump="0" aria-current="true"><span>01</span><i></i></button>
       <button type="button" data-game-scene-jump="1" aria-current="false"><span>02</span><i></i></button>
     </nav>
+
+    <div class="kisara-game-shake-easter" data-game-shake-easter data-state="idle" aria-hidden="true">
+      <video data-game-shake-video preload="none" muted playsinline>
+        <source src="/themes/kisara/assets/game-shake-easter.mp4" type="video/mp4" />
+      </video>
+      <span class="kisara-game-shake-scan" aria-hidden="true"></span>
+      <span class="kisara-game-shake-slices" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <p class="kisara-game-shake-status" aria-hidden="true">
+        <span>EXTRA SIGNAL / 01</span>
+        <strong>誰彼スクランブル</strong>
+        <small>INPUT LIMIT EXCEEDED</small>
+      </p>
+      <button type="button" data-game-shake-close aria-label="退出彩蛋画面" title="退出彩蛋画面">
+        <Icon name="tabler:x" aria-hidden="true" />
+      </button>
+    </div>
   </div>
 
   <script is:inline data-astro-rerun>
@@ -319,9 +346,24 @@ const gameMessageBursts = [
       let heroLastPointerX = 0;
       let heroLastPointerY = 0;
       let heroLastPointerAt = 0;
+      let heroMotionActiveUntil = 0;
+      let heroPressureMs = 0;
+      let heroPressureLastFrame = 0;
+      let heroPressureStage = 0;
+      let shakeEasterPreloaded = false;
+      let shakeEasterExitTimer = 0;
+      let shakeEasterScrollLocked = false;
+      let shakeEasterPreviousOverflow = "";
+      let releaseGameShakeEaster = () => {};
+      let resetGameShakePressure = () => {};
       let heroReady = false;
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+      const GAME_SHAKE_EASTER_SESSION_KEY = "yuimi-kisara-game-shake-easter-v1";
+      let gameShakeEasterConsumed = false;
+      try {
+        gameShakeEasterConsumed = sessionStorage.getItem(GAME_SHAKE_EASTER_SESSION_KEY) === "consumed";
+      } catch {}
       const terminal = hero?.querySelector("[data-game-terminal]");
       const terminalCopy = hero?.querySelector("[data-game-terminal-copy]");
       const terminalStatus = hero?.querySelector("[data-game-terminal-status]");
@@ -409,6 +451,8 @@ const gameMessageBursts = [
         if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
         if (heroPointerFrame) window.cancelAnimationFrame(heroPointerFrame);
         if (heroVideo instanceof HTMLVideoElement) heroVideo.pause();
+        window.clearTimeout(shakeEasterExitTimer);
+        releaseGameShakeEaster(true);
         if (gameFrame instanceof HTMLIFrameElement) {
           gameFrame.src = "about:blank";
           gameFrame.removeAttribute("src");
@@ -436,6 +480,7 @@ const gameMessageBursts = [
       const setActiveScene = (nextScene) => {
         activeScene = clamp(nextScene, 0, scenes.length - 1);
         page.dataset.activeScene = String(activeScene);
+        if (activeScene !== 0) resetGameShakePressure();
         scenes.forEach((scene, index) => {
           if (!(scene instanceof HTMLElement)) return;
           scene.dataset.scenePosition = index < activeScene ? "before" : index > activeScene ? "after" : "active";
@@ -596,6 +641,147 @@ const gameMessageBursts = [
       });
 
       heroVideo = page.querySelector("[data-game-hero-video]");
+      const shakeEaster = page.querySelector("[data-game-shake-easter]");
+      const shakeEasterVideo = page.querySelector("[data-game-shake-video]");
+      const shakeEasterClose = page.querySelector("[data-game-shake-close]");
+      const shakeEasterHint = page.querySelector("[data-game-easter-hint]");
+      const shakeEasterProgress = page.querySelector("[data-game-easter-progress]");
+
+      const setShakeEasterScrollLock = (locked) => {
+        if (locked === shakeEasterScrollLocked) return;
+        shakeEasterScrollLocked = locked;
+        if (locked) {
+          shakeEasterPreviousOverflow = document.documentElement.style.overflow;
+          document.documentElement.style.overflow = "hidden";
+        } else {
+          document.documentElement.style.overflow = shakeEasterPreviousOverflow;
+          shakeEasterPreviousOverflow = "";
+        }
+      };
+
+      releaseGameShakeEaster = (immediate = false) => {
+        window.clearTimeout(shakeEasterExitTimer);
+        shakeEasterExitTimer = 0;
+        if (shakeEasterVideo instanceof HTMLVideoElement) shakeEasterVideo.pause();
+        if (!(shakeEaster instanceof HTMLElement)) {
+          setShakeEasterScrollLock(false);
+          return;
+        }
+        const finish = () => {
+          shakeEaster.dataset.state = "idle";
+          shakeEaster.setAttribute("aria-hidden", "true");
+          page.dataset.easterState = "consumed";
+          resetGameShakePressure();
+          setShakeEasterScrollLock(false);
+        };
+        if (immediate || shakeEaster.dataset.state === "idle") {
+          finish();
+          return;
+        }
+        shakeEaster.dataset.state = "leaving";
+        shakeEasterExitTimer = window.setTimeout(finish, 720);
+      };
+
+      const preloadGameShakeEaster = () => {
+        if (shakeEasterPreloaded || gameShakeEasterConsumed) return;
+        shakeEasterPreloaded = true;
+        if (shakeEasterVideo instanceof HTMLVideoElement) shakeEasterVideo.load();
+      };
+
+      const triggerGameShakeEaster = () => {
+        if (gameShakeEasterConsumed || activeScene !== 0 || !(shakeEaster instanceof HTMLElement)) return;
+        gameShakeEasterConsumed = true;
+        try { sessionStorage.setItem(GAME_SHAKE_EASTER_SESSION_KEY, "consumed"); } catch {}
+        heroPressureMs = 5000;
+        heroPressureStage = 4;
+        if (hero instanceof HTMLElement) {
+          hero.dataset.easterPressure = "4";
+          hero.style.setProperty("--game-easter-charge", "1");
+        }
+        page.dataset.easterState = "playing";
+        shakeEaster.dataset.state = "arming";
+        shakeEaster.setAttribute("aria-hidden", "false");
+        setShakeEasterScrollLock(true);
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio", {
+          detail: {
+            trackId: "darekare-scramble",
+            autoplay: true,
+            grantId: "game-shake-easter-v1"
+          }
+        }));
+        if (!(shakeEasterVideo instanceof HTMLVideoElement)) return;
+        try { shakeEasterVideo.currentTime = 0; } catch {}
+        shakeEasterVideo.muted = true;
+        Promise.resolve(shakeEasterVideo.play())
+          .then(() => {
+            if (!signal.aborted && shakeEaster.dataset.state === "arming") shakeEaster.dataset.state = "playing";
+          })
+          .catch(() => {
+            if (!signal.aborted) releaseGameShakeEaster();
+          });
+      };
+
+      resetGameShakePressure = () => {
+        heroPressureMs = 0;
+        heroPressureLastFrame = 0;
+        heroPressureStage = 0;
+        heroMotionActiveUntil = 0;
+        if (hero instanceof HTMLElement) {
+          hero.dataset.easterPressure = "0";
+          hero.style.setProperty("--game-easter-charge", "0");
+        }
+        if (shakeEasterProgress) shakeEasterProgress.textContent = "00";
+        if (shakeEasterHint) shakeEasterHint.textContent = "INPUT PEAK DETECTED";
+      };
+
+      const updateGameShakePressure = (timestamp) => {
+        if (gameShakeEasterConsumed || activeScene !== 0 || !(hero instanceof HTMLElement)) return;
+        const delta = heroPressureLastFrame > 0 ? clamp(timestamp - heroPressureLastFrame, 0, 34) : 0;
+        heroPressureLastFrame = timestamp;
+        const motionActive = timestamp <= heroMotionActiveUntil;
+        if (motionActive) heroPressureMs = Math.min(5000, heroPressureMs + delta);
+        else if (timestamp - heroMotionActiveUntil > 180) heroPressureMs = Math.max(0, heroPressureMs - delta * 0.72);
+
+        const progress = clamp(heroPressureMs / 5000, 0, 1);
+        const stage = progress >= 0.82 ? 3 : progress >= 0.5 ? 2 : progress >= 0.2 ? 1 : 0;
+        hero.style.setProperty("--game-easter-charge", progress.toFixed(4));
+        if (stage !== heroPressureStage) {
+          heroPressureStage = stage;
+          hero.dataset.easterPressure = String(stage);
+        }
+        if (shakeEasterProgress) shakeEasterProgress.textContent = String(Math.floor(progress * 100)).padStart(2, "0");
+        if (shakeEasterHint) {
+          shakeEasterHint.textContent = stage >= 3
+            ? "THE SIGNAL IS LOOKING BACK"
+            : stage === 2
+              ? "DO NOT LET THE NOISE DROP"
+              : stage === 1
+                ? "INPUT PEAK DETECTED"
+                : "KEEP THE POINTER MOVING";
+        }
+        if (progress >= 0.2) preloadGameShakeEaster();
+        if (progress >= 1) triggerGameShakeEaster();
+      };
+
+      if (shakeEasterVideo instanceof HTMLVideoElement) {
+        shakeEasterVideo.addEventListener("playing", () => {
+          if (shakeEaster instanceof HTMLElement) shakeEaster.dataset.state = "playing";
+        }, { signal });
+        shakeEasterVideo.addEventListener("ended", () => {
+          if (!(shakeEaster instanceof HTMLElement)) return;
+          shakeEaster.dataset.state = "ending";
+          shakeEasterExitTimer = window.setTimeout(() => releaseGameShakeEaster(), 1050);
+        }, { signal });
+        shakeEasterVideo.addEventListener("error", () => releaseGameShakeEaster(), { signal });
+      }
+      shakeEasterClose?.addEventListener("click", () => releaseGameShakeEaster(), { signal });
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && shakeEaster instanceof HTMLElement && shakeEaster.dataset.state !== "idle") {
+          event.preventDefault();
+          releaseGameShakeEaster();
+        }
+      }, { signal });
+
       const markHeroReady = () => {
         if (heroReady) return;
         heroReady = true;
@@ -653,21 +839,23 @@ const gameMessageBursts = [
 
       if (hero instanceof HTMLElement && finePointer && !reducedMotion) {
         const speedOutput = hero.querySelector("[data-game-input-speed]");
-        const renderHeroPointer = () => {
+        const renderHeroPointer = (timestamp) => {
           heroPointerFrame = 0;
           renderedHeroPointerX += (heroPointerX - renderedHeroPointerX) * 0.14;
           renderedHeroPointerY += (heroPointerY - renderedHeroPointerY) * 0.14;
-          heroInputEnergy += (heroInputTarget - heroInputEnergy) * 0.3;
-          heroInputTarget *= 0.92;
+          heroInputEnergy += (heroInputTarget - heroInputEnergy) * 0.34;
+          heroInputTarget *= 0.95;
           hero.style.setProperty("--game-hero-pointer-x", `${renderedHeroPointerX.toFixed(2)}px`);
           hero.style.setProperty("--game-hero-pointer-y", `${renderedHeroPointerY.toFixed(2)}px`);
           hero.style.setProperty("--game-input-energy", heroInputEnergy.toFixed(3));
           if (speedOutput) speedOutput.textContent = String(Math.round(heroInputEnergy * 99)).padStart(2, "0");
+          updateGameShakePressure(timestamp);
           if (
             Math.abs(heroPointerX - renderedHeroPointerX) > 0.04
             || Math.abs(heroPointerY - renderedHeroPointerY) > 0.04
             || heroInputEnergy > 0.008
             || heroInputTarget > 0.008
+            || heroPressureMs > 0
           ) {
             heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
           }
@@ -681,7 +869,11 @@ const gameMessageBursts = [
           if (heroLastPointerAt > 0) {
             const elapsed = Math.max(8, now - heroLastPointerAt);
             const distance = Math.hypot(event.clientX - heroLastPointerX, event.clientY - heroLastPointerY);
-            heroInputTarget = Math.max(heroInputTarget, clamp(distance / elapsed / 0.9, 0, 1));
+            const velocityEnergy = clamp(distance / elapsed / 0.54, 0, 1);
+            const travelEnergy = clamp(distance / 18, 0, 1);
+            const motionEnergy = Math.max(velocityEnergy, travelEnergy * 0.94);
+            heroInputTarget = Math.max(heroInputTarget, motionEnergy);
+            if (motionEnergy >= 0.26) heroMotionActiveUntil = performance.now() + 190;
           }
           heroLastPointerX = event.clientX;
           heroLastPointerY = event.clientY;
@@ -695,6 +887,7 @@ const gameMessageBursts = [
           heroPointerY = 0;
           heroInputTarget = 0;
           heroLastPointerAt = 0;
+          heroMotionActiveUntil = 0;
           scheduleHeroPointer();
         }, { signal });
       }

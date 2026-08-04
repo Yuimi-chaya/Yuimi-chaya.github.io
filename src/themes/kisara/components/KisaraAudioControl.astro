@@ -3,6 +3,7 @@ import { Icon } from "astro-icon/components";
 import {
   KISARA_AUDIO_LEGACY_STORAGE_KEY,
   KISARA_AUDIO_STORAGE_KEY,
+  KISARA_SECRET_AUDIO_CONSUMED_SESSION_KEY,
   KISARA_SECRET_AUDIO_SESSION_KEY,
   KISARA_AUDIO_VOLUME,
   kisaraAudioTracks,
@@ -13,6 +14,7 @@ const audioConfig = {
   tracks: kisaraAudioTracks,
   secretTracks: kisaraSecretAudioTracks,
   secretEventName: "yuimi:kisara-secret-audio",
+  secretConsumedSessionKey: KISARA_SECRET_AUDIO_CONSUMED_SESSION_KEY,
   secretSessionKey: KISARA_SECRET_AUDIO_SESSION_KEY,
   storageKey: KISARA_AUDIO_STORAGE_KEY,
   legacyStorageKey: KISARA_AUDIO_LEGACY_STORAGE_KEY,
@@ -95,6 +97,11 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     const baseTracks = audioConfig.tracks;
     const secretTracks = Array.isArray(audioConfig.secretTracks) ? audioConfig.secretTracks : [];
     const secretTrackIds = new Set(secretTracks.map((track) => track.id));
+    const singleUseSecretTrackIds = new Set(
+      secretTracks
+        .filter((track) => track.singleUseSession === true)
+        .map((track) => track.id)
+    );
     const persistentSecretTrackIds = new Set(
       secretTracks
         .filter((track) => track.persistAcrossReload !== false)
@@ -102,6 +109,19 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     );
     const legacySecretTrack = secretTracks[0];
     const secretSessionKey = audioConfig.secretSessionKey;
+    const secretConsumedSessionKey = audioConfig.secretConsumedSessionKey;
+    const consumedSessionSecretIds = window.__yuimiKisaraConsumedSecretAudioIds instanceof Set
+      ? window.__yuimiKisaraConsumedSecretAudioIds
+      : new Set();
+    try {
+      const storedConsumedIds = JSON.parse(sessionStorage.getItem(secretConsumedSessionKey) ?? "[]");
+      if (Array.isArray(storedConsumedIds)) {
+        storedConsumedIds.forEach((id) => {
+          if (singleUseSecretTrackIds.has(id)) consumedSessionSecretIds.add(id);
+        });
+      }
+    } catch {}
+    window.__yuimiKisaraConsumedSecretAudioIds = consumedSessionSecretIds;
     let storedSecretSession = null;
     try {
       const stored = JSON.parse(sessionStorage.getItem(secretSessionKey) ?? "null");
@@ -187,6 +207,14 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       memory: "MEMORY / HOLD",
       blocked: "MEMORY READY",
       error: "MEMORY LOST"
+    };
+    const scrambleStateLabels = {
+      loading: "SIGNAL LINKING",
+      playing: "SCRAMBLE / LIVE",
+      paused: "SIGNAL HELD",
+      memory: "SIGNAL / HOLD",
+      blocked: "SIGNAL READY",
+      error: "SIGNAL LOST"
     };
     let enabled = true;
     let trackIndex = 0;
@@ -335,7 +363,11 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       if (previous instanceof HTMLButtonElement) previous.disabled = suspended;
       if (next instanceof HTMLButtonElement) next.disabled = suspended;
       if (status) {
-        const labels = track.variant === "memory" ? memoryStateLabels : stateLabels;
+        const labels = track.variant === "memory"
+          ? memoryStateLabels
+          : track.variant === "scramble"
+            ? scrambleStateLabels
+            : stateLabels;
         if (isSecretTrack(track)) {
           const unlockedSecrets = tracks.slice(baseTracks.length);
           const secretPosition = unlockedSecrets.findIndex((candidate) => candidate.id === track.id) + 1;
@@ -343,7 +375,9 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
           const total = String(Math.max(1, unlockedSecrets.length)).padStart(2, "0");
           status.textContent = track.variant === "memory"
             ? labels[state] ?? labels.paused
-            : `SECRET ${position} / ${total} · ${labels[state] ?? labels.paused}`;
+            : track.variant === "scramble"
+              ? `EXTRA SIGNAL · ${labels[state] ?? labels.paused}`
+              : `SECRET ${position} / ${total} · ${labels[state] ?? labels.paused}`;
         } else {
           const position = String(trackIndex + 1).padStart(2, "0");
           const total = String(baseTracks.length).padStart(2, "0");
@@ -360,6 +394,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       if (title) title.textContent = track.title;
       player?.classList.toggle("is-secret-track", secretActive);
       player?.classList.toggle("is-secret-memory", secretActive && track.variant === "memory");
+      player?.classList.toggle("is-secret-scramble", secretActive && track.variant === "scramble");
       if (player instanceof HTMLElement) player.dataset.secretVariant = secretActive ? track.variant || "secret" : "";
       if (previous instanceof HTMLButtonElement) {
         previous.title = `上一首：${previousTrack.title}`;
@@ -626,6 +661,16 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       return true;
     };
 
+    const consumeSingleUseGrant = (trackId) => {
+      if (!singleUseSecretTrackIds.has(trackId)) return true;
+      if (consumedSessionSecretIds.has(trackId)) return false;
+      consumedSessionSecretIds.add(trackId);
+      try {
+        sessionStorage.setItem(secretConsumedSessionKey, JSON.stringify([...consumedSessionSecretIds]));
+      } catch {}
+      return true;
+    };
+
     const unlockSecretTrack = (event) => {
       const detail = event instanceof CustomEvent && event.detail && typeof event.detail === "object"
         ? event.detail
@@ -633,6 +678,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       const requestedId = typeof detail.trackId === "string" ? detail.trackId : legacySecretTrack?.id;
       const secretTrack = secretTracks.find((track) => track.id === requestedId);
       if (!secretTrack) return;
+      if (!consumeSingleUseGrant(secretTrack.id)) return;
       const grantId = typeof detail.grantId === "string" ? detail.grantId.trim() : "";
       if (grantId && acceptedSecretGrantIds.has(grantId)) return;
       if (grantId) {
@@ -657,7 +703,9 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
           if (unlockNoticeTimer) window.clearTimeout(unlockNoticeTimer);
           status.textContent = secretTrack.variant === "memory"
             ? "SECRET MEMORY · ARCHIVED"
-            : "SECRET TRACK · UNLOCKED";
+            : secretTrack.variant === "scramble"
+              ? "EXTRA SIGNAL · CAPTURED"
+              : "SECRET TRACK · UNLOCKED";
           unlockNoticeTimer = window.setTimeout(() => {
             unlockNoticeTimer = 0;
             setUiState(currentUiState);

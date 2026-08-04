@@ -1684,6 +1684,392 @@ body[data-kisara-page="games"] .kisara-header.is-inner-header {
   }
 }
 
+/* Pointer-overdrive easter signal */
+.kisara-game-hero {
+  --game-easter-charge: 0;
+}
+
+.kisara-game-overdrive {
+  position: absolute;
+  z-index: 24;
+  inset: 0;
+  overflow: hidden;
+  color: #f6fbff;
+  opacity: calc(var(--game-easter-charge) * 1.12);
+  pointer-events: none;
+}
+
+.kisara-game-overdrive::before,
+.kisara-game-overdrive::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  opacity: var(--game-easter-charge);
+  pointer-events: none;
+}
+
+.kisara-game-overdrive::before {
+  background:
+    linear-gradient(90deg, transparent 0 13%, rgba(109, 220, 255, 0.07) 13.2%, transparent 13.6% 77%, rgba(255, 66, 126, 0.09) 77.3%, transparent 77.8%),
+    repeating-linear-gradient(180deg, transparent 0 11px, rgba(255, 255, 255, 0.035) 12px, transparent 13px 19px);
+  mix-blend-mode: screen;
+}
+
+.kisara-game-overdrive::after {
+  background:
+    radial-gradient(circle at 18% 31%, rgba(98, 215, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 76% 54%, rgba(255, 52, 119, 0.14), transparent 31%),
+    linear-gradient(90deg, rgba(0, 5, 15, 0.2), transparent 28% 74%, rgba(34, 0, 23, 0.18));
+  filter: contrast(1.18);
+}
+
+.kisara-game-overdrive-frame {
+  position: absolute;
+  inset: clamp(25px, 4vw, 58px);
+  opacity: calc(var(--game-easter-charge) * 0.88);
+  transform: scale(calc(1.045 - var(--game-easter-charge) * 0.045));
+}
+
+.kisara-game-overdrive-frame i {
+  position: absolute;
+  width: clamp(42px, 6vw, 86px);
+  height: clamp(32px, 5vw, 68px);
+  border-color: rgba(221, 242, 255, 0.78);
+  filter: drop-shadow(0 0 7px rgba(94, 213, 255, 0.35));
+}
+
+.kisara-game-overdrive-frame i:nth-child(1) { top: 0; left: 0; border-top: 1px solid; border-left: 1px solid; }
+.kisara-game-overdrive-frame i:nth-child(2) { top: 0; right: 0; border-top: 1px solid; border-right: 1px solid; }
+.kisara-game-overdrive-frame i:nth-child(3) { right: 0; bottom: 0; border-right: 1px solid; border-bottom: 1px solid; }
+.kisara-game-overdrive-frame i:nth-child(4) { bottom: 0; left: 0; border-bottom: 1px solid; border-left: 1px solid; }
+
+.kisara-game-overdrive-tears {
+  position: absolute;
+  inset: 0;
+}
+
+.kisara-game-overdrive-tears i {
+  position: absolute;
+  right: -8%;
+  left: -8%;
+  height: clamp(2px, 0.35vh, 5px);
+  opacity: 0;
+  background: linear-gradient(90deg, transparent 4%, rgba(103, 222, 255, 0.72) 18% 34%, transparent 43% 58%, rgba(255, 56, 120, 0.74) 70% 91%, transparent);
+  box-shadow: 0 0 12px rgba(255, 78, 139, 0.28);
+  transform: translateX(calc((0.5 - var(--game-easter-charge)) * 8%)) skewX(-24deg);
+}
+
+.kisara-game-overdrive-tears i:nth-child(1) { top: 23%; }
+.kisara-game-overdrive-tears i:nth-child(2) { top: 52%; transform: translateX(calc((var(--game-easter-charge) - 0.5) * 11%)) skewX(18deg); }
+.kisara-game-overdrive-tears i:nth-child(3) { top: 76%; }
+
+.kisara-game-overdrive p {
+  position: absolute;
+  right: clamp(24px, 4.6vw, 78px);
+  bottom: clamp(70px, 11vh, 128px);
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+  margin: 0;
+  font-family: "Courier New", monospace;
+  text-align: right;
+  opacity: 0;
+  transform: translate3d(18px, 0, 0);
+}
+
+.kisara-game-overdrive p small,
+.kisara-game-overdrive p em {
+  color: rgba(208, 232, 249, 0.7);
+  font-size: 0.54rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.kisara-game-overdrive p strong {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  color: #fff8fb;
+  font-size: clamp(2.4rem, 5vw, 5.4rem);
+  line-height: 0.76;
+  text-shadow: -5px 0 rgba(90, 215, 255, 0.26), 6px 0 rgba(255, 61, 124, 0.32);
+}
+
+.kisara-game-overdrive p strong span {
+  color: rgba(255, 126, 165, 0.72);
+  font-size: 0.72rem;
+}
+
+.kisara-game-hero[data-easter-pressure="1"] .kisara-game-overdrive p,
+.kisara-game-hero[data-easter-pressure="2"] .kisara-game-overdrive p,
+.kisara-game-hero[data-easter-pressure="3"] .kisara-game-overdrive p,
+.kisara-game-hero[data-easter-pressure="4"] .kisara-game-overdrive p {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition: opacity 180ms ease, transform 300ms cubic-bezier(0.18, 0.78, 0.2, 1);
+}
+
+.kisara-game-hero[data-easter-pressure="2"] .kisara-game-overdrive-tears i:nth-child(1),
+.kisara-game-hero[data-easter-pressure="2"] .kisara-game-overdrive-tears i:nth-child(2),
+.kisara-game-hero[data-easter-pressure="3"] .kisara-game-overdrive-tears i,
+.kisara-game-hero[data-easter-pressure="4"] .kisara-game-overdrive-tears i {
+  opacity: calc(0.22 + var(--game-easter-charge) * 0.58);
+  animation: kisara-game-overdrive-tear 460ms steps(2, end) infinite;
+}
+
+.kisara-game-hero[data-easter-pressure="3"] .kisara-game-terminal,
+.kisara-game-hero[data-easter-pressure="4"] .kisara-game-terminal {
+  border-color: rgba(255, 101, 148, 0.78);
+  animation: kisara-game-overdrive-terminal 180ms steps(2, end) infinite;
+}
+
+.kisara-game-hero[data-easter-pressure="3"] .kisara-game-sent-field,
+.kisara-game-hero[data-easter-pressure="4"] .kisara-game-sent-field {
+  animation: kisara-game-overdrive-field 260ms steps(2, end) infinite;
+}
+
+.kisara-game-hero[data-easter-pressure="3"] .kisara-game-hand-meter small,
+.kisara-game-hero[data-easter-pressure="4"] .kisara-game-hand-meter small {
+  color: #ff94b4;
+  text-shadow: 0 0 9px rgba(255, 63, 127, 0.72);
+}
+
+.kisara-game-shake-easter {
+  position: fixed;
+  z-index: 500;
+  inset: 0;
+  overflow: hidden;
+  visibility: hidden;
+  color: #f8fbff;
+  background: #010208;
+  opacity: 0;
+  pointer-events: none;
+  isolation: isolate;
+  transition: opacity 620ms ease, visibility 0s linear 620ms;
+}
+
+.kisara-game-shake-easter[data-state="arming"],
+.kisara-game-shake-easter[data-state="playing"],
+.kisara-game-shake-easter[data-state="ending"],
+.kisara-game-shake-easter[data-state="leaving"] {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.kisara-game-shake-easter[data-state="leaving"] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 700ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kisara-game-shake-easter video {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  filter: contrast(1.04) saturate(1.03);
+  clip-path: inset(49.6% 0 49.6% 0);
+  transform: scale(1.025);
+}
+
+.kisara-game-shake-easter[data-state="arming"] video,
+.kisara-game-shake-easter[data-state="playing"] video,
+.kisara-game-shake-easter[data-state="ending"] video {
+  opacity: 1;
+  clip-path: inset(0);
+  transform: scale(1);
+  transition: clip-path 520ms cubic-bezier(0.12, 0.78, 0.18, 1), transform 900ms ease, opacity 140ms ease;
+}
+
+.kisara-game-shake-easter[data-state="ending"] video {
+  filter: contrast(1.08) saturate(0.82) brightness(0.76);
+  transition: filter 900ms ease;
+}
+
+.kisara-game-shake-easter::before,
+.kisara-game-shake-easter::after {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.kisara-game-shake-easter::before {
+  background:
+    linear-gradient(90deg, rgba(255, 31, 148, 0.16), transparent 21% 78%, rgba(82, 198, 255, 0.12)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 14% 78%, rgba(0, 0, 0, 0.56));
+  mix-blend-mode: screen;
+}
+
+.kisara-game-shake-easter::after {
+  background: repeating-linear-gradient(180deg, transparent 0 3px, rgba(255, 255, 255, 0.018) 4px, transparent 5px 7px);
+  opacity: 0.72;
+}
+
+.kisara-game-shake-scan {
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  left: 0;
+  height: 18%;
+  opacity: 0.3;
+  background: linear-gradient(180deg, transparent, rgba(255, 74, 164, 0.18), rgba(116, 218, 255, 0.08), transparent);
+  mix-blend-mode: screen;
+  animation: kisara-game-shake-scan 2.2s linear infinite;
+  pointer-events: none;
+}
+
+.kisara-game-shake-slices {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.kisara-game-shake-slices i {
+  position: absolute;
+  right: -8%;
+  left: -8%;
+  height: 2px;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, #64ddff 18% 37%, transparent 45% 63%, #ff4291 72% 91%, transparent);
+  box-shadow: 0 0 13px rgba(255, 53, 144, 0.5);
+}
+
+.kisara-game-shake-slices i:nth-child(1) { top: 18%; animation-delay: -0.18s; }
+.kisara-game-shake-slices i:nth-child(2) { top: 42%; animation-delay: -0.62s; }
+.kisara-game-shake-slices i:nth-child(3) { top: 67%; animation-delay: -0.38s; }
+.kisara-game-shake-slices i:nth-child(4) { top: 84%; animation-delay: -0.88s; }
+
+.kisara-game-shake-easter[data-state="playing"] .kisara-game-shake-slices i,
+.kisara-game-shake-easter[data-state="ending"] .kisara-game-shake-slices i {
+  animation-name: kisara-game-shake-slice;
+  animation-duration: 1.15s;
+  animation-timing-function: steps(2, end);
+  animation-iteration-count: infinite;
+}
+
+.kisara-game-shake-status {
+  position: absolute;
+  z-index: 7;
+  right: clamp(24px, 4vw, 72px);
+  bottom: clamp(24px, 4vw, 58px);
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  margin: 0;
+  font-family: "Courier New", monospace;
+  text-align: right;
+  opacity: 0;
+  transform: translate3d(18px, 0, 0);
+}
+
+.kisara-game-shake-status span,
+.kisara-game-shake-status small {
+  color: rgba(213, 231, 247, 0.62);
+  font-size: 0.52rem;
+  font-weight: 800;
+}
+
+.kisara-game-shake-status strong {
+  color: #fff6fb;
+  font: 800 clamp(1rem, 2.1vw, 1.75rem)/1 "Yu Gothic UI", Meiryo, sans-serif;
+  text-shadow: -3px 0 rgba(89, 218, 255, 0.4), 4px 0 rgba(255, 54, 137, 0.46);
+}
+
+.kisara-game-shake-easter[data-state="playing"] .kisara-game-shake-status,
+.kisara-game-shake-easter[data-state="ending"] .kisara-game-shake-status {
+  opacity: 0.84;
+  transform: translate3d(0, 0, 0);
+  transition: opacity 380ms ease 520ms, transform 620ms cubic-bezier(0.18, 0.78, 0.2, 1) 520ms;
+}
+
+.kisara-game-shake-easter button {
+  position: absolute;
+  z-index: 8;
+  top: max(20px, env(safe-area-inset-top));
+  right: max(20px, env(safe-area-inset-right));
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  color: rgba(238, 247, 255, 0.72);
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: color 160ms ease, opacity 260ms ease 720ms, transform 360ms ease 720ms;
+}
+
+.kisara-game-shake-easter[data-state="playing"] button,
+.kisara-game-shake-easter[data-state="ending"] button {
+  opacity: 0.72;
+  transform: translateY(0);
+}
+
+.kisara-game-shake-easter button:hover,
+.kisara-game-shake-easter button:focus-visible {
+  color: #fff;
+  outline: none;
+  filter: drop-shadow(-2px 0 #5edfff) drop-shadow(2px 0 #ff438e);
+}
+
+.kisara-game-shake-easter button svg {
+  width: 23px;
+  height: 23px;
+}
+
+@keyframes kisara-game-overdrive-tear {
+  0%, 100% { transform: translateX(-2%) skewX(-24deg) scaleX(0.94); }
+  42% { transform: translateX(3%) skewX(18deg) scaleX(1.04); }
+  58% { transform: translateX(-1%) skewX(-9deg) scaleX(0.98); }
+}
+
+@keyframes kisara-game-overdrive-terminal {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-1.2deg); }
+  45% { transform: translate3d(-2px, 1px, 0) rotate(-1.35deg); }
+  70% { transform: translate3d(2px, -1px, 0) rotate(-1.05deg); }
+}
+
+@keyframes kisara-game-overdrive-field {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(2px, -1px, 0); }
+}
+
+@keyframes kisara-game-shake-scan {
+  from { top: -20%; }
+  to { top: 105%; }
+}
+
+@keyframes kisara-game-shake-slice {
+  0%, 76%, 100% { opacity: 0; transform: translateX(-4%) scaleX(0.76); }
+  79% { opacity: 0.72; transform: translateX(3%) scaleX(1.04); }
+  83% { opacity: 0.18; transform: translateX(-1%) scaleX(0.92); }
+}
+
+@media (max-width: 760px), (hover: none), (pointer: coarse) {
+  .kisara-game-overdrive,
+  .kisara-game-shake-easter {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kisara-game-overdrive,
+  .kisara-game-shake-easter {
+    display: none;
+  }
+}
+
 /* Message interruption hero */
 .kisara-games {
   --game-cut-shift: -120%;

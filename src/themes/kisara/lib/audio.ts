@@ -1,6 +1,7 @@
 export const KISARA_AUDIO_STORAGE_KEY = "yuimi-kisara-playlist-v2";
 export const KISARA_AUDIO_LEGACY_STORAGE_KEY = "yuimi-kisara-audio-v1";
 export const KISARA_SECRET_AUDIO_SESSION_KEY = "yuimi-kisara-secret-playlist-v1";
+export const KISARA_SECRET_AUDIO_CONSUMED_SESSION_KEY = "yuimi-kisara-secret-consumed-v1";
 export const KISARA_AUDIO_VOLUME = 0.48;
 
 export const kisaraAudioTracks = [
@@ -33,6 +34,15 @@ export const kisaraSecretAudioTracks = [
     variant: "memory",
     persistAcrossReload: false,
     consumeAfterPlayback: true
+  },
+  {
+    id: "darekare-scramble",
+    title: "誰彼スクランブル",
+    src: "/themes/kisara/audio/darekare-scramble.mp3",
+    variant: "scramble",
+    persistAcrossReload: false,
+    consumeAfterPlayback: true,
+    singleUseSession: true
   }
 ] as const;
 
