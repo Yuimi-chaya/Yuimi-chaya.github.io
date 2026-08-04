@@ -2286,6 +2286,7 @@
   --cast-enter-brightness: 0.74;
   --cast-duration: 1120ms;
   --cast-delay: 40ms;
+  --cast-focus-scale: 1.13;
 }
 
 .kisara-blog-character.is-ayano {
@@ -2303,6 +2304,7 @@
   --cast-enter-brightness: 0.82;
   --cast-duration: 1240ms;
   --cast-delay: 180ms;
+  --cast-focus-scale: 1.145;
 }
 
 .kisara-blog-character.is-shu {
@@ -2320,6 +2322,7 @@
   --cast-enter-brightness: 1.04;
   --cast-duration: 1360ms;
   --cast-delay: 420ms;
+  --cast-focus-scale: 1.15;
 }
 
 .kisara-blog-character.is-kisara {
@@ -2337,6 +2340,7 @@
   --cast-enter-brightness: 1.18;
   --cast-duration: 1420ms;
   --cast-delay: 690ms;
+  --cast-focus-scale: 1.17;
 }
 
 .kisara-blog-character,
@@ -2360,9 +2364,9 @@
 }
 
 .kisara-blog-hero[data-cast-focus]:not([data-cast-focus="all"]) .kisara-blog-character {
-  opacity: 0.62;
-  filter: saturate(0.7) brightness(0.8) contrast(0.99) blur(0.18px);
-  transform: translate3d(var(--cast-x), var(--cast-y), 0) scale(0.984) !important;
+  opacity: 0.34;
+  filter: grayscale(0.82) saturate(0.18) brightness(0.54) contrast(0.94) blur(0.28px);
+  transform: translate3d(var(--cast-x), var(--cast-y), 0) scale(0.968) !important;
 }
 
 .kisara-blog-hero[data-cast-focus="kisara"] .kisara-blog-character.is-kisara,
@@ -2370,8 +2374,8 @@
 .kisara-blog-hero[data-cast-focus="ayano"] .kisara-blog-character.is-ayano,
 .kisara-blog-hero[data-cast-focus="sharon"] .kisara-blog-character.is-sharon {
   opacity: 1;
-  filter: saturate(1.06) brightness(1.06) contrast(1.025) drop-shadow(0 15px 24px rgba(3, 5, 19, 0.46));
-  transform: translate3d(var(--cast-x), var(--cast-y), 0) scale(1.07) !important;
+  filter: saturate(1.09) brightness(1.08) contrast(1.035) drop-shadow(0 18px 30px rgba(3, 5, 19, 0.52));
+  transform: translate3d(var(--cast-x), var(--cast-y), 0) scale(var(--cast-focus-scale, 1.15)) !important;
 }
 
 .kisara-blog-scene-veil {
@@ -2429,9 +2433,91 @@
 }
 
 .kisara-blog-cast-note {
-  position: static;
-  width: min(100%, 360px);
-  margin-top: 24px;
+  --cast-note-accent: #ff658d;
+  position: absolute;
+  z-index: 15;
+  top: 52%;
+  right: auto;
+  bottom: auto;
+  left: 66%;
+  display: block;
+  gap: 0;
+  width: min(260px, 22vw);
+  max-width: none;
+  padding-left: 18px;
+  border-left: 0;
+  pointer-events: none;
+  opacity: 0;
+  text-shadow: 0 3px 16px rgba(2, 4, 18, 0.88);
+  transform: translate3d(-12px, 12px, 0) scale(0.96);
+  transform-origin: left center;
+  transition:
+    top 620ms cubic-bezier(0.22, 0.7, 0.2, 1),
+    left 620ms cubic-bezier(0.22, 0.7, 0.2, 1),
+    opacity 260ms ease,
+    transform 620ms cubic-bezier(0.22, 0.7, 0.2, 1);
+}
+
+.kisara-blog-cast-note::before {
+  position: absolute;
+  top: 2px;
+  bottom: 1px;
+  left: 0;
+  width: 2px;
+  content: "";
+  background: linear-gradient(180deg, var(--cast-note-accent), rgba(255, 255, 255, 0.18));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--cast-note-accent) 52%, transparent);
+}
+
+.kisara-blog-cast-note small,
+.kisara-blog-cast-note strong {
+  display: block;
+}
+
+.kisara-blog-cast-note small {
+  color: var(--cast-note-accent);
+  font: 800 0.68rem/1.2 "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0;
+}
+
+.kisara-blog-cast-note strong {
+  max-width: 240px;
+  margin-top: 8px;
+  color: rgba(248, 249, 255, 0.94);
+  font: 560 0.84rem/1.65 "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+}
+
+.kisara-blog-hero:not([data-cast-focus="all"]) .kisara-blog-cast-note {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.kisara-blog-cast-note[data-cast-note-for="kisara"] {
+  --cast-note-accent: #ff648d;
+  top: 54%;
+  left: 72%;
+}
+
+.kisara-blog-cast-note[data-cast-note-for="shu"] {
+  --cast-note-accent: #d8deef;
+  top: 47%;
+  left: 43%;
+}
+
+.kisara-blog-cast-note[data-cast-note-for="ayano"] {
+  --cast-note-accent: #75b8ff;
+  top: 31%;
+  left: 80%;
+}
+
+.kisara-blog-cast-note[data-cast-note-for="sharon"] {
+  --cast-note-accent: #ffd3ab;
+  top: 19%;
+  left: 49%;
+}
+
+.kisara-blog-hero[data-cast-hover]:not([data-cast-hover="all"]) {
+  cursor: crosshair;
 }
 
 .kisara-blog-cast-pickers {

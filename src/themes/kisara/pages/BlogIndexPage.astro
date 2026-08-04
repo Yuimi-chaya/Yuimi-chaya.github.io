@@ -41,10 +41,10 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         fetchpriority="high"
       />
       <div class="kisara-blog-character-stage">
-        <img class="kisara-blog-character is-sharon" src="/themes/kisara/assets/blog/sharon-back-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" />
-        <img class="kisara-blog-character is-ayano" src="/themes/kisara/assets/blog/ayano-middle-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" />
-        <img class="kisara-blog-character is-shu" src="/themes/kisara/assets/blog/shu-middle-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="auto" />
-        <img class="kisara-blog-character is-kisara" src="/themes/kisara/assets/blog/kisara-front-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
+        <img class="kisara-blog-character is-sharon" data-blog-character="sharon" src="/themes/kisara/assets/blog/sharon-back-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" />
+        <img class="kisara-blog-character is-ayano" data-blog-character="ayano" src="/themes/kisara/assets/blog/ayano-middle-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" />
+        <img class="kisara-blog-character is-shu" data-blog-character="shu" src="/themes/kisara/assets/blog/shu-middle-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="auto" />
+        <img class="kisara-blog-character is-kisara" data-blog-character="kisara" src="/themes/kisara/assets/blog/kisara-front-solo-v1.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
       </div>
       <div class="kisara-blog-scene-veil"></div>
       <div class="kisara-blog-develop-line" aria-hidden="true"><i></i></div>
@@ -59,17 +59,11 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         <p class="kisara-blog-index-date"><span>LAST DEVELOPED</span><time>{latestPostDate}</time></p>
       </div>
 
-      <div class="kisara-blog-cast-note" aria-live="polite">
-        <small data-blog-cast-label>RELATIONSHIP FILE</small>
-        <strong data-blog-cast-copy>四个人都在场，答案仍然互相矛盾。</strong>
-      </div>
     </div>
 
-    <div class="kisara-blog-cast-pickers" data-blog-cast-pickers aria-label="人物选择区域">
-      <button class="is-sharon" type="button" data-blog-character-pick="sharon" aria-label="选择莎朗" aria-pressed="false"><span>SHARON</span></button>
-      <button class="is-shu" type="button" data-blog-character-pick="shu" aria-label="选择修" aria-pressed="false"><span>SHU</span></button>
-      <button class="is-kisara" type="button" data-blog-character-pick="kisara" aria-label="选择木更" aria-pressed="false"><span>KISARA</span></button>
-      <button class="is-ayano" type="button" data-blog-character-pick="ayano" aria-label="选择绫乃" aria-pressed="false"><span>AYANO</span></button>
+    <div class="kisara-blog-cast-note" data-blog-cast-note data-cast-note-for="all" aria-live="polite">
+      <small data-blog-cast-label></small>
+      <strong data-blog-cast-copy></strong>
     </div>
 
     <div class="kisara-blog-cast-index" data-blog-cast-index aria-label="切换人物视点">
@@ -244,13 +238,24 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
       let introTimer = 0;
       let scrollFrame = 0;
       let lockedCastFocus = "all";
+      let hoveredCastFocus = "all";
+      let castHitFrame = 0;
+      let castPointerX = 0;
+      let castPointerY = 0;
+      let castPointerTarget = null;
+      let castPointerActive = false;
+      let castHitMasks = [];
+      let castMaskPromise = null;
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+      const fineCastPointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
       const cleanup = () => {
         lifecycle.abort();
         window.clearTimeout(introTimer);
         if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
+        if (castHitFrame) window.cancelAnimationFrame(castHitFrame);
+        castHitMasks = [];
         if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
       };
       window.__yuimiKisaraInnerCleanup = cleanup;
@@ -260,6 +265,7 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         if (!(hero instanceof HTMLElement)) return;
         window.clearTimeout(introTimer);
         hero.dataset.introState = "complete";
+        if (castPointerActive) scheduleCastHit();
       };
 
       const playIntro = async () => {
@@ -307,35 +313,131 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
       scheduleScrollSync();
 
       const castVoices = {
-        all: ["RELATIONSHIP FILE", "四个人都在场，答案仍然互相矛盾。"],
-        kisara: ["KISARA / MEMORY", "记得太多，反而最像被留下的人。"],
-        shu: ["SHU / LOSS", "靠遗忘继续前进，却总在别人的记忆里出现。"],
-        ayano: ["AYANO / PAST", "想把过去说清楚的人，往往最晚收到回复。"],
-        sharon: ["SHARON / CONTRACT", "从旧契约里追来，也把局面重新写了一遍。"]
+        all: ["", ""],
+        kisara: ["木更 / KISARA", "记得太多，反而最像被留下的人。"],
+        shu: ["修 / SHU", "靠遗忘继续前进，却总在别人的记忆里出现。"],
+        ayano: ["绫乃 / AYANO", "想把过去说清楚的人，往往最晚收到回复。"],
+        sharon: ["莎朗 / SHARON", "从旧契约里追来，也把局面重新写了一遍。"]
       };
       const castIndex = hero?.querySelector("[data-blog-cast-index]");
       const castButtons = Array.from(hero?.querySelectorAll("[data-blog-cast]") || []);
-      const castPickers = hero?.querySelector("[data-blog-cast-pickers]");
-      const characterPickers = Array.from(hero?.querySelectorAll("[data-blog-character-pick]") || []);
-      const castControls = [...castButtons, ...characterPickers];
+      const castControls = castButtons;
+      const castNote = hero?.querySelector("[data-blog-cast-note]");
       const castLabel = hero?.querySelector("[data-blog-cast-label]");
       const castCopy = hero?.querySelector("[data-blog-cast-copy]");
+      const characterImages = Array.from(hero?.querySelectorAll("[data-blog-character]") || []);
       const setCastFocus = (id) => {
         if (!(hero instanceof HTMLElement) || !castVoices[id]) return;
         hero.dataset.castFocus = id;
+        if (castNote instanceof HTMLElement) castNote.dataset.castNoteFor = id;
         const [label, copy] = castVoices[id];
         if (castLabel) castLabel.textContent = label;
         if (castCopy) castCopy.textContent = copy;
         castControls.forEach((button) => {
           if (!(button instanceof HTMLButtonElement)) return;
-          const controlId = button.dataset.blogCast || button.dataset.blogCharacterPick;
+          const controlId = button.dataset.blogCast;
           button.setAttribute("aria-pressed", String(controlId === id));
         });
       };
 
+      const prepareCastHitMasks = () => {
+        if (!fineCastPointer || castMaskPromise || !characterImages.length) return castMaskPromise;
+        castMaskPromise = (async () => {
+          const masks = [];
+          for (const image of characterImages) {
+            if (!(image instanceof HTMLImageElement) || !image.dataset.blogCharacter) continue;
+            if (!image.complete) await image.decode().catch(() => undefined);
+            if (signal.aborted || !image.naturalWidth || !image.naturalHeight) return [];
+
+            const width = Math.min(720, image.naturalWidth);
+            const height = Math.max(1, Math.round(width * image.naturalHeight / image.naturalWidth));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext("2d", { willReadFrequently: true });
+            if (!context) continue;
+
+            context.drawImage(image, 0, 0, width, height);
+            const source = context.getImageData(0, 0, width, height).data;
+            const alpha = new Uint8Array(width * height);
+            for (let sourceIndex = 3, alphaIndex = 0; sourceIndex < source.length; sourceIndex += 4, alphaIndex += 1) {
+              alpha[alphaIndex] = source[sourceIndex];
+            }
+            canvas.width = 0;
+            canvas.height = 0;
+            masks.push({ id: image.dataset.blogCharacter, image, width, height, alpha });
+          }
+          if (!signal.aborted) castHitMasks = masks;
+          if (castPointerActive) scheduleCastHit();
+          return masks;
+        })().catch(() => []);
+        return castMaskPromise;
+      };
+
+      const findCharacterAtPoint = (clientX, clientY) => {
+        for (let index = castHitMasks.length - 1; index >= 0; index -= 1) {
+          const mask = castHitMasks[index];
+          const rect = mask.image.getBoundingClientRect();
+          if (clientX < rect.left || clientX >= rect.right || clientY < rect.top || clientY >= rect.bottom) continue;
+          const x = Math.min(mask.width - 1, Math.floor((clientX - rect.left) / rect.width * mask.width));
+          const y = Math.min(mask.height - 1, Math.floor((clientY - rect.top) / rect.height * mask.height));
+          if (mask.alpha[y * mask.width + x] >= 14) return mask.id;
+        }
+        return "all";
+      };
+
+      const resolveCastHit = () => {
+        castHitFrame = 0;
+        if (!(hero instanceof HTMLElement) || hero.dataset.introState !== "complete") return;
+        if (castPointerTarget instanceof Element && castPointerTarget.closest("[data-blog-cast]")) {
+          hero.dataset.castHover = "all";
+          hoveredCastFocus = "all";
+          return;
+        }
+        if (castPointerTarget instanceof Element && castPointerTarget.closest("a, button, input, select, textarea")) {
+          hero.dataset.castHover = "all";
+          hoveredCastFocus = "all";
+          setCastFocus(lockedCastFocus);
+          return;
+        }
+        const nextFocus = findCharacterAtPoint(castPointerX, castPointerY);
+        hero.dataset.castHover = nextFocus;
+        if (hoveredCastFocus === nextFocus) return;
+        hoveredCastFocus = nextFocus;
+        setCastFocus(nextFocus === "all" ? lockedCastFocus : nextFocus);
+      };
+
+      const scheduleCastHit = () => {
+        if (!fineCastPointer || castHitFrame) return;
+        castHitFrame = window.requestAnimationFrame(resolveCastHit);
+      };
+
+      if (fineCastPointer && hero instanceof HTMLElement) {
+        hero.addEventListener("pointermove", (event) => {
+          if (event.pointerType === "touch") return;
+          castPointerActive = true;
+          castPointerX = event.clientX;
+          castPointerY = event.clientY;
+          castPointerTarget = event.target;
+          scheduleCastHit();
+        }, { passive: true, signal });
+        hero.addEventListener("pointerleave", () => {
+          castPointerActive = false;
+          hoveredCastFocus = "all";
+          hero.dataset.castHover = "all";
+          setCastFocus(lockedCastFocus);
+        }, { signal });
+        hero.addEventListener("click", (event) => {
+          if (hoveredCastFocus === "all") return;
+          if (event.target instanceof Element && event.target.closest("a, button, input, select, textarea")) return;
+          lockedCastFocus = lockedCastFocus === hoveredCastFocus ? "all" : hoveredCastFocus;
+          setCastFocus(lockedCastFocus === "all" ? hoveredCastFocus : lockedCastFocus);
+        }, { signal });
+      }
+
       castControls.forEach((button) => {
         if (!(button instanceof HTMLButtonElement)) return;
-        const id = button.dataset.blogCast || button.dataset.blogCharacterPick;
+        const id = button.dataset.blogCast;
         if (!id) return;
         button.addEventListener("pointerenter", () => setCastFocus(id), { signal });
         button.addEventListener("focus", () => setCastFocus(id), { signal });
@@ -345,7 +447,6 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         }, { signal });
       });
       castIndex?.addEventListener("pointerleave", () => setCastFocus(lockedCastFocus), { signal });
-      castPickers?.addEventListener("pointerleave", () => setCastFocus(lockedCastFocus), { signal });
 
       hero?.querySelector("[data-blog-replay]")?.addEventListener("click", playIntro, { signal });
       hero?.querySelector("[data-blog-skip]")?.addEventListener("click", finishIntro, { signal });
@@ -354,6 +455,7 @@ const coverPresentation = await getKisaraCoverPresentation(posts);
         finishIntro();
         scheduleScrollSync();
       }, { signal });
+      void prepareCastHitMasks();
       playIntro();
 
       if (!archive) return;
