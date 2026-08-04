@@ -1,6 +1,7 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
 import KisaraFoundSelfEasterEgg from "../components/KisaraFoundSelfEasterEgg.astro";
+import KisaraLovebrainEasterEgg from "../components/KisaraLovebrainEasterEgg.astro";
 import KisaraFridgeScene from "../components/KisaraFridgeScene.astro";
 import KisaraOpeningMemoryScene from "../components/KisaraOpeningMemoryScene.astro";
 import homeStylesheet from "../styles/home.css?url";
@@ -209,6 +210,7 @@ const gateStyle = [
       </div>
     </div>
     <KisaraFoundSelfEasterEgg />
+    <KisaraLovebrainEasterEgg />
     <div class="kisara-ambient-particles" aria-hidden="true">
       {ambientParticles.map((particle) => (
         <i
@@ -925,6 +927,7 @@ const gateStyle = [
             }
             setSecretGrantState(true);
             setState("solved");
+            window.__yuimiKisaraLovebrainProgress?.markSpareKey?.();
             window.__yuimiKisaraEasterLedger?.mark("photo-archive");
             window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio", {
               detail: { trackId: "kokoro-spare-key", autoplay, grantId: secretGrantId }
@@ -2006,6 +2009,7 @@ const gateStyle = [
       let gateWheelLastTimestamp = 0;
       let heroAutoplayActive = false;
       let heroAutoplayLastTimestamp = 0;
+      let lovebrainActive = false;
       let foundSelfActive = foundSelfEntryRequested;
       let foundSelfState = foundSelfEntryRequested ? "loading" : "inactive";
       let foundSelfSequenceTimer = 0;
@@ -4585,6 +4589,7 @@ const gateStyle = [
         if (
           postReleaseFrame
           || !postReleaseActive
+          || lovebrainActive
           || pageMode !== "gate"
           || document.visibilityState !== "visible"
           || !postReleaseContext
@@ -4706,6 +4711,7 @@ const gateStyle = [
       const handlePostReleasePointer = (event) => {
         if (
           !postReleaseActive
+          || lovebrainActive
           || pageMode !== "gate"
           || !precisePointer
           || reducedMotion
@@ -9308,12 +9314,12 @@ const gateStyle = [
       };
 
       const queueEnergyFrame = (delay = 0) => {
-        if (!reducedMotion && document.visibilityState === "visible" && pageMode === "gate" && energyLoopActive) {
+        if (!lovebrainActive && !reducedMotion && document.visibilityState === "visible" && pageMode === "gate" && energyLoopActive) {
           if (delay > 0) {
             if (energyTimer) window.clearTimeout(energyTimer);
             energyTimer = window.setTimeout(() => {
               energyTimer = 0;
-              if (document.visibilityState === "visible" && pageMode === "gate" && energyLoopActive) {
+              if (!lovebrainActive && document.visibilityState === "visible" && pageMode === "gate" && energyLoopActive) {
                 energyFrame = window.requestAnimationFrame(drawEnergy);
               } else {
                 energyLoopActive = false;
@@ -11354,7 +11360,7 @@ const gateStyle = [
 
       const drawEnergy = (timestamp) => {
         energyFrame = 0;
-        if (disposed || !gate.isConnected) return;
+        if (disposed || lovebrainActive || !gate.isConnected) return;
         if (!energyLoopActive || !energyCanvas || !energyContext) return;
         const releaseSettled = releaseMode === "complete"
           && burstProgress >= 0.999
@@ -11863,7 +11869,7 @@ const gateStyle = [
       };
 
       const startEnergyAnimation = () => {
-        if (!energyContext || pageMode !== "gate" || energyLoopActive) return;
+        if (!energyContext || lovebrainActive || pageMode !== "gate" || energyLoopActive) return;
         energyLoopActive = true;
         pauseSceneBreathClock();
         if (reducedMotion) {
@@ -11986,6 +11992,7 @@ const gateStyle = [
       };
 
       const render = () => {
+        if (lovebrainActive || pageMode === "lovebrain") return;
         const fill = clamp(progress, 0, 1);
         const percent = Math.round(progress * 100);
         const fillComplete = targetProgress >= 0.9995 && fill >= 0.999 && Math.abs(velocity) < 0.001;
@@ -12304,6 +12311,10 @@ const gateStyle = [
 
       const advanceHeroAutoplay = (timestamp) => {
         if (!heroAutoplayActive) return;
+        if (lovebrainActive) {
+          stopHeroAutoplay();
+          return;
+        }
         if (pageMode !== "gate") {
           stopHeroAutoplay();
           return;
@@ -12363,7 +12374,7 @@ const gateStyle = [
 
       const animate = (timestamp) => {
         animationFrame = 0;
-        if (disposed || !gate.isConnected) return;
+        if (disposed || lovebrainActive || pageMode === "lovebrain" || !gate.isConnected) return;
         if (
           mobileFrameInterval > 0
           && lastAnimationPaintTimestamp > 0
@@ -12500,6 +12511,7 @@ const gateStyle = [
       };
 
       const startAnimation = () => {
+        if (lovebrainActive || pageMode === "lovebrain") return;
         if (!animationFrame) {
           lastFrameTime = 0;
           lastAnimationPaintTimestamp = 0;
@@ -12830,7 +12842,7 @@ const gateStyle = [
       };
 
       const enterNextPage = () => {
-        if (scrollTransitionDirection === "forward") return;
+        if (lovebrainActive || pageMode === "lovebrain" || scrollTransitionDirection === "forward") return;
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
         clearOpeningTitleBridgeDissolve();
         pageMode = "snap";
@@ -12859,7 +12871,47 @@ const gateStyle = [
         }
       };
 
+      const enterLovebrainNextPage = () => {
+        if (!lovebrainActive || pageMode !== "lovebrain" || scrollTransitionDirection === "forward") return false;
+        if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
+        pageMode = "snap";
+        gate.classList.add("is-lovebrain-transporting");
+        opening?.classList.add("is-lovebrain-transporting");
+        const started = smoothScrollTo(getNextPageTop(), () => {
+          pageMode = "next";
+          lastObservedScrollY = window.scrollY;
+          gate.classList.remove("is-lovebrain-transporting");
+          gate.classList.add("is-lovebrain-transported");
+          opening?.classList.remove("is-lovebrain-transporting");
+          window.dispatchEvent(new CustomEvent("yuimi:kisara-lovebrain-opening-covered"));
+        }, undefined, "forward", "lovebrain");
+        if (!started) {
+          pageMode = "lovebrain";
+          gate.classList.remove("is-lovebrain-transporting");
+          opening?.classList.remove("is-lovebrain-transporting");
+        }
+        return started;
+      };
+
       const completeGateReturn = () => {
+        if (lovebrainActive) {
+          clearHomeGateReturnArm();
+          pageMode = "lovebrain";
+          lastObservedScrollY = 0;
+          gateVisualResetPending = false;
+          deactivateOpeningBridgePortal();
+          gate.classList.remove(
+            "is-opening-bridge-dissolving",
+            "is-opening-bridge-handoff",
+            "is-opening-title-bridge-dissolving",
+            "is-opening-title-bridge-handoff",
+            "is-lovebrain-transported"
+          );
+          opening?.classList.remove("is-opening-bridge-live", "is-lovebrain-transporting");
+          setScrollPosition(0);
+          window.dispatchEvent(new CustomEvent("yuimi:kisara-lovebrain-return-gate"));
+          return;
+        }
         clearHomeGateReturnArm();
         finishHomeSectionReplayReset();
         const shouldDissolveTitleReset = openingTitleBridgeActive || hasGateTitleVisualState();
@@ -12888,6 +12940,70 @@ const gateStyle = [
           if (window.scrollY > 2) setScrollPosition(0);
           lastObservedScrollY = 0;
         });
+      };
+
+      const stopLovebrainDefaultResources = () => {
+        stopHeroAutoplay();
+        if (animationFrame) window.cancelAnimationFrame(animationFrame);
+        if (energyFrame) window.cancelAnimationFrame(energyFrame);
+        if (energyTimer) window.clearTimeout(energyTimer);
+        animationFrame = 0;
+        energyFrame = 0;
+        energyTimer = 0;
+        energyLoopActive = false;
+        cancelBurstWarmup();
+        cancelWarningWarmupSchedule();
+        finishWarningPresentationWarmup(false, true);
+        stopPostReleaseAnimation(true);
+        setOrientationEnabled(false);
+        spaceLensRenderer?.destroy();
+        titleLensRenderer?.destroy();
+        spaceLensRenderer = null;
+        titleLensRenderer = null;
+        if (openingBridgeRecoveryFrame) window.cancelAnimationFrame(openingBridgeRecoveryFrame);
+        openingBridgeRecoveryFrame = 0;
+        openingBridgeRecoveryPending = false;
+        openingBridgeResumeLive = false;
+        gateVisualResetPending = false;
+        deactivateOpeningBridgePortal();
+        clearOpeningTitleBridgeDissolve();
+        gate.classList.remove(
+          "is-opening-bridge-live",
+          "is-opening-bridge-dissolving",
+          "is-opening-bridge-handoff",
+          "is-opening-title-bridge-dissolving",
+          "is-opening-title-bridge-handoff"
+        );
+        opening?.classList.remove("is-opening-bridge-live");
+      };
+
+      const activateLovebrain = () => {
+        if (lovebrainActive) return true;
+        if (
+          foundSelfActive
+          || document.documentElement.dataset.kisaraFoundSelfEntry === "pending"
+          || pageMode !== "gate"
+          || window.scrollY > 2
+        ) return false;
+        lovebrainActive = true;
+        pageMode = "lovebrain";
+        stopLovebrainDefaultResources();
+        gate.classList.add("is-lovebrain-active");
+        document.body.classList.add("is-lovebrain-home-active");
+        gate.dataset.kisaraScrollActive = "false";
+        window.dispatchEvent(new CustomEvent("kisara:gate-progress", {
+          detail: { active: false, progress: 0, stage: "document", guided: false, transitioning: false }
+        }));
+        return true;
+      };
+
+      const leaveLovebrainToOpening = () => {
+        if (!lovebrainActive || pageMode !== "lovebrain") return false;
+        return enterLovebrainNextPage();
+      };
+      window.__yuimiKisaraHomeLovebrain = {
+        activate: activateLovebrain,
+        leaveToOpening: leaveLovebrainToOpening
       };
 
       const setFoundSelfStatus = (value) => {
@@ -12939,6 +13055,9 @@ const gateStyle = [
         }
         delete document.documentElement.dataset.kisaraFoundSelfEntry;
         unloadFoundSelfMedia();
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-found-self-state", {
+          detail: { active: false, state: foundSelfState }
+        }));
       };
 
       const leaveFoundSelfSequence = () => {
@@ -12963,6 +13082,9 @@ const gateStyle = [
       const startFoundSelfSequence = () => {
         if (!foundSelfActive || !(foundSelfOverlay instanceof HTMLElement)) return;
         gate.classList.add("is-found-self-active");
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-found-self-state", {
+          detail: { active: true, state: foundSelfState }
+        }));
         foundSelfOverlay.setAttribute("aria-hidden", "false");
         foundSelfOverlay.dataset.state = "loading";
         setFoundSelfStatus("MEMORY SEARCH");
@@ -13033,6 +13155,10 @@ const gateStyle = [
       };
 
       const returnToGate = () => {
+        if (lovebrainActive) {
+          returnLovebrainToGate();
+          return;
+        }
         if (scrollTransitionDirection === "return") return;
         clearHomeGateReturnArm();
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
@@ -13086,6 +13212,20 @@ const gateStyle = [
           homeGateReturnGestureSerial = -1;
           opening?.classList.remove("is-gate-return-armed");
         }, 1600);
+      };
+
+      const returnLovebrainToGate = () => {
+        if (scrollTransitionDirection === "return") return;
+        clearHomeGateReturnArm();
+        if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
+        pageMode = "snap";
+        gate.classList.add("is-lovebrain-returning");
+        opening?.classList.add("is-lovebrain-returning");
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-lovebrain-return-start"));
+        const started = smoothScrollTo(0, () => {
+          completeGateReturn();
+        }, undefined, "return", "lovebrain");
+        if (!started) completeGateReturn();
       };
 
       const isHomeSectionSnapEnabled = () => homeSectionSnapMedia.matches
@@ -13345,6 +13485,10 @@ const gateStyle = [
 
       const handleDirectionalInput = (delta, event, inputType = "wheel") => {
         if (delta === 0) return;
+        if (lovebrainActive && pageMode === "lovebrain") {
+          event.preventDefault();
+          return;
+        }
         if (foundSelfActive) {
           event.preventDefault();
           if (foundSelfState === "settled" && delta > 0) leaveFoundSelfSequence();
@@ -13476,7 +13620,7 @@ const gateStyle = [
       }, { passive: true, signal });
 
       gate.addEventListener("kisara:scene-ready", () => {
-        if (foundSelfActive) return;
+        if (foundSelfActive || lovebrainActive) return;
         render();
         startEnergyAnimation();
       }, { signal });
@@ -13524,7 +13668,7 @@ const gateStyle = [
         resizeTitleDataCanvas(true);
         spaceLensRenderer?.resize();
         titleLensRenderer?.resize();
-        if (foundSelfActive) return;
+        if (foundSelfActive || lovebrainActive) return;
         startEnergyAnimation();
         startPostReleaseAnimation();
       };
@@ -13580,7 +13724,7 @@ const gateStyle = [
           gate.style.setProperty("--kisara-title-source-opacity", "1");
           return;
         }
-        if (foundSelfActive) return;
+        if (foundSelfActive || lovebrainActive) return;
         refreshOpeningMemoryPresentation();
         refreshFridgeScenePresentation();
         if (pageMode === "next") openingBridgeRecoveryPending = true;
@@ -13595,6 +13739,20 @@ const gateStyle = [
       const cleanup = () => {
         if (disposed) return;
         disposed = true;
+        if (lovebrainActive) {
+          window.dispatchEvent(new CustomEvent("yuimi:kisara-audio-suspension", {
+            detail: { id: "lovebrain-ed", active: false }
+          }));
+        }
+        lovebrainActive = false;
+        gate.classList.remove(
+          "is-lovebrain-active",
+          "is-lovebrain-transporting",
+          "is-lovebrain-transported",
+          "is-lovebrain-returning"
+        );
+        document.body.classList.remove("is-lovebrain-home-active");
+        if (window.__yuimiKisaraHomeLovebrain) window.__yuimiKisaraHomeLovebrain = null;
         window.clearTimeout(foundSelfReadyTimer);
         window.clearTimeout(foundSelfSequenceTimer);
         window.clearTimeout(foundSelfExitTimer);
@@ -13605,6 +13763,9 @@ const gateStyle = [
         foundSelfActive = false;
         foundSelfState = "inactive";
         delete document.documentElement.dataset.kisaraFoundSelfEntry;
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-found-self-state", {
+          detail: { active: false, state: foundSelfState }
+        }));
         cancelBurstWarmup();
         finishWarningPresentationWarmup(false, true);
         gate.removeAttribute("data-bound");

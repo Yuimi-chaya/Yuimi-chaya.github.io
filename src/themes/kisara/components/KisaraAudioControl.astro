@@ -232,10 +232,17 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
     const audioSuspension = window.__yuimiKisaraAudioSuspension ?? {
       active: false,
       id: "",
-      resumeRequested: false
+      resumeRequested: false,
+      owners: new Set()
     };
+    if (!(audioSuspension.owners instanceof Set)) {
+      audioSuspension.owners = audioSuspension.active && audioSuspension.id
+        ? new Set([audioSuspension.id])
+        : new Set();
+    }
     window.__yuimiKisaraAudioSuspension = audioSuspension;
-    const isAudioSuspended = () => audioSuspension.active === true;
+    const suspensionOwners = audioSuspension.owners;
+    const isAudioSuspended = () => suspensionOwners.size > 0;
     const persistInterval = document.documentElement.dataset.yuimiPerformance === "full" ? 5 : 10;
 
     signal.addEventListener("abort", () => {
@@ -496,19 +503,26 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
         : {};
       const id = typeof detail.id === "string" && detail.id ? detail.id : "interlude";
       if (detail.active === true) {
-        if (!audioSuspension.active) audioSuspension.resumeRequested = enabled;
+        if (suspensionOwners.size === 0) audioSuspension.resumeRequested = enabled;
+        suspensionOwners.add(id);
         audioSuspension.active = true;
-        audioSuspension.id = id;
+        audioSuspension.id = [...suspensionOwners][0] ?? id;
         playbackToken += 1;
         playbackPromise = null;
         audio.pause();
         setUiState("memory");
         return;
       }
-      if (!audioSuspension.active || (detail.id && detail.id !== audioSuspension.id)) return;
+      if (!suspensionOwners.has(id)) return;
+      suspensionOwners.delete(id);
+      audioSuspension.active = suspensionOwners.size > 0;
+      audioSuspension.id = [...suspensionOwners][0] ?? "";
+      if (suspensionOwners.size > 0) {
+        audio.pause();
+        setUiState("memory");
+        return;
+      }
       const shouldResume = audioSuspension.resumeRequested && enabled;
-      audioSuspension.active = false;
-      audioSuspension.id = "";
       audioSuspension.resumeRequested = false;
       if (shouldResume) requestPlayback();
       else setUiState("paused");

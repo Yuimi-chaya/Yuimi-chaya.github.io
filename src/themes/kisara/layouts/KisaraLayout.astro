@@ -169,6 +169,105 @@ const themedNotFoundRedirectScript = `(() => {
         persist();
       })();
     </script>
+    <script is:inline>
+      (() => {
+        const version = 1;
+        const storageKey = "yuimi-kisara-lovebrain-v1";
+        const eventName = "yuimi:kisara-lovebrain-progress";
+        const validPages = new Set(["games", "blog", "projects", "about"]);
+        const stageIds = new Set(["chibi-jealousy", "chibi-apple"]);
+        const requiredPages = ["games", "blog", "projects", "about"];
+        if (window.__yuimiKisaraLovebrainProgress?.version === version) return;
+
+        const visited = new Set();
+        let spareKeyTriggered = false;
+        let stageTriggered = false;
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(storageKey) ?? "null");
+          const storedVisited = Array.isArray(stored?.visited) ? stored.visited : [];
+          storedVisited.forEach((page) => {
+            if (validPages.has(page)) visited.add(page);
+          });
+          spareKeyTriggered = stored?.spareKeyTriggered === true;
+          stageTriggered = stored?.stageTriggered === true;
+        } catch {}
+
+        const legacyLedger = window.__yuimiKisaraEasterLedger;
+        if (legacyLedger?.has?.("photo-archive")) spareKeyTriggered = true;
+        if (legacyLedger?.has?.("chibi-jealousy") || legacyLedger?.has?.("chibi-apple")) {
+          stageTriggered = true;
+        }
+
+        const isEligible = () => requiredPages.every((page) => visited.has(page))
+          && spareKeyTriggered
+          && stageTriggered;
+        const snapshot = () => ({
+          version,
+          key: storageKey,
+          visited: [...visited],
+          spareKeyTriggered,
+          stageTriggered,
+          eligible: isEligible()
+        });
+        const persist = () => {
+          try {
+            sessionStorage.setItem(storageKey, JSON.stringify({
+              version,
+              visited: [...visited],
+              spareKeyTriggered,
+              stageTriggered
+            }));
+          } catch {}
+        };
+        const publish = (reason, detail = {}) => {
+          window.dispatchEvent(new CustomEvent(eventName, {
+            detail: { reason, ...detail, ...snapshot() }
+          }));
+        };
+        const markVisit = (page) => {
+          if (!validPages.has(page) || visited.has(page)) return false;
+          visited.add(page);
+          persist();
+          publish("visit", { pageKey: page });
+          return true;
+        };
+        const markSpareKey = () => {
+          if (spareKeyTriggered) return false;
+          spareKeyTriggered = true;
+          persist();
+          publish("spare-key");
+          return true;
+        };
+        const markStage = (id) => {
+          if (!stageIds.has(id) || stageTriggered) return false;
+          stageTriggered = true;
+          persist();
+          publish("stage", { stageId: id });
+          return true;
+        };
+        const recordCurrentPage = () => {
+          const page = document.body?.dataset.kisaraPage;
+          if (page) markVisit(page);
+        };
+
+        window.__yuimiKisaraLovebrainProgress = {
+          version,
+          key: storageKey,
+          snapshot,
+          isEligible,
+          markVisit,
+          markSpareKey,
+          markStage
+        };
+        persist();
+        window.addEventListener("yuimi:kisara-opening-hint-achieved", (event) => {
+          const id = event instanceof CustomEvent ? event.detail?.id : "";
+          if (id === "photo-archive") markSpareKey();
+          else if (stageIds.has(id)) markStage(id);
+        });
+        document.addEventListener("astro:page-load", recordCurrentPage);
+      })();
+    </script>
     <script is:inline define:vars={{ isHome }}>
       (() => {
         window.__yuimiKisaraHomeBootController?.dispose?.();
