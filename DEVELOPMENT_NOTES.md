@@ -1545,3 +1545,10 @@
 - Game no longer reads or writes its `v2` consumed session key. Eligibility is derived from the live persisted audio player (`scramble` variant plus an actually playing audio element), so finishing, skipping, or pausing the track makes a later Game visit eligible again while active playback still blocks duplicate charging.
 - `darekare-scramble` remains consumable after each playback but is no longer a `singleUseSession` track. The Game grant no longer uses one fixed grant id, allowing each later accepted visual playback to grant and restart the song without leaving duplicate entries in the playlist.
 - `git diff --check`, `npm test` (10/10), and `npm run build` (60 pages, 61-page Pagefind index) pass. The user then verified the real browser flow can complete and trigger a second time.
+
+### 2026-08-04 Kisara Game shake progressive aftermath
+
+- The five-second locked hold now drives a separate `--game-easter-shake` curve from a restrained initial tremor to full intensity. Terminal, large type, and sent-message layers increase both displacement and cadence continuously instead of waiting for one late discrete pressure stage.
+- A naturally completed easter video enables a page-local `afterglow` state. The countdown/HUD charge clears when the overlay leaves, while the three text layers retain maximum shake until the route is actually left; closing or failing the video before completion does not create the aftermath.
+- The Scramble audio `playing` listener no longer resets pressure during its own active visual sequence. This preserves a continuous maximum shake through video entry, playback, fade-out, and afterglow instead of visibly stopping and restarting at the handoff.
+- `git diff --check`, `npm test` (11/11), and `npm run build` (60 pages, 61-page Pagefind index) pass. The user verified the progressive hold, uninterrupted video handoff, and persistent page-local afterglow in the real browser.

@@ -4,7 +4,9 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const gamesPagePath = fileURLToPath(new URL("../src/themes/kisara/pages/GamesPage.astro", import.meta.url));
+const gamesCssPath = fileURLToPath(new URL("../src/themes/kisara/styles/games.css", import.meta.url));
 const gamesPageSource = readFileSync(gamesPagePath, "utf8");
+const gamesCssSource = readFileSync(gamesCssPath, "utf8");
 const triggerStart = gamesPageSource.indexOf("const triggerGameShakeEaster = () => {");
 const triggerEnd = gamesPageSource.indexOf("resetGameShakePressure = () => {", triggerStart);
 const triggerSource = gamesPageSource.slice(triggerStart, triggerEnd);
@@ -16,6 +18,8 @@ test("Game shake easter eligibility follows live playback instead of a permanent
   assert.match(gamesPageSource, /audioPlayer\.dataset\.secretVariant === "scramble"/);
   assert.match(gamesPageSource, /!themeAudio\.paused/);
   assert.match(gamesPageSource, /const canChargeGameShakeEaster = \(\) =>/);
+  assert.match(gamesPageSource, /&& !gameShakeAfterglow/);
+  assert.match(gamesPageSource, /isDarekareScramblePlaying\(\) && !isGameShakeSequenceActive\(\)/);
   assert.match(gamesPageSource, /window\.matchMedia\("\(min-width: 761px\)"\)/);
   assert.doesNotMatch(gamesPageSource, /gameShakeEasterConsumed/);
   assert.doesNotMatch(gamesPageSource, /GAME_SHAKE_EASTER_SESSION_KEY/);
@@ -32,4 +36,19 @@ test("Game shake easter starts video and grants the track without permanently co
   assert.match(triggerSource, /gameShakeEasterArming = true;/);
   assert.match(triggerSource, /gameShakeEasterArming = false;/);
   assert.doesNotMatch(triggerSource, /grantId:/);
+});
+
+test("Game shake grows through the hold and keeps a page-local afterglow after the video ends", () => {
+  const videoEndedIndex = gamesPageSource.indexOf('shakeEasterVideo.addEventListener("ended"');
+  const afterglowIndex = gamesPageSource.indexOf("gameShakeAfterglow = true;", videoEndedIndex);
+  const releaseIndex = gamesPageSource.indexOf("releaseGameShakeEaster()", afterglowIndex);
+
+  assert.match(gamesPageSource, /const visualShake = heroShakeLatched/);
+  assert.match(gamesPageSource, /Math\.pow\(holdProgress, 1\.12\) \* 0\.92/);
+  assert.ok(videoEndedIndex >= 0 && afterglowIndex > videoEndedIndex && releaseIndex > afterglowIndex);
+  assert.match(gamesPageSource, /easterPressure = keepAfterglow \? "afterglow" : "0"/);
+  assert.match(gamesCssSource, /--game-easter-shake: 0/);
+  assert.match(gamesCssSource, /data-easter-pressure="afterglow"/);
+  assert.match(gamesCssSource, /@keyframes kisara-game-overdrive-type/);
+  assert.match(gamesCssSource, /calc\(var\(--game-easter-shake\) \* 6px\)/);
 });

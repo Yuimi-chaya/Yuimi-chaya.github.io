@@ -366,6 +366,7 @@ const gameMessageBursts = [
       const gameShakeEasterViewport = window.matchMedia("(min-width: 761px)");
       let gameShakeEasterAttempt = 0;
       let gameShakeEasterArming = false;
+      let gameShakeAfterglow = false;
       const terminal = hero?.querySelector("[data-game-terminal]");
       const terminalCopy = hero?.querySelector("[data-game-terminal-copy]");
       const terminalStatus = hero?.querySelector("[data-game-terminal-status]");
@@ -442,6 +443,7 @@ const gameMessageBursts = [
 
       const cleanup = () => {
         lifecycle.abort();
+        gameShakeAfterglow = false;
         messageRun += 1;
         messageTimers.forEach((resolve, timer) => {
           window.clearTimeout(timer);
@@ -667,6 +669,7 @@ const gameMessageBursts = [
       const canChargeGameShakeEaster = () => (
         activeScene === 0
         && gameShakeEasterViewport.matches
+        && !gameShakeAfterglow
         && !isGameShakeSequenceActive()
         && !isDarekareScramblePlaying()
       );
@@ -728,6 +731,7 @@ const gameMessageBursts = [
         if (hero instanceof HTMLElement) {
           hero.dataset.easterPressure = "4";
           hero.style.setProperty("--game-easter-charge", "1");
+          hero.style.setProperty("--game-easter-shake", "1");
         }
         page.dataset.easterState = "arming";
         shakeEaster.dataset.state = "arming";
@@ -762,6 +766,7 @@ const gameMessageBursts = [
       };
 
       resetGameShakePressure = () => {
+        const keepAfterglow = gameShakeAfterglow;
         heroPressureMs = 0;
         heroPressureLastFrame = 0;
         heroPressureStage = 0;
@@ -769,8 +774,10 @@ const gameMessageBursts = [
         heroShakeTravel = 0;
         heroShakeLatched = false;
         if (hero instanceof HTMLElement) {
-          hero.dataset.easterPressure = "0";
+          hero.dataset.easterPressure = keepAfterglow ? "afterglow" : "0";
           hero.style.setProperty("--game-easter-charge", "0");
+          hero.style.setProperty("--game-easter-shake", keepAfterglow ? "1" : "0");
+          if (keepAfterglow) hero.style.setProperty("--game-input-energy", "1");
         }
         if (shakeEasterProgress) shakeEasterProgress.textContent = "5.0";
         if (shakeEasterHint) shakeEasterHint.textContent = "SHAKE THE MESSAGE APART";
@@ -805,6 +812,9 @@ const gameMessageBursts = [
         const visualCharge = heroShakeLatched
           ? 0.22 + holdProgress * 0.78
           : Math.pow(shakeIntensity, 2) * 0.14;
+        const visualShake = heroShakeLatched
+          ? 0.08 + Math.pow(holdProgress, 1.12) * 0.92
+          : Math.pow(shakeIntensity, 2) * 0.06;
         const stage = !heroShakeLatched
           ? 0
           : holdProgress >= 0.72
@@ -813,6 +823,7 @@ const gameMessageBursts = [
               ? 2
               : 1;
         hero.style.setProperty("--game-easter-charge", visualCharge.toFixed(4));
+        hero.style.setProperty("--game-easter-shake", visualShake.toFixed(4));
         if (stage !== heroPressureStage) {
           heroPressureStage = stage;
           hero.dataset.easterPressure = String(stage);
@@ -842,6 +853,7 @@ const gameMessageBursts = [
         }, { signal });
         shakeEasterVideo.addEventListener("ended", () => {
           if (!(shakeEaster instanceof HTMLElement)) return;
+          gameShakeAfterglow = true;
           shakeEaster.dataset.state = "ending";
           shakeEasterExitTimer = window.setTimeout(() => releaseGameShakeEaster(), 1050);
         }, { signal });
@@ -849,7 +861,7 @@ const gameMessageBursts = [
       }
       if (themeAudio instanceof HTMLAudioElement) {
         themeAudio.addEventListener("playing", () => {
-          if (isDarekareScramblePlaying()) resetGameShakePressure();
+          if (isDarekareScramblePlaying() && !isGameShakeSequenceActive()) resetGameShakePressure();
         }, { signal });
       }
       shakeEasterClose?.addEventListener("click", () => releaseGameShakeEaster(), { signal });
@@ -930,7 +942,11 @@ const gameMessageBursts = [
           heroInputTarget *= 0.95;
           updateGameShakePressure(timestamp);
           const travelEnergy = clamp(heroShakeTravel / GAME_SHAKE_TRAVEL_TARGET, 0, 1);
-          const displayedInputEnergy = heroShakeLatched ? 1 : Math.max(heroInputEnergy, travelEnergy * 0.76);
+          const displayedInputEnergy = gameShakeAfterglow
+            ? 1
+            : heroShakeLatched
+              ? 1
+              : Math.max(heroInputEnergy, travelEnergy * 0.76);
           hero.style.setProperty("--game-hero-pointer-x", `${renderedHeroPointerX.toFixed(2)}px`);
           hero.style.setProperty("--game-hero-pointer-y", `${renderedHeroPointerY.toFixed(2)}px`);
           hero.style.setProperty("--game-input-energy", displayedInputEnergy.toFixed(3));

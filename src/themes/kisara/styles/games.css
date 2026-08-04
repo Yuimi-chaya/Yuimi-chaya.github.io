@@ -1687,6 +1687,7 @@ body[data-kisara-page="games"] .kisara-header.is-inner-header {
 /* Pointer-overdrive easter signal */
 .kisara-game-hero {
   --game-easter-charge: 0;
+  --game-easter-shake: 0;
 }
 
 .kisara-game-overdrive {
@@ -1817,19 +1818,39 @@ body[data-kisara-page="games"] .kisara-header.is-inner-header {
   animation: kisara-game-overdrive-tear 460ms steps(2, end) infinite;
 }
 
+.kisara-game-hero[data-easter-pressure="1"] .kisara-game-terminal,
+.kisara-game-hero[data-easter-pressure="2"] .kisara-game-terminal,
 .kisara-game-hero[data-easter-pressure="3"] .kisara-game-terminal,
-.kisara-game-hero[data-easter-pressure="4"] .kisara-game-terminal {
-  border-color: rgba(255, 101, 148, 0.78);
-  animation: kisara-game-overdrive-terminal 180ms steps(2, end) infinite;
+.kisara-game-hero[data-easter-pressure="4"] .kisara-game-terminal,
+.kisara-game-hero[data-easter-pressure="afterglow"] .kisara-game-terminal {
+  animation: kisara-game-overdrive-terminal calc(250ms - var(--game-easter-shake) * 115ms) steps(2, end) infinite;
 }
 
+.kisara-game-hero[data-easter-pressure="3"] .kisara-game-terminal,
+.kisara-game-hero[data-easter-pressure="4"] .kisara-game-terminal,
+.kisara-game-hero[data-easter-pressure="afterglow"] .kisara-game-terminal {
+  border-color: rgba(255, 101, 148, 0.78);
+}
+
+.kisara-game-hero[data-easter-pressure="1"] .kisara-game-sent-field,
+.kisara-game-hero[data-easter-pressure="2"] .kisara-game-sent-field,
 .kisara-game-hero[data-easter-pressure="3"] .kisara-game-sent-field,
-.kisara-game-hero[data-easter-pressure="4"] .kisara-game-sent-field {
-  animation: kisara-game-overdrive-field 260ms steps(2, end) infinite;
+.kisara-game-hero[data-easter-pressure="4"] .kisara-game-sent-field,
+.kisara-game-hero[data-easter-pressure="afterglow"] .kisara-game-sent-field {
+  animation: kisara-game-overdrive-field calc(310ms - var(--game-easter-shake) * 150ms) steps(2, end) infinite;
+}
+
+.kisara-game-hero[data-easter-pressure="1"] .kisara-game-type-storm,
+.kisara-game-hero[data-easter-pressure="2"] .kisara-game-type-storm,
+.kisara-game-hero[data-easter-pressure="3"] .kisara-game-type-storm,
+.kisara-game-hero[data-easter-pressure="4"] .kisara-game-type-storm,
+.kisara-game-hero[data-easter-pressure="afterglow"] .kisara-game-type-storm {
+  animation: kisara-game-overdrive-type calc(340ms - var(--game-easter-shake) * 175ms) steps(2, end) infinite;
 }
 
 .kisara-game-hero[data-easter-pressure="3"] .kisara-game-hand-meter small,
-.kisara-game-hero[data-easter-pressure="4"] .kisara-game-hand-meter small {
+.kisara-game-hero[data-easter-pressure="4"] .kisara-game-hand-meter small,
+.kisara-game-hero[data-easter-pressure="afterglow"] .kisara-game-hand-meter small {
   color: #ff94b4;
   text-shadow: 0 0 9px rgba(255, 63, 127, 0.72);
 }
@@ -2035,14 +2056,22 @@ body[data-kisara-page="games"] .kisara-header.is-inner-header {
 }
 
 @keyframes kisara-game-overdrive-terminal {
-  0%, 100% { transform: translate3d(0, 0, 0) rotate(-1.2deg); }
-  45% { transform: translate3d(-2px, 1px, 0) rotate(-1.35deg); }
-  70% { transform: translate3d(2px, -1px, 0) rotate(-1.05deg); }
+  0%, 100% { translate: calc(var(--game-easter-shake) * -1px) calc(var(--game-easter-shake) * 0.5px); }
+  38% { translate: calc(var(--game-easter-shake) * -4px) calc(var(--game-easter-shake) * 2px); }
+  71% { translate: calc(var(--game-easter-shake) * 4.5px) calc(var(--game-easter-shake) * -2.5px); }
 }
 
 @keyframes kisara-game-overdrive-field {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(2px, -1px, 0); }
+  0%, 100% { translate: calc(var(--game-easter-shake) * 1px) calc(var(--game-easter-shake) * -0.5px); }
+  34% { translate: calc(var(--game-easter-shake) * 6px) calc(var(--game-easter-shake) * -3px); }
+  68% { translate: calc(var(--game-easter-shake) * -7px) calc(var(--game-easter-shake) * 3px); }
+}
+
+@keyframes kisara-game-overdrive-type {
+  0%, 100% { translate: calc(var(--game-easter-shake) * -1px) calc(var(--game-easter-shake) * 1px); }
+  29% { translate: calc(var(--game-easter-shake) * 5px) calc(var(--game-easter-shake) * -3px); }
+  63% { translate: calc(var(--game-easter-shake) * -6px) calc(var(--game-easter-shake) * 2.5px); }
+  82% { translate: calc(var(--game-easter-shake) * 3px) calc(var(--game-easter-shake) * 4px); }
 }
 
 @keyframes kisara-game-shake-scan {
