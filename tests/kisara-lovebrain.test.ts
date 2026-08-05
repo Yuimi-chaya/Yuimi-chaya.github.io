@@ -55,7 +55,7 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
     "shu-avatar.webp",
     "ayano-avatar.webp",
     "race-scrub.mp4",
-    "pinch-loop.mp4",
+    "pinch-pingpong.mp4",
     "stage2-loop.mp4",
     "final.webp"
   ]) {
