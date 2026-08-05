@@ -1,0 +1,114 @@
+---
+import KisaraLayout from "../layouts/KisaraLayout.astro";
+import friendsStylesheet from "../styles/friends.css?url";
+import { Icon } from "astro-icon/components";
+
+const friendSlots = [
+  { code: "01", label: "OPEN ROUTE", note: "留给下一条互相发现的链接" },
+  { code: "02", label: "OPEN ROUTE", note: "站点名称 / 一句介绍" },
+  { code: "03", label: "OPEN ROUTE", note: "可以放博客、作品集或小站" },
+  { code: "04", label: "OPEN ROUTE", note: "等待下一次连接被写下" }
+] as const;
+---
+
+<KisaraLayout
+  title="Friends | Kisara"
+  description="Yuimi Lab 的友联页面，留给正在互相发现的小站。"
+  stylesheets={[friendsStylesheet]}
+>
+  <section class="kisara-friends" data-kisara-friends aria-labelledby="kisara-friends-title">
+    <div class="kisara-friends-backdrop" aria-hidden="true">
+      <div class="kisara-friends-backdrop-image"></div>
+      <span class="kisara-friends-colorwash"></span>
+      <span class="kisara-friends-orbit orbit-one"></span>
+      <span class="kisara-friends-orbit orbit-two"></span>
+      <span class="kisara-friends-orbit orbit-three"></span>
+      <i class="kisara-friends-thread thread-one"></i>
+      <i class="kisara-friends-thread thread-two"></i>
+      <i class="kisara-friends-thread thread-three"></i>
+    </div>
+
+    <header class="kisara-friends-heading">
+      <p class="kisara-friends-kicker"><span>ED / 06</span><i></i><small>FRIEND ROUTE</small></p>
+      <h1 id="kisara-friends-title">keep the route<br /><em>open.</em></h1>
+      <p class="kisara-friends-lead">有些链接不是目录里的地址，而是某一次认真看完之后，仍然愿意互相留下的坐标。</p>
+      <p class="kisara-friends-note">这里预留给友联。等名字和网址被写入以后，空位会成为新的彩线交点。</p>
+    </header>
+
+    <div class="kisara-friends-stage" data-friends-stage>
+      <div class="kisara-friends-stage-head">
+        <span>YUIMI LAB / FRIENDS</span>
+        <strong>LINKS THAT STAY</strong>
+      </div>
+      <div class="kisara-friends-stage-core" aria-hidden="true">
+        <span class="kisara-friends-core-heart"><Icon name="tabler:heart" /></span>
+        <i></i><i></i><i></i>
+      </div>
+      <ol class="kisara-friends-list" aria-label="友联栏位">
+        {friendSlots.map((slot) => (
+          <li class="kisara-friends-slot">
+            <span class="kisara-friends-slot-code">{slot.code}</span>
+            <span class="kisara-friends-slot-copy">
+              <strong>{slot.label}</strong>
+              <small>{slot.note}</small>
+            </span>
+            <span class="kisara-friends-slot-line" aria-hidden="true"></span>
+            <span class="kisara-friends-slot-mark" aria-hidden="true">↗</span>
+          </li>
+        ))}
+      </ol>
+      <p class="kisara-friends-stage-foot"><span>NO DEADLINE</span><i></i><small>keep something beautiful in orbit</small></p>
+    </div>
+
+    <aside class="kisara-friends-side-note">
+      <span class="kisara-friends-side-mark" aria-hidden="true"><Icon name="tabler:link" /></span>
+      <div><small>LINK SLOTS / 04</small><strong>等待被写下的名字</strong></div>
+    </aside>
+
+    <a class="kisara-friends-back-link" href="/about/">
+      <Icon name="tabler:arrow-left" aria-hidden="true" />
+      <span>BACK TO ME / PROFILE</span>
+    </a>
+  </section>
+
+  <script is:inline data-astro-rerun>
+    (() => {
+      window.__yuimiKisaraFriendsCleanup?.();
+      const root = document.querySelector("[data-kisara-friends]");
+      const stage = root?.querySelector("[data-friends-stage]");
+      if (!(root instanceof HTMLElement) || !(stage instanceof HTMLElement)) return;
+
+      const lifecycle = new AbortController();
+      const { signal } = lifecycle;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const applyPointer = (clientX, clientY) => {
+        if (reducedMotion) return;
+        const bounds = root.getBoundingClientRect();
+        if (!bounds.width || !bounds.height) return;
+        const x = ((clientX - bounds.left) / bounds.width - 0.5) * 2;
+        const y = ((clientY - bounds.top) / bounds.height - 0.5) * 2;
+        root.style.setProperty("--friends-pointer-x", `${(x * 18).toFixed(2)}px`);
+        root.style.setProperty("--friends-pointer-y", `${(y * 14).toFixed(2)}px`);
+        stage.style.setProperty("--friends-stage-tilt", `${(x * 1.5).toFixed(2)}deg`);
+      };
+      const resetPointer = () => {
+        root.style.setProperty("--friends-pointer-x", "0px");
+        root.style.setProperty("--friends-pointer-y", "0px");
+        stage.style.setProperty("--friends-stage-tilt", "0deg");
+      };
+
+      root.addEventListener("pointermove", (event) => {
+        if (event.pointerType === "touch") return;
+        applyPointer(event.clientX, event.clientY);
+      }, { signal });
+      root.addEventListener("pointerleave", resetPointer, { signal });
+
+      const cleanup = () => {
+        lifecycle.abort();
+        if (window.__yuimiKisaraFriendsCleanup === cleanup) window.__yuimiKisaraFriendsCleanup = null;
+      };
+      window.__yuimiKisaraFriendsCleanup = cleanup;
+      document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
+    })();
+  </script>
+</KisaraLayout>

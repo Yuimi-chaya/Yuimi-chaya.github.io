@@ -28,7 +28,7 @@
         .replace(/^\/themes\/kisara(?=\/|$)/, "")
         .replace(/^\/themes\/(?:blank|fuyukawa-kagari)(?=\/|$)/, "");
       const segment = cleanPath.split("/").filter(Boolean)[0] || "home";
-      if (["blog", "games", "projects", "about"].includes(segment)) return segment;
+      if (["blog", "games", "projects", "about", "friends"].includes(segment)) return segment;
       return segment === "home" ? "home" : "other";
     };
 
@@ -195,6 +195,14 @@
     animation: kisara-route-new-projects 590ms cubic-bezier(0.16, 0.76, 0.18, 1) both !important;
   }
 
+  html[data-kisara-route-to="friends"]::view-transition-old(root) {
+    animation: kisara-route-old-friends 650ms cubic-bezier(0.3, 0, 0.2, 1) both !important;
+  }
+
+  html[data-kisara-route-to="friends"]::view-transition-new(root) {
+    animation: kisara-route-new-friends 720ms cubic-bezier(0.16, 0.76, 0.18, 1) both !important;
+  }
+
   @keyframes kisara-route-old-default {
     0% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
     100% { opacity: 0; transform: translate3d(0, -8px, 0) scale(1.012); }
@@ -252,6 +260,18 @@
     0% { opacity: 0; transform: translate3d(0, 14px, 0) scale(1.025); }
     38% { opacity: 0.24; }
     100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+
+  @keyframes kisara-route-old-friends {
+    0% { opacity: 1; transform: scale(1); filter: saturate(1); }
+    46% { opacity: 0.84; filter: saturate(0.78); }
+    100% { opacity: 0; transform: scale(1.026); filter: saturate(0.62); }
+  }
+
+  @keyframes kisara-route-new-friends {
+    0% { opacity: 0; transform: scale(0.978); filter: saturate(0.58) blur(4px); }
+    42% { opacity: 0.42; filter: saturate(0.86) blur(1px); }
+    100% { opacity: 1; transform: scale(1); filter: saturate(1) blur(0); }
   }
 
   @keyframes kisara-route-chrome-old {

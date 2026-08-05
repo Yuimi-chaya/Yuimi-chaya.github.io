@@ -2673,7 +2673,7 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
 }
 
 .kisara-opening-video-scene {
-  --kisara-opening-copy-angle: -8deg;
+  --kisara-opening-copy-angle: -4.4deg;
   --kisara-opening-copy-scale: 0.69;
   --kisara-opening-copy-offset-y: 86px;
   --kisara-opening-index-opacity: 0;
@@ -2872,21 +2872,106 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
 
 .kisara-opening-video-body {
   --kisara-opening-copy-final-opacity: 0.96;
-  width: 86%;
-  margin-top: 12px;
-  margin-left: 5%;
+  display: grid;
+  gap: 11px;
+  width: min(100%, 520px);
+  margin-top: 19px;
+  margin-left: 0;
   color: #493a46;
-  font-size: clamp(0.98rem, 1.06vw, 1.1rem);
-  font-weight: 600;
-  line-height: 1.85;
+  font-size: clamp(0.86rem, 0.98vw, 1rem);
+  font-weight: 500;
+  line-height: 1.62;
   opacity: var(--kisara-opening-body-opacity);
+}
+
+.kisara-opening-easter-lede {
+  display: grid;
+  grid-template-columns: auto minmax(24px, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  width: min(100%, 470px);
+  color: #98506e;
+  font: 800 0.58rem/1 "Courier New", Courier, monospace;
+  letter-spacing: 0.08em;
+}
+
+.kisara-opening-easter-lede i {
+  display: block;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(193, 83, 127, 0.62), rgba(193, 83, 127, 0.08));
+}
+
+.kisara-opening-easter-lede small {
+  color: rgba(86, 67, 80, 0.62);
+  font: 600 0.62rem/1.2 "Noto Serif SC", "Songti SC", SimSun, serif;
+  letter-spacing: 0;
+}
+
+.kisara-opening-easter-hints {
+  display: grid;
+  gap: 3px;
+  width: min(100%, 510px);
 }
 
 .kisara-opening-easter-hint {
   --hint-strike-dark-angle: -1.4deg;
   --hint-strike-pink-angle: 0.65deg;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(68px, 0.23fr) minmax(0, 1fr);
+  gap: 13px;
+  align-items: start;
+  padding: 7px 0 8px 10px;
   color: inherit;
-  transition: color 240ms ease, opacity 240ms ease;
+  border-bottom: 1px solid rgba(91, 61, 78, 0.17);
+  transition: color 240ms ease, opacity 420ms ease, transform 620ms cubic-bezier(0.2, 0.82, 0.24, 1), filter 620ms ease;
+}
+
+.kisara-opening-easter-hint::after {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(203, 55, 111, 0.78), rgba(94, 118, 194, 0.14));
+  box-shadow: 0 0 9px rgba(210, 67, 128, 0.18);
+  content: "";
+  opacity: 0.62;
+}
+
+.kisara-opening-easter-hint:nth-child(1) { --hint-delay: 0ms; }
+.kisara-opening-easter-hint:nth-child(2) { --hint-delay: 55ms; }
+.kisara-opening-easter-hint:nth-child(3) { --hint-delay: 110ms; }
+.kisara-opening-easter-hint:nth-child(4) { --hint-delay: 165ms; }
+.kisara-opening-easter-hint:nth-child(5) { --hint-delay: 220ms; }
+.kisara-opening-easter-hint:nth-child(6) { --hint-delay: 275ms; }
+
+.kisara-opening-video-scene:not(.is-memory-video-settled) .kisara-opening-easter-hint {
+  filter: blur(3px);
+  transform: translate3d(0, 8px, 0);
+}
+
+.kisara-opening-video-scene.is-memory-video-settled .kisara-opening-easter-hint {
+  transition-delay: var(--hint-delay), var(--hint-delay), var(--hint-delay), var(--hint-delay);
+}
+
+.kisara-opening-easter-hint-code {
+  padding-top: 3px;
+  color: rgba(130, 74, 105, 0.78);
+  font: 800 0.52rem/1.2 "Courier New", Courier, monospace;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.kisara-opening-easter-hint-copy {
+  display: block;
+  color: #3d3040;
+  font: 600 clamp(0.88rem, 0.98vw, 1rem)/1.58 "Noto Serif SC", "Songti SC", SimSun, serif;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.82), 0 0 8px rgba(255, 249, 246, 0.35);
+}
+
+.kisara-opening-easter-hint-copy .kisara-opening-easter-hint-fragment + .kisara-opening-easter-hint-fragment {
+  margin-left: 0.35em;
 }
 
 .kisara-opening-easter-hint[data-kisara-opening-hint="chibi-apple"],
@@ -2943,6 +3028,14 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
 
 .kisara-opening-easter-hint.is-hint-achieved {
   color: rgba(76, 55, 68, 0.72);
+}
+
+.kisara-opening-easter-hint.is-hint-achieved .kisara-opening-easter-hint-code {
+  color: rgba(180, 52, 105, 0.66);
+}
+
+.kisara-opening-easter-hint.is-hint-achieved .kisara-opening-easter-hint-copy {
+  color: rgba(84, 61, 77, 0.62);
 }
 
 .kisara-opening-easter-hint.is-hint-achieved:not(.is-hint-drawing) .kisara-opening-easter-hint-fragment::before,
@@ -3056,6 +3149,10 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
     width: calc(100% - 44px);
   }
 
+  .kisara-opening-video-scene {
+    --kisara-opening-copy-angle: -2.4deg;
+  }
+
   .kisara-opening-video-copy .kisara-section-index {
     margin-bottom: 14px;
   }
@@ -3076,9 +3173,33 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
   }
 
   .kisara-opening-video-body {
-    width: 82%;
-    margin-left: 3%;
-    font-size: 0.86rem;
+    width: calc(100% - 8px);
+    margin-left: 0;
+    font-size: 0.84rem;
+  }
+
+  .kisara-opening-easter-lede {
+    grid-template-columns: auto minmax(18px, 1fr);
+    gap: 7px;
+  }
+
+  .kisara-opening-easter-lede small {
+    display: none;
+  }
+
+  .kisara-opening-easter-hint {
+    grid-template-columns: 60px minmax(0, 1fr);
+    gap: 8px;
+    padding-block: 6px 7px;
+  }
+
+  .kisara-opening-easter-hint-code {
+    font-size: 0.46rem;
+  }
+
+  .kisara-opening-easter-hint-copy {
+    font-size: 0.82rem;
+    line-height: 1.55;
   }
 
   .kisara-opening-video-note {
@@ -3104,7 +3225,8 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
 
   .kisara-opening-video-copy::after,
   .kisara-opening-video-copy > *,
-  .kisara-opening-video-clause {
+  .kisara-opening-video-clause,
+  .kisara-opening-easter-hint {
     opacity: 1 !important;
     filter: none !important;
     transform: none !important;
