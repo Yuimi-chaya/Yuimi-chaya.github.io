@@ -49,24 +49,42 @@ test("Home 003 gives the semantic spare-key grant before dispatch", () => {
 });
 
 test("Lovebrain component owns its ED assets and interactive input", () => {
-  for (const asset of ["route", "messages", "kisara", "shu", "ayano", "chase", "pressure", "final"]) {
-    assert.match(componentSource, new RegExp(`lovebrain/${asset}\\.webp`), `${asset} asset must be used`);
+  for (const asset of [
+    "stage1-scrub.mp4",
+    "kisara-avatar.webp",
+    "shu-avatar.webp",
+    "ayano-avatar.webp",
+    "race-scrub.mp4",
+    "pinch-loop.mp4",
+    "stage2-loop.mp4",
+    "final.webp"
+  ]) {
+    const escapedAsset = asset.replace(".", "\\.");
+    assert.match(componentSource, new RegExp(`lovebrain/${escapedAsset}`), `${asset} must be used`);
   }
   assert.match(componentSource, /audio\/renai-nou\.mp3/);
   for (const input of ["wheel", "keydown", "touchmove", "pointermove"]) {
     assert.match(componentSource, new RegExp(`addEventListener\\(\\"${input}\\"`), `${input} input must advance the ED`);
   }
-  assert.match(componentSource, /data-lovebrain-notification/);
   assert.match(componentSource, /data-lovebrain-focus/);
+  assert.match(componentSource, /data-lovebrain-player/);
+  assert.match(componentSource, /data-lovebrain-audio-progress/);
   assert.match(componentSource, /prefers-reduced-motion/);
   assert.match(componentSource, /yuimi:kisara-audio-suspension/);
-  assert.match(componentSource, /img\[data-src\]/);
+  assert.match(componentSource, /seekPausedVideo/);
+  assert.match(componentSource, /video\.pause\(\)/);
+  assert.match(componentSource, /hydrateMediaTo/);
   assert.doesNotMatch(componentSource, /<img[^>]*\ssrc="\/themes\/kisara\/assets\/lovebrain\//);
-  assert.match(componentSource, /startAudio\(true\)/);
-  assert.match(componentSource, /startAudio\(false\)/);
+  assert.doesNotMatch(componentSource, /<video[^>]*\ssrc="\/themes\/kisara\/assets\/lovebrain\//);
+  assert.match(componentSource, /startAudio\(\{ restart: !audioSession \}\)/);
+  assert.match(componentSource, /is-lovebrain-audio-owned/);
   assert.match(componentSource, /is-lovebrain-scene-visible/);
-  assert.match(componentSource, /--lovebrain-notification-opacity/);
-  assert.match(componentSource, /fragmentOut/);
+
+  const finishStart = componentSource.indexOf("const finishOpening =");
+  const finishEnd = componentSource.indexOf("const startReturnToGate =", finishStart);
+  const finishSource = componentSource.slice(finishStart, finishEnd);
+  assert.match(finishSource, /sceneConsumed = true/);
+  assert.doesNotMatch(finishSource, /stopAudioSession/);
 });
 
 test("Lovebrain uses a dedicated page mode and bridge transport", () => {
@@ -87,6 +105,10 @@ test("Lovebrain uses a dedicated page mode and bridge transport", () => {
   assert.doesNotMatch(forwardSource, /startOpeningBridgeDissolve/);
   assert.doesNotMatch(forwardSource, /resetGateState/);
   assert.doesNotMatch(forwardSource, /scheduleWarningWarmup/);
+  assert.match(forwardSource, /lovebrainActive = false/);
+  assert.match(forwardSource, /document\.body\.classList\.remove\("is-lovebrain-home-active"\)/);
+  assert.match(forwardSource, /startSpaceLens\(\)/);
+  assert.match(forwardSource, /startTitleLens\(\)/);
 
   const returnStart = homeSource.indexOf("const returnLovebrainToGate =");
   const returnEnd = homeSource.indexOf("const isHomeSectionSnapEnabled =", returnStart);

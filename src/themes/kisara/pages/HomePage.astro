@@ -12880,9 +12880,13 @@ const gateStyle = [
         const started = smoothScrollTo(getNextPageTop(), () => {
           pageMode = "next";
           lastObservedScrollY = window.scrollY;
+          lovebrainActive = false;
           gate.classList.remove("is-lovebrain-transporting");
-          gate.classList.add("is-lovebrain-transported");
+          gate.classList.remove("is-lovebrain-active", "is-lovebrain-transported");
           opening?.classList.remove("is-lovebrain-transporting");
+          document.body.classList.remove("is-lovebrain-home-active");
+          startSpaceLens();
+          startTitleLens();
           window.dispatchEvent(new CustomEvent("yuimi:kisara-lovebrain-opening-covered"));
         }, undefined, "forward", "lovebrain");
         if (!started) {
