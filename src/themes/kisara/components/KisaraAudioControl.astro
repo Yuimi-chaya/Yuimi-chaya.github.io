@@ -216,6 +216,14 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       blocked: "SIGNAL READY",
       error: "SIGNAL LOST"
     };
+    const lovebrainStateLabels = {
+      loading: "COLOR LINKING",
+      playing: "LOVE BRAIN / LIVE",
+      paused: "LOVE BRAIN / HELD",
+      memory: "LOVE BRAIN / HOLD",
+      blocked: "LOVE BRAIN / READY",
+      error: "LOVE BRAIN / LOST"
+    };
     let enabled = true;
     let trackIndex = 0;
     let restoreTime = 0;
@@ -374,7 +382,9 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
           ? memoryStateLabels
           : track.variant === "scramble"
             ? scrambleStateLabels
-            : stateLabels;
+            : track.variant === "lovebrain"
+              ? lovebrainStateLabels
+              : stateLabels;
         if (isSecretTrack(track)) {
           const unlockedSecrets = tracks.slice(baseTracks.length);
           const secretPosition = unlockedSecrets.findIndex((candidate) => candidate.id === track.id) + 1;
@@ -384,7 +394,9 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
             ? labels[state] ?? labels.paused
             : track.variant === "scramble"
               ? `EXTRA SIGNAL · ${labels[state] ?? labels.paused}`
-              : `SECRET ${position} / ${total} · ${labels[state] ?? labels.paused}`;
+              : track.variant === "lovebrain"
+                ? labels[state] ?? labels.paused
+                : `SECRET ${position} / ${total} · ${labels[state] ?? labels.paused}`;
         } else {
           const position = String(trackIndex + 1).padStart(2, "0");
           const total = String(baseTracks.length).padStart(2, "0");
@@ -402,7 +414,11 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       player?.classList.toggle("is-secret-track", secretActive);
       player?.classList.toggle("is-secret-memory", secretActive && track.variant === "memory");
       player?.classList.toggle("is-secret-scramble", secretActive && track.variant === "scramble");
-      if (player instanceof HTMLElement) player.dataset.secretVariant = secretActive ? track.variant || "secret" : "";
+      player?.classList.toggle("is-secret-lovebrain", secretActive && track.variant === "lovebrain");
+      if (player instanceof HTMLElement) {
+        player.dataset.secretVariant = secretActive ? track.variant || "secret" : "";
+        player.dataset.trackId = track.id;
+      }
       if (previous instanceof HTMLButtonElement) {
         previous.title = `上一首：${previousTrack.title}`;
         previous.setAttribute("aria-label", `上一首：${previousTrack.title}`);
@@ -703,6 +719,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
         }
       }
       const shouldPlayNow = detail.autoplay === true;
+      const requestedPlaybackMode = detail.playbackMode === "playlist" ? "playlist" : "interrupt";
       if (!unlockedIds.has(secretTrack.id)) {
         unlockedIds.add(secretTrack.id);
         secretSession.unlockedIds = [...unlockedIds];
@@ -722,7 +739,9 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
             ? "SECRET MEMORY · ARCHIVED"
             : secretTrack.variant === "scramble"
               ? "EXTRA SIGNAL · CAPTURED"
-              : "SECRET TRACK · UNLOCKED";
+              : secretTrack.variant === "lovebrain"
+                ? "LOVE BRAIN · READY"
+                : "SECRET TRACK · UNLOCKED";
           unlockNoticeTimer = window.setTimeout(() => {
             unlockNoticeTimer = 0;
             setUiState(currentUiState);
@@ -746,7 +765,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
           autoplay: true,
           persist: false,
           immediate: true,
-          secretMode: "interrupt"
+          secretMode: requestedPlaybackMode
         });
       }
     };

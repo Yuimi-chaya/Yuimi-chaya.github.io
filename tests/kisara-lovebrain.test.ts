@@ -62,22 +62,27 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
     const escapedAsset = asset.replace(".", "\\.");
     assert.match(componentSource, new RegExp(`lovebrain/${escapedAsset}`), `${asset} must be used`);
   }
-  assert.match(componentSource, /audio\/renai-nou\.mp3/);
+  assert.match(componentSource, /trackId: "lovebrain-ed"/);
   for (const input of ["wheel", "keydown", "touchmove", "pointermove"]) {
     assert.match(componentSource, new RegExp(`addEventListener\\(\\"${input}\\"`), `${input} input must advance the ED`);
   }
   assert.match(componentSource, /data-lovebrain-focus/);
-  assert.match(componentSource, /data-lovebrain-player/);
-  assert.match(componentSource, /data-lovebrain-audio-progress/);
   assert.match(componentSource, /prefers-reduced-motion/);
-  assert.match(componentSource, /yuimi:kisara-audio-suspension/);
+  assert.match(componentSource, /requestLovebrainTrack/);
+  assert.match(componentSource, /playbackMode: "playlist"/);
+  assert.doesNotMatch(componentSource, /new Audio\(/);
+  assert.doesNotMatch(componentSource, /yuimi:kisara-audio-suspension/);
   assert.match(componentSource, /seekPausedVideo/);
+  assert.match(componentSource, /targetProgress/);
+  assert.match(componentSource, /scheduleProgress/);
+  assert.match(componentSource, /requestAnimationFrame\(animateProgress\)/);
+  assert.match(componentSource, /addEventListener\("seeked"/);
+  assert.match(componentSource, /pendingTime/);
+  assert.match(componentSource, /busy/);
   assert.match(componentSource, /video\.pause\(\)/);
   assert.match(componentSource, /hydrateMediaTo/);
   assert.doesNotMatch(componentSource, /<img[^>]*\ssrc="\/themes\/kisara\/assets\/lovebrain\//);
   assert.doesNotMatch(componentSource, /<video[^>]*\ssrc="\/themes\/kisara\/assets\/lovebrain\//);
-  assert.match(componentSource, /startAudio\(\{ restart: !audioSession \}\)/);
-  assert.match(componentSource, /is-lovebrain-audio-owned/);
   assert.match(componentSource, /is-lovebrain-scene-visible/);
 
   const finishStart = componentSource.indexOf("const finishOpening =");

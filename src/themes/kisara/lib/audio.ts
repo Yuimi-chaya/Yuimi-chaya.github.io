@@ -42,6 +42,14 @@ export const kisaraSecretAudioTracks = [
     variant: "scramble",
     persistAcrossReload: false,
     consumeAfterPlayback: true
+  },
+  {
+    id: "lovebrain-ed",
+    title: "恋愛脳",
+    src: "/themes/kisara/audio/renai-nou.mp3",
+    variant: "lovebrain",
+    persistAcrossReload: false,
+    consumeAfterPlayback: false
   }
 ] as const;
 

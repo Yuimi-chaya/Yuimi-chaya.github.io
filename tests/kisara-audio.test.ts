@@ -3,10 +3,19 @@ import test from "node:test";
 import { kisaraSecretAudioTracks } from "../src/themes/kisara/lib/audio.ts";
 
 test("Kisara secret tracks are one-shot unlocks within the current document", () => {
-  for (const track of kisaraSecretAudioTracks) {
+  for (const track of kisaraSecretAudioTracks.filter((candidate) => candidate.id !== "lovebrain-ed")) {
     assert.equal(track.persistAcrossReload, false, `${track.id} must not survive a refresh`);
     assert.equal(track.consumeAfterPlayback, true, `${track.id} must leave the queue after playback`);
   }
+});
+
+test("Lovebrain is a same-tab persistent-player track, not a scene-owned loop", () => {
+  const lovebrain = kisaraSecretAudioTracks.find((track) => track.id === "lovebrain-ed");
+  assert.ok(lovebrain, "Lovebrain must be registered as a secret track");
+  assert.equal(lovebrain.persistAcrossReload, false);
+  assert.equal(lovebrain.consumeAfterPlayback, false);
+  assert.equal(lovebrain.variant, "lovebrain");
+  assert.match(lovebrain.src, /renai-nou\.mp3$/);
 });
 
 test("Darekare Scramble is consumed per playback but can be granted again later", () => {

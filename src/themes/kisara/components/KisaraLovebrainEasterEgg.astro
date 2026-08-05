@@ -7,7 +7,6 @@ import { Icon } from "astro-icon/components";
   data-kisara-lovebrain-root
   data-state="locked"
   data-stage="orbit"
-  data-player-state="hidden"
 >
   <button
     class="kisara-lovebrain-entry"
@@ -176,45 +175,6 @@ import { Icon } from "astro-icon/components";
     </button>
     <p class="kisara-lovebrain-sr-status" data-lovebrain-status aria-live="polite"></p>
   </section>
-
-  <aside class="kisara-lovebrain-player" data-lovebrain-player aria-label="恋爱脑播放器" hidden>
-    <div class="kisara-lovebrain-player-art" aria-hidden="true">
-      <i></i><i></i><i></i>
-      <Icon name="tabler:heart" />
-    </div>
-    <button
-      class="kisara-lovebrain-player-toggle"
-      type="button"
-      data-lovebrain-audio-toggle
-      aria-label="暂停《恋爱脑》"
-      title="暂停《恋爱脑》"
-    >
-      <Icon class="is-play" name="tabler:player-play" aria-hidden="true" />
-      <Icon class="is-pause" name="tabler:player-pause" aria-hidden="true" />
-    </button>
-    <div class="kisara-lovebrain-player-copy">
-      <span><b>恋愛脳</b><small>Engage Kiss ED</small></span>
-      <input
-        type="range"
-        min="0"
-        max="1000"
-        step="1"
-        value="0"
-        data-lovebrain-audio-progress
-        aria-label="恋爱脑播放进度"
-      />
-      <time data-lovebrain-audio-time>00:00 / 00:00</time>
-    </div>
-    <button
-      class="kisara-lovebrain-player-close"
-      type="button"
-      data-lovebrain-audio-close
-      aria-label="关闭《恋爱脑》播放器"
-      title="关闭《恋爱脑》播放器"
-    >
-      <Icon name="tabler:x" aria-hidden="true" />
-    </button>
-  </aside>
 </div>
 
 <script is:inline data-astro-rerun>
@@ -230,11 +190,6 @@ import { Icon } from "astro-icon/components";
     const status = root.querySelector("[data-lovebrain-status]");
     const nextButton = root.querySelector("[data-lovebrain-next]");
     const railProgress = root.querySelector("[data-lovebrain-rail-progress]");
-    const player = root.querySelector("[data-lovebrain-player]");
-    const audioToggle = root.querySelector("[data-lovebrain-audio-toggle]");
-    const audioClose = root.querySelector("[data-lovebrain-audio-close]");
-    const audioProgress = root.querySelector("[data-lovebrain-audio-progress]");
-    const audioTime = root.querySelector("[data-lovebrain-audio-time]");
     const orbitVideo = root.querySelector('[data-lovebrain-scrub="orbit"]');
     const raceVideo = root.querySelector('[data-lovebrain-scrub="race"]');
     const pinchVideo = root.querySelector('[data-lovebrain-loop="pinch"]');
@@ -264,31 +219,20 @@ import { Icon } from "astro-icon/components";
     let leaving = false;
     let completed = false;
     let progress = 0;
+    let targetProgress = 0;
+    let progressFrame = 0;
+    let progressTimestamp = 0;
     let sceneConsumed = false;
     let touchY = null;
     let touchId = null;
-    let audioSuspended = false;
-    let audioSession = false;
-    let audioFrame = 0;
-    let fadeFrame = 0;
     let mediaSerial = 0;
     const hydratedMedia = new WeakSet();
-    const audio = new Audio("/themes/kisara/audio/renai-nou.mp3");
-    audio.preload = "none";
-    audio.loop = true;
-    audio.playsInline = true;
-    audio.volume = 0.64;
+    const scrubStates = new WeakMap();
 
     const foundSelfBlocking = () => document.documentElement.dataset.kisaraFoundSelfEntry === "pending"
       || document.querySelector("[data-kisara-gate].is-found-self-active, [data-kisara-gate].is-found-self-leaving") !== null;
     const isHomeGate = () => document.body?.dataset.kisaraPage === "home" && window.scrollY <= 2;
     const isEligible = () => Boolean(progressApi?.isEligible?.()) && !foundSelfBlocking();
-    const formatTime = (value) => {
-      const safe = Number.isFinite(value) && value > 0 ? value : 0;
-      const minutes = Math.floor(safe / 60);
-      const seconds = Math.floor(safe % 60);
-      return String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
-    };
     const setStatus = (value) => {
       if (status) status.textContent = value;
     };
@@ -299,100 +243,30 @@ import { Icon } from "astro-icon/components";
       });
       return selected;
     };
-    const setAudioSuspension = (activeState) => {
-      if (audioSuspended === activeState) return;
-      audioSuspended = activeState;
-      window.dispatchEvent(new CustomEvent("yuimi:kisara-audio-suspension", {
-        detail: { id: "lovebrain-ed", active: activeState }
-      }));
-    };
-    const updateAudioUi = () => {
-      if (!(audioToggle instanceof HTMLButtonElement)) return;
-      const paused = audio.paused || audio.ended;
-      root.dataset.playerState = paused ? "paused" : "playing";
-      audioToggle.setAttribute("aria-label", paused ? "播放《恋爱脑》" : "暂停《恋爱脑》");
-      audioToggle.title = paused ? "播放《恋爱脑》" : "暂停《恋爱脑》";
-      if (audioProgress instanceof HTMLInputElement) {
-        const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
-        const ratio = duration > 0 ? clamp(audio.currentTime / duration, 0, 1) : 0;
-        audioProgress.value = String(Math.round(ratio * 1000));
-        audioProgress.style.setProperty("--lovebrain-audio-progress", String(ratio));
-      }
-      if (audioTime instanceof HTMLTimeElement) {
-        audioTime.textContent = formatTime(audio.currentTime) + " / " + formatTime(audio.duration);
-      }
-    };
-    const tickAudioUi = () => {
-      audioFrame = 0;
-      updateAudioUi();
-      if (!disposed && audioSession && !audio.paused) {
-        audioFrame = window.requestAnimationFrame(tickAudioUi);
-      }
-    };
-    const showPlayer = () => {
-      if (!(player instanceof HTMLElement)) return;
-      player.hidden = false;
-      player.setAttribute("aria-hidden", "false");
-      root.dataset.playerState = audio.paused ? "paused" : "playing";
-      document.body.classList.add("is-lovebrain-audio-owned");
-    };
-    const hidePlayer = () => {
-      if (!(player instanceof HTMLElement)) return;
-      player.hidden = true;
-      player.setAttribute("aria-hidden", "true");
-      root.dataset.playerState = "hidden";
-      document.body.classList.remove("is-lovebrain-audio-owned");
-    };
-    const startAudio = ({ restart = false } = {}) => {
-      const firstSession = !audioSession;
-      audioSession = true;
-      showPlayer();
-      setAudioSuspension(true);
-      audio.preload = "auto";
-      if (audio.readyState === HTMLMediaElement.HAVE_NOTHING) audio.load();
-      if (restart || firstSession || audio.ended) {
-        try { audio.currentTime = 0; } catch {}
-      }
-      audio.volume = 0.64;
-      const promise = audio.play();
-      if (promise?.catch) promise.catch(() => updateAudioUi());
-      if (!audioFrame) audioFrame = window.requestAnimationFrame(tickAudioUi);
-      updateAudioUi();
-    };
-    const stopAudioSession = ({ immediate = false } = {}) => {
-      if (fadeFrame) window.cancelAnimationFrame(fadeFrame);
-      fadeFrame = 0;
-      if (!audioSession && audio.paused) {
-        setAudioSuspension(false);
-        hidePlayer();
-        return;
-      }
-      const finish = () => {
-        audio.pause();
-        try { audio.currentTime = 0; } catch {}
-        audio.volume = 0.64;
-        audioSession = false;
-        setAudioSuspension(false);
-        hidePlayer();
-        updateAudioUi();
-      };
-      if (immediate || audio.paused) {
-        finish();
-        return;
-      }
-      const startedAt = performance.now();
-      const initialVolume = Math.max(0.04, audio.volume);
-      const fade = (timestamp) => {
-        const ratio = clamp((timestamp - startedAt) / 260, 0, 1);
-        audio.volume = initialVolume * (1 - ratio);
-        if (ratio >= 1 || disposed) {
-          fadeFrame = 0;
-          finish();
-          return;
+    const requestLovebrainTrack = () => {
+      const audioPlayer = document.querySelector("[data-kisara-audio-player]");
+      const themeAudio = audioPlayer?.querySelector("[data-kisara-theme-audio]");
+      const audioControl = audioPlayer?.querySelector("[data-kisara-audio-control]");
+      const alreadySelected = audioPlayer instanceof HTMLElement
+        && audioPlayer.dataset.trackId === "lovebrain-ed";
+      if (alreadySelected) {
+        if (
+          themeAudio instanceof HTMLAudioElement
+          && themeAudio.paused
+          && audioControl instanceof HTMLButtonElement
+        ) {
+          audioControl.click();
         }
-        fadeFrame = window.requestAnimationFrame(fade);
-      };
-      fadeFrame = window.requestAnimationFrame(fade);
+        return;
+      }
+      window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio", {
+        detail: {
+          trackId: "lovebrain-ed",
+          autoplay: true,
+          playbackMode: "playlist",
+          grantId: "lovebrain-stage-" + Date.now() + "-" + Math.round(performance.now())
+        }
+      }));
     };
     const hydrateElement = (element) => {
       if (
@@ -421,14 +295,42 @@ import { Icon } from "astro-icon/components";
         hydrateElement(element);
       });
     };
+    const flushQueuedSeek = (video, state) => {
+      if (state.busy || state.pendingTime === null || video.seeking) return;
+      const target = state.pendingTime;
+      state.pendingTime = null;
+      if (Math.abs(video.currentTime - target) < state.frameStep * 0.42) return;
+      state.busy = true;
+      try {
+        video.currentTime = target;
+      } catch {
+        state.busy = false;
+      }
+    };
     const seekPausedVideo = (video, ratio) => {
       if (!(video instanceof HTMLVideoElement)) return;
-      video.pause();
+      let state = scrubStates.get(video);
+      if (!state) {
+        state = {
+          busy: false,
+          paused: false,
+          pendingTime: null,
+          frameStep: 1 / 60
+        };
+        scrubStates.set(video, state);
+        video.addEventListener("seeked", () => {
+          state.busy = false;
+          flushQueuedSeek(video, state);
+        }, { signal });
+      }
+      if (!state.paused) {
+        video.pause();
+        state.paused = true;
+      }
       if (video.readyState < HTMLMediaElement.HAVE_METADATA || !Number.isFinite(video.duration)) return;
-      const frameTail = 1 / 30;
-      const target = clamp(ratio, 0, 1) * Math.max(0, video.duration - frameTail);
-      if (Math.abs(video.currentTime - target) < frameTail * 0.45) return;
-      try { video.currentTime = target; } catch {}
+      const frameTail = state.frameStep;
+      state.pendingTime = clamp(ratio, 0, 1) * Math.max(0, video.duration - frameTail);
+      flushQueuedSeek(video, state);
     };
     const syncLoopVideo = (video, shouldPlay) => {
       if (!(video instanceof HTMLVideoElement)) return;
@@ -483,6 +385,36 @@ import { Icon } from "astro-icon/components";
       if (nextButton instanceof HTMLButtonElement) nextButton.disabled = !completed;
       setStatus(completed ? "LOVE BRAIN / COMPLETE" : stage.name + " / " + Math.round(value * 100) + "%");
     };
+    const animateProgress = (timestamp) => {
+      progressFrame = 0;
+      if (disposed || !active || leaving) return;
+      const elapsed = progressTimestamp > 0
+        ? clamp(timestamp - progressTimestamp, 8, 34)
+        : 16.67;
+      progressTimestamp = timestamp;
+      const distance = targetProgress - progress;
+      if (Math.abs(distance) < 0.00025) {
+        progress = targetProgress;
+        render();
+        return;
+      }
+      const response = 1 - Math.exp(-elapsed / 68);
+      const maxStep = elapsed * 0.000115;
+      progress += clamp(distance * response, -maxStep, maxStep);
+      render();
+      progressFrame = window.requestAnimationFrame(animateProgress);
+    };
+    const scheduleProgress = () => {
+      if (reducedMotion) {
+        progress = targetProgress;
+        render();
+        return;
+      }
+      if (!progressFrame) {
+        progressTimestamp = 0;
+        progressFrame = window.requestAnimationFrame(animateProgress);
+      }
+    };
     const updateEligibility = () => {
       if (!(entry instanceof HTMLButtonElement)) return;
       const visible = isEligible() && isHomeGate() && !active && !leaving;
@@ -497,9 +429,10 @@ import { Icon } from "astro-icon/components";
         leaveToOpening();
         return;
       }
-      const gain = inputType === "touch" ? 1350 : inputType === "keyboard" ? 1150 : 2500;
-      progress = clamp(progress + delta / gain, 0, 1);
-      render();
+      const shapedDelta = inputType === "wheel" ? clamp(delta, -120, 120) : delta;
+      const gain = inputType === "touch" ? 1500 : inputType === "keyboard" ? 1280 : 2800;
+      targetProgress = clamp(targetProgress + shapedDelta / gain, 0, 1);
+      scheduleProgress();
     };
     const activate = () => {
       if (disposed || active || leaving || foundSelfBlocking() || !isEligible()) return false;
@@ -509,12 +442,16 @@ import { Icon } from "astro-icon/components";
       completed = false;
       sceneConsumed = false;
       progress = 0;
+      targetProgress = 0;
+      progressTimestamp = 0;
+      if (progressFrame) window.cancelAnimationFrame(progressFrame);
+      progressFrame = 0;
       hydrateMediaTo(0.16);
       root.classList.add("is-active");
       root.classList.remove("is-transporting", "is-returning");
       document.body.classList.add("is-lovebrain-scene-visible");
       scene?.setAttribute("aria-hidden", "false");
-      startAudio({ restart: !audioSession });
+      requestLovebrainTrack();
       render();
       updateEligibility();
       return true;
@@ -522,6 +459,9 @@ import { Icon } from "astro-icon/components";
     const leaveToOpening = () => {
       if (!active || leaving || !completed) return false;
       leaving = true;
+      targetProgress = progress;
+      if (progressFrame) window.cancelAnimationFrame(progressFrame);
+      progressFrame = 0;
       root.classList.add("is-transporting");
       setStatus("DISSOLVE / 001");
       syncLoopVideo(pinchVideo, false);
@@ -541,6 +481,10 @@ import { Icon } from "astro-icon/components";
       completed = false;
       sceneConsumed = true;
       progress = 0;
+      targetProgress = 0;
+      progressTimestamp = 0;
+      if (progressFrame) window.cancelAnimationFrame(progressFrame);
+      progressFrame = 0;
       root.classList.remove("is-active", "is-transporting", "is-returning");
       document.body.classList.remove("is-lovebrain-scene-visible");
       root.dataset.state = "consumed";
@@ -583,25 +527,6 @@ import { Icon } from "astro-icon/components";
         });
       }, { signal });
     });
-    audioToggle?.addEventListener("click", () => {
-      if (!audioSession) {
-        startAudio({ restart: false });
-        return;
-      }
-      if (audio.paused || audio.ended) startAudio({ restart: audio.ended });
-      else {
-        audio.pause();
-        updateAudioUi();
-      }
-    }, { signal });
-    audioClose?.addEventListener("click", () => stopAudioSession(), { signal });
-    audioProgress?.addEventListener("input", () => {
-      if (!(audioProgress instanceof HTMLInputElement)) return;
-      if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
-      const ratio = clamp(Number(audioProgress.value) / 1000, 0, 1);
-      try { audio.currentTime = ratio * audio.duration; } catch {}
-      updateAudioUi();
-    }, { signal });
     window.addEventListener("wheel", (event) => {
       if (event.ctrlKey || event.metaKey) return;
       pushProgress(event.deltaY, event, "wheel");
@@ -662,29 +587,18 @@ import { Icon } from "astro-icon/components";
     [orbitVideo, raceVideo].forEach((video) => {
       video?.addEventListener("loadedmetadata", render, { signal });
     });
-    audio.addEventListener("play", () => {
-      root.dataset.playerState = "playing";
-      if (!audioFrame) audioFrame = window.requestAnimationFrame(tickAudioUi);
-      updateAudioUi();
-    }, { signal });
-    audio.addEventListener("pause", updateAudioUi, { signal });
-    audio.addEventListener("loadedmetadata", updateAudioUi, { signal });
-    audio.addEventListener("durationchange", updateAudioUi, { signal });
 
     const cleanup = () => {
       if (disposed) return;
       disposed = true;
       lifecycle.abort();
-      if (audioFrame) window.cancelAnimationFrame(audioFrame);
-      if (fadeFrame) window.cancelAnimationFrame(fadeFrame);
-      audioFrame = 0;
-      fadeFrame = 0;
+      if (progressFrame) window.cancelAnimationFrame(progressFrame);
+      progressFrame = 0;
       [orbitVideo, raceVideo, pinchVideo, embraceVideo].forEach((video) => {
         if (video instanceof HTMLVideoElement) video.pause();
       });
-      stopAudioSession({ immediate: true });
       root.classList.remove("is-active", "is-transporting", "is-returning");
-      document.body.classList.remove("is-lovebrain-scene-visible", "is-lovebrain-audio-owned");
+      document.body.classList.remove("is-lovebrain-scene-visible");
       scene?.setAttribute("aria-hidden", "true");
       if (window.__yuimiKisaraLovebrainCleanup === cleanup) {
         window.__yuimiKisaraLovebrainCleanup = null;
@@ -692,7 +606,6 @@ import { Icon } from "astro-icon/components";
     };
     window.__yuimiKisaraLovebrainCleanup = cleanup;
     updateEligibility();
-    updateAudioUi();
   })();
 </script>
 
@@ -755,8 +668,7 @@ import { Icon } from "astro-icon/components";
   }
 
   .kisara-lovebrain-entry svg,
-  .kisara-lovebrain-next svg,
-  .kisara-lovebrain-player button svg {
+  .kisara-lovebrain-next svg {
     width: 19px;
     height: 19px;
   }
@@ -1198,188 +1110,6 @@ import { Icon } from "astro-icon/components";
     transform: translateY(8px);
   }
 
-  .kisara-lovebrain-player {
-    position: fixed;
-    left: 24px;
-    bottom: 22px;
-    z-index: 82;
-    display: grid;
-    grid-template-columns: 54px 38px minmax(0, 1fr) 32px;
-    gap: 10px;
-    width: min(430px, calc(100vw - 48px));
-    min-height: 66px;
-    align-items: center;
-    padding: 7px 8px;
-    color: #f9fbf8;
-    background: rgba(23, 29, 29, 0.89);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 6px;
-    box-shadow: 0 16px 38px rgba(18, 27, 26, 0.3);
-    backdrop-filter: blur(18px) saturate(1.18);
-    transition: opacity 220ms ease, transform 280ms cubic-bezier(0.2, 0.76, 0.2, 1);
-  }
-
-  .kisara-lovebrain-player[hidden] {
-    display: none;
-  }
-
-  .kisara-lovebrain-player::before {
-    position: absolute;
-    top: -1px;
-    right: 0;
-    left: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #ff5b9a 0 38%, #65d392 38% 68%, #51cadf 68%);
-    content: "";
-  }
-
-  .kisara-lovebrain-player-art {
-    position: relative;
-    display: grid;
-    width: 54px;
-    height: 52px;
-    place-items: center;
-    overflow: hidden;
-    color: #fff;
-    background: #ef5b95;
-    border-radius: 4px;
-  }
-
-  .kisara-lovebrain-player-art i {
-    position: absolute;
-    width: 78px;
-    height: 10px;
-    background: #63d291;
-    transform: rotate(-32deg) translateY(var(--art-y));
-    animation: lovebrain-player-stripe 3.2s linear infinite;
-  }
-
-  .kisara-lovebrain-player-art i:nth-child(1) { --art-y: -18px; }
-  .kisara-lovebrain-player-art i:nth-child(2) { --art-y: 2px; background: #54cbe0; animation-delay: -1s; }
-  .kisara-lovebrain-player-art i:nth-child(3) { --art-y: 22px; background: #ffd96b; animation-delay: -2s; }
-
-  .kisara-lovebrain-player-art svg {
-    position: relative;
-    z-index: 2;
-    width: 25px;
-    height: 25px;
-    fill: currentColor;
-    filter: drop-shadow(0 2px 5px rgba(44, 28, 36, 0.28));
-  }
-
-  .kisara-lovebrain-player-toggle,
-  .kisara-lovebrain-player-close {
-    display: grid;
-    place-items: center;
-    padding: 0;
-    color: #fff;
-    background: transparent;
-  }
-
-  .kisara-lovebrain-player-toggle {
-    width: 38px;
-    height: 38px;
-  }
-
-  .kisara-lovebrain-player-toggle .is-play {
-    display: none;
-  }
-
-  .kisara-lovebrain[data-player-state="paused"] .kisara-lovebrain-player-toggle .is-play {
-    display: block;
-  }
-
-  .kisara-lovebrain[data-player-state="paused"] .kisara-lovebrain-player-toggle .is-pause {
-    display: none;
-  }
-
-  .kisara-lovebrain-player-toggle:hover,
-  .kisara-lovebrain-player-toggle:focus-visible,
-  .kisara-lovebrain-player-close:hover,
-  .kisara-lovebrain-player-close:focus-visible {
-    color: #ff84b3;
-  }
-
-  .kisara-lovebrain-player-copy {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 5px 9px;
-    min-width: 0;
-  }
-
-  .kisara-lovebrain-player-copy > span {
-    display: flex;
-    gap: 9px;
-    min-width: 0;
-    align-items: baseline;
-  }
-
-  .kisara-lovebrain-player-copy b {
-    font-size: 0.82rem;
-    line-height: 1;
-  }
-
-  .kisara-lovebrain-player-copy small,
-  .kisara-lovebrain-player-copy time {
-    color: rgba(247, 250, 247, 0.62);
-    font: 700 0.55rem/1 "Courier New", Courier, monospace;
-  }
-
-  .kisara-lovebrain-player-copy time {
-    white-space: nowrap;
-  }
-
-  .kisara-lovebrain-player-copy input {
-    --lovebrain-audio-progress: 0;
-    grid-column: 1 / -1;
-    width: 100%;
-    height: 12px;
-    margin: 0;
-    appearance: none;
-    cursor: pointer;
-    background: transparent;
-  }
-
-  .kisara-lovebrain-player-copy input::-webkit-slider-runnable-track {
-    height: 3px;
-    background:
-      linear-gradient(90deg, #ff5b9a 0, #64d092 calc(var(--lovebrain-audio-progress) * 70%), #52cce0 calc(var(--lovebrain-audio-progress) * 100%), rgba(255, 255, 255, 0.18) 0);
-  }
-
-  .kisara-lovebrain-player-copy input::-webkit-slider-thumb {
-    width: 9px;
-    height: 9px;
-    margin-top: -3px;
-    appearance: none;
-    background: #fff;
-    border: 2px solid #ff6ca4;
-    border-radius: 50%;
-  }
-
-  .kisara-lovebrain-player-copy input::-moz-range-track {
-    height: 3px;
-    background: rgba(255, 255, 255, 0.18);
-  }
-
-  .kisara-lovebrain-player-copy input::-moz-range-progress {
-    height: 3px;
-    background: #ff6ca4;
-  }
-
-  .kisara-lovebrain-player-copy input::-moz-range-thumb {
-    width: 7px;
-    height: 7px;
-    background: #fff;
-    border: 2px solid #ff6ca4;
-    border-radius: 50%;
-  }
-
-  .kisara-lovebrain-player-close {
-    width: 32px;
-    height: 32px;
-    color: rgba(255, 255, 255, 0.62);
-  }
-
   .kisara-lovebrain-sr-status {
     position: absolute;
     width: 1px;
@@ -1419,21 +1149,9 @@ import { Icon } from "astro-icon/components";
     background-image: none !important;
   }
 
-  :global(body.is-lovebrain-scene-visible [data-kisara-audio-player]),
-  :global(body.is-lovebrain-audio-owned [data-kisara-audio-player]) {
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-  }
-
   @keyframes lovebrain-entry-pulse {
     0% { opacity: 0.64; transform: scale(0.78); }
     75%, 100% { opacity: 0; transform: scale(1.35); }
-  }
-
-  @keyframes lovebrain-player-stripe {
-    from { translate: -18px 0; }
-    to { translate: 18px 0; }
   }
 
   @media (max-width: 700px) {
@@ -1507,41 +1225,16 @@ import { Icon } from "astro-icon/components";
       height: 38px;
     }
 
-    .kisara-lovebrain-player {
-      right: 12px;
-      bottom: calc(12px + env(safe-area-inset-bottom));
-      left: 12px;
-      grid-template-columns: 46px 34px minmax(0, 1fr) 30px;
-      gap: 7px;
-      width: auto;
-      min-height: 58px;
-      padding: 6px;
-    }
-
-    .kisara-lovebrain-player-art {
-      width: 46px;
-      height: 46px;
-    }
-
-    .kisara-lovebrain-player-copy > span {
-      gap: 6px;
-    }
-
-    .kisara-lovebrain-player-copy small {
-      display: none;
-    }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .kisara-lovebrain-entry::after,
-    .kisara-lovebrain-player-art i {
+    .kisara-lovebrain-entry::after {
       animation: none !important;
     }
 
     .kisara-lovebrain-scene,
     .kisara-lovebrain-panel,
-    .kisara-lovebrain-portrait-lineup button,
-    .kisara-lovebrain-player {
+    .kisara-lovebrain-portrait-lineup button {
       transition-duration: 0.01ms !important;
     }
   }
