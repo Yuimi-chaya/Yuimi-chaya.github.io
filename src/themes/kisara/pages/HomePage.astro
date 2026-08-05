@@ -2010,6 +2010,7 @@ const gateStyle = [
       let heroAutoplayActive = false;
       let heroAutoplayLastTimestamp = 0;
       let lovebrainActive = false;
+      let lovebrainExitCommitted = false;
       let foundSelfActive = foundSelfEntryRequested;
       let foundSelfState = foundSelfEntryRequested ? "loading" : "inactive";
       let foundSelfSequenceTimer = 0;
@@ -12871,25 +12872,39 @@ const gateStyle = [
         }
       };
 
+      const finalizeLovebrainExit = () => {
+        lovebrainActive = false;
+        lovebrainExitCommitted = false;
+        gate.classList.remove(
+          "is-lovebrain-active",
+          "is-lovebrain-transporting",
+          "is-lovebrain-transported",
+          "is-lovebrain-returning"
+        );
+        opening?.classList.remove("is-lovebrain-transporting", "is-lovebrain-returning");
+        document.body.classList.remove("is-lovebrain-home-active");
+        startSpaceLens();
+        startTitleLens();
+        window.__yuimiKisaraLovebrainFinishOpening?.();
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-lovebrain-opening-covered"));
+      };
+
       const enterLovebrainNextPage = () => {
         if (!lovebrainActive || pageMode !== "lovebrain" || scrollTransitionDirection === "forward") return false;
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
         pageMode = "snap";
         gate.classList.add("is-lovebrain-transporting");
         opening?.classList.add("is-lovebrain-transporting");
+        lovebrainExitCommitted = true;
+        lovebrainActive = false;
         const started = smoothScrollTo(getNextPageTop(), () => {
           pageMode = "next";
           lastObservedScrollY = window.scrollY;
-          lovebrainActive = false;
-          gate.classList.remove("is-lovebrain-transporting");
-          gate.classList.remove("is-lovebrain-active", "is-lovebrain-transported");
-          opening?.classList.remove("is-lovebrain-transporting");
-          document.body.classList.remove("is-lovebrain-home-active");
-          startSpaceLens();
-          startTitleLens();
-          window.dispatchEvent(new CustomEvent("yuimi:kisara-lovebrain-opening-covered"));
+          finalizeLovebrainExit();
         }, undefined, "forward", "lovebrain");
         if (!started) {
+          lovebrainActive = true;
+          lovebrainExitCommitted = false;
           pageMode = "lovebrain";
           gate.classList.remove("is-lovebrain-transporting");
           opening?.classList.remove("is-lovebrain-transporting");
@@ -12898,6 +12913,7 @@ const gateStyle = [
       };
 
       const completeGateReturn = () => {
+        if (lovebrainExitCommitted) finalizeLovebrainExit();
         if (lovebrainActive) {
           clearHomeGateReturnArm();
           pageMode = "lovebrain";
@@ -12989,6 +13005,7 @@ const gateStyle = [
           || pageMode !== "gate"
           || window.scrollY > 2
         ) return false;
+        lovebrainExitCommitted = false;
         lovebrainActive = true;
         pageMode = "lovebrain";
         stopLovebrainDefaultResources();
@@ -13163,6 +13180,7 @@ const gateStyle = [
           returnLovebrainToGate();
           return;
         }
+        if (lovebrainExitCommitted) finalizeLovebrainExit();
         if (scrollTransitionDirection === "return") return;
         clearHomeGateReturnArm();
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
@@ -13744,6 +13762,7 @@ const gateStyle = [
         if (disposed) return;
         disposed = true;
         lovebrainActive = false;
+        lovebrainExitCommitted = false;
         gate.classList.remove(
           "is-lovebrain-active",
           "is-lovebrain-transporting",

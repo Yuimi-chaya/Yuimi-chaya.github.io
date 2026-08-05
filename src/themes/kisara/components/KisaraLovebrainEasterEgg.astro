@@ -621,7 +621,7 @@ import { Icon } from "astro-icon/components";
       return Boolean(started);
     };
     const finishOpening = () => {
-      if (!leaving) return;
+      if (!leaving && !active) return false;
       leaving = false;
       active = false;
       completed = false;
@@ -637,6 +637,7 @@ import { Icon } from "astro-icon/components";
       scene?.setAttribute("aria-hidden", "true");
       render();
       updateEligibility();
+      return true;
     };
     const startReturnToGate = () => {
       if (!active || disposed) return;
@@ -751,8 +752,12 @@ import { Icon } from "astro-icon/components";
       if (window.__yuimiKisaraLovebrainCleanup === cleanup) {
         window.__yuimiKisaraLovebrainCleanup = null;
       }
+      if (window.__yuimiKisaraLovebrainFinishOpening === finishOpening) {
+        window.__yuimiKisaraLovebrainFinishOpening = null;
+      }
     };
     window.__yuimiKisaraLovebrainCleanup = cleanup;
+    window.__yuimiKisaraLovebrainFinishOpening = finishOpening;
     updateEligibility();
   })();
 </script>

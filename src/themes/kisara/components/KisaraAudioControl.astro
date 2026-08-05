@@ -637,10 +637,13 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
       const currentTrack = activeTrack();
       const currentIsConsumableSecret = isSecretTrack(currentTrack)
         && currentTrack?.consumeAfterPlayback === true;
-      const requestedTrack = tracks[(trackIndex + direction + tracks.length) % tracks.length];
+      const returnToNormal = currentTrack?.returnToNormalAfterPlayback === true;
+      const requestedTrack = returnToNormal
+        ? baseTracks.find((track) => track.id === secretSession.normalTrackId) ?? baseTracks[0]
+        : tracks[(trackIndex + direction + tracks.length) % tracks.length];
 
       if (currentIsConsumableSecret && requestedTrack?.id) {
-        const shouldPlay = secretSession.playbackMode === "interrupt"
+        const shouldPlay = returnToNormal || secretSession.playbackMode === "interrupt"
           ? secretSession.normalEnabled !== false
           : enabled;
         const consumedId = currentTrack.id;
@@ -649,7 +652,7 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
         enabled = shouldPlay;
         const nextIndex = tracks.findIndex((track) => track.id === requestedTrack.id);
         selectTrack(nextIndex >= 0 ? nextIndex : 0, {
-          time: 0,
+          time: returnToNormal ? Math.max(0, Number(secretSession.normalTime) || 0) : 0,
           autoplay: shouldPlay,
           secretMode: "playlist"
         });
@@ -871,21 +874,22 @@ const initialTrackTotal = String(kisaraAudioTracks.length).padStart(2, "0");
         && endedTrack?.consumeAfterPlayback === true
       ) {
         const wasInterrupt = secretSession.playbackMode === "interrupt";
+        const returnToNormal = endedTrack?.returnToNormalAfterPlayback === true || wasInterrupt;
         const consumedId = endedTrack.id;
-        const nextTrackId = wasInterrupt
+        const nextTrackId = returnToNormal
           ? secretSession.normalTrackId
           : tracks[(trackIndex + 1) % tracks.length]?.id ?? baseTracks[0]?.id;
-        const nextTrackTime = wasInterrupt
+        const nextTrackTime = returnToNormal
           ? Math.max(0, Number(secretSession.normalTime) || 0)
           : 0;
-        const shouldResume = wasInterrupt ? secretSession.normalEnabled !== false : true;
+        const shouldResume = returnToNormal ? secretSession.normalEnabled !== false : true;
         consumeSecretTrack(consumedId);
         const nextIndex = tracks.findIndex((track) => track.id === nextTrackId);
         enabled = shouldResume;
         selectTrack(nextIndex >= 0 ? nextIndex : 0, {
           time: nextTrackTime,
           autoplay: shouldResume,
-          persist: !wasInterrupt,
+          persist: !wasInterrupt || endedTrack?.returnToNormalAfterPlayback === true,
           secretMode: "playlist"
         });
         window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio-consumed", {

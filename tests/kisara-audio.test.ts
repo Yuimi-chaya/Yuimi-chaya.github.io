@@ -9,11 +9,12 @@ test("Kisara secret tracks are one-shot unlocks within the current document", ()
   }
 });
 
-test("Lovebrain is a same-tab persistent-player track, not a scene-owned loop", () => {
+test("Lovebrain is a same-tab one-shot player track that returns to the normal playlist", () => {
   const lovebrain = kisaraSecretAudioTracks.find((track) => track.id === "lovebrain-ed");
   assert.ok(lovebrain, "Lovebrain must be registered as a secret track");
   assert.equal(lovebrain.persistAcrossReload, false);
-  assert.equal(lovebrain.consumeAfterPlayback, false);
+  assert.equal(lovebrain.consumeAfterPlayback, true);
+  assert.equal(lovebrain.returnToNormalAfterPlayback, true);
   assert.equal(lovebrain.variant, "lovebrain");
   assert.match(lovebrain.src, /renai-nou\.mp3$/);
 });

@@ -49,7 +49,8 @@ export const kisaraSecretAudioTracks = [
     src: "/themes/kisara/audio/renai-nou.mp3",
     variant: "lovebrain",
     persistAcrossReload: false,
-    consumeAfterPlayback: false
+    consumeAfterPlayback: true,
+    returnToNormalAfterPlayback: true
   }
 ] as const;
 

@@ -108,6 +108,7 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   const finishSource = componentSource.slice(finishStart, finishEnd);
   assert.match(finishSource, /sceneConsumed = true/);
   assert.doesNotMatch(finishSource, /stopAudioSession/);
+  assert.match(componentSource, /window\.__yuimiKisaraLovebrainFinishOpening = finishOpening/);
 });
 
 test("Lovebrain uses a dedicated page mode and bridge transport", () => {
@@ -124,14 +125,21 @@ test("Lovebrain uses a dedicated page mode and bridge transport", () => {
   const forwardStart = homeSource.indexOf("const enterLovebrainNextPage =");
   const forwardEnd = homeSource.indexOf("const completeGateReturn =", forwardStart);
   const forwardSource = homeSource.slice(forwardStart, forwardEnd);
+  const finalizeStart = homeSource.indexOf("const finalizeLovebrainExit =");
+  const finalizeEnd = homeSource.indexOf("const enterLovebrainNextPage =", finalizeStart);
+  const finalizeSource = homeSource.slice(finalizeStart, finalizeEnd);
+  assert.ok(finalizeStart >= 0 && finalizeEnd > finalizeStart, "Lovebrain exit finalizer must remain discoverable");
   assert.doesNotMatch(forwardSource, /activateOpeningBridgePortal/);
   assert.doesNotMatch(forwardSource, /startOpeningBridgeDissolve/);
   assert.doesNotMatch(forwardSource, /resetGateState/);
   assert.doesNotMatch(forwardSource, /scheduleWarningWarmup/);
+  assert.match(forwardSource, /lovebrainExitCommitted = true/);
   assert.match(forwardSource, /lovebrainActive = false/);
-  assert.match(forwardSource, /document\.body\.classList\.remove\("is-lovebrain-home-active"\)/);
-  assert.match(forwardSource, /startSpaceLens\(\)/);
-  assert.match(forwardSource, /startTitleLens\(\)/);
+  assert.match(forwardSource, /finalizeLovebrainExit\(\)/);
+  assert.match(finalizeSource, /document\.body\.classList\.remove\("is-lovebrain-home-active"\)/);
+  assert.match(finalizeSource, /startSpaceLens\(\)/);
+  assert.match(finalizeSource, /startTitleLens\(\)/);
+  assert.match(finalizeSource, /__yuimiKisaraLovebrainFinishOpening/);
 
   const returnStart = homeSource.indexOf("const returnLovebrainToGate =");
   const returnEnd = homeSource.indexOf("const isHomeSectionSnapEnabled =", returnStart);
@@ -141,6 +149,7 @@ test("Lovebrain uses a dedicated page mode and bridge transport", () => {
   assert.doesNotMatch(returnSource, /resetGateState/);
   assert.doesNotMatch(returnSource, /scheduleWarningWarmup/);
   assert.match(returnSource, /yuimi:kisara-lovebrain-return-start/);
+  assert.match(homeSource, /if \(lovebrainExitCommitted\) finalizeLovebrainExit\(\)/);
 });
 
 test("Default Home runtime loops and renderers are stopped while Lovebrain owns the gate", () => {
@@ -164,4 +173,23 @@ test("Audio suspension releases only the final owner", () => {
   const stillOwnedIndex = audioSource.indexOf("if (suspensionOwners.size > 0)", releaseIndex);
   const resumeIndex = audioSource.indexOf("const shouldResume", releaseIndex);
   assert.ok(releaseIndex >= 0 && stillOwnedIndex > releaseIndex && resumeIndex > stillOwnedIndex);
+});
+
+test("Lovebrain audio is consumed once and returns to the saved normal track", () => {
+  const endedStart = audioSource.indexOf('audio.addEventListener("ended"');
+  const endedEnd = audioSource.indexOf('audio.addEventListener("timeupdate"', endedStart);
+  assert.ok(endedStart >= 0 && endedEnd > endedStart, "audio ended handler must remain discoverable");
+  const endedSource = audioSource.slice(endedStart, endedEnd);
+  assert.match(endedSource, /endedTrack\?\.consumeAfterPlayback === true/);
+  assert.match(endedSource, /endedTrack\?\.returnToNormalAfterPlayback === true/);
+  assert.match(endedSource, /const nextTrackId = returnToNormal/);
+  assert.match(endedSource, /consumeSecretTrack\(consumedId\)/);
+  assert.match(endedSource, /secretSession\.normalTrackId/);
+
+  const stepStart = audioSource.indexOf("const stepTrack = (direction) => {");
+  const stepEnd = audioSource.indexOf("const syncUnlockedSecretTracks =", stepStart);
+  assert.ok(stepStart >= 0 && stepEnd > stepStart, "manual track stepping must remain discoverable");
+  const stepSource = audioSource.slice(stepStart, stepEnd);
+  assert.match(stepSource, /const returnToNormal = currentTrack\?\.returnToNormalAfterPlayback === true/);
+  assert.match(stepSource, /baseTracks\.find\(\(track\) => track\.id === secretSession\.normalTrackId\)/);
 });
