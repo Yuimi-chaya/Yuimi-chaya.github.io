@@ -75,6 +75,12 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   assert.match(componentSource, /seekPausedVideo/);
   assert.match(componentSource, /targetProgress/);
   assert.match(componentSource, /scheduleProgress/);
+  assert.match(componentSource, /const springPop =/);
+  assert.match(componentSource, /portraitButtons\.forEach/);
+  assert.match(componentSource, /--portrait-enter-y/);
+  assert.match(componentSource, /lovebrain-portrait-ribbons/);
+  assert.match(componentSource, /const raceProgress = clamp\(\(value - 0\.39\) \/ 0\.37/);
+  assert.match(componentSource, /const raceWeight =/);
   assert.match(componentSource, /requestAnimationFrame\(animateProgress\)/);
   assert.match(componentSource, /addEventListener\("seeked"/);
   assert.match(componentSource, /pendingTime/);

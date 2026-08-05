@@ -48,14 +48,16 @@ import { Icon } from "astro-icon/components";
           aria-label="聚焦木更"
           aria-pressed="false"
         >
-          <span class="kisara-lovebrain-portrait-frame">
-            <img
-              data-src="/themes/kisara/assets/lovebrain/kisara-avatar.webp"
-              data-load-at="0.14"
-              alt="木更"
-            />
+          <span class="kisara-lovebrain-portrait-card">
+            <span class="kisara-lovebrain-portrait-frame">
+              <img
+                data-src="/themes/kisara/assets/lovebrain/kisara-avatar.webp"
+                data-load-at="0.14"
+                alt="木更"
+              />
+            </span>
+            <span class="kisara-lovebrain-portrait-copy"><b>KISARA</b><small>全部都要</small></span>
           </span>
-          <span class="kisara-lovebrain-portrait-copy"><b>KISARA</b><small>全部都要</small></span>
         </button>
         <button
           type="button"
@@ -64,14 +66,16 @@ import { Icon } from "astro-icon/components";
           aria-label="聚焦修"
           aria-pressed="false"
         >
-          <span class="kisara-lovebrain-portrait-frame">
-            <img
-              data-src="/themes/kisara/assets/lovebrain/shu-avatar.webp"
-              data-load-at="0.14"
-              alt="修"
-            />
+          <span class="kisara-lovebrain-portrait-card">
+            <span class="kisara-lovebrain-portrait-frame">
+              <img
+                data-src="/themes/kisara/assets/lovebrain/shu-avatar.webp"
+                data-load-at="0.14"
+                alt="修"
+              />
+            </span>
+            <span class="kisara-lovebrain-portrait-copy"><b>SHU</b><small>正在被追</small></span>
           </span>
-          <span class="kisara-lovebrain-portrait-copy"><b>SHU</b><small>正在被追</small></span>
         </button>
         <button
           type="button"
@@ -80,14 +84,16 @@ import { Icon } from "astro-icon/components";
           aria-label="聚焦绫乃"
           aria-pressed="false"
         >
-          <span class="kisara-lovebrain-portrait-frame">
-            <img
-              data-src="/themes/kisara/assets/lovebrain/ayano-avatar.webp"
-              data-load-at="0.14"
-              alt="绫乃"
-            />
+          <span class="kisara-lovebrain-portrait-card">
+            <span class="kisara-lovebrain-portrait-frame">
+              <img
+                data-src="/themes/kisara/assets/lovebrain/ayano-avatar.webp"
+                data-load-at="0.14"
+                alt="绫乃"
+              />
+            </span>
+            <span class="kisara-lovebrain-portrait-copy"><b>AYANO</b><small>绝不让路</small></span>
           </span>
-          <span class="kisara-lovebrain-portrait-copy"><b>AYANO</b><small>绝不让路</small></span>
         </button>
       </div>
     </div>
@@ -205,13 +211,18 @@ import { Icon } from "astro-icon/components";
       const ratio = clamp((value - start) / Math.max(0.0001, end - start), 0, 1);
       return ratio * ratio * (3 - 2 * ratio);
     };
+    const springPop = (value) => {
+      const ratio = clamp(value, 0, 1);
+      if (ratio <= 0 || ratio >= 1) return ratio;
+      return 1 - Math.exp(-5.2 * ratio) * Math.cos(ratio * Math.PI * 2.25);
+    };
     const stages = [
       { name: "COLOR ROUTE", key: "orbit", threshold: 0 },
       { name: "THREE FACES", key: "portraits", threshold: 0.24 },
       { name: "KEEP RUNNING", key: "race", threshold: 0.43 },
-      { name: "NO WINNER", key: "pinch", threshold: 0.67 },
-      { name: "ONE MORE ROUND", key: "embrace", threshold: 0.8 },
-      { name: "TOGETHER", key: "final", threshold: 0.925 }
+      { name: "NO WINNER", key: "pinch", threshold: 0.76 },
+      { name: "ONE MORE ROUND", key: "embrace", threshold: 0.85 },
+      { name: "TOGETHER", key: "final", threshold: 0.94 }
     ];
 
     let disposed = false;
@@ -228,6 +239,7 @@ import { Icon } from "astro-icon/components";
     let mediaSerial = 0;
     const hydratedMedia = new WeakSet();
     const scrubStates = new WeakMap();
+    const portraitButtons = Array.from(root.querySelectorAll("[data-lovebrain-focus]"));
 
     const foundSelfBlocking = () => document.documentElement.dataset.kisaraFoundSelfEntry === "pending"
       || document.querySelector("[data-kisara-gate].is-found-self-active, [data-kisara-gate].is-found-self-leaving") !== null;
@@ -346,37 +358,50 @@ import { Icon } from "astro-icon/components";
       const stage = currentStage(value);
       const orbitOut = smoothstep(0.19, 0.29, value);
       const portraitIn = smoothstep(0.18, 0.28, value);
-      const portraitOut = smoothstep(0.38, 0.48, value);
-      const raceIn = smoothstep(0.39, 0.48, value);
-      const raceOut = smoothstep(0.62, 0.71, value);
-      const pinchIn = smoothstep(0.63, 0.71, value);
-      const pinchOut = smoothstep(0.75, 0.82, value);
-      const embraceIn = smoothstep(0.76, 0.83, value);
-      const embraceOut = smoothstep(0.87, 0.94, value);
-      const finalIn = smoothstep(0.88, 0.97, value);
+      const portraitOut = smoothstep(0.37, 0.46, value);
+      const raceIn = smoothstep(0.38, 0.47, value);
+      const raceOut = smoothstep(0.73, 0.8, value);
+      const pinchIn = smoothstep(0.74, 0.81, value);
+      const pinchOut = smoothstep(0.82, 0.87, value);
+      const embraceIn = smoothstep(0.83, 0.88, value);
+      const embraceOut = smoothstep(0.9, 0.95, value);
+      const finalIn = smoothstep(0.92, 0.985, value);
       const orbitOpacity = 1 - orbitOut;
       const portraitOpacity = portraitIn * (1 - portraitOut);
       const raceOpacity = raceIn * (1 - raceOut);
       const pinchOpacity = pinchIn * (1 - pinchOut);
       const embraceOpacity = embraceIn * (1 - embraceOut);
+      const portraitProgress = clamp((value - 0.18) / 0.28, 0, 1);
+      const raceProgress = clamp((value - 0.39) / 0.37, 0, 1);
 
       root.dataset.stage = stage.key;
+      root.dataset.portraitsVisible = String(active && portraitOpacity > 0.02);
       root.style.setProperty("--lovebrain-progress", value.toFixed(5));
       root.style.setProperty("--lovebrain-orbit-progress", clamp(value / 0.26, 0, 1).toFixed(5));
       root.style.setProperty("--lovebrain-orbit-opacity", orbitOpacity.toFixed(5));
+      root.style.setProperty("--lovebrain-portrait-progress", portraitProgress.toFixed(5));
       root.style.setProperty("--lovebrain-portrait-opacity", portraitOpacity.toFixed(5));
+      root.style.setProperty("--lovebrain-race-progress", raceProgress.toFixed(5));
       root.style.setProperty("--lovebrain-race-opacity", raceOpacity.toFixed(5));
       root.style.setProperty("--lovebrain-pinch-opacity", pinchOpacity.toFixed(5));
       root.style.setProperty("--lovebrain-embrace-opacity", embraceOpacity.toFixed(5));
       root.style.setProperty("--lovebrain-final-opacity", finalIn.toFixed(5));
       root.style.setProperty("--lovebrain-scene-shift", ((value - 0.5) * 12).toFixed(2) + "px");
+      portraitButtons.forEach((button, index) => {
+        if (!(button instanceof HTMLElement)) return;
+        const localProgress = clamp((value - (0.19 + index * 0.032)) / 0.095, 0, 1);
+        const pop = reducedMotion ? localProgress : springPop(localProgress);
+        button.style.setProperty("--portrait-enter-opacity", smoothstep(0, 0.24, localProgress).toFixed(5));
+        button.style.setProperty("--portrait-enter-y", ((1 - pop) * 76).toFixed(2) + "px");
+        button.style.setProperty("--portrait-enter-scale", (0.68 + pop * 0.32).toFixed(5));
+      });
       if (railProgress instanceof HTMLElement) railProgress.style.transform = "scaleX(" + value.toFixed(5) + ")";
       if (stageLabel) stageLabel.textContent = stage.name;
       if (counter) counter.textContent = String(Math.round(value * 100)).padStart(2, "0") + "%";
 
       hydrateMediaTo(value + 0.12);
       seekPausedVideo(orbitVideo, clamp(value / 0.255, 0, 1));
-      seekPausedVideo(raceVideo, clamp((value - 0.42) / 0.255, 0, 1));
+      seekPausedVideo(raceVideo, raceProgress);
       syncLoopVideo(pinchVideo, pinchOpacity > 0.12);
       syncLoopVideo(embraceVideo, embraceOpacity > 0.12);
 
@@ -430,7 +455,10 @@ import { Icon } from "astro-icon/components";
         return;
       }
       const shapedDelta = inputType === "wheel" ? clamp(delta, -120, 120) : delta;
-      const gain = inputType === "touch" ? 1500 : inputType === "keyboard" ? 1280 : 2800;
+      const baseGain = inputType === "touch" ? 1500 : inputType === "keyboard" ? 1280 : 2800;
+      const raceWeight = smoothstep(0.34, 0.44, targetProgress)
+        * (1 - smoothstep(0.75, 0.84, targetProgress));
+      const gain = baseGain * (1 + raceWeight * 0.22);
       targetProgress = clamp(targetProgress + shapedDelta / gain, 0, 1);
       scheduleProgress();
     };
@@ -614,7 +642,9 @@ import { Icon } from "astro-icon/components";
     --lovebrain-progress: 0;
     --lovebrain-orbit-progress: 0;
     --lovebrain-orbit-opacity: 1;
+    --lovebrain-portrait-progress: 0;
     --lovebrain-portrait-opacity: 0;
+    --lovebrain-race-progress: 0;
     --lovebrain-race-opacity: 0;
     --lovebrain-pinch-opacity: 0;
     --lovebrain-embrace-opacity: 0;
@@ -804,16 +834,33 @@ import { Icon } from "astro-icon/components";
     display: grid;
     place-items: center;
     opacity: var(--lovebrain-portrait-opacity);
-    background: #ece8dc;
+    background: #e9e5d9;
   }
 
   .kisara-lovebrain-portrait-field {
     position: absolute;
-    inset: 0;
+    inset: -8%;
+    overflow: hidden;
     background:
-      linear-gradient(112deg, rgba(240, 70, 143, 0.82) 0 21%, transparent 21% 40%, rgba(53, 202, 178, 0.78) 40% 61%, transparent 61% 76%, rgba(64, 193, 226, 0.78) 76%),
-      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.34) 0 2px, transparent 2px 34px);
+      linear-gradient(112deg, rgba(240, 70, 143, 0.88) 0 22%, rgba(255, 246, 232, 0.14) 22% 39%, rgba(53, 202, 178, 0.82) 39% 62%, rgba(255, 248, 232, 0.12) 62% 76%, rgba(64, 193, 226, 0.84) 76%),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.32) 0 2px, transparent 2px 36px);
+    background-position: 50% 50%, 0 0;
+    background-size: 124% 100%, 100% 100%;
     transform: translate3d(calc(var(--lovebrain-pointer-x) * -0.45), calc(var(--lovebrain-pointer-y) * -0.35), 0) scale(1.08);
+    animation: lovebrain-portrait-pan 6.8s ease-in-out infinite alternate paused;
+    will-change: background-position;
+  }
+
+  .kisara-lovebrain-portrait-field::before {
+    position: absolute;
+    inset: -18%;
+    background:
+      repeating-linear-gradient(104deg, transparent 0 50px, rgba(255, 255, 255, 0.2) 51px 55px, transparent 56px 106px),
+      linear-gradient(96deg, transparent 0 16%, rgba(255, 244, 250, 0.2) 16% 21%, transparent 21% 44%, rgba(231, 255, 247, 0.18) 44% 50%, transparent 50% 74%, rgba(233, 249, 255, 0.2) 74% 80%, transparent 80%);
+    mix-blend-mode: screen;
+    opacity: calc(0.32 + var(--lovebrain-portrait-progress) * 0.28);
+    content: "";
+    animation: lovebrain-portrait-ribbons 5.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate paused;
   }
 
   .kisara-lovebrain-portrait-field::after {
@@ -821,8 +868,14 @@ import { Icon } from "astro-icon/components";
     inset: 0;
     background:
       linear-gradient(180deg, rgba(247, 242, 226, 0.72), transparent 24%, transparent 76%, rgba(30, 34, 34, 0.34)),
-      repeating-linear-gradient(118deg, transparent 0 98px, rgba(255, 255, 255, 0.13) 99px 101px);
+      repeating-linear-gradient(118deg, transparent 0 88px, rgba(255, 255, 255, 0.16) 89px 92px);
+    background-position: 0 0, calc(var(--lovebrain-portrait-progress) * -90px) 0;
     content: "";
+  }
+
+  .kisara-lovebrain.is-active[data-portraits-visible="true"] .kisara-lovebrain-portrait-field,
+  .kisara-lovebrain.is-active[data-portraits-visible="true"] .kisara-lovebrain-portrait-field::before {
+    animation-play-state: running;
   }
 
   .kisara-lovebrain-portrait-lineup {
@@ -836,21 +889,37 @@ import { Icon } from "astro-icon/components";
   }
 
   .kisara-lovebrain-portrait-lineup button {
+    --portrait-enter-opacity: 0;
+    --portrait-enter-y: 76px;
+    --portrait-enter-scale: 0.68;
     position: relative;
-    display: grid;
+    display: block;
     padding: 0;
     color: #fff;
     background: transparent;
-    transform: translateY(var(--portrait-y)) rotate(var(--portrait-r)) scale(1);
+    opacity: var(--portrait-enter-opacity);
+    transform: translate3d(0, calc(var(--portrait-y) + var(--portrait-enter-y)), 0) rotate(var(--portrait-r)) scale(var(--portrait-enter-scale));
+    transform-origin: 50% 78%;
     transition:
-      transform 420ms cubic-bezier(0.2, 0.78, 0.2, 1),
       filter 360ms ease,
-      opacity 360ms ease;
+      opacity 90ms linear;
   }
 
-  .kisara-lovebrain-portrait-lineup .is-kisara { --portrait-y: -1.5vh; --portrait-r: -4deg; }
-  .kisara-lovebrain-portrait-lineup .is-shu { --portrait-y: 3vh; --portrait-r: 2deg; }
-  .kisara-lovebrain-portrait-lineup .is-ayano { --portrait-y: -2.5vh; --portrait-r: 4deg; }
+  .kisara-lovebrain-portrait-lineup .is-kisara { --portrait-y: -1.5vh; --portrait-r: -4deg; --portrait-counter-r: 4deg; }
+  .kisara-lovebrain-portrait-lineup .is-shu { --portrait-y: 3vh; --portrait-r: 2deg; --portrait-counter-r: -2deg; }
+  .kisara-lovebrain-portrait-lineup .is-ayano { --portrait-y: -2.5vh; --portrait-r: 4deg; --portrait-counter-r: -4deg; }
+
+  .kisara-lovebrain-portrait-card {
+    display: block;
+    width: 100%;
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    transform-origin: 50% 58%;
+    transition:
+      transform 680ms cubic-bezier(0.18, 0.82, 0.18, 1),
+      filter 420ms ease,
+      opacity 420ms ease;
+  }
 
   .kisara-lovebrain-portrait-frame {
     position: relative;
@@ -908,12 +977,19 @@ import { Icon } from "astro-icon/components";
   .kisara-lovebrain[data-focus="shu"] .is-shu,
   .kisara-lovebrain[data-focus="ayano"] .is-ayano {
     z-index: 4;
-    transform: translateY(calc(var(--portrait-y) - 12px)) rotate(0deg) scale(1.085);
   }
 
-  .kisara-lovebrain[data-focus="kisara"] .kisara-lovebrain-portrait-lineup button:not(.is-kisara),
-  .kisara-lovebrain[data-focus="shu"] .kisara-lovebrain-portrait-lineup button:not(.is-shu),
-  .kisara-lovebrain[data-focus="ayano"] .kisara-lovebrain-portrait-lineup button:not(.is-ayano) {
+  .kisara-lovebrain-portrait-lineup button:hover .kisara-lovebrain-portrait-card,
+  .kisara-lovebrain-portrait-lineup button:focus-visible .kisara-lovebrain-portrait-card,
+  .kisara-lovebrain[data-focus="kisara"] .is-kisara .kisara-lovebrain-portrait-card,
+  .kisara-lovebrain[data-focus="shu"] .is-shu .kisara-lovebrain-portrait-card,
+  .kisara-lovebrain[data-focus="ayano"] .is-ayano .kisara-lovebrain-portrait-card {
+    transform: translate3d(0, -12px, 0) rotate(var(--portrait-counter-r)) scale(1.085);
+  }
+
+  .kisara-lovebrain[data-focus="kisara"] .kisara-lovebrain-portrait-lineup button:not(.is-kisara) .kisara-lovebrain-portrait-card,
+  .kisara-lovebrain[data-focus="shu"] .kisara-lovebrain-portrait-lineup button:not(.is-shu) .kisara-lovebrain-portrait-card,
+  .kisara-lovebrain[data-focus="ayano"] .kisara-lovebrain-portrait-lineup button:not(.is-ayano) .kisara-lovebrain-portrait-card {
     opacity: 0.34;
     filter: grayscale(0.86) brightness(0.7);
   }
@@ -934,8 +1010,18 @@ import { Icon } from "astro-icon/components";
     z-index: 3;
     opacity: calc(0.18 + var(--lovebrain-race-opacity) * 0.38);
     background: repeating-linear-gradient(166deg, transparent 0 40px, rgba(255, 255, 255, 0.34) 41px 44px, transparent 45px 76px);
-    transform: translateX(calc((var(--lovebrain-progress) - 0.43) * -180px));
+    transform: translateX(calc((var(--lovebrain-race-progress) - 0.5) * -220px));
     mix-blend-mode: screen;
+  }
+
+  @keyframes lovebrain-portrait-pan {
+    from { background-position: 43% 50%, 0 0; }
+    to { background-position: 57% 50%, 72px 0; }
+  }
+
+  @keyframes lovebrain-portrait-ribbons {
+    from { transform: translate3d(-4.5%, -1.5%, 0) skewX(-5deg); }
+    to { transform: translate3d(4.5%, 1.5%, 0) skewX(3deg); }
   }
 
   .kisara-lovebrain-pinch {
@@ -1228,13 +1314,16 @@ import { Icon } from "astro-icon/components";
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .kisara-lovebrain-entry::after {
+    .kisara-lovebrain-entry::after,
+    .kisara-lovebrain-portrait-field,
+    .kisara-lovebrain-portrait-field::before {
       animation: none !important;
     }
 
     .kisara-lovebrain-scene,
     .kisara-lovebrain-panel,
-    .kisara-lovebrain-portrait-lineup button {
+    .kisara-lovebrain-portrait-lineup button,
+    .kisara-lovebrain-portrait-card {
       transition-duration: 0.01ms !important;
     }
   }
