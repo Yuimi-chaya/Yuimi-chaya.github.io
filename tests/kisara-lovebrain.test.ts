@@ -79,8 +79,12 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   assert.match(componentSource, /portraitButtons\.forEach/);
   assert.match(componentSource, /--portrait-enter-y/);
   assert.match(componentSource, /lovebrain-portrait-ribbons/);
-  assert.match(componentSource, /const raceProgress = clamp\(\(value - 0\.39\) \/ 0\.37/);
+  assert.match(componentSource, /const raceProgressSpan = 0\.37/);
+  assert.match(componentSource, /const raceMaxPlaybackRate = 1\.12/);
+  assert.match(componentSource, /const raceProgress = clamp\(\(value - 0\.39\) \/ raceProgressSpan/);
   assert.match(componentSource, /const raceWeight =/);
+  assert.match(componentSource, /raceProgressSpan \/ raceDuration \/ 1000/);
+  assert.match(componentSource, /raceWeight \* 0\.85/);
   assert.match(componentSource, /requestAnimationFrame\(animateProgress\)/);
   assert.match(componentSource, /addEventListener\("seeked"/);
   assert.match(componentSource, /pendingTime/);

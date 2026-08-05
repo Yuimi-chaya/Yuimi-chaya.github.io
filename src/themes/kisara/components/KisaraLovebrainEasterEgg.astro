@@ -216,6 +216,11 @@ import { Icon } from "astro-icon/components";
       if (ratio <= 0 || ratio >= 1) return ratio;
       return 1 - Math.exp(-5.2 * ratio) * Math.cos(ratio * Math.PI * 2.25);
     };
+    const raceProgressSpan = 0.37;
+    const raceDurationFallback = 5.7;
+    const raceMaxPlaybackRate = 1.12;
+    const racePacingWeight = (value) => smoothstep(0.34, 0.44, value)
+      * (1 - smoothstep(0.75, 0.84, value));
     const stages = [
       { name: "COLOR ROUTE", key: "orbit", threshold: 0 },
       { name: "THREE FACES", key: "portraits", threshold: 0.24 },
@@ -372,7 +377,7 @@ import { Icon } from "astro-icon/components";
       const pinchOpacity = pinchIn * (1 - pinchOut);
       const embraceOpacity = embraceIn * (1 - embraceOut);
       const portraitProgress = clamp((value - 0.18) / 0.28, 0, 1);
-      const raceProgress = clamp((value - 0.39) / 0.37, 0, 1);
+      const raceProgress = clamp((value - 0.39) / raceProgressSpan, 0, 1);
 
       root.dataset.stage = stage.key;
       root.dataset.portraitsVisible = String(active && portraitOpacity > 0.02);
@@ -423,8 +428,19 @@ import { Icon } from "astro-icon/components";
         render();
         return;
       }
-      const response = 1 - Math.exp(-elapsed / 68);
-      const maxStep = elapsed * 0.000115;
+      const raceWeight = racePacingWeight(progress);
+      const response = 1 - Math.exp(-elapsed / (68 + raceWeight * 28));
+      const normalMaxStep = elapsed * 0.000115;
+      const raceDuration = raceVideo instanceof HTMLVideoElement
+        && Number.isFinite(raceVideo.duration)
+        && raceVideo.duration > 0
+          ? raceVideo.duration
+          : raceDurationFallback;
+      // Keep the chase close to natural playback speed while retaining smooth queued seeking.
+      const raceMaxStep = elapsed
+        * (raceProgressSpan / raceDuration / 1000)
+        * raceMaxPlaybackRate;
+      const maxStep = normalMaxStep + (raceMaxStep - normalMaxStep) * raceWeight;
       progress += clamp(distance * response, -maxStep, maxStep);
       render();
       progressFrame = window.requestAnimationFrame(animateProgress);
@@ -456,9 +472,8 @@ import { Icon } from "astro-icon/components";
       }
       const shapedDelta = inputType === "wheel" ? clamp(delta, -120, 120) : delta;
       const baseGain = inputType === "touch" ? 1500 : inputType === "keyboard" ? 1280 : 2800;
-      const raceWeight = smoothstep(0.34, 0.44, targetProgress)
-        * (1 - smoothstep(0.75, 0.84, targetProgress));
-      const gain = baseGain * (1 + raceWeight * 0.22);
+      const raceWeight = racePacingWeight(targetProgress);
+      const gain = baseGain * (1 + raceWeight * 0.85);
       targetProgress = clamp(targetProgress + shapedDelta / gain, 0, 1);
       scheduleProgress();
     };
