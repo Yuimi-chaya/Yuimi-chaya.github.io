@@ -118,7 +118,15 @@ import { Icon } from "astro-icon/components";
         data-load-at="0.54"
         preload="none"
         muted
-        loop
+        playsinline
+      ></video>
+      <video
+        data-lovebrain-loop="pinch-buffer"
+        data-src="/themes/kisara/assets/lovebrain/pinch-pingpong.mp4"
+        data-load-at="0.54"
+        preload="none"
+        muted
+        aria-hidden="true"
         playsinline
       ></video>
       <div class="kisara-lovebrain-loop-caption">
@@ -199,6 +207,7 @@ import { Icon } from "astro-icon/components";
     const orbitVideo = root.querySelector('[data-lovebrain-scrub="orbit"]');
     const raceVideo = root.querySelector('[data-lovebrain-scrub="race"]');
     const pinchVideo = root.querySelector('[data-lovebrain-loop="pinch"]');
+    const pinchBufferVideo = root.querySelector('[data-lovebrain-loop="pinch-buffer"]');
     const embraceVideo = root.querySelector('[data-lovebrain-loop="embrace"]');
     const progressApi = window.__yuimiKisaraLovebrainProgress;
     const homeApi = () => window.__yuimiKisaraHomeLovebrain;
@@ -244,6 +253,14 @@ import { Icon } from "astro-icon/components";
     let mediaSerial = 0;
     const hydratedMedia = new WeakSet();
     const scrubStates = new WeakMap();
+    const pinchLoopVideos = [pinchVideo, pinchBufferVideo].filter((video) => video instanceof HTMLVideoElement);
+    const pinchLoopState = {
+      activeIndex: 0,
+      requested: false,
+      swapping: false,
+      swapStartedAt: 0,
+      frame: 0
+    };
     const portraitButtons = Array.from(root.querySelectorAll("[data-lovebrain-focus]"));
 
     const foundSelfBlocking = () => document.documentElement.dataset.kisaraFoundSelfEntry === "pending"
@@ -358,6 +375,92 @@ import { Icon } from "astro-icon/components";
         video.pause();
       }
     };
+    const setPinchOpacity = (activeIndex, activeOpacity = 1, bufferOpacity = 0) => {
+      pinchLoopVideos.forEach((video, index) => {
+        video.style.opacity = index === activeIndex ? String(activeOpacity) : String(bufferOpacity);
+      });
+    };
+    const pausePinchLoop = () => {
+      if (pinchLoopState.frame) window.cancelAnimationFrame(pinchLoopState.frame);
+      pinchLoopState.frame = 0;
+      pinchLoopVideos.forEach((video) => video.pause());
+    };
+    const stopPinchLoop = () => {
+      pausePinchLoop();
+      pinchLoopState.requested = false;
+      pinchLoopState.swapping = false;
+      pinchLoopState.swapStartedAt = 0;
+      pinchLoopState.activeIndex = 0;
+      pinchLoopVideos.forEach((video) => {
+        try { video.currentTime = 0; } catch {}
+      });
+      setPinchOpacity(0, 1, 0);
+    };
+    const animatePinchLoop = (timestamp) => {
+      pinchLoopState.frame = 0;
+      if (
+        disposed
+        || !active
+        || leaving
+        || !pinchLoopState.requested
+        || document.visibilityState !== "visible"
+        || pinchLoopVideos.length < 2
+      ) return;
+      const current = pinchLoopVideos[pinchLoopState.activeIndex];
+      const nextIndex = pinchLoopState.activeIndex === 0 ? 1 : 0;
+      const next = pinchLoopVideos[nextIndex];
+      if (!(current instanceof HTMLVideoElement) || !(next instanceof HTMLVideoElement)) return;
+
+      if (!pinchLoopState.swapping) {
+        const remaining = Number.isFinite(current.duration)
+          ? current.duration - current.currentTime
+          : Number.POSITIVE_INFINITY;
+        if (remaining <= 0.16 && next.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          try { next.currentTime = 0; } catch {}
+          const playPromise = next.play();
+          if (playPromise?.catch) playPromise.catch(() => undefined);
+          pinchLoopState.swapping = true;
+          pinchLoopState.swapStartedAt = timestamp;
+        }
+      }
+
+      if (pinchLoopState.swapping) {
+        const ratio = clamp((timestamp - pinchLoopState.swapStartedAt) / 150, 0, 1);
+        setPinchOpacity(pinchLoopState.activeIndex, 1 - ratio, ratio);
+        if (ratio >= 1) {
+          current.pause();
+          try { current.currentTime = 0; } catch {}
+          pinchLoopState.activeIndex = nextIndex;
+          pinchLoopState.swapping = false;
+          pinchLoopState.swapStartedAt = 0;
+          setPinchOpacity(nextIndex, 1, 0);
+        }
+      }
+      pinchLoopState.frame = window.requestAnimationFrame(animatePinchLoop);
+    };
+    const syncPinchVideo = (shouldPlay) => {
+      if (pinchLoopVideos.length < 2) {
+        syncLoopVideo(pinchVideo, shouldPlay);
+        return;
+      }
+      if (!shouldPlay || !active || leaving || document.visibilityState !== "visible") {
+        if (pinchLoopState.requested) stopPinchLoop();
+        return;
+      }
+      pinchLoopState.requested = true;
+      const current = pinchLoopVideos[pinchLoopState.activeIndex];
+      if (current.ended || (Number.isFinite(current.duration) && current.currentTime >= current.duration - 0.01)) {
+        try { current.currentTime = 0; } catch {}
+      }
+      if (!pinchLoopState.swapping) setPinchOpacity(pinchLoopState.activeIndex, 1, 0);
+      if (current.paused && !current.ended) {
+        const playPromise = current.play();
+        if (playPromise?.catch) playPromise.catch(() => undefined);
+      }
+      if (!pinchLoopState.frame) {
+        pinchLoopState.frame = window.requestAnimationFrame(animatePinchLoop);
+      }
+    };
     const render = () => {
       const value = clamp(progress, 0, 1);
       const stage = currentStage(value);
@@ -407,7 +510,7 @@ import { Icon } from "astro-icon/components";
       hydrateMediaTo(value + 0.12);
       seekPausedVideo(orbitVideo, clamp(value / 0.255, 0, 1));
       seekPausedVideo(raceVideo, raceProgress);
-      syncLoopVideo(pinchVideo, pinchOpacity > 0.12);
+      syncPinchVideo(pinchOpacity > 0.12);
       syncLoopVideo(embraceVideo, embraceOpacity > 0.12);
 
       completed = value >= 0.995;
@@ -507,7 +610,7 @@ import { Icon } from "astro-icon/components";
       progressFrame = 0;
       root.classList.add("is-transporting");
       setStatus("DISSOLVE / 001");
-      syncLoopVideo(pinchVideo, false);
+      syncPinchVideo(false);
       syncLoopVideo(embraceVideo, false);
       const started = homeApi()?.leaveToOpening?.();
       if (!started) {
@@ -623,7 +726,7 @@ import { Icon } from "astro-icon/components";
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") render();
       else {
-        syncLoopVideo(pinchVideo, false);
+        pausePinchLoop();
         syncLoopVideo(embraceVideo, false);
       }
     }, { signal });
@@ -637,9 +740,11 @@ import { Icon } from "astro-icon/components";
       lifecycle.abort();
       if (progressFrame) window.cancelAnimationFrame(progressFrame);
       progressFrame = 0;
-      [orbitVideo, raceVideo, pinchVideo, embraceVideo].forEach((video) => {
+      [orbitVideo, raceVideo, pinchVideo, pinchBufferVideo, embraceVideo].forEach((video) => {
         if (video instanceof HTMLVideoElement) video.pause();
       });
+      if (pinchLoopState.frame) window.cancelAnimationFrame(pinchLoopState.frame);
+      pinchLoopState.frame = 0;
       root.classList.remove("is-active", "is-transporting", "is-returning");
       document.body.classList.remove("is-lovebrain-scene-visible");
       scene?.setAttribute("aria-hidden", "true");
@@ -1047,6 +1152,8 @@ import { Icon } from "astro-icon/components";
 
   .kisara-lovebrain-pinch > video {
     filter: saturate(1.08) contrast(1.04);
+    pointer-events: none;
+    will-change: opacity;
   }
 
   .kisara-lovebrain-loop-caption {

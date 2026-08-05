@@ -79,6 +79,9 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   assert.match(componentSource, /portraitButtons\.forEach/);
   assert.match(componentSource, /--portrait-enter-y/);
   assert.match(componentSource, /lovebrain-portrait-ribbons/);
+  assert.match(componentSource, /pinchBufferVideo/);
+  assert.match(componentSource, /const syncPinchVideo =/);
+  assert.match(componentSource, /const animatePinchLoop =/);
   assert.match(componentSource, /const raceProgressSpan = 0\.37/);
   assert.match(componentSource, /const raceMaxPlaybackRate = 1\.12/);
   assert.match(componentSource, /const raceProgress = clamp\(\(value - 0\.39\) \/ raceProgressSpan/);
@@ -94,6 +97,11 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   assert.doesNotMatch(componentSource, /<img[^>]*\ssrc="\/themes\/kisara\/assets\/lovebrain\//);
   assert.doesNotMatch(componentSource, /<video[^>]*\ssrc="\/themes\/kisara\/assets\/lovebrain\//);
   assert.match(componentSource, /is-lovebrain-scene-visible/);
+
+  const pinchStart = componentSource.indexOf('data-lovebrain-loop="pinch"');
+  const embraceStart = componentSource.indexOf('data-lovebrain-loop="embrace"');
+  assert.ok(pinchStart >= 0 && embraceStart > pinchStart);
+  assert.doesNotMatch(componentSource.slice(pinchStart, embraceStart), /\sloop\s/);
 
   const finishStart = componentSource.indexOf("const finishOpening =");
   const finishEnd = componentSource.indexOf("const startReturnToGate =", finishStart);
