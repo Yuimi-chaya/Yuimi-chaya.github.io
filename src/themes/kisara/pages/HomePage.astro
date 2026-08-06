@@ -186,6 +186,8 @@ const renderArchivedHomeSections = false;
     data-kisara-gate
     data-kisara-legacy-ready="false"
     data-kisara-legacy-only="true"
+    data-kisara-external-stage-control="true"
+    data-kisara-stage-renderer="idle"
     style={gateStyle}
   >
     <script type="application/json" data-kisara-scene-manifest set:html={JSON.stringify(gateSceneManifest)}></script>
@@ -1066,6 +1068,7 @@ const renderArchivedHomeSections = false;
       if (!gate) return;
       const foundSelfEntryRequested = document.documentElement.dataset.kisaraFoundSelfEntry === "pending";
       const legacyOnly = gate.dataset.kisaraLegacyOnly === "true";
+      const externalStageControl = gate.dataset.kisaraExternalStageControl === "true";
       if (gate.dataset.bound === "true") {
         if (!releaseStaleKisaraHomeRuntime(gate)) {
           window.__yuimiKisaraHomeBootController?.markReady?.();
@@ -2134,7 +2137,11 @@ const renderArchivedHomeSections = false;
         ].join("|");
       };
       let titleFontSignature = "";
-      let pageMode = restoredBelowGate ? "next" : "gate";
+      let pageMode = externalStageControl ? "gate" : (restoredBelowGate ? "next" : "gate");
+      let externalStageHold = false;
+      let externalReleaseRequested = false;
+      let externalReleaseCompleted = false;
+      let externalStageBridge = null;
       const homeSectionSnapMedia = window.matchMedia("(min-width: 981px) and (hover: hover)");
       const homeSectionStops = [
         opening,
@@ -11910,6 +11917,7 @@ const renderArchivedHomeSections = false;
         transitioning = false,
         metadata = {}
       }) => {
+        if (externalStageControl) return;
         const railProgress = clamp(nextProgress, 0, 1);
         const railPlaybackRate = clamp(Number(metadata.playbackRate) || 1, 0.1, 2);
         const railPressure = clamp(Number(metadata.pressure) || 0, 0, 1);
@@ -12159,7 +12167,7 @@ const renderArchivedHomeSections = false;
             || burstVelocity < -0.00025
             || targetBurstProgress < burstProgress - 0.0005
         );
-        setPostReleaseActive(burstComplete && pageMode === "gate");
+        setPostReleaseActive(!externalStageControl && burstComplete && pageMode === "gate");
         if (cue) {
           const cueGuided = pageMode === "gate"
             && !chargeIntroActive
@@ -12412,7 +12420,7 @@ const renderArchivedHomeSections = false;
         velocity = (velocity + spring) * Math.pow(damping, frameRatio);
         progress = clamp(progress + velocity * frameRatio, 0, 1);
         const fillReadyForIntro = targetProgress >= 0.9995 && progress >= 0.995;
-        if (fillReadyForIntro && !chargeIntroActive && !chargeIntroComplete) {
+        if (fillReadyForIntro && !chargeIntroActive && !chargeIntroComplete && !externalStageHold) {
           startChargeIntro(timestamp);
         }
         if (chargeIntroActive) {
@@ -12432,6 +12440,16 @@ const renderArchivedHomeSections = false;
             chargeIntroStartedAt = 0;
             chargeIntroTransitionDuration = 0;
           }
+        }
+        if (
+          externalStageControl
+          && externalReleaseRequested
+          && chargeIntroComplete
+          && !chargeIntroActive
+          && releaseMode === "manual"
+        ) {
+          externalReleaseRequested = false;
+          startReleaseAutoplay(timestamp);
         }
         if (releaseMode === "rewinding") {
           const rewindProgress = clamp(
@@ -12491,6 +12509,11 @@ const renderArchivedHomeSections = false;
             releaseVisualPressure = 0;
             burstProgress = 1;
             stopHeroAutoplay();
+            if (externalStageControl && !externalReleaseCompleted) {
+              externalReleaseCompleted = true;
+              gate.dataset.kisaraStageSettled = "true";
+              window.dispatchEvent(new CustomEvent("yuimi:kisara-legacy-release-complete"));
+            }
           }
         } else {
           const burstSpring = (targetBurstProgress - burstProgress) * burstSpringStrength * frameRatio;
@@ -12538,47 +12561,136 @@ const renderArchivedHomeSections = false;
         }
       };
 
-      const startLegacyStageHandoff = (skip = false) => {
-        if (!legacyOnly || disposed || gate.dataset.kisaraLegacyReady === "true") return false;
-        const handoffProgress = skip ? 1 : 0.61;
+      const activateExternalStageRenderer = () => {
+        if (!externalStageControl || disposed) return false;
         pageMode = "gate";
-        targetProgress = handoffProgress;
-        progress = handoffProgress;
-        velocity = 0;
-        targetBurstProgress = skip ? 1 : 0;
-        burstProgress = targetBurstProgress;
+        gate.dataset.kisaraLegacyReady = "true";
+        gate.dataset.kisaraStageRenderer = "active";
+        gate.dataset.kisaraStageSettled = "false";
+        gateVisualResetPending = false;
+        return true;
+      };
+
+      const resetExternalReleaseState = () => {
+        stopHeroAutoplay();
+        targetBurstProgress = 0;
+        burstProgress = 0;
         burstVelocity = 0;
-        releaseMode = skip ? "complete" : "manual";
-        releaseTimeline = skip ? 1 : 0;
+        releaseMode = "manual";
+        releaseTimeline = 0;
         releaseLastTimestamp = 0;
         releasePlaybackRate = 1;
         releaseBoost = 0;
         releaseVisualPressure = 0;
-        chargeIntroProgress = skip ? 1 : 0;
-        chargeIntroActive = false;
-        chargeIntroComplete = skip;
-        chargeIntroStartedAt = 0;
-        chargeIntroFrom = chargeIntroProgress;
-        chargeIntroTarget = chargeIntroProgress;
-        heroAutoplayActive = false;
-        heroAutoplayLastTimestamp = 0;
-        gateVisualResetPending = false;
-        render();
-        startAnimation();
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => {
-            if (disposed) return;
-            gate.dataset.kisaraLegacyReady = "true";
-            window.dispatchEvent(new CustomEvent("yuimi:kisara-legacy-ready", { detail: { skip } }));
-          });
-        });
-        return true;
+        externalReleaseRequested = false;
+        externalReleaseCompleted = false;
       };
 
-      window.addEventListener("yuimi:kisara-stage-legacy-start", (event) => {
-        const skip = event instanceof CustomEvent && event.detail?.skip === true;
-        startLegacyStageHandoff(skip);
-      }, { signal });
+      const setExternalMemoryBeat = (fill) => {
+        if (!activateExternalStageRenderer()) return;
+        externalStageHold = true;
+        resetExternalReleaseState();
+        chargeIntroProgress = 0;
+        chargeIntroActive = false;
+        chargeIntroComplete = false;
+        chargeIntroStartedAt = 0;
+        chargeIntroFrom = 0;
+        chargeIntroTarget = 0;
+        if (progress < 0.5 || progress > 0.98) {
+          progress = fill;
+          velocity = 0;
+        }
+        targetProgress = fill;
+        render();
+        startAnimation();
+      };
+
+      const setExternalTransformationBeat = (target) => {
+        if (!activateExternalStageRenderer()) return;
+        externalStageHold = true;
+        resetExternalReleaseState();
+        targetProgress = 1;
+        progress = 1;
+        velocity = 0;
+        const timestamp = performance.now();
+        chargeIntroComplete = false;
+        transitionChargeIntro(target, timestamp);
+        render();
+        startAnimation();
+      };
+
+      const startExternalRelease = () => {
+        if (!activateExternalStageRenderer()) return;
+        targetProgress = 1;
+        progress = 1;
+        velocity = 0;
+        resetExternalReleaseState();
+        externalStageHold = false;
+        externalReleaseRequested = true;
+        chargeIntroComplete = false;
+        transitionChargeIntro(1, performance.now());
+        render();
+        startAnimation();
+      };
+
+      const settleExternalFight = () => {
+        if (!activateExternalStageRenderer()) return;
+        externalStageHold = false;
+        externalReleaseRequested = false;
+        externalReleaseCompleted = true;
+        targetProgress = 1;
+        progress = 1;
+        velocity = 0;
+        chargeIntroProgress = 1;
+        chargeIntroActive = false;
+        chargeIntroComplete = true;
+        targetBurstProgress = 1;
+        burstProgress = 1;
+        burstVelocity = 0;
+        releaseMode = "complete";
+        releaseTimeline = 1;
+        gate.dataset.kisaraStageSettled = "true";
+        render();
+      };
+
+      const resetExternalStageRenderer = () => {
+        if (!externalStageControl) return;
+        externalStageHold = false;
+        externalReleaseRequested = false;
+        externalReleaseCompleted = false;
+        resetGateState();
+        gate.dataset.kisaraLegacyReady = "false";
+        gate.dataset.kisaraStageRenderer = "idle";
+        gate.dataset.kisaraStageSettled = "false";
+      };
+
+      const hideExternalStageRenderer = () => {
+        if (!externalStageControl) return;
+        gate.dataset.kisaraStageRenderer = "idle";
+        gate.dataset.kisaraLegacyReady = "false";
+      };
+
+      if (externalStageControl) {
+        externalStageBridge = {
+          activate: activateExternalStageRenderer,
+          setBeat: (beat) => {
+            if (beat === "embrace") setExternalMemoryBeat(0.62);
+            else if (beat === "kiss") setExternalMemoryBeat(0.79);
+            else if (beat === "smoke") setExternalTransformationBeat(0.22);
+            else if (beat === "detail") setExternalTransformationBeat(0.56);
+            else if (beat === "silhouette") setExternalTransformationBeat(0.9);
+          },
+          release: startExternalRelease,
+          settleFight: settleExternalFight,
+          reset: resetExternalStageRenderer,
+          hide: hideExternalStageRenderer,
+          setFinalStage: () => {
+            gate.dataset.kisaraStageSettled = "true";
+          }
+        };
+        window.__yuimiKisaraLegacyStage = externalStageBridge;
+        window.dispatchEvent(new CustomEvent("yuimi:kisara-legacy-stage-ready"));
+      }
 
       const getNextPageTop = () => {
         const openingRect = opening?.getBoundingClientRect();
@@ -13102,6 +13214,13 @@ const renderArchivedHomeSections = false;
 
       const leaveLovebrainToOpening = () => {
         if (!lovebrainActive || pageMode !== "lovebrain") return false;
+        if (externalStageControl) {
+          lovebrainActive = false;
+          pageMode = "gate";
+          gate.dataset.kisaraStageRenderer = "idle";
+          finalizeLovebrainExit();
+          return true;
+        }
         return enterLovebrainNextPage();
       };
       window.__yuimiKisaraHomeLovebrain = {
@@ -13596,6 +13715,7 @@ const renderArchivedHomeSections = false;
 
       const handleDirectionalInput = (delta, event, inputType = "wheel") => {
         if (delta === 0) return;
+        if (externalStageControl && !foundSelfActive && !lovebrainActive) return;
         if (legacyOnly && gate.dataset.kisaraLegacyReady !== "true" && !foundSelfActive) return;
         if (lovebrainActive && pageMode === "lovebrain") {
           event.preventDefault();
@@ -13957,6 +14077,9 @@ const renderArchivedHomeSections = false;
         titleLensRenderer = null;
         if (window.__yuimiKisaraHomeCleanup === cleanup) {
           window.__yuimiKisaraHomeCleanup = null;
+        }
+        if (externalStageControl && window.__yuimiKisaraLegacyStage === externalStageBridge) {
+          window.__yuimiKisaraLegacyStage = null;
         }
         autoPlay?.removeAttribute("data-kisara-runtime-bound");
       };

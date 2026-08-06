@@ -11,16 +11,18 @@ const readSource = (relativePath: string) => readFileSync(
 const layoutSource = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
 const stageHomeSource = readSource("src/themes/kisara/components/KisaraStageHome.astro");
 const stageRuntimeSource = readSource("src/themes/kisara/runtime/stageHome.ts");
+const stageStyles = readSource("src/themes/kisara/styles/stage-home.css");
 const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
 
-test("StageHome declares all 14 ordered assets and mixed playback groups", () => {
-  const scenePattern = /\{ id: "(0[1-9]|1[0-4])", order: (\d+), mode: "(auto|still|scrub|sequence)", media: "(image|video)", src: `\$\{base\}\/(0[1-9]|1[0-4])\.(mp4|webp)`/g;
+test("StageHome declares all 14 ordered assets with one explicit renderer boundary", () => {
+  const scenePattern = /\{ id: "(0[1-9]|1[0-4])", order: (\d+), mode: "(auto|still|scrub|legacy)", renderer: "(stage|legacy)", media: "(image|video)", src: `\$\{base\}\/(0[1-9]|1[0-4])\.(mp4|webp)`/g;
   const scenes = [...stageHomeSource.matchAll(scenePattern)].map((match) => ({
     id: match[1],
     order: Number(match[2]),
     mode: match[3],
-    media: match[4],
-    assetId: match[5]
+    renderer: match[4],
+    media: match[5],
+    assetId: match[6]
   }));
   const expectedIds = Array.from({ length: 14 }, (_, index) => String(index + 1).padStart(2, "0"));
 
@@ -30,79 +32,59 @@ test("StageHome declares all 14 ordered assets and mixed playback groups", () =>
   assert.deepEqual(scenes.map((scene) => scene.assetId), expectedIds);
   assert.equal(scenes.filter((scene) => scene.mode === "scrub").length, 1);
   assert.equal(scenes.find((scene) => scene.id === "06")?.mode, "scrub");
-  assert.equal(scenes.find((scene) => scene.id === "06")?.media, "video");
+  assert.equal(scenes.find((scene) => scene.id === "06")?.renderer, "stage");
   assert.deepEqual(
-    scenes.filter((scene) => scene.id >= "10" && scene.id <= "12").map((scene) => scene.mode),
-    ["sequence", "sequence", "sequence"]
+    scenes.filter((scene) => scene.renderer === "legacy").map((scene) => scene.id),
+    ["08", "09", "10", "11", "12", "13"]
   );
-  assert.equal(scenes.find((scene) => scene.id === "13")?.mode, "still");
-
-  const transformationStart = stageRuntimeSource.match(/const TRANSFORMATION_START = (\d+);/);
-  const transformationEnd = stageRuntimeSource.match(/const TRANSFORMATION_END = (\d+);/);
-  assert.equal(Number(transformationStart?.[1]) + 1, 10);
-  assert.equal(Number(transformationEnd?.[1]) + 1, 13);
-  assert.match(stageRuntimeSource, /const TRANSFORMATION_INDICES = new Set\(\[9, 10, 11\]\)/);
+  assert.equal(scenes.find((scene) => scene.id === "14")?.mode, "auto");
+  assert.equal(scenes.find((scene) => scene.id === "14")?.renderer, "stage");
 });
 
-test("StageHome keeps the prologue handoff, owns video frames, and uses a nonverbal scrub cue", () => {
+test("StageHome owns input and media continuity without the rejected prologue handoff", () => {
   for (const group of ["intercept", "contract", "intimacy", "transformation", "jealousy"]) {
     assert.match(stageHomeSource, new RegExp(`group: "${group}"`));
   }
 
+  assert.match(stageHomeSource, /data-stage-engine="single-owner"/);
   assert.match(stageHomeSource, /data-stage-first-frame/);
   assert.match(stageHomeSource, /data-stage-hold-frame/);
-  assert.match(stageRuntimeSource, /const setFrameState =/);
+  assert.match(stageRuntimeSource, /const showStageSurface = async/);
+  assert.match(stageRuntimeSource, /await hydrateScene\(index, true\)/);
   assert.match(stageRuntimeSource, /requestVideoFrameCallback/);
   assert.doesNotMatch(stageRuntimeSource, /video\.poster =/);
-
-  assert.match(stageRuntimeSource, /const INTERNAL_AUTO_CHAIN = new Map/);
-  for (const edge of [
-    /\[0, \{ next: 1/,
-    /\[1, \{ next: 2/,
-    /\[3, \{ next: 4/,
-    /\[4, \{ next: 5/
-  ]) {
-    assert.match(stageRuntimeSource, edge);
-  }
-  assert.doesNotMatch(stageRuntimeSource, /config\.transition/);
-
-  assert.match(stageHomeSource, /data-stage-prologue-only="true"/);
-  assert.match(stageHomeSource, /aria-label="继续推进这一击"/);
-  assert.match(stageHomeSource, /class="kisara-stage-scrub-cue" aria-hidden="true">\s*<i><\/i><i><\/i><i><\/i>/);
-  assert.match(stageRuntimeSource, /scrubTarget >= 0\.999/);
-  assert.match(stageRuntimeSource, /beginScene\(SCRUB_INDEX \+ 1, 1, true\)/);
-  assert.match(stageRuntimeSource, /const PROLOGUE_HANDOFF_INDEX = 6/);
-  assert.match(stageRuntimeSource, /yuimi:kisara-stage-legacy-start/);
-  assert.match(stageRuntimeSource, /yuimi:kisara-legacy-ready/);
-
-  assert.match(stageRuntimeSource, /if \(activeIndex < TRANSFORMATION_START\) root\.dataset\.titlePhase = "dormant"/);
-  assert.match(stageRuntimeSource, /activeIndex === 9\) root\.dataset\.titlePhase = "awakening"/);
-  assert.match(stageRuntimeSource, /activeIndex === 12\) root\.dataset\.titlePhase = "complete"/);
-  assert.deepEqual(
-    [...stageHomeSource.matchAll(/data-stage-copy="(\d+)"/g)].map((match) => match[1]),
-    ["02", "03", "08", "13"]
-  );
+  assert.match(stageRuntimeSource, /const enterLegacy = async/);
+  assert.match(stageRuntimeSource, /const enterFinal = async/);
+  assert.match(stageRuntimeSource, /yuimi:kisara-legacy-release-complete/);
+  assert.doesNotMatch(stageRuntimeSource, /yuimi:kisara-stage-legacy-start/);
+  assert.doesNotMatch(stageRuntimeSource, /yuimi:kisara-legacy-ready/);
+  assert.match(stageHomeSource, /aria-label="用滚动推进这一击"/);
+  assert.match(stageHomeSource, /class="kisara-stage-scrub-gesture" aria-hidden="true"><i><\/i><i><\/i><i><\/i>/);
+  assert.doesNotMatch(stageStyles, /white-continuity/);
+  assert.doesNotMatch(stageStyles, /kisara-stage-v2-white-continuity/);
 });
 
-test("Kisara Home composes the new prologue over the restored legacy gate and keeps the footer off Home", () => {
+test("Kisara Home uses the legacy gate only as an external renderer and keeps the footer off Home", () => {
   assert.match(homeSource, /KisaraStageHome/);
   assert.match(homeSource, /\.\.\/styles\/home\.css/);
   assert.match(homeSource, /stage-home\.css\?url/);
-  assert.match(homeSource, /data-kisara-legacy-only="true"/);
-  assert.match(homeSource, /data-kisara-legacy-ready="false"/);
+  assert.match(homeSource, /data-kisara-external-stage-control="true"/);
+  assert.match(homeSource, /data-kisara-stage-renderer="idle"/);
+  assert.match(homeSource, /const externalStageControl = gate\.dataset\.kisaraExternalStageControl === "true"/);
+  assert.match(homeSource, /window\.__yuimiKisaraLegacyStage = externalStageBridge/);
+  assert.match(homeSource, /yuimi:kisara-legacy-stage-ready/);
+  assert.match(homeSource, /externalStageControl && !foundSelfActive && !lovebrainActive/);
+  assert.match(homeSource, /if \(externalStageControl\) return;/);
   assert.match(homeSource, /const renderArchivedHomeSections = false/);
-  assert.match(homeSource, /yuimi:kisara-stage-legacy-start/);
-  assert.match(homeSource, /yuimi:kisara-legacy-ready/);
+  assert.doesNotMatch(homeSource, /yuimi:kisara-stage-legacy-start/);
 
   assert.match(layoutSource, /\{!isHome && \(\s*<footer class="kisara-footer">/);
   assert.equal((layoutSource.match(/<footer\b/g) ?? []).length, 1);
 });
 
-test("StageHome keeps the accepted found-self, spare-key, and jealousy triggers", () => {
-  assert.match(stageRuntimeSource, /const hasFoundSelfTicket =/);
-  assert.match(stageRuntimeSource, /ticket\?\.source === "me-games"/);
-  assert.match(stageRuntimeSource, /document\.documentElement\.dataset\.kisaraFoundSelfEntry = "pending"/);
-  assert.match(stageRuntimeSource, /startFoundSelf\(\)/);
+test("StageHome keeps FoundSelf, spare-key, and final-stage qualification on the single controller", () => {
+  assert.match(stageRuntimeSource, /document\.documentElement\.dataset\.kisaraFoundSelfEntry === "pending"/);
+  assert.match(stageRuntimeSource, /yuimi:kisara-legacy-found-self-finished/);
 
   assert.match(stageRuntimeSource, /const grantSpareKey = \(\) =>/);
   assert.match(stageRuntimeSource, /__yuimiKisaraLovebrainProgress\?\.markSpareKey\?\.\(\) === true/);
@@ -111,4 +93,5 @@ test("StageHome keeps the accepted found-self, spare-key, and jealousy triggers"
 
   assert.match(stageRuntimeSource, /const markFinalStage = \(\) =>/);
   assert.match(stageRuntimeSource, /__yuimiKisaraLovebrainProgress\?\.markStage\?\.\("home-jealousy"\)/);
+  assert.match(stageRuntimeSource, /runtimeWindow\.__yuimiKisaraLegacyStage\?\.setFinalStage\?\.\(\)/);
 });

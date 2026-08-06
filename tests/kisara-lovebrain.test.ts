@@ -10,6 +10,7 @@ const readSource = (relativePath: string) => readFileSync(
 
 const layoutSource = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
 const stageRuntimeSource = readSource("src/themes/kisara/runtime/stageHome.ts");
+const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
 const audioSource = readSource("src/themes/kisara/components/KisaraAudioControl.astro");
 const componentSource = readSource("src/themes/kisara/components/KisaraLovebrainEasterEgg.astro");
 
@@ -40,22 +41,14 @@ test("Lovebrain progress is an independent tab-session facade", () => {
   }
 });
 
-test("StageHome exposes the final-settled Lovebrain host API", () => {
+test("the legacy renderer remains the final-settled Lovebrain host while StageHome owns qualification", () => {
   assert.match(
-    stageRuntimeSource,
-    /__yuimiKisaraHomeLovebrain = \{\s*activate: activateLovebrain,\s*leaveToOpening: leaveLovebrain\s*\}/
+    homeSource,
+    /__yuimiKisaraHomeLovebrain = \{\s*activate: activateLovebrain,\s*leaveToOpening: leaveLovebrainToOpening\s*\}/
   );
-
-  const activateStart = stageRuntimeSource.indexOf("const activateLovebrain = () => {");
-  const activateEnd = stageRuntimeSource.indexOf("const leaveLovebrain = () => {", activateStart);
-  const activateSource = stageRuntimeSource.slice(activateStart, activateEnd);
-  assert.match(activateSource, /activeIndex !== FINAL_INDEX/);
-  assert.match(activateSource, /root\.dataset\.kisaraStageSettled !== "true"/);
-
-  const leaveStart = stageRuntimeSource.indexOf("const leaveLovebrain = () => {");
-  const leaveEnd = stageRuntimeSource.indexOf("runtimeWindow.__yuimiKisaraHomeLovebrain", leaveStart);
-  const leaveSource = stageRuntimeSource.slice(leaveStart, leaveEnd);
-  assert.match(leaveSource, /new CustomEvent\("yuimi:kisara-lovebrain-opening-covered"\)/);
+  assert.match(homeSource, /gate\.dataset\.kisaraStageSettled = "true"/);
+  assert.match(stageRuntimeSource, /const markFinalStage = \(\) =>/);
+  assert.match(stageRuntimeSource, /runtimeWindow\.__yuimiKisaraLegacyStage\?\.setFinalStage\?\.\(\)/);
 
   assert.match(componentSource, /const isHomeGate = \(\) =>/);
   assert.match(componentSource, /dataset\.kisaraStageSettled === "true"/);
@@ -125,18 +118,20 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   assert.match(componentSource, /window\.__yuimiKisaraLovebrainFinishOpening = finishOpening/);
 });
 
-test("StageHome keeps gate progress and lifecycle restoration around Lovebrain", () => {
+test("StageHome keeps a single progress publisher and lifecycle restoration", () => {
   assert.match(stageRuntimeSource, /new CustomEvent\("kisara:gate-progress"/);
   assert.match(stageRuntimeSource, /document\.addEventListener\("astro:before-swap"/);
   assert.match(stageRuntimeSource, /runtimeWindow\.__yuimiKisaraStageHomeCleanup\?\.\(\)/);
   assert.match(stageRuntimeSource, /lifecycle\.abort\(\)/);
+  assert.match(stageRuntimeSource, /const enterLegacy = async/);
+  assert.match(stageRuntimeSource, /const enterFinal = async/);
 
   assert.match(stageRuntimeSource, /const handleVisibility = \(\) =>/);
   assert.match(stageRuntimeSource, /resumeVideoAfterVisibility = phase === "playing"/);
-  assert.match(stageRuntimeSource, /phase === "playing"\s*&& activeVideo instanceof HTMLVideoElement/);
-  assert.match(stageRuntimeSource, /activeVideo\.play\(\)/);
-  assert.match(stageRuntimeSource, /phase === "transition" && transitionTimer && transitionFinalize/);
-  assert.match(stageRuntimeSource, /transitionTimer = window\.setTimeout\(transitionFinalize/);
+  assert.match(stageRuntimeSource, /phase === "playing" && video instanceof HTMLVideoElement && video\.paused/);
+  assert.match(stageRuntimeSource, /const play = video\.play\(\)/);
+  assert.match(stageRuntimeSource, /let transitionSerial =/);
+  assert.match(stageRuntimeSource, /await hydrateScene\(index, true\)/);
 
   const runtimeStart = stageRuntimeSource.indexOf("const createStageRuntime =");
   const boundGuard = stageRuntimeSource.indexOf('if (root.dataset.bound === "true") return;', runtimeStart);
@@ -146,16 +141,15 @@ test("StageHome keeps gate progress and lifecycle restoration around Lovebrain",
   const autoVideoStart = stageRuntimeSource.indexOf("const startAutoVideo =");
   const autoVideoEnd = stageRuntimeSource.indexOf("const renderScrub =", autoVideoStart);
   const autoVideoSource = stageRuntimeSource.slice(autoVideoStart, autoVideoEnd);
-  assert.match(autoVideoSource, /activeIndex !== localIndex \|\| phase !== "playing"/);
+  assert.match(autoVideoSource, /activeIndex !== index \|\| phase !== "playing"/);
   assert.match(autoVideoSource, /video\.removeEventListener\("canplay", onCanPlay\)/);
 
-  const reducedStart = stageRuntimeSource.indexOf("} else if (reducedMotion) {");
-  const reducedEnd = stageRuntimeSource.indexOf("} else if (saved)", reducedStart);
+  const reducedStart = stageRuntimeSource.indexOf("if (reducedMotion) {");
+  const reducedEnd = stageRuntimeSource.indexOf("if (saved)", reducedStart);
   const reducedSource = stageRuntimeSource.slice(reducedStart, reducedEnd);
-  assert.match(reducedSource, /activeIndex = FINAL_INDEX/);
-  assert.match(reducedSource, /scenes\[FINAL_INDEX\]\.element\.classList\.add\("is-active"\)/);
-  assert.match(reducedSource, /setFinalSettled\(false\)/);
-  assert.match(stageRuntimeSource, /else if \(activeIndex === FINAL_INDEX\) setFinalSettled\(false\)/);
+  assert.match(reducedSource, /await skipToEnd\(\)/);
+  assert.match(stageRuntimeSource, /const skipToEnd = async/);
+  assert.match(stageRuntimeSource, /markFinalStage\(\)/);
 });
 
 test("Audio suspension releases only the final owner", () => {
