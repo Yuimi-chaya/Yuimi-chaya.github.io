@@ -44,6 +44,42 @@ test("StageHome declares all 14 ordered assets and mixed playback groups", () =>
   assert.match(stageRuntimeSource, /const TRANSFORMATION_INDICES = new Set\(\[9, 10, 11\]\)/);
 });
 
+test("StageHome v2 groups beats, owns video frames, and explains the only scrub scene", () => {
+  for (const group of ["intercept", "contract", "intimacy", "transformation", "jealousy"]) {
+    assert.match(stageHomeSource, new RegExp(`group: "${group}"`));
+  }
+
+  assert.match(stageHomeSource, /data-stage-first-frame/);
+  assert.match(stageHomeSource, /data-stage-hold-frame/);
+  assert.match(stageRuntimeSource, /const setFrameState =/);
+  assert.match(stageRuntimeSource, /requestVideoFrameCallback/);
+  assert.doesNotMatch(stageRuntimeSource, /video\.poster =/);
+
+  assert.match(stageRuntimeSource, /const INTERNAL_AUTO_CHAIN = new Map/);
+  for (const edge of [
+    /\[0, \{ next: 1/,
+    /\[1, \{ next: 2/,
+    /\[3, \{ next: 4/,
+    /\[4, \{ next: 5/
+  ]) {
+    assert.match(stageRuntimeSource, edge);
+  }
+  assert.doesNotMatch(stageRuntimeSource, /config\.transition/);
+
+  assert.match(stageHomeSource, /滚动推进这一击/);
+  assert.match(stageHomeSource, /上下拖动推进这一击/);
+  assert.match(stageRuntimeSource, /scrubTarget >= 0\.999/);
+  assert.match(stageRuntimeSource, /beginScene\(SCRUB_INDEX \+ 1, 1, true\)/);
+
+  assert.match(stageRuntimeSource, /if \(activeIndex < TRANSFORMATION_START\) root\.dataset\.titlePhase = "dormant"/);
+  assert.match(stageRuntimeSource, /activeIndex === 9\) root\.dataset\.titlePhase = "awakening"/);
+  assert.match(stageRuntimeSource, /activeIndex === 12\) root\.dataset\.titlePhase = "complete"/);
+  assert.deepEqual(
+    [...stageHomeSource.matchAll(/data-stage-copy="(\d+)"/g)].map((match) => match[1]),
+    ["02", "03", "08", "13"]
+  );
+});
+
 test("Kisara Home is assembled from StageHome and keeps the footer off Home", () => {
   assert.match(homeSource, /KisaraStageHome/);
   assert.match(homeSource, /stage-home\.css\?url/);

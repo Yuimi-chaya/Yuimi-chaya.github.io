@@ -155,7 +155,7 @@ test("StageHome keeps gate progress and lifecycle restoration around Lovebrain",
   assert.match(reducedSource, /activeIndex = FINAL_INDEX/);
   assert.match(reducedSource, /scenes\[FINAL_INDEX\]\.element\.classList\.add\("is-active"\)/);
   assert.match(reducedSource, /setFinalSettled\(false\)/);
-  assert.match(stageRuntimeSource, /saved\.finalSettled && activeIndex === FINAL_INDEX/);
+  assert.match(stageRuntimeSource, /else if \(activeIndex === FINAL_INDEX\) setFinalSettled\(false\)/);
 });
 
 test("Audio suspension releases only the final owner", () => {

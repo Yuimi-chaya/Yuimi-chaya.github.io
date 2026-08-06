@@ -9,8 +9,7 @@ interface StageSceneConfig {
   src: string;
   poster?: string;
   lastPoster?: string;
-  transition: string;
-  transitionDuration: number;
+  group: "intercept" | "contract" | "intimacy" | "transformation" | "jealousy";
   minWatch: number;
   hold: number;
 }
@@ -20,6 +19,8 @@ interface StageSceneNode {
   element: HTMLElement;
   image: HTMLImageElement | null;
   video: HTMLVideoElement | null;
+  firstFrame: HTMLImageElement | null;
+  holdFrame: HTMLImageElement | null;
 }
 
 interface SavedStageState {
@@ -60,6 +61,31 @@ const TRANSFORMATION_START = 9;
 const TRANSFORMATION_END = 12;
 const FINAL_INDEX = 13;
 const TRANSFORMATION_INDICES = new Set([9, 10, 11]);
+const INTERNAL_AUTO_CHAIN = new Map<number, { next: number; delay: number }>([
+  [0, { next: 1, delay: 70 }],
+  [1, { next: 2, delay: 260 }],
+  [3, { next: 4, delay: 90 }],
+  [4, { next: 5, delay: 30 }]
+]);
+
+const TRANSITION_DURATIONS: Record<string, number> = {
+  opening: 0,
+  "white-continuity": 260,
+  "intercept-settle": 520,
+  "chapter-shift": 620,
+  "focus-snap": 330,
+  "motion-handoff": 210,
+  "impact-release": 360,
+  "quiet-push": 680,
+  "intimacy-push": 720,
+  "kiss-to-smoke": 760,
+  "smoke-continuity": 540,
+  "hair-reveal": 560,
+  "form-clear": 720,
+  "title-departure": 620,
+  "reverse-rest": 520,
+  direct: 240
+};
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -109,6 +135,27 @@ const normalizeWheelDelta = (event: WheelEvent) => {
   return clamp(event.deltaY * scale, -180, 180);
 };
 
+const resolveTransition = (from: number, to: number, direction: number) => {
+  if (direction < 0) return "reverse-rest";
+  const key = `${from}-${to}`;
+  const transitions: Record<string, string> = {
+    "0-1": "white-continuity",
+    "1-2": "intercept-settle",
+    "2-3": "chapter-shift",
+    "3-4": "focus-snap",
+    "4-5": "motion-handoff",
+    "5-6": "impact-release",
+    "6-7": "quiet-push",
+    "7-8": "intimacy-push",
+    "8-9": "kiss-to-smoke",
+    "9-10": "smoke-continuity",
+    "10-11": "hair-reveal",
+    "11-12": "form-clear",
+    "12-13": "title-departure"
+  };
+  return transitions[key] ?? "direct";
+};
+
 const createStageRuntime = (root: HTMLElement) => {
   const runtimeWindow = window as KisaraWindow;
   if (root.dataset.bound === "true") return;
@@ -124,7 +171,9 @@ const createStageRuntime = (root: HTMLElement) => {
       config,
       element,
       image: element.querySelector<HTMLImageElement>("[data-stage-image]"),
-      video: element.querySelector<HTMLVideoElement>("[data-stage-video]")
+      video: element.querySelector<HTMLVideoElement>("[data-stage-video]"),
+      firstFrame: element.querySelector<HTMLImageElement>("[data-stage-first-frame]"),
+      holdFrame: element.querySelector<HTMLImageElement>("[data-stage-hold-frame]")
     };
   });
 
@@ -161,8 +210,12 @@ const createStageRuntime = (root: HTMLElement) => {
   let transitionRemaining = 0;
   let transitionFinalize: (() => void) | null = null;
   let sequenceTimer = 0;
+  let sequenceDeadline = 0;
+  let sequenceRemaining = 0;
+  let sequenceResume: (() => void) | null = null;
+  let scrubCompletionTimer = 0;
   let autoTimer = 0;
-  let titleTimer = 0;
+  let mediaRevealTimer = 0;
   let lovebrainTimer = 0;
   let foundSelfTimer = 0;
   let foundSelfReadyTimer = 0;
@@ -178,7 +231,9 @@ const createStageRuntime = (root: HTMLElement) => {
   let wheelNeedsFreshGesture = false;
   let inputGuardUntil = 0;
   let touchStartY: number | null = null;
+  let touchLastY: number | null = null;
   let touchId: number | null = null;
+  let touchScrubbing = false;
   let autoEnabled = false;
   let currentVideoCleanup: (() => void) | null = null;
   let currentVideoStartedAt = 0;
@@ -192,6 +247,21 @@ const createStageRuntime = (root: HTMLElement) => {
 
   const clearTimer = (timer: number) => {
     if (timer) window.clearTimeout(timer);
+  };
+
+  const scheduleSequence = (callback: () => void, delay: number) => {
+    clearTimer(sequenceTimer);
+    sequenceResume = callback;
+    sequenceRemaining = Math.max(20, delay);
+    sequenceDeadline = performance.now() + sequenceRemaining;
+    sequenceTimer = window.setTimeout(() => {
+      const run = sequenceResume;
+      sequenceTimer = 0;
+      sequenceDeadline = 0;
+      sequenceRemaining = 0;
+      sequenceResume = null;
+      run?.();
+    }, sequenceRemaining);
   };
 
   const setStatus = (value: string) => {
@@ -247,12 +317,42 @@ const createStageRuntime = (root: HTMLElement) => {
       node.image.src = source;
       delete node.image.dataset.src;
     }
+    for (const frame of [node.firstFrame, node.holdFrame]) {
+      if (!(frame instanceof HTMLImageElement) || frame.src) continue;
+      const source = frame.dataset.src;
+      if (!source) continue;
+      frame.loading = eager ? "eager" : "lazy";
+      frame.fetchPriority = eager ? "high" : "low";
+      frame.src = source;
+      delete frame.dataset.src;
+    }
     if (node.video instanceof HTMLVideoElement && !node.video.src) {
       const source = node.video.dataset.src || node.config.src;
       node.video.preload = eager ? "auto" : "metadata";
       node.video.src = source;
       node.video.load();
       delete node.video.dataset.src;
+    }
+  };
+
+  const setFrameState = (index: number, state: "first" | "video" | "hold" | "still") => {
+    const node = scenes[index];
+    if (!node) return;
+    node.element.dataset.frameState = state;
+  };
+
+  const prepareSceneSurface = (index: number, direction: number) => {
+    const node = scenes[index];
+    if (!node) return;
+    hydrateScene(index, true);
+    if (!(node.video instanceof HTMLVideoElement)) {
+      setFrameState(index, "still");
+      return;
+    }
+    node.video.pause();
+    setFrameState(index, direction < 0 ? "hold" : "first");
+    if (direction >= 0) {
+      try { node.video.currentTime = 0; } catch {}
     }
   };
 
@@ -280,15 +380,20 @@ const createStageRuntime = (root: HTMLElement) => {
   const cancelTransientWork = () => {
     clearTimer(transitionTimer);
     clearTimer(sequenceTimer);
+    clearTimer(scrubCompletionTimer);
     clearTimer(autoTimer);
-    clearTimer(titleTimer);
+    clearTimer(mediaRevealTimer);
     transitionTimer = 0;
     transitionDeadline = 0;
     transitionRemaining = 0;
     transitionFinalize = null;
     sequenceTimer = 0;
+    sequenceDeadline = 0;
+    sequenceRemaining = 0;
+    sequenceResume = null;
+    scrubCompletionTimer = 0;
     autoTimer = 0;
-    titleTimer = 0;
+    mediaRevealTimer = 0;
     if (scrubFrame) window.cancelAnimationFrame(scrubFrame);
     scrubFrame = 0;
     scrubSeekBusy = false;
@@ -300,24 +405,21 @@ const createStageRuntime = (root: HTMLElement) => {
     root.dataset.stageIndex = String(activeIndex + 1);
     root.dataset.stageScene = sceneId;
     root.dataset.stageMode = scenes[activeIndex]?.config.mode ?? "still";
+    root.dataset.stageGroup = scenes[activeIndex]?.config.group ?? "intercept";
     if (counter) counter.textContent = String(activeIndex + 1).padStart(2, "0");
 
     copyNodes.forEach((copy) => {
       copy.classList.toggle("is-active", copy.dataset.stageCopy === sceneId);
     });
 
-    if (title) {
-      title.removeAttribute("data-phase");
-      clearTimer(titleTimer);
-      titleTimer = 0;
-      if (sceneId === "02" || sceneId === "13") {
-        window.requestAnimationFrame(() => {
-          if (disposed || !title) return;
-          title.dataset.phase = sceneId === "02" ? "intro" : "complete";
-        });
-        titleTimer = window.setTimeout(() => title.removeAttribute("data-phase"), sceneId === "02" ? 2050 : 1580);
-      }
-    }
+    if (title) title.dataset.scene = sceneId;
+    if (activeIndex < TRANSFORMATION_START) root.dataset.titlePhase = "dormant";
+    else if (activeIndex === 9) root.dataset.titlePhase = "awakening";
+    else if (activeIndex === 10) root.dataset.titlePhase = "contract";
+    else if (activeIndex === 11) root.dataset.titlePhase = "enchant";
+    else if (activeIndex === 12) root.dataset.titlePhase = "complete";
+    else if (activeIndex === FINAL_INDEX && root.dataset.kisaraStageSettled !== "true") root.dataset.titlePhase = "departing";
+    else root.dataset.titlePhase = "dormant";
 
     if (seal) seal.classList.toggle("is-active", activeIndex === FINAL_INDEX && root.dataset.kisaraStageSettled === "true");
     if (replayButton) replayButton.hidden = !(activeIndex === FINAL_INDEX && root.dataset.kisaraStageSettled === "true");
@@ -369,6 +471,7 @@ const createStageRuntime = (root: HTMLElement) => {
   const setFinalSettled = (qualified: boolean) => {
     phase = "final";
     root.dataset.kisaraStageSettled = "true";
+    root.dataset.titlePhase = "dormant";
     root.classList.add("is-scene-settled", "is-final-settled");
     if (qualified) markFinalStage();
     updatePresentation();
@@ -390,15 +493,22 @@ const createStageRuntime = (root: HTMLElement) => {
 
   const finishAutoVideo = (qualified = false) => {
     const node = scenes[activeIndex];
-    const video = node?.video;
+    const finishedIndex = activeIndex;
+    if (node?.video instanceof HTMLVideoElement) setFrameState(finishedIndex, "hold");
     cancelCurrentVideo();
-    if (video instanceof HTMLVideoElement && Number.isFinite(video.duration) && video.duration > 0) {
-      try {
-        video.currentTime = Math.max(0, video.duration - 0.045);
-      } catch {}
-    }
     if (activeIndex === FINAL_INDEX) {
       setFinalSettled(qualified);
+      return;
+    }
+    const chain = INTERNAL_AUTO_CHAIN.get(finishedIndex);
+    if (chain) {
+      phase = "sequence";
+      root.classList.remove("is-scene-settled");
+      publishProgress({ stage: scenes[finishedIndex].config.group, transitioning: true });
+      scheduleSequence(() => {
+        if (disposed || activeIndex !== finishedIndex) return;
+        beginScene(chain.next, 1, true);
+      }, reducedMotion ? 20 : chain.delay);
       return;
     }
     settleStill();
@@ -415,18 +525,13 @@ const createStageRuntime = (root: HTMLElement) => {
     cancelCurrentVideo();
 
     if (direction < 0) {
-      if (node.config.lastPoster) video.poster = node.config.lastPoster;
-      const seekLastFrame = () => {
-        if (!Number.isFinite(video.duration) || video.duration <= 0) return;
-        try { video.currentTime = Math.max(0, video.duration - 0.045); } catch {}
-      };
-      if (video.readyState >= HTMLMediaElement.HAVE_METADATA) seekLastFrame();
-      else video.addEventListener("loadedmetadata", seekLastFrame, { once: true, signal });
+      setFrameState(activeIndex, "hold");
       settleStill();
       return;
     }
 
-    if (node.config.poster) video.poster = node.config.poster;
+    setFrameState(activeIndex, "first");
+    video.pause();
     try { video.currentTime = 0; } catch {}
     phase = "playing";
     root.classList.remove("is-scene-settled", "is-final-settled");
@@ -437,10 +542,25 @@ const createStageRuntime = (root: HTMLElement) => {
     setStatus(`第 ${activeIndex + 1} 幕播放中`);
 
     const localIndex = activeIndex;
+    let frameCallback = 0;
+    const revealVideo = () => {
+      if (disposed || activeIndex !== localIndex || phase !== "playing") return;
+      mediaRevealTimer = 0;
+      setFrameState(localIndex, "video");
+    };
     const onPlaying = () => {
       if (disposed || activeIndex !== localIndex) return;
       currentVideoStartedAt = performance.now();
       minWatchUntil = currentVideoStartedAt + node.config.minWatch * 1000;
+      const frameVideo = video as HTMLVideoElement & {
+        requestVideoFrameCallback?: (callback: () => void) => number;
+        cancelVideoFrameCallback?: (id: number) => void;
+      };
+      if (typeof frameVideo.requestVideoFrameCallback === "function") {
+        frameCallback = frameVideo.requestVideoFrameCallback(revealVideo);
+      } else {
+        mediaRevealTimer = window.setTimeout(revealVideo, 42);
+      }
     };
     const onEnded = () => {
       if (disposed || activeIndex !== localIndex) return;
@@ -448,13 +568,19 @@ const createStageRuntime = (root: HTMLElement) => {
     };
     const onError = () => {
       if (disposed || activeIndex !== localIndex) return;
-      if (node.config.lastPoster) video.poster = node.config.lastPoster;
+      setFrameState(localIndex, "hold");
       finishAutoVideo(false);
     };
     video.addEventListener("playing", onPlaying);
     video.addEventListener("ended", onEnded);
     video.addEventListener("error", onError);
     currentVideoCleanup = () => {
+      const frameVideo = video as HTMLVideoElement & { cancelVideoFrameCallback?: (id: number) => void };
+      if (frameCallback && typeof frameVideo.cancelVideoFrameCallback === "function") {
+        frameVideo.cancelVideoFrameCallback(frameCallback);
+      }
+      clearTimer(mediaRevealTimer);
+      mediaRevealTimer = 0;
       video.removeEventListener("playing", onPlaying);
       video.removeEventListener("ended", onEnded);
       video.removeEventListener("error", onError);
@@ -519,6 +645,13 @@ const createStageRuntime = (root: HTMLElement) => {
     } else {
       scrubFrame = 0;
       persistState(true);
+      if (scrubTarget >= 0.999 && !scrubCompletionTimer) {
+        scrubCompletionTimer = window.setTimeout(() => {
+          scrubCompletionTimer = 0;
+          if (disposed || activeIndex !== SCRUB_INDEX || phase !== "scrub") return;
+          beginScene(SCRUB_INDEX + 1, 1, true);
+        }, reducedMotion ? 20 : 180);
+      }
     }
   };
 
@@ -536,8 +669,10 @@ const createStageRuntime = (root: HTMLElement) => {
     scrubLastTimestamp = 0;
     root.style.setProperty("--stage-scrub-progress", scrubVisual.toFixed(5));
     root.classList.add("is-scene-settled");
+    root.classList.remove("has-scrub-input");
     if (video instanceof HTMLVideoElement) {
       video.pause();
+      setFrameState(SCRUB_INDEX, scrubVisual <= 0.001 ? "first" : "video");
       const seek = () => {
         if (!Number.isFinite(video.duration) || video.duration <= 0) return;
         try { video.currentTime = scrubVisual * Math.max(0, video.duration - 1 / 30); } catch {}
@@ -546,6 +681,9 @@ const createStageRuntime = (root: HTMLElement) => {
       else video.addEventListener("loadedmetadata", seek, { once: true, signal });
       video.addEventListener("seeked", () => {
         scrubSeekBusy = false;
+        if (activeIndex === SCRUB_INDEX && phase === "scrub" && scrubVisual > 0.001) {
+          setFrameState(SCRUB_INDEX, "video");
+        }
         scheduleScrub();
       }, { signal });
     }
@@ -556,13 +694,31 @@ const createStageRuntime = (root: HTMLElement) => {
     if (autoEnabled && video instanceof HTMLVideoElement) {
       phase = "playing";
       video.playbackRate = 1;
+      const revealAutoScrub = () => {
+        if (disposed || activeIndex !== SCRUB_INDEX || phase !== "playing") return;
+        setFrameState(SCRUB_INDEX, "video");
+      };
+      video.addEventListener("playing", () => {
+        const frameVideo = video as HTMLVideoElement & {
+          requestVideoFrameCallback?: (callback: () => void) => number;
+        };
+        if (typeof frameVideo.requestVideoFrameCallback === "function") {
+          frameVideo.requestVideoFrameCallback(revealAutoScrub);
+        } else {
+          window.setTimeout(revealAutoScrub, 42);
+        }
+      }, { once: true, signal });
       const onEnded = () => {
         if (activeIndex !== SCRUB_INDEX || disposed) return;
         scrubTarget = 1;
         scrubVisual = 1;
         root.style.setProperty("--stage-scrub-progress", "1");
         phase = "scrub";
-        queueAutoAdvance(0.25);
+        setFrameState(SCRUB_INDEX, "hold");
+        scrubCompletionTimer = window.setTimeout(() => {
+          scrubCompletionTimer = 0;
+          if (activeIndex === SCRUB_INDEX && phase === "scrub") beginScene(SCRUB_INDEX + 1, 1, true);
+        }, 180);
       };
       video.addEventListener("ended", onEnded, { once: true, signal });
       const promise = video.play();
@@ -576,9 +732,8 @@ const createStageRuntime = (root: HTMLElement) => {
     phase = "sequence";
     root.classList.remove("is-scene-settled");
     publishProgress({ stage: "transformation", transitioning: true });
-    const delay = Math.max(520, scenes[activeIndex].config.hold * 1000);
-    sequenceTimer = window.setTimeout(() => {
-      sequenceTimer = 0;
+    const delay = Math.max(460, scenes[activeIndex].config.hold * 1000);
+    scheduleSequence(() => {
       if (disposed || activeIndex >= TRANSFORMATION_END) return;
       beginScene(activeIndex + 1, 1, true);
     }, delay);
@@ -614,9 +769,6 @@ const createStageRuntime = (root: HTMLElement) => {
       return;
     }
     settleStill();
-    if (automatic && TRANSFORMATION_INDICES.has(activeIndex - 1) && activeIndex < TRANSFORMATION_END) {
-      startTransformationSequence();
-    }
   };
 
   const beginScene = (nextIndex: number, direction = 1, automatic = false, restoredProgress?: number) => {
@@ -631,6 +783,7 @@ const createStageRuntime = (root: HTMLElement) => {
     const previous = scenes[previousIndex];
     const next = scenes[nextIndex];
     hydrateWindow(nextIndex);
+    prepareSceneSurface(nextIndex, direction);
     root.dataset.kisaraStageSettled = "false";
     root.classList.remove("is-final-settled");
     seal?.classList.remove("is-active");
@@ -647,16 +800,19 @@ const createStageRuntime = (root: HTMLElement) => {
     next.element.classList.add("is-active", "is-entering");
     root.classList.add("is-transitioning");
     root.classList.toggle("is-reversing", direction < 0);
-    root.dataset.transition = next.config.transition;
+    const transition = resolveTransition(previousIndex, nextIndex, direction);
+    root.dataset.transition = transition;
+    if (nextIndex === FINAL_INDEX && direction > 0) root.dataset.titlePhase = "departing";
     persistState(false);
-    publishProgress({ stage: next.config.transition, transitioning: true });
+    publishProgress({ stage: transition, transitioning: true });
 
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         if (!disposed && phase === "transition") root.classList.add("is-transition-running");
       });
     });
-    const duration = reducedMotion ? 20 : Math.max(120, next.config.transitionDuration);
+    const duration = reducedMotion ? 20 : Math.max(120, TRANSITION_DURATIONS[transition] ?? TRANSITION_DURATIONS.direct);
+    root.style.setProperty("--stage-transition-duration", `${duration}ms`);
     transitionRemaining = duration;
     transitionDeadline = performance.now() + duration;
     transitionFinalize = () => {
@@ -672,13 +828,18 @@ const createStageRuntime = (root: HTMLElement) => {
 
   const previousSceneIndex = () => {
     if (activeIndex >= TRANSFORMATION_START && activeIndex <= TRANSFORMATION_END) return KISS_INDEX;
+    if (activeIndex >= 3 && activeIndex <= 6) return 2;
+    if (activeIndex === 7) return 6;
+    if (activeIndex === 8) return 7;
+    if (activeIndex === FINAL_INDEX) return TRANSFORMATION_END;
     return Math.max(0, activeIndex - 1);
   };
 
   const advanceScrub = (direction: number, amount = 0.28) => {
     if (phase !== "scrub" || activeIndex !== SCRUB_INDEX) return false;
-    if (direction > 0 && scrubTarget >= 0.995) return beginScene(SCRUB_INDEX + 1, 1);
-    if (direction < 0 && scrubTarget <= 0.005) return beginScene(SCRUB_INDEX - 1, -1);
+    if (direction > 0 && scrubTarget >= 0.995) return true;
+    if (direction < 0 && scrubTarget <= 0.005) return beginScene(2, -1);
+    root.classList.add("has-scrub-input");
     scrubTarget = clamp(scrubTarget + direction * amount, 0, 1);
     scheduleScrub();
     return true;
@@ -723,6 +884,14 @@ const createStageRuntime = (root: HTMLElement) => {
         finishAutoVideo(true);
         return true;
       }
+      if (activeIndex === 0 || activeIndex === 1) {
+        cancelCurrentVideo();
+        return beginScene(activeIndex + 1, 1, source === "auto");
+      }
+      if (activeIndex === 3 || activeIndex === 4) {
+        cancelCurrentVideo();
+        return beginScene(activeIndex + 1, 1, source === "auto");
+      }
       finishAutoVideo(false);
       return true;
     }
@@ -750,21 +919,25 @@ const createStageRuntime = (root: HTMLElement) => {
     lastWheelTimestamp = timestamp;
     queueGestureReset();
 
-    if (wheelNeedsFreshGesture) return;
-
     if (activeIndex === SCRUB_INDEX && phase === "scrub") {
-      if (freshGesture && delta > 0 && scrubTarget >= 0.995) {
-        beginScene(SCRUB_INDEX + 1, 1);
-        return;
+      if (wheelNeedsFreshGesture) {
+        if (!freshGesture) return;
+        wheelNeedsFreshGesture = false;
+        gestureConsumed = false;
       }
       if (freshGesture && delta < 0 && scrubTarget <= 0.005) {
-        beginScene(SCRUB_INDEX - 1, -1);
+        beginScene(2, -1);
         return;
       }
-      scrubTarget = clamp(scrubTarget + delta / (coarsePointer ? 760 : 1180), 0, 1);
+      root.classList.add("has-scrub-input");
+      clearTimer(scrubCompletionTimer);
+      scrubCompletionTimer = 0;
+      scrubTarget = clamp(scrubTarget + delta / (coarsePointer ? 690 : 980), 0, 1);
       scheduleScrub();
       return;
     }
+
+    if (wheelNeedsFreshGesture) return;
 
     if (gestureConsumed) return;
     if (wheelAccumulator !== 0 && Math.sign(wheelAccumulator) !== Math.sign(delta)) wheelAccumulator = 0;
@@ -794,7 +967,9 @@ const createStageRuntime = (root: HTMLElement) => {
     if (event.touches.length !== 1 || lovebrainActive) return;
     const touch = event.touches[0];
     touchStartY = touch.clientY;
+    touchLastY = touch.clientY;
     touchId = touch.identifier;
+    touchScrubbing = false;
   };
 
   const handleTouchMove = (event: TouchEvent) => {
@@ -802,7 +977,21 @@ const createStageRuntime = (root: HTMLElement) => {
     const touch = Array.from(event.touches).find((candidate) => candidate.identifier === touchId);
     if (!touch) return;
     event.preventDefault();
-    if (foundSelfActive) requestFoundSelfPlayback();
+    if (foundSelfActive) {
+      requestFoundSelfPlayback();
+      return;
+    }
+    if (activeIndex === SCRUB_INDEX && phase === "scrub" && touchLastY !== null) {
+      const delta = touchLastY - touch.clientY;
+      touchLastY = touch.clientY;
+      if (Math.abs(delta) < 0.2) return;
+      touchScrubbing = true;
+      root.classList.add("has-scrub-input");
+      clearTimer(scrubCompletionTimer);
+      scrubCompletionTimer = 0;
+      scrubTarget = clamp(scrubTarget + delta / Math.max(360, window.innerHeight * 0.72), 0, 1);
+      scheduleScrub();
+    }
   };
 
   const handleTouchEnd = (event: TouchEvent) => {
@@ -810,8 +999,13 @@ const createStageRuntime = (root: HTMLElement) => {
     const touch = Array.from(event.changedTouches).find((candidate) => candidate.identifier === touchId);
     const startY = touchStartY;
     touchStartY = null;
+    touchLastY = null;
     touchId = null;
     if (!touch || foundSelfActive) return;
+    if (touchScrubbing) {
+      touchScrubbing = false;
+      return;
+    }
     const delta = startY - touch.clientY;
     if (Math.abs(delta) < 42) return;
     advance(Math.sign(delta), "touch");
@@ -969,10 +1163,8 @@ const createStageRuntime = (root: HTMLElement) => {
     hydrateScene(FINAL_INDEX, true);
     const finalNode = scenes[FINAL_INDEX];
     finalNode.element.classList.add("is-active");
-    if (finalNode.video instanceof HTMLVideoElement && finalNode.config.lastPoster) {
-      finalNode.video.pause();
-      finalNode.video.poster = finalNode.config.lastPoster;
-    }
+    finalNode.video?.pause();
+    setFrameState(FINAL_INDEX, "hold");
     root.classList.remove("is-transitioning", "is-transition-running", "is-reversing");
     root.removeAttribute("data-transition");
     updatePresentation();
@@ -993,12 +1185,16 @@ const createStageRuntime = (root: HTMLElement) => {
       node.element.classList.remove("is-active", "is-outgoing", "is-entering");
       if (node.video instanceof HTMLVideoElement) {
         node.video.pause();
-        if (node.config.poster) node.video.poster = node.config.poster;
         try { node.video.currentTime = 0; } catch {}
+        node.element.dataset.frameState = "first";
+      } else {
+        node.element.dataset.frameState = "still";
       }
     });
     root.dataset.kisaraStageSettled = "false";
     root.classList.remove("is-final-settled", "is-scene-settled");
+    root.classList.remove("has-scrub-input");
+    root.dataset.titlePhase = "dormant";
     seal?.classList.remove("is-active");
     activeIndex = 0;
     phase = "boot";
@@ -1041,8 +1237,11 @@ const createStageRuntime = (root: HTMLElement) => {
       }
       clearTimer(autoTimer);
       autoTimer = 0;
-      clearTimer(sequenceTimer);
-      sequenceTimer = 0;
+      if (sequenceTimer && sequenceResume) {
+        sequenceRemaining = Math.max(30, sequenceDeadline - performance.now());
+        clearTimer(sequenceTimer);
+        sequenceTimer = 0;
+      }
       if (phase === "transition" && transitionTimer && transitionFinalize) {
         transitionRemaining = Math.max(30, transitionDeadline - performance.now());
         clearTimer(transitionTimer);
@@ -1068,6 +1267,8 @@ const createStageRuntime = (root: HTMLElement) => {
       if (promise?.catch) promise.catch(() => undefined);
     } else if (autoEnabled && phase === "still") {
       queueAutoAdvance();
+    } else if (phase === "sequence" && sequenceResume && !sequenceTimer) {
+      scheduleSequence(sequenceResume, Math.max(30, sequenceRemaining));
     } else if (phase === "sequence" && activeIndex >= TRANSFORMATION_START && activeIndex < TRANSFORMATION_END) {
       startTransformationSequence();
     }
@@ -1125,22 +1326,16 @@ const createStageRuntime = (root: HTMLElement) => {
   } else if (reducedMotion) {
     activeIndex = FINAL_INDEX;
     scenes[FINAL_INDEX].element.classList.add("is-active");
-    const finalVideo = scenes[FINAL_INDEX].video;
-    if (finalVideo instanceof HTMLVideoElement && scenes[FINAL_INDEX].config.lastPoster) {
-      finalVideo.poster = scenes[FINAL_INDEX].config.lastPoster;
-    }
+    prepareSceneSurface(FINAL_INDEX, -1);
     updatePresentation();
     setFinalSettled(false);
   } else if (saved) {
     activeIndex = saved.index;
     scenes[activeIndex].element.classList.add("is-active");
-    const restoredVideo = scenes[activeIndex].video;
-    if (restoredVideo instanceof HTMLVideoElement && scenes[activeIndex].config.lastPoster) {
-      restoredVideo.poster = scenes[activeIndex].config.lastPoster;
-    }
+    prepareSceneSurface(activeIndex, activeIndex === SCRUB_INDEX ? 1 : -1);
     updatePresentation();
     if (activeIndex === SCRUB_INDEX) setupScrub(1, saved.scrubProgress);
-    else if (saved.finalSettled && activeIndex === FINAL_INDEX) setFinalSettled(false);
+    else if (activeIndex === FINAL_INDEX) setFinalSettled(false);
     else if (activeIndex >= TRANSFORMATION_START && activeIndex < TRANSFORMATION_END) {
       updatePresentation();
       startTransformationSequence();
