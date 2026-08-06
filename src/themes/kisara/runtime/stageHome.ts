@@ -189,6 +189,11 @@ const createStageRuntime = (root: HTMLElement) => {
   let minimumWatchUntil = 0;
   let autoEnabled = false;
   let autoTimer = 0;
+  let legacySequenceTimer = 0;
+  let legacySequenceDeadline = 0;
+  let legacySequenceStep: (() => void) | null = null;
+  let legacySequenceToken = 0;
+  let legacySequenceActive = false;
   let wheelAccumulator = 0;
   let wheelResetTimer = 0;
   let lastWheelAt = 0;
@@ -315,8 +320,10 @@ const createStageRuntime = (root: HTMLElement) => {
       await loadImage(node.image, eager);
       return;
     }
-    await loadImage(node.firstFrame, eager);
-    void loadImage(node.holdFrame, false);
+    await Promise.all([
+      loadImage(node.firstFrame, eager),
+      loadImage(node.holdFrame, eager)
+    ]);
     hydrateVideo(node.video, node.config.src, eager);
   };
 
@@ -340,9 +347,35 @@ const createStageRuntime = (root: HTMLElement) => {
     if (autoTimer) window.clearTimeout(autoTimer);
     if (wheelResetTimer) window.clearTimeout(wheelResetTimer);
     if (scrubCompleteTimer) window.clearTimeout(scrubCompleteTimer);
+    if (legacySequenceTimer) window.clearTimeout(legacySequenceTimer);
     autoTimer = 0;
     wheelResetTimer = 0;
     scrubCompleteTimer = 0;
+    legacySequenceTimer = 0;
+    legacySequenceDeadline = 0;
+    legacySequenceStep = null;
+    legacySequenceToken += 1;
+    legacySequenceActive = false;
+  };
+
+  const scheduleLegacySequenceStep = (delay: number, callback: () => void) => {
+    if (disposed || !legacySequenceActive) return;
+    if (legacySequenceTimer) window.clearTimeout(legacySequenceTimer);
+    const token = legacySequenceToken;
+    legacySequenceStep = callback;
+    legacySequenceDeadline = performance.now() + Math.max(0, delay);
+    const run = () => {
+      legacySequenceTimer = 0;
+      if (disposed || token !== legacySequenceToken || !legacySequenceActive) return;
+      if (document.visibilityState !== "visible") {
+        legacySequenceTimer = window.setTimeout(run, 300);
+        return;
+      }
+      legacySequenceStep = null;
+      legacySequenceDeadline = 0;
+      callback();
+    };
+    legacySequenceTimer = window.setTimeout(run, Math.max(0, delay));
   };
 
   const clearScrub = () => {
@@ -431,13 +464,13 @@ const createStageRuntime = (root: HTMLElement) => {
 
     previous.classList.add("is-outgoing");
     await frame();
-    await frame();
     if (disposed || serial !== transitionSerial) return false;
     node.element.classList.add("is-visible");
-    previous.classList.remove("is-visible");
+    await frame();
+    previous.classList.add("is-fading");
     await new Promise<void>((resolve) => window.setTimeout(resolve, transitionDuration(profile, reducedMotion)));
     if (disposed || serial !== transitionSerial) return false;
-    previous.classList.remove("is-active", "is-entering", "is-outgoing", "is-visible");
+    previous.classList.remove("is-active", "is-entering", "is-outgoing", "is-visible", "is-fading");
     node.element.classList.remove("is-entering");
     visibleStageIndex = index;
     root.classList.remove("is-transitioning");
@@ -471,9 +504,12 @@ const createStageRuntime = (root: HTMLElement) => {
       if (disposed || activeIndex !== index || phase !== "playing") return;
       setFrameState(index, "video");
     };
-    const finish = () => {
+    const finish = async () => {
       if (released || disposed || activeIndex !== index) return;
       released = true;
+      // Keep the decoded last video frame on screen until the independent hold image is ready.
+      await loadImage(node.holdFrame, true);
+      if (disposed || activeIndex !== index) return;
       setFrameState(index, "hold");
       stopCurrentVideo();
       settleStage(index === FINAL_INDEX);
@@ -489,8 +525,8 @@ const createStageRuntime = (root: HTMLElement) => {
         window.setTimeout(revealVideo, 48);
       }
     };
-    const onEnded = () => finish();
-    const onError = () => finish();
+    const onEnded = () => { void finish(); };
+    const onError = () => { void finish(); };
     const onCanPlay = () => {
       if (disposed || activeIndex !== index || phase !== "playing") return;
       const result = video.play();
@@ -632,11 +668,57 @@ const createStageRuntime = (root: HTMLElement) => {
 
   const legacyBeatForIndex = (index: number) => scenes[index]?.config.legacyBeat;
 
+  const startLegacySequence = (legacy: LegacyStageBridge, currentIndex: number) => {
+    legacySequenceActive = true;
+    const steps = [
+      { index: 8, beat: "kiss" as const },
+      { index: 9, beat: "smoke" as const },
+      { index: 10, beat: "detail" as const },
+      { index: 11, beat: "silhouette" as const },
+      { index: 12, beat: "release" as const }
+    ].filter((step) => step.index > currentIndex);
+    let stepCursor = 0;
+
+    const runStep = () => {
+      if (disposed || !legacySequenceActive || !steps[stepCursor]) return;
+      const step = steps[stepCursor++];
+      activeIndex = step.index;
+      if (step.index === 9) grantSpareKey();
+      if (step.beat === "release") {
+        legacySequenceActive = false;
+        legacyReleaseComplete = false;
+        phase = "legacy-release";
+        legacy.release?.();
+        updatePresentation();
+        persist(false);
+        publishProgress({ transitioning: true, stage: "legacy-release" });
+        setStatus("正在释放");
+        return;
+      }
+      legacy.setBeat?.(step.beat);
+      phase = "legacy";
+      updatePresentation();
+      persist(true);
+      publishProgress({ transitioning: false, stage: "legacy" });
+      setStatus(`第 ${step.index + 1} 幕`);
+      scheduleLegacySequenceStep(
+        (scenes[step.index]?.config.hold ?? 0.7) * 1000,
+        runStep
+      );
+    };
+
+    scheduleLegacySequenceStep(
+      (scenes[currentIndex]?.config.hold ?? 0.8) * 1000,
+      runStep
+    );
+  };
+
   const enterLegacy = async (index: number, { restoring = false }: { restoring?: boolean } = {}) => {
     const beat = legacyBeatForIndex(index);
     if (!beat || !isLegacyIndex(index)) return false;
     stopCurrentVideo();
     clearScrub();
+    clearTimers();
     phase = "transition";
     updatePresentation();
     publishProgress({ transitioning: true, stage: "legacy" });
@@ -672,13 +754,16 @@ const createStageRuntime = (root: HTMLElement) => {
     persist(phase === "legacy");
     publishProgress({ transitioning: phase === "legacy-release" });
     setStatus(phase === "legacy-release" ? "正在释放" : `第 ${index + 1} 幕`);
-    if (phase === "legacy") queueAutoAdvance();
+    if (phase === "legacy" && index < LEGACY_END_INDEX) {
+      startLegacySequence(legacy, index);
+    }
     return true;
   };
 
   const returnFromLegacy = async () => {
     const target = LEGACY_START_INDEX - 1;
     const legacy = runtimeWindow.__yuimiKisaraLegacyStage;
+    clearTimers();
     root.dataset.stageRenderer = "legacy-return";
     const shown = await showStageSurface(target, "legacy-return", { hold: true });
     if (!shown || disposed) return false;
@@ -776,18 +861,19 @@ const createStageRuntime = (root: HTMLElement) => {
     }
     if (phase === "legacy-release") return false;
     if (isLegacyIndex(activeIndex)) {
-      if (activeIndex === KISS_INDEX) grantSpareKey();
       if (activeIndex === LEGACY_END_INDEX) {
         if (!legacyReleaseComplete) return false;
         return enterFinal();
       }
-      return enterLegacy(activeIndex + 1);
+      // 08-13 is one automatic legacy performance, not a row of scroll stops.
+      return false;
     }
     if (activeIndex === LEGACY_START_INDEX - 1) return enterLegacy(LEGACY_START_INDEX);
     return activateStageScene(activeIndex + 1, 1, source === "auto");
   };
 
   const moveBackward = async () => {
+    if (legacySequenceActive && isLegacyIndex(activeIndex)) return returnFromLegacy();
     if (phase === "legacy-release") return enterLegacy(LEGACY_END_INDEX - 1, { restoring: true });
     if (activeIndex === FINAL_INDEX) return enterLegacy(LEGACY_END_INDEX, { restoring: true });
     if (isLegacyIndex(activeIndex)) {
@@ -971,13 +1057,17 @@ const createStageRuntime = (root: HTMLElement) => {
   const handleLegacyReleaseComplete = () => {
     if (disposed || activeIndex !== LEGACY_END_INDEX || phase !== "legacy-release") return;
     legacyReleaseComplete = true;
+    legacySequenceActive = false;
     phase = "legacy";
     inputLockUntil = performance.now() + 200;
     updatePresentation();
     persist(true);
     publishProgress({ transitioning: false, stage: "legacy-final" });
     setStatus("第 13 幕");
-    queueAutoAdvance();
+    // The restored finale owns its own timing; once it releases, continue into scene 14 automatically.
+    window.setTimeout(() => {
+      if (!disposed && activeIndex === LEGACY_END_INDEX && phase === "legacy") void enterFinal();
+    }, reducedMotion ? 20 : 280);
   };
 
   const handleVisibility = () => {
@@ -995,6 +1085,10 @@ const createStageRuntime = (root: HTMLElement) => {
       return;
     }
     if (phase === "scrub") queueScrubFrame();
+    if (legacySequenceActive && legacySequenceStep) {
+      const step = legacySequenceStep;
+      scheduleLegacySequenceStep(Math.max(0, legacySequenceDeadline - performance.now()), step);
+    }
     if (autoEnabled && (phase === "still" || phase === "legacy")) queueAutoAdvance();
   };
 

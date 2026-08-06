@@ -89,9 +89,19 @@ test("StageHome keeps FoundSelf, spare-key, and final-stage qualification on the
   assert.match(stageRuntimeSource, /const grantSpareKey = \(\) =>/);
   assert.match(stageRuntimeSource, /__yuimiKisaraLovebrainProgress\?\.markSpareKey\?\.\(\) === true/);
   assert.match(stageRuntimeSource, /__yuimiKisaraEasterLedger\?\.mark\?\.\("photo-archive"\)/);
-  assert.match(stageRuntimeSource, /if \(activeIndex === KISS_INDEX\) grantSpareKey\(\);/);
+  assert.match(stageRuntimeSource, /const startLegacySequence =/);
+  assert.match(stageRuntimeSource, /if \(step\.index === 9\) grantSpareKey\(\);/);
+  assert.match(stageRuntimeSource, /08-13 is one automatic legacy performance/);
 
   assert.match(stageRuntimeSource, /const markFinalStage = \(\) =>/);
   assert.match(stageRuntimeSource, /__yuimiKisaraLovebrainProgress\?\.markStage\?\.\("home-jealousy"\)/);
   assert.match(stageRuntimeSource, /runtimeWindow\.__yuimiKisaraLegacyStage\?\.setFinalStage\?\.\(\)/);
+});
+
+test("StageHome keeps stage media full-bleed and restores the legacy finale effects", () => {
+  assert.match(stageStyles, /\.kisara-stage-shot \{[\s\S]*margin: 0;/);
+  assert.doesNotMatch(stageStyles, /scale\(0\.958\)|scale\(0\.986\)/);
+  assert.match(stageStyles, /\.kisara-stage-shot\.is-outgoing\.is-fading/);
+  assert.match(homeSource, /setPostReleaseActive\(burstComplete && pageMode === "gate"\)/);
+  assert.match(stageRuntimeSource, /await loadImage\(node\.holdFrame, true\)/);
 });

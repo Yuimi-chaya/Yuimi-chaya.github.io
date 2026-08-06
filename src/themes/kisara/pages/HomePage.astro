@@ -12167,7 +12167,9 @@ const renderArchivedHomeSections = false;
             || burstVelocity < -0.00025
             || targetBurstProgress < burstProgress - 0.0005
         );
-        setPostReleaseActive(!externalStageControl && burstComplete && pageMode === "gate");
+        // External StageHome control still uses the proven post-release renderer.
+        // Only the legacy input/progress ownership is disabled, not the visual finale.
+        setPostReleaseActive(burstComplete && pageMode === "gate");
         if (cue) {
           const cueGuided = pageMode === "gate"
             && !chargeIntroActive

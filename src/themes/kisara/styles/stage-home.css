@@ -31,24 +31,30 @@ body.kisara-home-page .kisara-stage-viewport {
 body.kisara-home-page .kisara-stage-media {
   z-index: 1;
   overflow: hidden;
-  background: #0c0710;
+  background: transparent;
   opacity: 1;
   transition: opacity 420ms cubic-bezier(0.22, 0.73, 0.24, 1);
 }
 
-body.kisara-home-page .kisara-stage-home:is([data-stage-renderer="legacy"], [data-stage-renderer="legacy-transition"]) .kisara-stage-media {
+body.kisara-home-page .kisara-stage-home:is(
+  [data-stage-renderer="legacy"],
+  [data-stage-renderer="legacy-return"],
+  [data-stage-renderer="final-transition"]
+) .kisara-stage-media {
   opacity: 0;
 }
 
 body.kisara-home-page .kisara-stage-shot {
   position: absolute;
   inset: 0;
+  margin: 0;
   overflow: hidden;
   visibility: hidden;
   opacity: 0;
-  transform: translateZ(0) scale(1.006);
+  transform: translateZ(0) scale(1.02);
   transform-origin: center;
   will-change: opacity, transform;
+  transition: opacity 260ms cubic-bezier(0.22, 0.73, 0.24, 1), transform 360ms cubic-bezier(0.22, 0.73, 0.24, 1);
 }
 
 body.kisara-home-page .kisara-stage-shot.is-active,
@@ -75,11 +81,11 @@ body.kisara-home-page .kisara-stage-frame {
   z-index: 1;
   object-fit: cover;
   object-position: var(--stage-position, 50% 50%);
-  background: #0c0710;
+  background: transparent;
   opacity: 0;
   transform: translateZ(0);
   backface-visibility: hidden;
-  transition: opacity 100ms linear;
+  transition: none;
 }
 
 body.kisara-home-page .kisara-stage-shot[data-frame-state="still"] [data-stage-image],
@@ -119,75 +125,71 @@ body.kisara-home-page .kisara-stage-home.is-transitioning .kisara-stage-shot.is-
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="ink-clear"] .kisara-stage-shot.is-entering {
-  transform: scale(1.018) translate3d(0, 0.5%, 0);
-  transition: opacity 230ms ease-out, transform 360ms cubic-bezier(0.2, 0.76, 0.24, 1);
+  transform: scale(1.028) translate3d(0, 0.35%, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="ink-clear"] .kisara-stage-shot.is-entering.is-visible {
-  transform: scale(1.006) translate3d(0, 0, 0);
+  transform: scale(1.02) translate3d(0, 0, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="eye-settle"] .kisara-stage-shot.is-entering {
-  transform: scale(0.958) translate3d(-0.8%, 0, 0);
-  transition: opacity 280ms ease, transform 430ms cubic-bezier(0.16, 0.78, 0.2, 1);
+  transform: scale(1.026) translate3d(-0.45%, 0, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="eye-settle"] .kisara-stage-shot.is-entering.is-visible {
-  transform: scale(1.006) translate3d(0, 0, 0);
+  transform: scale(1.02) translate3d(0, 0, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="shoulder-cut"] .kisara-stage-shot.is-entering {
-  transform: scale(1.01) translate3d(1.2%, 0, 0);
-  transition: opacity 160ms linear, transform 250ms ease-out;
+  transform: scale(1.026) translate3d(0.75%, 0, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="shoulder-cut"] .kisara-stage-shot.is-entering.is-visible {
-  transform: scale(1.006) translate3d(0, 0, 0);
+  transform: scale(1.02) translate3d(0, 0, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="hand-turn"] .kisara-stage-shot.is-entering {
-  transform: scale(1.025) translate3d(0.8%, 0.4%, 0);
-  transition: opacity 220ms ease, transform 340ms cubic-bezier(0.18, 0.74, 0.22, 1);
+  transform: scale(1.032) translate3d(0.65%, 0.35%, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="hand-turn"] .kisara-stage-shot.is-entering.is-visible {
-  transform: scale(1.006) translate3d(0, 0, 0);
+  transform: scale(1.02) translate3d(0, 0, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="blade-run"] .kisara-stage-shot.is-entering {
-  transform: scale(1.012) translate3d(2.2%, 0, 0);
-  transition: opacity 150ms linear, transform 240ms cubic-bezier(0.16, 0.76, 0.24, 1);
+  transform: scale(1.028) translate3d(1.5%, 0, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="blade-run"] .kisara-stage-shot.is-entering.is-visible {
-  transform: scale(1.006) translate3d(0, 0, 0);
+  transform: scale(1.02) translate3d(0, 0, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="catch"] .kisara-stage-shot.is-entering {
-  transform: scale(0.986) translate3d(0, -0.7%, 0);
-  transition: opacity 360ms ease, transform 520ms cubic-bezier(0.16, 0.72, 0.22, 1);
+  transform: scale(1.024) translate3d(0, -0.55%, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="catch"] .kisara-stage-shot.is-entering.is-visible {
-  transform: scale(1.006) translate3d(0, 0, 0);
+  transform: scale(1.02) translate3d(0, 0, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="jealous-cut"] .kisara-stage-shot.is-entering {
-  transform: scale(1.028) translate3d(-0.9%, 0.3%, 0);
-  transition: opacity 210ms ease-out, transform 360ms cubic-bezier(0.2, 0.78, 0.22, 1);
+  transform: scale(1.032) translate3d(-0.65%, 0.25%, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="jealous-cut"] .kisara-stage-shot.is-entering.is-visible {
-  transform: scale(1.006) translate3d(0, 0, 0);
+  transform: scale(1.02) translate3d(0, 0, 0);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="legacy-return"] .kisara-stage-shot.is-entering {
-  transform: scale(1.016);
-  transition: opacity 260ms ease, transform 320ms ease;
+  transform: scale(1.026);
 }
 
 body.kisara-home-page .kisara-stage-home[data-stage-transition="legacy-return"] .kisara-stage-shot.is-entering.is-visible {
-  transform: scale(1.006);
+  transform: scale(1.02);
+}
+
+body.kisara-home-page .kisara-stage-shot.is-outgoing.is-fading {
+  opacity: 0;
 }
 
 body.kisara-home-page .kisara-stage-copy-field {
@@ -445,6 +447,18 @@ body.kisara-home-page .kisara-gate[data-kisara-external-stage-control="true"] {
 body.kisara-home-page .kisara-gate[data-kisara-external-stage-control="true"][data-kisara-stage-renderer="active"],
 body.kisara-home-page .kisara-gate[data-kisara-external-stage-control="true"].is-lovebrain-active,
 body.is-lovebrain-home-active .kisara-gate[data-kisara-external-stage-control="true"] {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Keep both renderers alive until the incoming surface is ready. */
+body.kisara-home-page:has(.kisara-stage-home[data-stage-renderer="legacy-transition"]) .kisara-gate[data-kisara-external-stage-control="true"] {
+  visibility: visible;
+  opacity: 0;
+}
+
+body.kisara-home-page:has(.kisara-stage-home[data-stage-renderer="legacy-return"]) .kisara-gate[data-kisara-external-stage-control="true"],
+body.kisara-home-page:has(.kisara-stage-home[data-stage-renderer="final-transition"]) .kisara-gate[data-kisara-external-stage-control="true"] {
   visibility: visible;
   opacity: 1;
 }
