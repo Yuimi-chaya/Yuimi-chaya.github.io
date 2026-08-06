@@ -1,0 +1,223 @@
+---
+import { Icon } from "astro-icon/components";
+import { getThemePath } from "@/core/themes/registry";
+import KisaraFoundSelfEasterEgg from "./KisaraFoundSelfEasterEgg.astro";
+import KisaraLovebrainEasterEgg from "./KisaraLovebrainEasterEgg.astro";
+
+type StageMode = "auto" | "still" | "scrub" | "sequence";
+
+const base = "/themes/kisara/assets/home-stage";
+const scenes: Array<{
+  id: string;
+  order: number;
+  mode: StageMode;
+  media: "image" | "video";
+  src: string;
+  poster?: string;
+  lastPoster?: string;
+  transition: string;
+  transitionDuration: number;
+  minWatch?: number;
+  hold?: number;
+  position: string;
+  mobilePosition: string;
+}> = [
+  { id: "01", order: 1, mode: "auto", media: "video", src: `${base}/01.mp4`, poster: `${base}/01-first.webp`, lastPoster: `${base}/01-last.webp`, transition: "opening", transitionDuration: 0, minWatch: 1.15, hold: 0.55, position: "50% 50%", mobilePosition: "48% 50%" },
+  { id: "02", order: 2, mode: "auto", media: "video", src: `${base}/02.mp4`, poster: `${base}/02-first.webp`, lastPoster: `${base}/02-last.webp`, transition: "attack-arc", transitionDuration: 920, minWatch: 0.9, hold: 0.8, position: "50% 50%", mobilePosition: "57% 50%" },
+  { id: "03", order: 3, mode: "still", media: "image", src: `${base}/03.webp`, transition: "hair-match", transitionDuration: 760, hold: 1.2, position: "50% 50%", mobilePosition: "66% 50%" },
+  { id: "04", order: 4, mode: "auto", media: "video", src: `${base}/04.mp4`, poster: `${base}/04-first.webp`, lastPoster: `${base}/04-last.webp`, transition: "warm-widen", transitionDuration: 820, minWatch: 0.7, hold: 0.55, position: "50% 50%", mobilePosition: "55% 50%" },
+  { id: "05", order: 5, mode: "auto", media: "video", src: `${base}/05.mp4`, poster: `${base}/05-first.webp`, lastPoster: `${base}/05-last.webp`, transition: "hand-match", transitionDuration: 650, minWatch: 0.45, hold: 0.35, position: "50% 50%", mobilePosition: "53% 50%" },
+  { id: "06", order: 6, mode: "scrub", media: "video", src: `${base}/06.mp4`, poster: `${base}/06-first.webp`, lastPoster: `${base}/06-last.webp`, transition: "blade-wipe", transitionDuration: 720, position: "50% 50%", mobilePosition: "54% 50%" },
+  { id: "07", order: 7, mode: "auto", media: "video", src: `${base}/07.mp4`, poster: `${base}/07-first.webp`, lastPoster: `${base}/07-last.webp`, transition: "impact-cross", transitionDuration: 430, minWatch: 1.2, hold: 0.75, position: "50% 50%", mobilePosition: "58% 50%" },
+  { id: "08", order: 8, mode: "still", media: "image", src: `${base}/08.webp`, transition: "shoulder-push", transitionDuration: 780, hold: 1.15, position: "50% 50%", mobilePosition: "53% 50%" },
+  { id: "09", order: 9, mode: "still", media: "image", src: `${base}/09.webp`, transition: "face-push", transitionDuration: 720, hold: 0.9, position: "50% 50%", mobilePosition: "53% 50%" },
+  { id: "10", order: 10, mode: "sequence", media: "image", src: `${base}/10.webp`, transition: "kiss-flare", transitionDuration: 980, hold: 0.95, position: "50% 50%", mobilePosition: "50% 50%" },
+  { id: "11", order: 11, mode: "sequence", media: "image", src: `${base}/11.webp`, transition: "smoke-fold", transitionDuration: 900, hold: 0.82, position: "50% 50%", mobilePosition: "53% 50%" },
+  { id: "12", order: 12, mode: "sequence", media: "image", src: `${base}/12.webp`, transition: "red-eye", transitionDuration: 860, hold: 0.88, position: "50% 50%", mobilePosition: "54% 50%" },
+  { id: "13", order: 13, mode: "still", media: "image", src: `${base}/13.webp`, transition: "silhouette-clear", transitionDuration: 1040, hold: 1.25, position: "50% 50%", mobilePosition: "56% 50%" },
+  { id: "14", order: 14, mode: "auto", media: "video", src: `${base}/14.mp4`, poster: `${base}/14-first.webp`, lastPoster: `${base}/14-last.webp`, transition: "blade-cut", transitionDuration: 820, minWatch: 4.5, hold: 0, position: "50% 50%", mobilePosition: "57% 50%" }
+];
+
+const copyNodes = [
+  {
+    scene: "02",
+    side: "left",
+    eyebrow: "YUIMI LAB / EPISODE 01",
+    title: "这里收着我写下、做完，也反复推翻过的东西。",
+    body: "动画、代码与个人实验，在同一个场景里留下痕迹。"
+  },
+  {
+    scene: "03",
+    side: "left",
+    eyebrow: "BLOG / NOTES",
+    title: "把踩过的坑写下来，免得下一次又从头摔一遍。",
+    body: "部署、AI、前端与那些很难一句话讲清的过程。",
+    href: getThemePath("kisara", "/blog/"),
+    action: "READ BLOG"
+  },
+  {
+    scene: "08",
+    side: "right",
+    eyebrow: "ME / MEMORY",
+    title: "关于我，也关于为什么偏偏是这些角色、画面和执念。",
+    body: "从一页档案开始，再往下看一场完整的记忆归还。",
+    href: getThemePath("kisara", "/about/"),
+    action: "OPEN PROFILE"
+  },
+  {
+    scene: "10",
+    side: "left",
+    eyebrow: "WORKS / AFTER THE SMOKE",
+    title: "烟散之后，总得留下点真的能用、能玩的东西。",
+    body: "项目、插件和做过的实验，不靠结果页替它们说话。",
+    href: getThemePath("kisara", "/projects/"),
+    action: "SEE WORKS"
+  },
+  {
+    scene: "13",
+    side: "right",
+    eyebrow: "GAMES / INSTINCT",
+    title: "偶尔把规则交给直觉，再看看它会闹成什么样。",
+    body: "这里的游戏不负责安静，正如这一刻也不负责。",
+    href: getThemePath("kisara", "/games/"),
+    action: "ENTER GAMES"
+  }
+] as const;
+
+const manifest = scenes.map(({ id, order, mode, media, src, poster, lastPoster, transition, transitionDuration, minWatch, hold }) => ({
+  id,
+  order,
+  mode,
+  media,
+  src,
+  poster,
+  lastPoster,
+  transition,
+  transitionDuration,
+  minWatch: minWatch ?? 0,
+  hold: hold ?? 0.6
+}));
+---
+
+<section
+  class="kisara-stage-home"
+  data-kisara-stage-home
+  data-kisara-gate
+  data-kisara-scroll-active="true"
+  data-kisara-scroll-progress="0"
+  data-kisara-scroll-stage="opening"
+  data-kisara-scroll-guided="false"
+  data-kisara-scroll-transitioning="false"
+  data-kisara-stage-settled="false"
+  aria-label="Kisara 第一集互动演出"
+>
+  <script type="application/json" data-kisara-stage-manifest set:html={JSON.stringify(manifest)}></script>
+
+  <div class="kisara-stage-viewport">
+    <div class="kisara-stage-media" aria-hidden="true">
+      {scenes.map((scene) => (
+        <figure
+          class:list={["kisara-stage-shot", `is-shot-${scene.id}`]}
+          data-stage-scene={scene.id}
+          data-stage-mode={scene.mode}
+          style={`--stage-position:${scene.position};--stage-mobile-position:${scene.mobilePosition}`}
+        >
+          {
+            scene.media === "video" ? (
+              <video
+                data-stage-video
+                data-src={scene.src}
+                data-first-poster={scene.poster}
+                data-last-poster={scene.lastPoster}
+                poster={scene.poster}
+                muted
+                playsinline
+                preload="none"
+              ></video>
+            ) : (
+              <img data-stage-image data-src={scene.src} alt="" decoding="async" />
+            )
+          }
+          <span class="kisara-stage-shot-grade"></span>
+        </figure>
+      ))}
+    </div>
+
+    <div class="kisara-stage-transition-field" aria-hidden="true">
+      <span class="kisara-stage-attack-arc"></span>
+      <span class="kisara-stage-blade-wipe"></span>
+      <span class="kisara-stage-warm-field"></span>
+      <span class="kisara-stage-contract-chain"><i></i><i></i><i></i></span>
+      <span class="kisara-stage-impact-cross"><i></i><b></b></span>
+      <span class="kisara-stage-kiss-flare"></span>
+      <span class="kisara-stage-smoke-field"><i></i><i></i><i></i></span>
+      <span class="kisara-stage-red-eye"><i></i><i></i></span>
+    </div>
+
+    <div class="kisara-stage-copy-field">
+      {copyNodes.map((copy) => (
+        <article class:list={["kisara-stage-copy", `is-${copy.side}`]} data-stage-copy={copy.scene}>
+          <p>{copy.eyebrow}</p>
+          <h2>{copy.title}</h2>
+          <div class="kisara-stage-copy-foot">
+            <span>{copy.body}</span>
+            {copy.href && (
+              <a href={copy.href}>
+                {copy.action}
+                <Icon name="tabler:external-link" aria-hidden="true" />
+              </a>
+            )}
+          </div>
+        </article>
+      ))}
+    </div>
+
+    <div class="kisara-stage-title" data-stage-title aria-hidden="true">
+      <span>KISARA</span>
+      <small>CONTRACT / 03</small>
+    </div>
+
+    <div class="kisara-stage-seal" data-stage-seal aria-hidden="true">
+      <span>KISARA</span>
+      <small>JEALOUSY ROUTE</small>
+    </div>
+
+    <div class="kisara-stage-chrome">
+      <div class="kisara-stage-counter" aria-hidden="true">
+        <span data-stage-index-label>01</span>
+        <i></i>
+        <span>14</span>
+      </div>
+
+      <div class="kisara-stage-actions">
+        <button type="button" data-stage-auto aria-pressed="false" aria-label="自动播放演出" title="自动播放">
+          <Icon name="tabler:player-play" aria-hidden="true" />
+          <span>AUTO</span>
+        </button>
+        <button type="button" data-stage-skip aria-label="跳至演出结尾" title="跳过演出">
+          <Icon name="tabler:player-skip-forward" aria-hidden="true" />
+          <span>SKIP</span>
+        </button>
+        <button type="button" data-stage-replay aria-label="重新播放演出" title="重新播放" hidden>
+          <Icon name="tabler:refresh" aria-hidden="true" />
+          <span>REPLAY</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="kisara-stage-scrub" data-stage-scrub aria-hidden="true">
+      <i></i><span></span><b></b>
+    </div>
+
+    <p class="sr-only" data-stage-status aria-live="polite"></p>
+  </div>
+
+  <KisaraFoundSelfEasterEgg />
+  <KisaraLovebrainEasterEgg />
+</section>
+
+<script>
+  import { initKisaraStageHomeLifecycle } from "../runtime/stageHome";
+
+  initKisaraStageHomeLifecycle();
+</script>

@@ -175,7 +175,7 @@ const themedNotFoundRedirectScript = `(() => {
         const storageKey = "yuimi-kisara-lovebrain-v1";
         const eventName = "yuimi:kisara-lovebrain-progress";
         const validPages = new Set(["games", "blog", "projects", "about"]);
-        const stageIds = new Set(["chibi-jealousy", "chibi-apple"]);
+        const stageIds = new Set(["chibi-jealousy", "chibi-apple", "home-jealousy"]);
         const requiredPages = ["games", "blog", "projects", "about"];
         if (window.__yuimiKisaraLovebrainProgress?.version === version) return;
 
@@ -554,18 +554,20 @@ const themedNotFoundRedirectScript = `(() => {
       <slot />
     </main>
 
-    <footer class="kisara-footer">
-      <KisaraChibiStage />
-      <div class="kisara-footer-wave" aria-hidden="true"><span></span><i></i><i></i><i></i><i></i><i></i><span></span></div>
-      <div class="kisara-footer-meta">
-        <span class="kisara-footer-signal"><i aria-hidden="true"></i>CONTRACT CHANNEL 03 / ONLINE</span>
-        <div>
-          <a href={profileIdentity.github} target="_blank" rel="noreferrer"><Icon name="tabler:brand-github" aria-hidden="true" />GITHUB</a>
-          <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer"><Icon name="tabler:brand-bilibili" aria-hidden="true" />BILIBILI</a>
+    {!isHome && (
+      <footer class="kisara-footer">
+        <KisaraChibiStage />
+        <div class="kisara-footer-wave" aria-hidden="true"><span></span><i></i><i></i><i></i><i></i><i></i><span></span></div>
+        <div class="kisara-footer-meta">
+          <span class="kisara-footer-signal"><i aria-hidden="true"></i>CONTRACT CHANNEL 03 / ONLINE</span>
+          <div>
+            <a href={profileIdentity.github} target="_blank" rel="noreferrer"><Icon name="tabler:brand-github" aria-hidden="true" />GITHUB</a>
+            <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer"><Icon name="tabler:brand-bilibili" aria-hidden="true" />BILIBILI</a>
+          </div>
+          <span>© 2026 喝益胃 / YUIMI LAB</span>
         </div>
-        <span>© 2026 喝益胃 / YUIMI LAB</span>
-      </div>
-    </footer>
+      </footer>
+    )}
 
     <div
       class="kisara-scrollbar is-idle"

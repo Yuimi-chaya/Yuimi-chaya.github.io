@@ -265,7 +265,9 @@ import { Icon } from "astro-icon/components";
 
     const foundSelfBlocking = () => document.documentElement.dataset.kisaraFoundSelfEntry === "pending"
       || document.querySelector("[data-kisara-gate].is-found-self-active, [data-kisara-gate].is-found-self-leaving") !== null;
-    const isHomeGate = () => document.body?.dataset.kisaraPage === "home" && window.scrollY <= 2;
+    const isHomeGate = () => document.body?.dataset.kisaraPage === "home"
+      && window.scrollY <= 2
+      && document.querySelector("[data-kisara-gate]")?.dataset.kisaraStageSettled === "true";
     const isEligible = () => Boolean(progressApi?.isEligible?.()) && !foundSelfBlocking();
     const setStatus = (value) => {
       if (status) status.textContent = value;
@@ -609,7 +611,7 @@ import { Icon } from "astro-icon/components";
       if (progressFrame) window.cancelAnimationFrame(progressFrame);
       progressFrame = 0;
       root.classList.add("is-transporting");
-      setStatus("DISSOLVE / 001");
+      setStatus("DISSOLVE / FINAL FRAME");
       syncPinchVideo(false);
       syncLoopVideo(embraceVideo, false);
       const started = homeApi()?.leaveToOpening?.();
