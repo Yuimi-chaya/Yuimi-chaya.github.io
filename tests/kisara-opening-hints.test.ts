@@ -9,53 +9,67 @@ const readSource = (relativePath: string) => readFileSync(
 );
 
 const layoutSource = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
-const openingSource = readSource("src/themes/kisara/components/KisaraOpeningMemoryScene.astro");
-const homeCssSource = readSource("src/themes/kisara/styles/home.css");
-const chibiSource = readSource("src/themes/kisara/components/KisaraChibiStage.astro");
+const stageHomeSource = readSource("src/themes/kisara/components/KisaraStageHome.astro");
+const stageRuntimeSource = readSource("src/themes/kisara/runtime/stageHome.ts");
 const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
-const audioSource = readSource("src/themes/kisara/components/KisaraAudioControl.astro");
-const gamesSource = readSource("src/themes/kisara/pages/GamesPage.astro");
 
-const hintIds = [
-  "chibi-jealousy",
-  "chibi-apple",
-  "found-self",
-  "photo-archive",
-  "memory-return",
-  "game-shake"
-];
+test("StageHome declares all 14 ordered assets and mixed playback groups", () => {
+  const scenePattern = /\{ id: "(0[1-9]|1[0-4])", order: (\d+), mode: "(auto|still|scrub|sequence)", media: "(image|video)", src: `\$\{base\}\/(0[1-9]|1[0-4])\.(mp4|webp)`/g;
+  const scenes = [...stageHomeSource.matchAll(scenePattern)].map((match) => ({
+    id: match[1],
+    order: Number(match[2]),
+    mode: match[3],
+    media: match[4],
+    assetId: match[5]
+  }));
+  const expectedIds = Array.from({ length: 14 }, (_, index) => String(index + 1).padStart(2, "0"));
 
-test("Kisara opening hints use one versioned tab-session ledger", () => {
-  assert.match(layoutSource, /yuimi-kisara-opening-hints-v1/);
-  assert.match(layoutSource, /yuimi:kisara-opening-hint-achieved/);
-  for (const id of hintIds) {
-    assert.match(layoutSource, new RegExp(`"${id}"`), `${id} must be allowlisted`);
-    const matches = openingSource.match(new RegExp(`data-kisara-opening-hint="${id}"`, "g")) ?? [];
-    assert.equal(matches.length, 1, `${id} must own exactly one opening hint`);
+  assert.equal(scenes.length, 14);
+  assert.deepEqual(scenes.map((scene) => scene.id), expectedIds);
+  assert.deepEqual(scenes.map((scene) => scene.order), Array.from({ length: 14 }, (_, index) => index + 1));
+  assert.deepEqual(scenes.map((scene) => scene.assetId), expectedIds);
+  assert.equal(scenes.filter((scene) => scene.mode === "scrub").length, 1);
+  assert.equal(scenes.find((scene) => scene.id === "06")?.mode, "scrub");
+  assert.equal(scenes.find((scene) => scene.id === "06")?.media, "video");
+  assert.deepEqual(
+    scenes.filter((scene) => scene.id >= "10" && scene.id <= "12").map((scene) => scene.mode),
+    ["sequence", "sequence", "sequence"]
+  );
+  assert.equal(scenes.find((scene) => scene.id === "13")?.mode, "still");
+
+  const transformationStart = stageRuntimeSource.match(/const TRANSFORMATION_START = (\d+);/);
+  const transformationEnd = stageRuntimeSource.match(/const TRANSFORMATION_END = (\d+);/);
+  assert.equal(Number(transformationStart?.[1]) + 1, 10);
+  assert.equal(Number(transformationEnd?.[1]) + 1, 13);
+  assert.match(stageRuntimeSource, /const TRANSFORMATION_INDICES = new Set\(\[9, 10, 11\]\)/);
+});
+
+test("Kisara Home is assembled from StageHome and keeps the footer off Home", () => {
+  assert.match(homeSource, /KisaraStageHome/);
+  assert.match(homeSource, /stage-home\.css\?url/);
+  for (const obsoleteReference of [
+    /\.\.\/styles\/home\.css/,
+    /KisaraFridgeScene/,
+    /KisaraOpeningMemoryScene/
+  ]) {
+    assert.doesNotMatch(homeSource, obsoleteReference);
   }
+
+  assert.match(layoutSource, /\{!isHome && \(\s*<footer class="kisara-footer">/);
+  assert.equal((layoutSource.match(/<footer\b/g) ?? []).length, 1);
 });
 
-test("Each opening hint is marked only from its accepted trigger path", () => {
-  assert.match(chibiSource, /mark\("chibi-jealousy"\)/);
-  assert.match(chibiSource, /mark\("chibi-apple"\)/);
-  assert.match(homeSource, /mark\("found-self"\)/);
-  assert.match(homeSource, /mark\("photo-archive"\)/);
-  assert.match(audioSource, /mark\("memory-return"\)/);
-  assert.match(gamesSource, /mark\("game-shake"\)/);
+test("StageHome keeps the accepted found-self, spare-key, and jealousy triggers", () => {
+  assert.match(stageRuntimeSource, /const hasFoundSelfTicket =/);
+  assert.match(stageRuntimeSource, /ticket\?\.source === "me-games"/);
+  assert.match(stageRuntimeSource, /document\.documentElement\.dataset\.kisaraFoundSelfEntry = "pending"/);
+  assert.match(stageRuntimeSource, /startFoundSelf\(\)/);
 
-  const gamePlayIndex = gamesSource.indexOf("Promise.resolve(shakeEasterVideo.play())");
-  const gameHintIndex = gamesSource.indexOf('mark("game-shake")', gamePlayIndex);
-  assert.ok(gamePlayIndex >= 0 && gameHintIndex > gamePlayIndex);
+  assert.match(stageRuntimeSource, /const grantSpareKey = \(\) =>/);
+  assert.match(stageRuntimeSource, /__yuimiKisaraLovebrainProgress\?\.markSpareKey\?\.\(\) === true/);
+  assert.match(stageRuntimeSource, /__yuimiKisaraEasterLedger\?\.mark\?\.\("photo-archive"\)/);
+  assert.match(stageRuntimeSource, /if \(activeIndex === KISS_INDEX\) grantSpareKey\(\);/);
 
-  const rewardIndex = homeSource.indexOf("const completeReward = (autoplay: boolean) => {");
-  const solvedIndex = homeSource.indexOf('setState("solved")', rewardIndex);
-  const photoHintIndex = homeSource.indexOf('mark("photo-archive")', solvedIndex);
-  assert.ok(rewardIndex >= 0 && solvedIndex > rewardIndex && photoHintIndex > solvedIndex);
-});
-
-test("Opening hint strike keeps the Pulse-style layered motion and reduced-motion fallback", () => {
-  assert.match(homeCssSource, /kisara-opening-hint-strike/);
-  assert.match(homeCssSource, /clip-path: polygon/);
-  assert.match(homeCssSource, /is-hint-achieved/);
-  assert.match(homeCssSource, /prefers-reduced-motion: reduce/);
+  assert.match(stageRuntimeSource, /const markFinalStage = \(\) =>/);
+  assert.match(stageRuntimeSource, /__yuimiKisaraLovebrainProgress\?\.markStage\?\.\("home-jealousy"\)/);
 });

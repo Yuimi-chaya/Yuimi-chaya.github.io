@@ -111,8 +111,8 @@ const normalizeWheelDelta = (event: WheelEvent) => {
 
 const createStageRuntime = (root: HTMLElement) => {
   const runtimeWindow = window as KisaraWindow;
-  runtimeWindow.__yuimiKisaraStageHomeCleanup?.();
   if (root.dataset.bound === "true") return;
+  runtimeWindow.__yuimiKisaraStageHomeCleanup?.();
   root.dataset.bound = "true";
 
   const manifest = readManifest(root);
@@ -157,6 +157,9 @@ const createStageRuntime = (root: HTMLElement) => {
   let activeIndex = 0;
   let phase: StagePhase = "boot";
   let transitionTimer = 0;
+  let transitionDeadline = 0;
+  let transitionRemaining = 0;
+  let transitionFinalize: (() => void) | null = null;
   let sequenceTimer = 0;
   let autoTimer = 0;
   let titleTimer = 0;
@@ -172,6 +175,7 @@ const createStageRuntime = (root: HTMLElement) => {
   let wheelAccumulator = 0;
   let lastWheelTimestamp = 0;
   let gestureConsumed = false;
+  let wheelNeedsFreshGesture = false;
   let inputGuardUntil = 0;
   let touchStartY: number | null = null;
   let touchId: number | null = null;
@@ -279,6 +283,9 @@ const createStageRuntime = (root: HTMLElement) => {
     clearTimer(autoTimer);
     clearTimer(titleTimer);
     transitionTimer = 0;
+    transitionDeadline = 0;
+    transitionRemaining = 0;
+    transitionFinalize = null;
     sequenceTimer = 0;
     autoTimer = 0;
     titleTimer = 0;
@@ -320,6 +327,7 @@ const createStageRuntime = (root: HTMLElement) => {
   const resetGesture = () => {
     wheelAccumulator = 0;
     gestureConsumed = false;
+    wheelNeedsFreshGesture = false;
     gestureTimer = 0;
   };
 
@@ -453,14 +461,21 @@ const createStageRuntime = (root: HTMLElement) => {
     };
 
     const play = () => {
+      if (disposed || activeIndex !== localIndex || phase !== "playing") return;
       const promise = video.play();
       if (promise?.catch) promise.catch(() => {
         if (disposed || activeIndex !== localIndex) return;
         setStatus("点击或滚动以继续播放");
       });
     };
+    const onCanPlay = () => play();
+    const previousCleanup = currentVideoCleanup;
+    currentVideoCleanup = () => {
+      video.removeEventListener("canplay", onCanPlay);
+      previousCleanup?.();
+    };
     if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) play();
-    else video.addEventListener("canplay", play, { once: true, signal });
+    else video.addEventListener("canplay", onCanPlay, { once: true, signal });
   };
 
   const renderScrub = () => {
@@ -608,7 +623,10 @@ const createStageRuntime = (root: HTMLElement) => {
     if (disposed || nextIndex < 0 || nextIndex >= scenes.length) return false;
     if (phase === "transition") return false;
     cancelTransientWork();
-    resetGesture();
+    wheelAccumulator = 0;
+    gestureConsumed = true;
+    wheelNeedsFreshGesture = true;
+    queueGestureReset();
     const previousIndex = activeIndex;
     const previous = scenes[previousIndex];
     const next = scenes[nextIndex];
@@ -639,7 +657,16 @@ const createStageRuntime = (root: HTMLElement) => {
       });
     });
     const duration = reducedMotion ? 20 : Math.max(120, next.config.transitionDuration);
-    transitionTimer = window.setTimeout(() => finalizeTransition(nextIndex, direction, automatic, restoredProgress), duration);
+    transitionRemaining = duration;
+    transitionDeadline = performance.now() + duration;
+    transitionFinalize = () => {
+      transitionTimer = 0;
+      transitionDeadline = 0;
+      transitionRemaining = 0;
+      transitionFinalize = null;
+      finalizeTransition(nextIndex, direction, automatic, restoredProgress);
+    };
+    transitionTimer = window.setTimeout(transitionFinalize, duration);
     return true;
   };
 
@@ -722,6 +749,8 @@ const createStageRuntime = (root: HTMLElement) => {
     const freshGesture = timestamp - lastWheelTimestamp > 210;
     lastWheelTimestamp = timestamp;
     queueGestureReset();
+
+    if (wheelNeedsFreshGesture) return;
 
     if (activeIndex === SCRUB_INDEX && phase === "scrub") {
       if (freshGesture && delta > 0 && scrubTarget >= 0.995) {
@@ -1006,22 +1035,41 @@ const createStageRuntime = (root: HTMLElement) => {
       const video = scenes[activeIndex]?.video;
       resumeVideoAfterVisibility = phase === "playing" && video instanceof HTMLVideoElement && !video.paused;
       video?.pause();
-      if (foundSelfActive && foundSelfVideo instanceof HTMLVideoElement) foundSelfVideo.pause();
+      if (foundSelfActive && foundSelfVideo instanceof HTMLVideoElement) {
+        foundSelfVideo.pause();
+        foundSelfPlaying = false;
+      }
       clearTimer(autoTimer);
       autoTimer = 0;
+      clearTimer(sequenceTimer);
+      sequenceTimer = 0;
+      if (phase === "transition" && transitionTimer && transitionFinalize) {
+        transitionRemaining = Math.max(30, transitionDeadline - performance.now());
+        clearTimer(transitionTimer);
+        transitionTimer = 0;
+      }
       return;
     }
     hydrateWindow(activeIndex);
     if (foundSelfActive) requestFoundSelfPlayback();
-    if (resumeVideoAfterVisibility && phase === "playing") {
+    if (phase === "transition" && transitionFinalize && !transitionTimer) {
+      transitionDeadline = performance.now() + Math.max(30, transitionRemaining);
+      transitionTimer = window.setTimeout(transitionFinalize, Math.max(30, transitionRemaining));
+    }
+    const activeVideo = scenes[activeIndex]?.video;
+    if (
+      phase === "playing"
+      && activeVideo instanceof HTMLVideoElement
+      && activeVideo.paused
+      && !activeVideo.ended
+    ) {
       resumeVideoAfterVisibility = false;
-      const video = scenes[activeIndex]?.video;
-      if (video instanceof HTMLVideoElement) {
-        const promise = video.play();
-        if (promise?.catch) promise.catch(() => undefined);
-      }
+      const promise = activeVideo.play();
+      if (promise?.catch) promise.catch(() => undefined);
     } else if (autoEnabled && phase === "still") {
       queueAutoAdvance();
+    } else if (phase === "sequence" && activeIndex >= TRANSFORMATION_START && activeIndex < TRANSFORMATION_END) {
+      startTransformationSequence();
     }
     publishProgress();
   };
@@ -1083,7 +1131,7 @@ const createStageRuntime = (root: HTMLElement) => {
     }
     updatePresentation();
     setFinalSettled(false);
-  } else if (saved?.settled) {
+  } else if (saved) {
     activeIndex = saved.index;
     scenes[activeIndex].element.classList.add("is-active");
     const restoredVideo = scenes[activeIndex].video;
@@ -1093,6 +1141,10 @@ const createStageRuntime = (root: HTMLElement) => {
     updatePresentation();
     if (activeIndex === SCRUB_INDEX) setupScrub(1, saved.scrubProgress);
     else if (saved.finalSettled && activeIndex === FINAL_INDEX) setFinalSettled(false);
+    else if (activeIndex >= TRANSFORMATION_START && activeIndex < TRANSFORMATION_END) {
+      updatePresentation();
+      startTransformationSequence();
+    }
     else settleStill();
   } else {
     activeIndex = 0;

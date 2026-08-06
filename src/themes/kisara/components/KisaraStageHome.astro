@@ -31,7 +31,7 @@ const scenes: Array<{
   { id: "07", order: 7, mode: "auto", media: "video", src: `${base}/07.mp4`, poster: `${base}/07-first.webp`, lastPoster: `${base}/07-last.webp`, transition: "impact-cross", transitionDuration: 430, minWatch: 1.2, hold: 0.75, position: "50% 50%", mobilePosition: "58% 50%" },
   { id: "08", order: 8, mode: "still", media: "image", src: `${base}/08.webp`, transition: "shoulder-push", transitionDuration: 780, hold: 1.15, position: "50% 50%", mobilePosition: "53% 50%" },
   { id: "09", order: 9, mode: "still", media: "image", src: `${base}/09.webp`, transition: "face-push", transitionDuration: 720, hold: 0.9, position: "50% 50%", mobilePosition: "53% 50%" },
-  { id: "10", order: 10, mode: "sequence", media: "image", src: `${base}/10.webp`, transition: "kiss-flare", transitionDuration: 980, hold: 0.95, position: "50% 50%", mobilePosition: "50% 50%" },
+  { id: "10", order: 10, mode: "sequence", media: "image", src: `${base}/10.webp`, transition: "kiss-flare", transitionDuration: 980, hold: 1.65, position: "50% 50%", mobilePosition: "50% 50%" },
   { id: "11", order: 11, mode: "sequence", media: "image", src: `${base}/11.webp`, transition: "smoke-fold", transitionDuration: 900, hold: 0.82, position: "50% 50%", mobilePosition: "53% 50%" },
   { id: "12", order: 12, mode: "sequence", media: "image", src: `${base}/12.webp`, transition: "red-eye", transitionDuration: 860, hold: 0.88, position: "50% 50%", mobilePosition: "54% 50%" },
   { id: "13", order: 13, mode: "still", media: "image", src: `${base}/13.webp`, transition: "silhouette-clear", transitionDuration: 1040, hold: 1.25, position: "50% 50%", mobilePosition: "56% 50%" },
@@ -98,6 +98,21 @@ const manifest = scenes.map(({ id, order, mode, media, src, poster, lastPoster, 
   hold: hold ?? 0.6
 }));
 ---
+
+<script is:inline data-astro-rerun>
+  (() => {
+    const ticketKey = "yuimi-kisara-found-self-ticket-v1";
+    let ticket = null;
+    try {
+      ticket = JSON.parse(sessionStorage.getItem(ticketKey) ?? "null");
+    } catch {}
+    const requested = ticket?.source === "me-games"
+      && Number.isFinite(ticket?.createdAt)
+      && Date.now() - ticket.createdAt < 30_000;
+    if (requested) document.documentElement.dataset.kisaraFoundSelfEntry = "pending";
+    else delete document.documentElement.dataset.kisaraFoundSelfEntry;
+  })();
+</script>
 
 <section
   class="kisara-stage-home"

@@ -9,7 +9,7 @@ const readSource = (relativePath: string) => readFileSync(
 );
 
 const layoutSource = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
-const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
+const stageRuntimeSource = readSource("src/themes/kisara/runtime/stageHome.ts");
 const audioSource = readSource("src/themes/kisara/components/KisaraAudioControl.astro");
 const componentSource = readSource("src/themes/kisara/components/KisaraLovebrainEasterEgg.astro");
 
@@ -40,12 +40,26 @@ test("Lovebrain progress is an independent tab-session facade", () => {
   }
 });
 
-test("Home 003 gives the semantic spare-key grant before dispatch", () => {
-  const grantIndex = homeSource.indexOf("const completeReward = (autoplay: boolean) => {");
-  const spareKeyIndex = homeSource.indexOf("markSpareKey", grantIndex);
-  const dispatchIndex = homeSource.indexOf('new CustomEvent("yuimi:kisara-secret-audio"', grantIndex);
-  assert.ok(grantIndex >= 0);
-  assert.ok(spareKeyIndex > grantIndex && dispatchIndex > spareKeyIndex);
+test("StageHome exposes the final-settled Lovebrain host API", () => {
+  assert.match(
+    stageRuntimeSource,
+    /__yuimiKisaraHomeLovebrain = \{\s*activate: activateLovebrain,\s*leaveToOpening: leaveLovebrain\s*\}/
+  );
+
+  const activateStart = stageRuntimeSource.indexOf("const activateLovebrain = () => {");
+  const activateEnd = stageRuntimeSource.indexOf("const leaveLovebrain = () => {", activateStart);
+  const activateSource = stageRuntimeSource.slice(activateStart, activateEnd);
+  assert.match(activateSource, /activeIndex !== FINAL_INDEX/);
+  assert.match(activateSource, /root\.dataset\.kisaraStageSettled !== "true"/);
+
+  const leaveStart = stageRuntimeSource.indexOf("const leaveLovebrain = () => {");
+  const leaveEnd = stageRuntimeSource.indexOf("runtimeWindow.__yuimiKisaraHomeLovebrain", leaveStart);
+  const leaveSource = stageRuntimeSource.slice(leaveStart, leaveEnd);
+  assert.match(leaveSource, /new CustomEvent\("yuimi:kisara-lovebrain-opening-covered"\)/);
+
+  assert.match(componentSource, /const isHomeGate = \(\) =>/);
+  assert.match(componentSource, /dataset\.kisaraStageSettled === "true"/);
+  assert.match(componentSource, /const visible = isEligible\(\) && isHomeGate\(\)/);
 });
 
 test("Lovebrain component owns its ED assets and interactive input", () => {
@@ -111,55 +125,37 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   assert.match(componentSource, /window\.__yuimiKisaraLovebrainFinishOpening = finishOpening/);
 });
 
-test("Lovebrain uses a dedicated page mode and bridge transport", () => {
-  assert.match(homeSource, /let lovebrainActive = false/);
-  assert.match(homeSource, /pageMode = "lovebrain"/);
-  assert.match(homeSource, /const enterLovebrainNextPage =/);
-  assert.match(homeSource, /window\.__yuimiKisaraHomeLovebrain/);
-  assert.match(homeSource, /activate: activateLovebrain/);
-  assert.match(homeSource, /leaveToOpening: leaveLovebrainToOpening/);
-  assert.match(homeSource, /is-lovebrain-active/);
-  assert.match(homeSource, /is-lovebrain-home-active/);
-  assert.match(homeSource, /pageMode = "next"/);
+test("StageHome keeps gate progress and lifecycle restoration around Lovebrain", () => {
+  assert.match(stageRuntimeSource, /new CustomEvent\("kisara:gate-progress"/);
+  assert.match(stageRuntimeSource, /document\.addEventListener\("astro:before-swap"/);
+  assert.match(stageRuntimeSource, /runtimeWindow\.__yuimiKisaraStageHomeCleanup\?\.\(\)/);
+  assert.match(stageRuntimeSource, /lifecycle\.abort\(\)/);
 
-  const forwardStart = homeSource.indexOf("const enterLovebrainNextPage =");
-  const forwardEnd = homeSource.indexOf("const completeGateReturn =", forwardStart);
-  const forwardSource = homeSource.slice(forwardStart, forwardEnd);
-  const finalizeStart = homeSource.indexOf("const finalizeLovebrainExit =");
-  const finalizeEnd = homeSource.indexOf("const enterLovebrainNextPage =", finalizeStart);
-  const finalizeSource = homeSource.slice(finalizeStart, finalizeEnd);
-  assert.ok(finalizeStart >= 0 && finalizeEnd > finalizeStart, "Lovebrain exit finalizer must remain discoverable");
-  assert.doesNotMatch(forwardSource, /activateOpeningBridgePortal/);
-  assert.doesNotMatch(forwardSource, /startOpeningBridgeDissolve/);
-  assert.doesNotMatch(forwardSource, /resetGateState/);
-  assert.doesNotMatch(forwardSource, /scheduleWarningWarmup/);
-  assert.match(forwardSource, /lovebrainExitCommitted = true/);
-  assert.match(forwardSource, /lovebrainActive = false/);
-  assert.match(forwardSource, /finalizeLovebrainExit\(\)/);
-  assert.match(finalizeSource, /document\.body\.classList\.remove\("is-lovebrain-home-active"\)/);
-  assert.match(finalizeSource, /startSpaceLens\(\)/);
-  assert.match(finalizeSource, /startTitleLens\(\)/);
-  assert.match(finalizeSource, /__yuimiKisaraLovebrainFinishOpening/);
+  assert.match(stageRuntimeSource, /const handleVisibility = \(\) =>/);
+  assert.match(stageRuntimeSource, /resumeVideoAfterVisibility = phase === "playing"/);
+  assert.match(stageRuntimeSource, /phase === "playing"\s*&& activeVideo instanceof HTMLVideoElement/);
+  assert.match(stageRuntimeSource, /activeVideo\.play\(\)/);
+  assert.match(stageRuntimeSource, /phase === "transition" && transitionTimer && transitionFinalize/);
+  assert.match(stageRuntimeSource, /transitionTimer = window\.setTimeout\(transitionFinalize/);
 
-  const returnStart = homeSource.indexOf("const returnLovebrainToGate =");
-  const returnEnd = homeSource.indexOf("const isHomeSectionSnapEnabled =", returnStart);
-  const returnSource = homeSource.slice(returnStart, returnEnd);
-  assert.doesNotMatch(returnSource, /activateOpeningBridgePortal/);
-  assert.doesNotMatch(returnSource, /startOpeningTitleBridgeDissolve/);
-  assert.doesNotMatch(returnSource, /resetGateState/);
-  assert.doesNotMatch(returnSource, /scheduleWarningWarmup/);
-  assert.match(returnSource, /yuimi:kisara-lovebrain-return-start/);
-  assert.match(homeSource, /if \(lovebrainExitCommitted\) finalizeLovebrainExit\(\)/);
-});
+  const runtimeStart = stageRuntimeSource.indexOf("const createStageRuntime =");
+  const boundGuard = stageRuntimeSource.indexOf('if (root.dataset.bound === "true") return;', runtimeStart);
+  const priorCleanup = stageRuntimeSource.indexOf("runtimeWindow.__yuimiKisaraStageHomeCleanup?.();", runtimeStart);
+  assert.ok(runtimeStart >= 0 && boundGuard > runtimeStart && priorCleanup > boundGuard);
 
-test("Default Home runtime loops and renderers are stopped while Lovebrain owns the gate", () => {
-  assert.match(homeSource, /if \(lovebrainActive \|\| pageMode === "lovebrain"\) return;/);
-  assert.match(homeSource, /if \(!energyContext \|\| lovebrainActive \|\| pageMode !== "gate"/);
-  assert.match(homeSource, /spaceLensRenderer\?\.destroy\(\)/);
-  assert.match(homeSource, /titleLensRenderer\?\.destroy\(\)/);
-  assert.match(homeSource, /cancelBurstWarmup\(\)/);
-  assert.match(homeSource, /cancelWarningWarmupSchedule\(\)/);
-  assert.match(homeSource, /finishWarningPresentationWarmup\(false, true\)/);
+  const autoVideoStart = stageRuntimeSource.indexOf("const startAutoVideo =");
+  const autoVideoEnd = stageRuntimeSource.indexOf("const renderScrub =", autoVideoStart);
+  const autoVideoSource = stageRuntimeSource.slice(autoVideoStart, autoVideoEnd);
+  assert.match(autoVideoSource, /activeIndex !== localIndex \|\| phase !== "playing"/);
+  assert.match(autoVideoSource, /video\.removeEventListener\("canplay", onCanPlay\)/);
+
+  const reducedStart = stageRuntimeSource.indexOf("} else if (reducedMotion) {");
+  const reducedEnd = stageRuntimeSource.indexOf("} else if (saved)", reducedStart);
+  const reducedSource = stageRuntimeSource.slice(reducedStart, reducedEnd);
+  assert.match(reducedSource, /activeIndex = FINAL_INDEX/);
+  assert.match(reducedSource, /scenes\[FINAL_INDEX\]\.element\.classList\.add\("is-active"\)/);
+  assert.match(reducedSource, /setFinalSettled\(false\)/);
+  assert.match(stageRuntimeSource, /saved\.finalSettled && activeIndex === FINAL_INDEX/);
 });
 
 test("Audio suspension releases only the final owner", () => {
