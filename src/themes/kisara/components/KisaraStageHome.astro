@@ -1,8 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
 import { getThemePath } from "@/core/themes/registry";
-import KisaraFoundSelfEasterEgg from "./KisaraFoundSelfEasterEgg.astro";
-import KisaraLovebrainEasterEgg from "./KisaraLovebrainEasterEgg.astro";
 
 type StageMode = "auto" | "still" | "scrub" | "sequence";
 
@@ -51,25 +49,11 @@ const manifest = scenes.map(({ id, order, mode, media, src, poster, lastPoster, 
 }));
 ---
 
-<script is:inline data-astro-rerun>
-  (() => {
-    const ticketKey = "yuimi-kisara-found-self-ticket-v1";
-    let ticket = null;
-    try {
-      ticket = JSON.parse(sessionStorage.getItem(ticketKey) ?? "null");
-    } catch {}
-    const requested = ticket?.source === "me-games"
-      && Number.isFinite(ticket?.createdAt)
-      && Date.now() - ticket.createdAt < 30_000;
-    if (requested) document.documentElement.dataset.kisaraFoundSelfEntry = "pending";
-    else delete document.documentElement.dataset.kisaraFoundSelfEntry;
-  })();
-</script>
-
 <section
   class="kisara-stage-home"
   data-kisara-stage-home
-  data-kisara-gate
+  data-stage-prologue-only="true"
+  data-stage-handoff="idle"
   data-kisara-scroll-active="true"
   data-kisara-scroll-progress="0"
   data-kisara-scroll-stage="opening"
@@ -77,7 +61,7 @@ const manifest = scenes.map(({ id, order, mode, media, src, poster, lastPoster, 
   data-kisara-scroll-transitioning="false"
   data-kisara-stage-settled="false"
   data-title-phase="dormant"
-  aria-label="Kisara 第一集互动演出"
+  aria-label="Kisara 第一集前奏"
 >
   <script type="application/json" data-kisara-stage-manifest set:html={JSON.stringify(manifest)}></script>
 
@@ -211,21 +195,17 @@ const manifest = scenes.map(({ id, order, mode, media, src, poster, lastPoster, 
       </div>
     </div>
 
-    <div class="kisara-stage-scrub" data-stage-scrub aria-label="场景推进控制">
-      <div class="kisara-stage-scrub-cue">
-        <Icon name="tabler:hand-finger" aria-hidden="true" />
-        <span class="is-desktop">滚动推进这一击</span>
-        <span class="is-touch">上下拖动推进这一击</span>
+    <div class="kisara-stage-scrub" data-stage-scrub aria-label="继续推进这一击">
+      <div class="kisara-stage-scrub-cue" aria-hidden="true">
+        <i></i><i></i><i></i>
       </div>
       <div class="kisara-stage-scrub-track"><i></i><span></span><b></b></div>
-      <a href={getThemePath("kisara", "/games/")}>GAMES / INPUT</a>
+      <span class="sr-only">向下滚动或上下拖动以继续推进这一击。</span>
     </div>
 
     <p class="sr-only" data-stage-status aria-live="polite"></p>
   </div>
 
-  <KisaraFoundSelfEasterEgg />
-  <KisaraLovebrainEasterEgg />
 </section>
 
 <script>

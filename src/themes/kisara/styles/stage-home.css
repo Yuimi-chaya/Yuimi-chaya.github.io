@@ -2339,3 +2339,153 @@ html[data-kisara-found-self-entry] .kisara-found-self,
     opacity: 0.16;
   }
 }
+
+/* The new Episode 1 prologue deliberately hands its last held frame to the proven legacy gate. */
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] {
+  position: fixed;
+  z-index: 36;
+  inset: 0;
+  width: 100vw;
+  height: 100svh;
+  min-height: 100svh;
+  transition: opacity 260ms ease, visibility 260ms step-end;
+}
+
+html[data-kisara-found-self-entry="pending"] body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-camera-field,
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-copy-field,
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-title-performance,
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-seal,
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-counter,
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] [data-stage-replay] {
+  display: none !important;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-shot.is-entering,
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-shot.is-outgoing {
+  clip-path: none !important;
+  filter: none !important;
+  transform: translateZ(0) scale(1.001) !important;
+  transition: opacity 180ms linear !important;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"].is-transition-running .kisara-stage-shot.is-entering {
+  opacity: 1;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"].is-transition-running .kisara-stage-shot.is-outgoing {
+  opacity: 0;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-actions {
+  right: clamp(18px, 3.4vw, 48px);
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: auto;
+  z-index: 20;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-scrub {
+  right: auto;
+  bottom: max(34px, env(safe-area-inset-bottom));
+  left: 50%;
+  display: block;
+  width: min(300px, calc(100vw - 96px));
+  height: 34px;
+  opacity: 0;
+  transform: translate3d(-50%, 12px, 0);
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"][data-stage-mode="scrub"] .kisara-stage-scrub {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0);
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-scrub-cue {
+  position: absolute;
+  right: 50%;
+  bottom: 13px;
+  display: flex;
+  gap: 7px;
+  align-items: flex-end;
+  color: #fff5f8;
+  transform: translateX(50%);
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-scrub-cue i {
+  display: block;
+  width: 2px;
+  height: 11px;
+  background: currentColor;
+  box-shadow: 0 0 10px rgba(255, 172, 204, 0.8);
+  animation: kisara-stage-prologue-pulse 980ms ease-in-out infinite;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-scrub-cue i:nth-child(2) {
+  height: 17px;
+  animation-delay: 100ms;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-scrub-cue i:nth-child(3) {
+  height: 11px;
+  animation-delay: 200ms;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"].has-scrub-input .kisara-stage-scrub-cue {
+  opacity: 0;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-scrub-track {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-scrub-track b {
+  width: 6px;
+  height: 6px;
+  border: 0;
+  border-radius: 0;
+  background: #fff7f9;
+}
+
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"].is-legacy-found-self-waiting,
+body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"].is-legacy-handoff-complete {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.kisara-home-page .kisara-gate[data-kisara-legacy-only="true"] {
+  z-index: 2;
+  opacity: 1;
+  transition: opacity 260ms ease, visibility 260ms step-end;
+}
+
+body.kisara-home-page .kisara-gate[data-kisara-legacy-only="true"][data-kisara-legacy-ready="false"]:not(.is-found-self-active) {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-kisara-found-self-entry="pending"] body.kisara-home-page .kisara-gate[data-kisara-legacy-only="true"] {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@keyframes kisara-stage-prologue-pulse {
+  0%, 100% { opacity: 0.22; transform: translateY(4px); }
+  48% { opacity: 1; transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.kisara-home-page .kisara-stage-home[data-stage-prologue-only="true"] .kisara-stage-scrub-cue i {
+    animation: none;
+  }
+}

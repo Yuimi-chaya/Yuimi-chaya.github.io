@@ -1,5 +1,5 @@
 type StageMode = "auto" | "still" | "scrub" | "sequence";
-type StagePhase = "boot" | "transition" | "playing" | "still" | "scrub" | "sequence" | "final" | "found-self" | "lovebrain";
+type StagePhase = "boot" | "transition" | "playing" | "still" | "scrub" | "sequence" | "handoff" | "final" | "found-self" | "lovebrain";
 
 interface StageSceneConfig {
   id: string;
@@ -56,6 +56,7 @@ type KisaraWindow = Window & typeof globalThis & {
 const STORAGE_KEY = "yuimi-kisara-stage-home-v1";
 const FOUND_SELF_TICKET_KEY = "yuimi-kisara-found-self-ticket-v1";
 const SCRUB_INDEX = 5;
+const PROLOGUE_HANDOFF_INDEX = 6;
 const KISS_INDEX = 8;
 const TRANSFORMATION_START = 9;
 const TRANSFORMATION_END = 12;
@@ -201,6 +202,7 @@ const createStageRuntime = (root: HTMLElement) => {
   const { signal } = lifecycle;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+  const prologueOnly = root.dataset.stagePrologueOnly === "true";
 
   let disposed = false;
   let activeIndex = 0;
@@ -244,6 +246,7 @@ const createStageRuntime = (root: HTMLElement) => {
   let foundSelfSuspended = false;
   let lovebrainActive = false;
   let resumeVideoAfterVisibility = false;
+  let legacyHandoffPending = false;
 
   const clearTimer = (timer: number) => {
     if (timer) window.clearTimeout(timer);
@@ -466,6 +469,32 @@ const createStageRuntime = (root: HTMLElement) => {
         grantId: `home-contract-${Date.now()}-${Math.round(performance.now())}`
       }
     }));
+  };
+
+  const handoffToLegacyGate = (skip = false) => {
+    if (!prologueOnly || legacyHandoffPending || disposed) return false;
+    cancelTransientWork();
+    autoEnabled = false;
+    autoButton?.setAttribute("aria-pressed", "false");
+    const autoLabel = autoButton?.querySelector("span");
+    if (autoLabel) autoLabel.textContent = "AUTO";
+    legacyHandoffPending = true;
+    phase = "handoff";
+    root.dataset.stageHandoff = "pending";
+    root.classList.add("is-legacy-handoff-pending");
+    root.classList.remove("is-scene-settled", "is-final-settled");
+    setStatus(skip ? "已跳转至主演出" : "主演出准备中");
+    publishProgress({ active: false, stage: "legacy-handoff", guided: false, transitioning: true });
+    window.dispatchEvent(new CustomEvent("yuimi:kisara-stage-legacy-start", { detail: { skip } }));
+    return true;
+  };
+
+  const settleLegacyHandoff = () => {
+    if (!prologueOnly || !legacyHandoffPending || disposed) return;
+    root.dataset.stageHandoff = "complete";
+    root.classList.remove("is-legacy-handoff-pending");
+    root.classList.add("is-legacy-handoff-complete");
+    publishProgress({ active: false, stage: "legacy", guided: false, transitioning: false });
   };
 
   const setFinalSettled = (qualified: boolean) => {
@@ -850,6 +879,7 @@ const createStageRuntime = (root: HTMLElement) => {
       disposed
       || foundSelfActive
       || lovebrainActive
+      || phase === "handoff"
       || phase === "transition"
       || phase === "sequence"
       || performance.now() < inputGuardUntil
@@ -896,6 +926,10 @@ const createStageRuntime = (root: HTMLElement) => {
       return true;
     }
 
+    if (prologueOnly && activeIndex === PROLOGUE_HANDOFF_INDEX && direction > 0) {
+      return handoffToLegacyGate();
+    }
+
     if (direction < 0) {
       if (activeIndex <= 0) return false;
       return beginScene(previousSceneIndex(), -1);
@@ -907,6 +941,7 @@ const createStageRuntime = (root: HTMLElement) => {
 
   const handleWheel = (event: WheelEvent) => {
     if (disposed || lovebrainActive || document.body.classList.contains("is-lovebrain-scene-visible")) return;
+    if (prologueOnly && phase === "handoff" && root.dataset.stageHandoff === "complete") return;
     event.preventDefault();
     if (foundSelfActive) {
       requestFoundSelfPlayback();
@@ -952,6 +987,7 @@ const createStageRuntime = (root: HTMLElement) => {
 
   const handleKeydown = (event: KeyboardEvent) => {
     if (disposed || lovebrainActive || foundSelfActive || event.defaultPrevented) return;
+    if (prologueOnly && phase === "handoff" && root.dataset.stageHandoff === "complete") return;
     const target = event.target;
     if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
     const forward = event.key === "ArrowDown" || event.key === "PageDown" || event.key === " " || event.key === "Enter";
@@ -964,6 +1000,7 @@ const createStageRuntime = (root: HTMLElement) => {
   };
 
   const handleTouchStart = (event: TouchEvent) => {
+    if (prologueOnly && phase === "handoff" && root.dataset.stageHandoff === "complete") return;
     if (event.touches.length !== 1 || lovebrainActive) return;
     const touch = event.touches[0];
     touchStartY = touch.clientY;
@@ -973,6 +1010,7 @@ const createStageRuntime = (root: HTMLElement) => {
   };
 
   const handleTouchMove = (event: TouchEvent) => {
+    if (prologueOnly && phase === "handoff" && root.dataset.stageHandoff === "complete") return;
     if (touchStartY === null || touchId === null || lovebrainActive) return;
     const touch = Array.from(event.touches).find((candidate) => candidate.identifier === touchId);
     if (!touch) return;
@@ -995,6 +1033,7 @@ const createStageRuntime = (root: HTMLElement) => {
   };
 
   const handleTouchEnd = (event: TouchEvent) => {
+    if (prologueOnly && phase === "handoff" && root.dataset.stageHandoff === "complete") return;
     if (touchStartY === null || touchId === null || lovebrainActive) return;
     const touch = Array.from(event.changedTouches).find((candidate) => candidate.identifier === touchId);
     const startY = touchStartY;
@@ -1116,6 +1155,7 @@ const createStageRuntime = (root: HTMLElement) => {
   const activateLovebrain = () => {
     if (
       disposed
+      || prologueOnly
       || lovebrainActive
       || foundSelfActive
       || activeIndex !== FINAL_INDEX
@@ -1146,12 +1186,18 @@ const createStageRuntime = (root: HTMLElement) => {
     return true;
   };
 
-  runtimeWindow.__yuimiKisaraHomeLovebrain = {
-    activate: activateLovebrain,
-    leaveToOpening: leaveLovebrain
-  };
+  if (!prologueOnly) {
+    runtimeWindow.__yuimiKisaraHomeLovebrain = {
+      activate: activateLovebrain,
+      leaveToOpening: leaveLovebrain
+    };
+  }
 
   const skipToEnd = () => {
+    if (prologueOnly) {
+      handoffToLegacyGate(true);
+      return;
+    }
     if (foundSelfActive) {
       leaveFoundSelf();
       return;
@@ -1281,6 +1327,7 @@ const createStageRuntime = (root: HTMLElement) => {
   root.addEventListener("touchmove", handleTouchMove, { passive: false, signal });
   root.addEventListener("touchend", handleTouchEnd, { passive: true, signal });
   document.addEventListener("visibilitychange", handleVisibility, { signal });
+  window.addEventListener("yuimi:kisara-legacy-ready", settleLegacyHandoff, { signal });
   autoButton?.addEventListener("click", toggleAuto, { signal });
   skipButton?.addEventListener("click", skipToEnd, { signal });
   replayButton?.addEventListener("click", replay, { signal });
@@ -1310,16 +1357,34 @@ const createStageRuntime = (root: HTMLElement) => {
   };
   runtimeWindow.__yuimiKisaraStageHomeCleanup = cleanup;
 
-  const saved = readSavedState(scenes.length);
-  const foundSelfRequested = hasFoundSelfTicket();
+  const saved = prologueOnly ? null : readSavedState(scenes.length);
+  const foundSelfRequested = !prologueOnly && hasFoundSelfTicket();
+  const waitingForLegacyFoundSelf = prologueOnly
+    && document.documentElement.dataset.kisaraFoundSelfEntry === "pending";
   if (foundSelfRequested) document.documentElement.dataset.kisaraFoundSelfEntry = "pending";
-  hydrateWindow(foundSelfRequested ? 0 : saved?.index ?? 0);
+  hydrateWindow(foundSelfRequested || waitingForLegacyFoundSelf ? 0 : saved?.index ?? 0);
 
   window.requestAnimationFrame(() => {
     runtimeWindow.__yuimiKisaraHomeBootController?.markReady?.();
   });
 
-  if (foundSelfRequested) {
+  const startPrologue = () => {
+    activeIndex = 0;
+    phase = "boot";
+    root.dataset.stageHandoff = "idle";
+    root.classList.remove("is-legacy-found-self-waiting", "is-legacy-handoff-pending", "is-legacy-handoff-complete");
+    beginScene(0, 1);
+  };
+
+  if (prologueOnly && waitingForLegacyFoundSelf) {
+    root.classList.add("is-legacy-found-self-waiting");
+    root.dataset.stageHandoff = "waiting";
+    updatePresentation();
+    publishProgress({ active: false, progress: 0, stage: "found-self", guided: true, transitioning: false });
+    window.addEventListener("yuimi:kisara-legacy-found-self-finished", startPrologue, { once: true, signal });
+  } else if (prologueOnly) {
+    startPrologue();
+  } else if (foundSelfRequested) {
     scenes[0].element.classList.add("is-active");
     updatePresentation();
     startFoundSelf();

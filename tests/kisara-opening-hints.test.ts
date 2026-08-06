@@ -44,7 +44,7 @@ test("StageHome declares all 14 ordered assets and mixed playback groups", () =>
   assert.match(stageRuntimeSource, /const TRANSFORMATION_INDICES = new Set\(\[9, 10, 11\]\)/);
 });
 
-test("StageHome v2 groups beats, owns video frames, and explains the only scrub scene", () => {
+test("StageHome keeps the prologue handoff, owns video frames, and uses a nonverbal scrub cue", () => {
   for (const group of ["intercept", "contract", "intimacy", "transformation", "jealousy"]) {
     assert.match(stageHomeSource, new RegExp(`group: "${group}"`));
   }
@@ -66,10 +66,14 @@ test("StageHome v2 groups beats, owns video frames, and explains the only scrub 
   }
   assert.doesNotMatch(stageRuntimeSource, /config\.transition/);
 
-  assert.match(stageHomeSource, /滚动推进这一击/);
-  assert.match(stageHomeSource, /上下拖动推进这一击/);
+  assert.match(stageHomeSource, /data-stage-prologue-only="true"/);
+  assert.match(stageHomeSource, /aria-label="继续推进这一击"/);
+  assert.match(stageHomeSource, /class="kisara-stage-scrub-cue" aria-hidden="true">\s*<i><\/i><i><\/i><i><\/i>/);
   assert.match(stageRuntimeSource, /scrubTarget >= 0\.999/);
   assert.match(stageRuntimeSource, /beginScene\(SCRUB_INDEX \+ 1, 1, true\)/);
+  assert.match(stageRuntimeSource, /const PROLOGUE_HANDOFF_INDEX = 6/);
+  assert.match(stageRuntimeSource, /yuimi:kisara-stage-legacy-start/);
+  assert.match(stageRuntimeSource, /yuimi:kisara-legacy-ready/);
 
   assert.match(stageRuntimeSource, /if \(activeIndex < TRANSFORMATION_START\) root\.dataset\.titlePhase = "dormant"/);
   assert.match(stageRuntimeSource, /activeIndex === 9\) root\.dataset\.titlePhase = "awakening"/);
@@ -80,16 +84,15 @@ test("StageHome v2 groups beats, owns video frames, and explains the only scrub 
   );
 });
 
-test("Kisara Home is assembled from StageHome and keeps the footer off Home", () => {
+test("Kisara Home composes the new prologue over the restored legacy gate and keeps the footer off Home", () => {
   assert.match(homeSource, /KisaraStageHome/);
+  assert.match(homeSource, /\.\.\/styles\/home\.css/);
   assert.match(homeSource, /stage-home\.css\?url/);
-  for (const obsoleteReference of [
-    /\.\.\/styles\/home\.css/,
-    /KisaraFridgeScene/,
-    /KisaraOpeningMemoryScene/
-  ]) {
-    assert.doesNotMatch(homeSource, obsoleteReference);
-  }
+  assert.match(homeSource, /data-kisara-legacy-only="true"/);
+  assert.match(homeSource, /data-kisara-legacy-ready="false"/);
+  assert.match(homeSource, /const renderArchivedHomeSections = false/);
+  assert.match(homeSource, /yuimi:kisara-stage-legacy-start/);
+  assert.match(homeSource, /yuimi:kisara-legacy-ready/);
 
   assert.match(layoutSource, /\{!isHome && \(\s*<footer class="kisara-footer">/);
   assert.equal((layoutSource.match(/<footer\b/g) ?? []).length, 1);
