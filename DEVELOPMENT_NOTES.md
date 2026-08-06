@@ -98,6 +98,47 @@
 - Current reverse-opening handoff: the gate visual shell remains fixed for the whole handoff and is clipped by the gate section after leaving the first viewport; scene breathing belongs to an inset inner camera. Returning from `001` keeps the live portal open while the section moves down, then resets the blue gate only after the section has fully left the viewport. Do not restore the superseded `is-returning-to-gate` overlay or predictive wheel-delta cleanup.
 - Current Me-to-Home secret checkpoint (`2026-07-29`): viewing Profile through Games without entering Pulse, then navigating directly to the Kisara Home route, consumes a 30-second same-tab ticket and replaces the normal gate with the one-shot `found-self` memory interlude. The interlude owns its input/audio lifecycle and exits through the existing Home smooth-scroll path; its ticket is consumed before playback, so returning upward always restores the normal blue gate.
 
+## Kisara Project-Level Design Audit (`2026-08-06`)
+
+### Audit Scope And Evidence
+
+- This is a durable design-review snapshot, not an approved implementation plan. The review was read-only against `main` at `7bf3934`, used the LottieFiles motion-design framework, mblode agent-skills UI/animation/typography guidance, and Impeccable critique methodology without globally installing any Skill. Two browser reviews covered representative desktop/mobile states, and an independent source/media review challenged the product direction. The transient Impeccable detector attempt timed out after 124 seconds, was stopped, and produced no detector result.
+- Objective inventory at review time: the Kisara theme contained roughly 145 CSS keyframe declarations, 247 animation declarations, and 142 public image/video/audio assets totaling about 124.47 MB. These are inventory/density indicators, not proof that all effects or assets execute or download simultaneously.
+
+### Durable Conclusions
+
+- Kisara already has a strong, non-template visual identity. Its next quality ceiling is not reached by adding more effects; it requires stronger editorial selection, motion hierarchy, visual rest, and clearer page responsibilities.
+- The recurring systemic issue is the absence of a calm post-performance state. Home sections, inner-page entrances, persistent HUD, audio state, particles, breathing, tracks, and text motion frequently remain active together, so content has too few stable reading windows. A future motion budget should usually allow one primary action, one interaction response, and one low-frequency ambient effect per viewport.
+- The Home gate remains the flagship interaction and should not be homogenized away, but captured wheel/touch input still violates ordinary scrolling expectations. Input acknowledgement, reliable escape paths, and return-visit behavior must remain explicit.
+- Home `001` easter hints still compete with the source scene lettering and the site introduction. Further contrast work should manage the background/source-text hierarchy while hints are active instead of only increasing text opacity or adding an opaque card.
+- Blog has one of the strongest visual openings, and its four-character selection should not be removed merely to simplify the page. The real issue is that this interaction has little semantic relationship to the primarily technical articles below it; future refinement should either connect character viewpoints to content grouping/recommendation or clearly treat the stage as a short atmosphere piece.
+- Article presentation is visually cleaner than the surrounding pages, but long technical reading still inherits persistent Kisara HUD/audio/route behavior. A protected quiet-reading state should reduce nonessential loops and preserve native text selection, copying, and browser interaction.
+- Works uses an appropriate cooking image and should not replace it merely because the current composition has faults. The verified problems are clipped hero copy, unstable contrast/exposure, and the cooking game delaying visible evidence of real projects, responsibilities, and results.
+- Home `002` has semantically appropriate refrigerator media and draggable objects, but the interaction goal is weakly communicated. Home `003` has strong investigation media but too many simultaneous metadata, progress, chapter, and instruction layers around the actual camera hotspot.
+- Mobile pressure comes mainly from fixed navigation, audio controls, small HUD labels, crop-sensitive character media, and full-screen effects competing for the reduced viewport. Mobile should not merely scale the desktop composition down.
+- Friends currently uses an emotionally suitable ED/final-scene atmosphere, but the visual-performance intensity exceeds the information density while its link slots remain placeholders.
+- Media governance and runtime concentration are now design risks: public assets mix formal runtime files with QA/candidate/generated variants, while `KisaraLayout.astro`, `home.css`, and large page files own many unrelated visual/state responsibilities. This increases the likelihood that a small visual refinement causes lifecycle, route, or stale-state regressions.
+
+### User-Confirmed Additional Critical Findings
+
+- Although Home sections repeatedly feature the same character and each section is individually well supplied with media and effects, they do not yet form a convincing shared narrative or conceptual progression. `001`, `002`, `003`, `004`, the footer stage, and the gate can feel like strong but unrelated fragments placed next to one another. The solution does not need to force a single-episode narrative like the gate or Me; it does need a readable connective idea, escalation, or chapter relationship so the page feels intentionally authored rather than assembled east-to-west from independent scenes.
+- The site relies on damped, smooth, viewport-to-viewport section movement close to ten times. Repeating the same transition grammar creates interaction fatigue and makes otherwise different scenes feel mechanically identical. At the same time, falling back to ordinary notch-by-notch wheel scrolling is also a poor fit for these large visual sections and feels slow, sticky, and imprecise. This scrolling conflict is a first-class product problem, not a minor tuning issue.
+- A later redesign should distinguish performance scenes from reading/content sections instead of applying one scroll model everywhere. Candidate direction: reserve section locking/snap for a small number of flagship scenes; use accumulated intent and momentum so one deliberate gesture advances a scene rather than requiring many wheel notches; keep ordinary continuous scrolling for denser reading areas; preserve natural trackpad/touch behavior. These are audit directions only and require a separate interaction design decision before implementation.
+
+### Prioritized Future Review Order
+
+1. Repair verified clarity defects without changing the underlying product direction: Works hero copy, `001` hint hierarchy, mobile Game viewport pressure, `003` action hierarchy, and Friends placeholder presentation.
+2. Define the Home narrative spine and classify every section as flagship performance, interactive vignette, reading/content, or ambient bridge.
+3. Design a mixed scrolling grammar and motion budget before tuning more damping constants or adding another section-level transition.
+4. Establish quiet-reading and native-browser behavior for articles, then reduce persistent inner-page motion and HUD density.
+5. Reconcile Blog character semantics, Works project evidence, media governance, and route/runtime ownership.
+
+### Non-Decisions
+
+- Do not interpret this audit as approval to remove the Home gate, Blog character stage, Me episode sequence, semantic mini-games, easter eggs, custom context menu, or the Kisara pink/blue identity. Each needs targeted evaluation rather than blanket deletion.
+- Do not solve cross-section inconsistency by forcing every page or section back into one repeated card, HUD, title, or transition template. The goal is shared grammar with distinct page identities.
+- No visual or interaction implementation was approved during this audit; user selection and prioritization are still required before code changes.
+
 ## Architecture Decision
 
 - Shared layer: content collections, article queries, site metadata, category labels, SEO inputs, and theme registry/path helpers.
