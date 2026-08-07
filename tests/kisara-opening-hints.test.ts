@@ -36,7 +36,8 @@ test("Home exposes six authored chapters with semantic media instead of a legacy
     "contract-kiss.mp4",
     "transformation.mp4",
     "jealousy-slash.mp4",
-    "jealousy-blackface.mp4"
+    "jealousy-blackface.mp4",
+    "jealousy-action-hold.webp"
   ]) {
     assert.match(stageHomeSource, new RegExp(asset.replaceAll(".", "\\.")), `${asset} must be declared`);
   }
@@ -81,7 +82,8 @@ test("Chapter-local beats implement eye, sword, loop, scrub, montage, kiss, and 
     "roll-hold",
     "kiss-hold",
     "transform-hold",
-    "diagonal-reveal",
+    "action-hold",
+    "blackface-reveal",
     "blackface-hold"
   ]) {
     assert.match(stageRuntimeSource, new RegExp(`"${beat}"`), `${beat} must be implemented`);
@@ -94,9 +96,10 @@ test("Chapter-local beats implement eye, sword, loop, scrub, montage, kiss, and 
 
 test("Sword transitions and chapter boundaries have distinct visual grammars", () => {
   assert.match(stageStyles, /\.is-rescue-reveal \{[\s\S]*clip-path:/);
-  assert.match(stageStyles, /\.is-jealousy-reveal \{[\s\S]*clip-path:/);
+  assert.match(stageStyles, /\.kisara-jealousy-split \{[\s\S]*clip-path:/);
   assert.match(stageStyles, /data-rescue-beat="slash-playing"/);
-  assert.match(stageStyles, /data-jealousy-beat="blackface-playing"/);
+  assert.match(stageStyles, /data-jealousy-beat="action-hold"/);
+  assert.match(stageStyles, /data-jealousy-beat="blackface-reveal"/);
   assert.match(stageStyles, /data-chapter-transition="request-counter"/);
   assert.match(stageStyles, /data-chapter-transition="counter-contract"/);
   assert.match(stageStyles, /data-chapter-transition="contract-transform"/);

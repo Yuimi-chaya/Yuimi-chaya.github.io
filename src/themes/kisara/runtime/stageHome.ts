@@ -58,6 +58,9 @@ const CHAPTER_IDS: ChapterId[] = [
 const STORAGE_KEY = "yuimi-kisara-home-chapters-v1";
 const WHEEL_THRESHOLD = 42;
 const GESTURE_GAP = 180;
+const JEALOUSY_SETUP_AT = 2.72;
+const JEALOUSY_ACTION_HOLD_AT = 1.08;
+const JEALOUSY_BLACKFACE_AT = 1.25;
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const nextFrame = () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
@@ -334,6 +337,10 @@ class HomeChapterController {
     options: {
       onTime?: (time: number, duration: number) => void;
       onReveal?: () => void;
+      startAt?: number;
+      endAt?: number;
+      holdOnFinish?: boolean;
+      preserveFrame?: boolean;
     } = {}
   ) {
     const layer = this.layers.get(name);
@@ -346,8 +353,8 @@ class HomeChapterController {
     const token = ++this.playbackToken;
     const video = layer.video;
     video.pause();
-    try { video.currentTime = 0; } catch {}
-    this.setLayerFrame(name, "first");
+    try { video.currentTime = Math.max(0, options.startAt ?? 0); } catch {}
+    if (!options.preserveFrame) this.setLayerFrame(name, "first");
 
     return await new Promise<boolean>((resolve) => {
       let finished = false;
@@ -362,6 +369,11 @@ class HomeChapterController {
         timeFrame = 0;
         if (!current()) return;
         options.onTime?.(video.currentTime, Number.isFinite(video.duration) ? video.duration : 0);
+        if (typeof options.endAt === "number" && video.currentTime >= options.endAt) {
+          video.pause();
+          finish(true);
+          return;
+        }
         if (!video.paused && !video.ended) timeFrame = window.requestAnimationFrame(tick);
       };
       const reveal = () => {
@@ -386,7 +398,7 @@ class HomeChapterController {
         finished = true;
         cleanup();
         if (success && this.epoch === epoch) {
-          this.setLayerFrame(name, "hold");
+          this.setLayerFrame(name, options.holdOnFinish === false ? "video" : "hold");
           if (!revealed) options.onReveal?.();
         }
         if (this.playbackCleanup === cancel) this.playbackCleanup = null;
@@ -503,7 +515,11 @@ class HomeChapterController {
     if (id === "request") chapter.dataset.requestBeat = value;
     if (id === "counterattack") chapter.dataset.counterBeat = value;
     if (id === "jealousy") chapter.dataset.jealousyBeat = value;
-    this.root.dataset.stageState = value.includes("playing") || value.includes("transition") ? "playing" : value.includes("scrub") ? "scrub" : "settled";
+    this.root.dataset.stageState = value.includes("playing") || value.includes("transition") || value.includes("covering") || value.includes("reveal")
+      ? "playing"
+      : value.includes("scrub")
+        ? "scrub"
+        : "settled";
     this.publishProgress(false);
   }
 
@@ -559,7 +575,10 @@ class HomeChapterController {
       return;
     }
     this.setBeat("slash-playing");
-    const ended = await this.playLayer("jealousy-slash");
+    const ended = await this.playLayer("jealousy-slash", {
+      endAt: JEALOUSY_SETUP_AT,
+      holdOnFinish: false
+    });
     if (ended && this.isCurrent(epoch)) this.settle("slash-hold", "刀锋待发");
   }
 
@@ -589,21 +608,47 @@ class HomeChapterController {
   private async startJealousyReveal() {
     if (this.currentId() !== "jealousy") return false;
     const epoch = this.beginOperation();
-    await this.hydrateLayer("jealousy-blackface", true);
+    await Promise.all([
+      this.hydrateLayer("jealousy-slash", true),
+      this.hydrateLayer("jealousy-action", true),
+      this.hydrateLayer("jealousy-blackface", true)
+    ]);
     if (!this.isCurrent(epoch)) return false;
-    this.setBeat("diagonal-reveal");
+
+    this.setBeat("swing-playing");
+    const swung = await this.playLayer("jealousy-slash", {
+      startAt: JEALOUSY_SETUP_AT,
+      holdOnFinish: false,
+      preserveFrame: true
+    });
+    if (!swung || !this.isCurrent(epoch)) return false;
+
+    this.setBeat("action-playing");
+    const actionHeld = await this.playLayer("jealousy-action", {
+      endAt: JEALOUSY_ACTION_HOLD_AT
+    });
+    if (!actionHeld || !this.isCurrent(epoch)) return false;
+    this.setBeat("action-hold");
+
     let revealIncoming = () => undefined;
     const incomingReady = new Promise<void>((resolve) => { revealIncoming = resolve; });
-    const playback = this.playLayer("jealousy-blackface", { onReveal: revealIncoming });
+    const playback = this.playLayer("jealousy-blackface", {
+      startAt: JEALOUSY_BLACKFACE_AT,
+      onReveal: revealIncoming
+    });
     await incomingReady;
     if (!this.isCurrent(epoch)) return false;
-    this.setBeat("blackface-playing");
+    this.setBeat("blackface-reveal");
+    if (await this.wait(560, epoch)) {
+      if (this.isCurrent(epoch) && this.beat === "blackface-reveal") this.setBeat("blackface-playing");
+    }
     const ended = await playback;
     if (ended && this.isCurrent(epoch)) this.setFinalHold();
     return ended;
   }
 
   private setFinalHold() {
+    this.setLayerFrame("jealousy-action", "hold");
     this.setLayerFrame("jealousy-blackface", "hold");
     this.settle("blackface-hold", "演出结束");
     this.host.dataset.kisaraStageSettled = "true";
@@ -781,10 +826,22 @@ class HomeChapterController {
       this.settle("transform-hold", "变身定格");
       return;
     }
-    this.setLayerFrame("jealousy-slash", "hold");
-    this.setLayerFrame("jealousy-blackface", beat === "blackface-hold" ? "hold" : "first");
-    if (beat === "blackface-hold") this.setFinalHold();
-    else this.settle("slash-hold", "刀锋待发");
+    if (beat === "blackface-hold") {
+      this.setLayerFrame("jealousy-action", "hold");
+      this.setLayerFrame("jealousy-blackface", "hold");
+      this.setFinalHold();
+    } else {
+      const video = this.layers.get("jealousy-slash")?.video;
+      if (video) {
+        await this.hydrateVideo(video, true);
+        video.pause();
+        try { video.currentTime = JEALOUSY_SETUP_AT; } catch {}
+        this.setLayerFrame("jealousy-slash", "video");
+      }
+      this.setLayerFrame("jealousy-action", "first");
+      this.setLayerFrame("jealousy-blackface", "first");
+      this.settle("slash-hold", "刀锋待发");
+    }
   }
 
   private persist() {
@@ -802,7 +859,11 @@ class HomeChapterController {
   private localProgress() {
     if (this.currentId() === "rescue") return this.beat === "back-hold" ? 1 : this.beat.includes("slash") ? 0.65 : 0.2;
     if (this.currentId() === "counterattack") return this.beat === "roll-hold" ? 1 : 0.18 + this.scrubVisual * 0.7;
-    if (this.currentId() === "jealousy") return this.beat === "blackface-hold" ? 1 : this.beat.includes("blackface") || this.beat === "diagonal-reveal" ? 0.7 : 0.25;
+    if (this.currentId() === "jealousy") return this.beat === "blackface-hold"
+      ? 1
+      : this.beat.includes("blackface") || this.beat.includes("action") || this.beat === "swing-playing"
+        ? 0.7
+        : 0.25;
     return this.beat.includes("playing") ? 0.42 : 1;
   }
 
@@ -879,7 +940,7 @@ class HomeChapterController {
       return true;
     }
     if (this.beat === "slash-hold") return await this.startJealousyReveal();
-    if (this.beat.includes("blackface") && this.beat !== "blackface-hold") {
+    if (["swing-playing", "action-playing", "action-hold", "blackface-reveal", "blackface-playing"].includes(this.beat)) {
       this.stopPlayback();
       this.setFinalHold();
       return true;
@@ -912,7 +973,7 @@ class HomeChapterController {
     }
     if (id === "contract") return await this.switchChapter(2, { restoreBeat: "roll-hold", scrub: 1 });
     if (id === "transformation") return await this.switchChapter(3, { restoreBeat: "kiss-hold" });
-    if (this.beat === "blackface-hold" || this.beat.includes("blackface") || this.beat === "diagonal-reveal") {
+    if (this.beat === "blackface-hold" || this.beat.includes("blackface") || this.beat.includes("action") || this.beat === "swing-playing") {
       const epoch = this.beginOperation();
       await this.restoreStableBeat("jealousy", "slash-hold", 0);
       return this.isCurrent(epoch);

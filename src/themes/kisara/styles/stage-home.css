@@ -185,7 +185,7 @@ body.kisara-home-page .kisara-scrollbar {
 
 .kisara-sword-reveal {
   z-index: 8;
-  opacity: 1;
+  opacity: 0;
   will-change: clip-path;
 }
 
@@ -195,16 +195,83 @@ body.kisara-home-page .kisara-scrollbar {
 }
 
 .kisara-home-rescue:is([data-rescue-beat="slash-playing"], [data-rescue-beat="back-hold"]) .is-rescue-reveal {
+  opacity: 1;
   clip-path: polygon(-5% -5%, 105% -5%, 105% 105%, -5% 105%);
 }
 
-.is-jealousy-reveal {
-  clip-path: polygon(-2% -3%, 3% -3%, 102% 103%, 97% 103%);
-  transition: clip-path 680ms cubic-bezier(0.12, 0.84, 0.16, 1);
+.kisara-jealousy-action,
+.kisara-jealousy-split {
+  z-index: 8;
+  opacity: 0;
 }
 
-.kisara-home-jealousy:is([data-jealousy-beat="blackface-playing"], [data-jealousy-beat="blackface-hold"]) .is-jealousy-reveal {
-  clip-path: polygon(-5% -5%, 105% -5%, 105% 105%, -5% 105%);
+.kisara-home-jealousy:is(
+  [data-jealousy-beat="action-playing"],
+  [data-jealousy-beat="action-hold"],
+  [data-jealousy-beat="blackface-reveal"],
+  [data-jealousy-beat="blackface-playing"],
+  [data-jealousy-beat="blackface-hold"]
+) [data-stage-layer="jealousy-slash"] {
+  opacity: 0;
+}
+
+.kisara-home-jealousy:is(
+  [data-jealousy-beat="action-playing"],
+  [data-jealousy-beat="action-hold"],
+  [data-jealousy-beat="blackface-reveal"],
+  [data-jealousy-beat="blackface-playing"],
+  [data-jealousy-beat="blackface-hold"]
+) .kisara-jealousy-action {
+  opacity: 1;
+}
+
+.kisara-jealousy-split {
+  z-index: 12;
+  clip-path: polygon(0 0, 0 0, 0 0);
+  will-change: clip-path, opacity;
+}
+
+.kisara-jealousy-split::after {
+  content: "";
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom left,
+    transparent 49.55%,
+    rgba(255, 233, 241, 0.9) 49.84%,
+    rgba(255, 68, 139, 0.96) 50%,
+    transparent 50.45%
+  );
+  filter: drop-shadow(0 0 9px rgba(255, 63, 133, 0.72));
+}
+
+.kisara-home-jealousy[data-jealousy-beat="blackface-reveal"] .kisara-jealousy-split {
+  opacity: 1;
+  animation: kisara-jealousy-split 540ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
+}
+
+.kisara-home-jealousy:is([data-jealousy-beat="blackface-playing"], [data-jealousy-beat="blackface-hold"]) .kisara-jealousy-split {
+  opacity: 1;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.kisara-home-jealousy[data-jealousy-beat="blackface-reveal"] .kisara-jealousy-split::after {
+  animation: kisara-jealousy-split-seam 620ms ease-out both;
+}
+
+@keyframes kisara-jealousy-split {
+  0% { clip-path: polygon(0 0, 0 0, 0 0); }
+  100% { clip-path: polygon(0 0, 100% 0, 100% 100%); }
+}
+
+@keyframes kisara-jealousy-split-seam {
+  0%, 10% { opacity: 0; filter: blur(5px) drop-shadow(0 0 12px rgba(255, 63, 133, 0.76)); }
+  24% { opacity: 1; filter: blur(0) drop-shadow(0 0 9px rgba(255, 63, 133, 0.72)); }
+  72% { opacity: 0.58; }
+  100% { opacity: 0; filter: blur(2px) drop-shadow(0 0 4px rgba(255, 63, 133, 0.34)); }
 }
 
 .kisara-sword-seam {
@@ -224,14 +291,7 @@ body.kisara-home-page .kisara-scrollbar {
   transform: rotate(-44deg);
 }
 
-.is-jealousy-reveal .kisara-sword-seam {
-  top: 48%;
-  left: -25vw;
-  transform: rotate(43deg);
-}
-
-.kisara-home-rescue[data-rescue-beat="slash-playing"] .kisara-sword-seam,
-.kisara-home-jealousy[data-jealousy-beat="blackface-playing"] .kisara-sword-seam {
+.kisara-home-rescue[data-rescue-beat="slash-playing"] .kisara-sword-seam {
   animation: kisara-sword-seam 620ms ease-out both;
 }
 
@@ -258,15 +318,21 @@ body.kisara-home-page .kisara-scrollbar {
 .kisara-request-loop {
   position: absolute;
   z-index: 12;
-  top: 38.8889%;
-  left: 29.1667%;
-  width: 19.7917%;
-  height: 46.2963%;
+  top: 31.5%;
+  left: 25.8%;
+  width: 25.2%;
+  height: 59.5%;
+  box-sizing: border-box;
   overflow: hidden;
-  border-radius: clamp(8px, 0.9vw, 18px);
+  padding: clamp(3px, 0.28vw, 6px);
+  border: 1px solid rgba(255, 246, 235, 0.72);
+  border-radius: clamp(10px, 1vw, 20px);
   opacity: 0;
   transform: translate3d(5px, 3px, 0) scale(0.985);
-  box-shadow: 0 10px 28px rgba(15, 8, 14, 0.16);
+  background: rgba(72, 26, 31, 0.28);
+  box-shadow:
+    0 0 0 3px rgba(115, 31, 52, 0.28),
+    0 16px 38px rgba(15, 8, 14, 0.24);
   pointer-events: none;
   transition: opacity 380ms ease, transform 620ms cubic-bezier(0.18, 0.78, 0.18, 1);
 }
@@ -276,6 +342,7 @@ body.kisara-home-page .kisara-scrollbar {
   position: absolute;
   inset: 0;
   border-radius: inherit;
+  border: 1px solid rgba(255, 126, 162, 0.3);
   box-shadow: inset 0 0 18px rgba(255, 242, 228, 0.08), inset 0 -14px 26px rgba(16, 8, 14, 0.1);
   pointer-events: none;
 }
@@ -713,7 +780,11 @@ html[data-kisara-found-self-entry] .kisara-found-self,
   }
 
   .kisara-request-loop {
-    border-radius: 9px;
+    top: 30%;
+    left: 22%;
+    width: 34%;
+    height: 61%;
+    border-radius: 10px;
   }
 
   .kisara-scrub-signal {
