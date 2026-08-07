@@ -1,173 +1,174 @@
 ---
 import { Icon } from "astro-icon/components";
-import { getThemePath } from "@/core/themes/registry";
 
-type StageMode = "auto" | "still" | "scrub" | "legacy";
-type StageRenderer = "stage" | "legacy";
+const base = "/themes/kisara/assets/home-stage/chapters";
+const chapters = [
+  { id: "rescue", label: "RESCUE", title: "阻断" },
+  { id: "request", label: "REQUEST", title: "请求" },
+  { id: "counterattack", label: "COUNTER", title: "反击" },
+  { id: "contract", label: "CONTRACT", title: "契约" },
+  { id: "transformation", label: "AWAKEN", title: "变身" },
+  { id: "jealousy", label: "JEALOUSY", title: "妒火" }
+] as const;
 
-const base = "/themes/kisara/assets/home-stage";
-const scenes: Array<{
-  id: string;
-  order: number;
-  mode: StageMode;
-  renderer: StageRenderer;
-  media: "image" | "video";
-  src: string;
-  poster?: string;
-  lastPoster?: string;
-  legacyBeat?: "embrace" | "kiss" | "smoke" | "detail" | "silhouette" | "release";
-  group: "intercept" | "contract" | "intimacy" | "transformation" | "jealousy";
-  hold: number;
-  position: string;
-  mobilePosition: string;
-}> = [
-  { id: "01", order: 1, mode: "auto", renderer: "stage", media: "video", src: `${base}/01.mp4`, poster: `${base}/01-first.webp`, lastPoster: `${base}/01-last.webp`, group: "intercept", hold: 0.12, position: "50% 50%", mobilePosition: "48% 50%" },
-  { id: "02", order: 2, mode: "auto", renderer: "stage", media: "video", src: `${base}/02.mp4`, poster: `${base}/02-first.webp`, lastPoster: `${base}/02-last.webp`, group: "intercept", hold: 0.5, position: "50% 50%", mobilePosition: "57% 50%" },
-  { id: "03", order: 3, mode: "still", renderer: "stage", media: "image", src: `${base}/03.webp`, group: "intercept", hold: 1.4, position: "50% 50%", mobilePosition: "66% 50%" },
-  { id: "04", order: 4, mode: "auto", renderer: "stage", media: "video", src: `${base}/04.mp4`, poster: `${base}/04-first.webp`, lastPoster: `${base}/04-last.webp`, group: "contract", hold: 0.12, position: "50% 50%", mobilePosition: "55% 50%" },
-  { id: "05", order: 5, mode: "auto", renderer: "stage", media: "video", src: `${base}/05.mp4`, poster: `${base}/05-first.webp`, lastPoster: `${base}/05-last.webp`, group: "contract", hold: 0.08, position: "50% 50%", mobilePosition: "53% 50%" },
-  { id: "06", order: 6, mode: "scrub", renderer: "stage", media: "video", src: `${base}/06.mp4`, poster: `${base}/06-first.webp`, lastPoster: `${base}/06-last.webp`, group: "contract", hold: 0, position: "50% 50%", mobilePosition: "54% 50%" },
-  { id: "07", order: 7, mode: "auto", renderer: "stage", media: "video", src: `${base}/07.mp4`, poster: `${base}/07-first.webp`, lastPoster: `${base}/07-last.webp`, group: "contract", hold: 0.74, position: "50% 50%", mobilePosition: "58% 50%" },
-  { id: "08", order: 8, mode: "legacy", renderer: "legacy", media: "image", src: `${base}/08.webp`, legacyBeat: "embrace", group: "intimacy", hold: 1.16, position: "50% 50%", mobilePosition: "53% 50%" },
-  { id: "09", order: 9, mode: "legacy", renderer: "legacy", media: "image", src: `${base}/09.webp`, legacyBeat: "kiss", group: "intimacy", hold: 1.08, position: "50% 50%", mobilePosition: "53% 50%" },
-  { id: "10", order: 10, mode: "legacy", renderer: "legacy", media: "image", src: `${base}/10.webp`, legacyBeat: "smoke", group: "transformation", hold: 0.82, position: "50% 50%", mobilePosition: "50% 50%" },
-  { id: "11", order: 11, mode: "legacy", renderer: "legacy", media: "image", src: `${base}/11.webp`, legacyBeat: "detail", group: "transformation", hold: 0.72, position: "50% 50%", mobilePosition: "53% 50%" },
-  { id: "12", order: 12, mode: "legacy", renderer: "legacy", media: "image", src: `${base}/12.webp`, legacyBeat: "silhouette", group: "transformation", hold: 0.68, position: "50% 50%", mobilePosition: "54% 50%" },
-  { id: "13", order: 13, mode: "legacy", renderer: "legacy", media: "image", src: `${base}/13.webp`, legacyBeat: "release", group: "transformation", hold: 1.16, position: "50% 50%", mobilePosition: "56% 50%" },
-  { id: "14", order: 14, mode: "auto", renderer: "stage", media: "video", src: `${base}/14.mp4`, poster: `${base}/14-first.webp`, lastPoster: `${base}/14-last.webp`, group: "jealousy", hold: 0, position: "50% 50%", mobilePosition: "57% 50%" }
-];
-
-const manifest = scenes.map(({ id, order, mode, renderer, media, src, poster, lastPoster, legacyBeat, group, hold }) => ({
-  id,
-  order,
-  mode,
-  renderer,
-  media,
-  src,
-  poster,
-  lastPoster,
-  legacyBeat,
-  group,
-  hold
+const manifest = chapters.map((chapter, index) => ({
+  ...chapter,
+  index
 }));
-const stageSurfaces = scenes.filter((scene) => scene.renderer === "stage");
 ---
 
 <section
   class="kisara-stage-home"
   data-kisara-stage-home
-  data-stage-engine="single-owner"
-  data-stage-renderer="stage"
-  data-stage-scene="01"
-  data-stage-mode="auto"
-  data-stage-state="boot"
-  data-kisara-scroll-active="true"
-  data-kisara-scroll-progress="0"
-  data-kisara-scroll-stage="opening"
-  data-kisara-scroll-guided="false"
-  data-kisara-scroll-transitioning="false"
-  data-kisara-stage-settled="false"
-  aria-label="Kisara 第一集演出"
+  data-stage-engine="chapter-owner"
+  data-active-chapter="rescue"
+  data-stage-state="booting"
+  aria-label="Kisara 第一集章节演出"
 >
   <script type="application/json" data-kisara-stage-manifest set:html={JSON.stringify(manifest)}></script>
 
   <div class="kisara-stage-viewport">
-    <div class="kisara-stage-media" aria-hidden="true">
-      {stageSurfaces.map((scene) => (
-        <figure
-          class:list={["kisara-stage-shot", `is-shot-${scene.id}`]}
-          data-stage-scene={scene.id}
-          data-stage-mode={scene.mode}
-          data-frame-state={scene.media === "video" ? "first" : "still"}
-          style={`--stage-position:${scene.position};--stage-mobile-position:${scene.mobilePosition}`}
-        >
-          {
-            scene.media === "video" ? (
-              <>
-                <img
-                  class="kisara-stage-frame kisara-stage-frame-first"
-                  data-stage-first-frame
-                  src={scene.id === "01" ? scene.poster : undefined}
-                  data-src={scene.id === "01" ? undefined : scene.poster}
-                  alt=""
-                  decoding="async"
-                  fetchpriority={scene.id === "01" ? "high" : "low"}
-                />
-                <video
-                  class="kisara-stage-frame kisara-stage-frame-video"
-                  data-stage-video
-                  data-src={scene.src}
-                  muted
-                  playsinline
-                  preload="none"
-                ></video>
-                <img
-                  class="kisara-stage-frame kisara-stage-frame-hold"
-                  data-stage-hold-frame
-                  data-src={scene.lastPoster}
-                  alt=""
-                  decoding="async"
-                />
-              </>
-            ) : (
-              <img class="kisara-stage-frame" data-stage-image data-src={scene.src} alt="" decoding="async" />
-            )
-          }
-          <span class="kisara-stage-shot-grade"></span>
+    <article
+      class="kisara-home-chapter kisara-home-rescue"
+      data-home-chapter="rescue"
+      data-chapter-position="active"
+      data-rescue-beat="entry"
+      aria-hidden="false"
+    >
+      <figure class="kisara-chapter-layer" data-stage-layer="rescue-eye" data-frame-state="first">
+        <img data-layer-first src={`${base}/rescue-eye-first.webp`} alt="" fetchpriority="high" />
+        <video data-layer-video data-src={`${base}/rescue-eye.mp4`} muted playsinline preload="none"></video>
+        <img data-layer-hold data-src={`${base}/rescue-eye-last.webp`} alt="" />
+      </figure>
+      <figure class="kisara-chapter-layer kisara-sword-reveal is-rescue-reveal" data-stage-layer="rescue-slash" data-frame-state="first">
+        <img data-layer-first data-src={`${base}/rescue-slash-first.webp`} alt="" />
+        <video data-layer-video data-src={`${base}/rescue-slash.mp4`} muted playsinline preload="none"></video>
+        <img data-layer-hold data-src={`${base}/rescue-slash-last.webp`} alt="" />
+        <i class="kisara-sword-seam" aria-hidden="true"></i>
+      </figure>
+      <span class="kisara-chapter-grade" aria-hidden="true"></span>
+    </article>
+
+    <article
+      class="kisara-home-chapter kisara-home-request"
+      data-home-chapter="request"
+      data-chapter-position="after"
+      data-request-beat="entry"
+      aria-hidden="true"
+      inert
+    >
+      <div class="kisara-request-scene">
+        <figure class="kisara-chapter-layer" data-stage-layer="request-background" data-frame-state="first">
+          <img data-layer-first data-src={`${base}/request-background-first.webp`} alt="" />
+          <video data-layer-video data-src={`${base}/request-background.mp4`} muted playsinline preload="none"></video>
+          <img data-layer-hold data-src={`${base}/request-background-last.webp`} alt="" />
         </figure>
-      ))}
-    </div>
+        <div class="kisara-request-loop" data-stage-loop-shell aria-hidden="true">
+          <video data-stage-loop="request-shu" data-src={`${base}/request-shu-loop.mp4`} muted loop playsinline preload="none"></video>
+        </div>
+      </div>
+      <span class="kisara-chapter-grade" aria-hidden="true"></span>
+    </article>
 
-    <div class="kisara-stage-copy-field">
-      <article class="kisara-stage-copy kisara-stage-copy-intro" data-stage-copy="02">
-        <span>YUIMI LAB</span>
-        <p>把喜欢的东西，做成能被看见的形状。</p>
-      </article>
+    <article
+      class="kisara-home-chapter kisara-home-counterattack"
+      data-home-chapter="counterattack"
+      data-chapter-position="after"
+      data-counter-beat="entry"
+      aria-hidden="true"
+      inert
+    >
+      <figure class="kisara-chapter-layer" data-stage-layer="counter-entry" data-frame-state="first">
+        <img data-layer-first data-src={`${base}/counter-entry-first.webp`} alt="" />
+        <video data-layer-video data-src={`${base}/counter-entry.mp4`} muted playsinline preload="none"></video>
+        <img data-layer-hold data-src={`${base}/counter-entry-last.webp`} alt="" />
+      </figure>
+      <figure class="kisara-chapter-layer kisara-counter-scrub" data-stage-layer="counter-run" data-frame-state="first">
+        <img data-layer-first data-src={`${base}/counter-run-first.webp`} alt="" />
+        <video data-layer-video data-stage-scrub="counter-run" data-src={`${base}/counter-run-scrub.mp4`} muted playsinline preload="none"></video>
+        <img data-layer-hold data-src={`${base}/counter-run-last.webp`} alt="" />
+      </figure>
+      <figure class="kisara-chapter-layer kisara-counter-montage" data-stage-layer="counter-roll" data-frame-state="first">
+        <img data-layer-first data-src={`${base}/counter-roll-first.webp`} alt="" />
+        <video data-layer-video data-src={`${base}/counter-roll.mp4`} muted playsinline preload="none"></video>
+        <img data-layer-hold data-src={`${base}/counter-roll-last.webp`} alt="" />
+      </figure>
+      <div class="kisara-scrub-signal" aria-hidden="true"><i></i><span></span><b></b></div>
+      <span class="kisara-chapter-grade" aria-hidden="true"></span>
+    </article>
 
-      <a class="kisara-stage-copy kisara-stage-copy-blog" data-stage-copy="03" href={getThemePath("kisara", "/blog/")}>
-        <span>BLOG / NOTES</span>
-        <strong>留下过程，也留下改错后的那一版。</strong>
-      </a>
+    <article
+      class="kisara-home-chapter kisara-home-contract"
+      data-home-chapter="contract"
+      data-chapter-position="after"
+      aria-hidden="true"
+      inert
+    >
+      <figure class="kisara-chapter-layer" data-stage-layer="contract-kiss" data-frame-state="first">
+        <img data-layer-first data-src={`${base}/contract-kiss-first.webp`} alt="" />
+        <video data-layer-video data-src={`${base}/contract-kiss.mp4`} muted playsinline preload="none"></video>
+        <img data-layer-hold data-src={`${base}/contract-kiss-last.webp`} alt="" />
+      </figure>
+      <span class="kisara-chapter-grade" aria-hidden="true"></span>
+    </article>
 
-      <a class="kisara-stage-copy kisara-stage-copy-me" data-stage-copy="08" href={getThemePath("kisara", "/about/")}>
-        <span>ME</span>
-        <strong>有些自我介绍，要等被接住之后再说。</strong>
-      </a>
+    <article
+      class="kisara-home-chapter kisara-home-transformation"
+      data-home-chapter="transformation"
+      data-chapter-position="after"
+      aria-hidden="true"
+      inert
+    >
+      <figure class="kisara-chapter-layer" data-stage-layer="transformation" data-frame-state="first">
+        <img data-layer-first data-src={`${base}/transformation-first.webp`} alt="" />
+        <video data-layer-video data-src={`${base}/transformation.mp4`} muted playsinline preload="none"></video>
+        <img data-layer-hold data-src={`${base}/transformation-last.webp`} alt="" />
+      </figure>
+      <span class="kisara-transformation-pulse" aria-hidden="true"></span>
+      <span class="kisara-chapter-grade" aria-hidden="true"></span>
+    </article>
 
-      <a class="kisara-stage-copy kisara-stage-copy-works" data-stage-copy="10" href={getThemePath("kisara", "/projects/")}>
-        <span>WORKS</span>
-        <strong>从一团烟里，慢慢把事情做出来。</strong>
-      </a>
-
-      <a class="kisara-stage-copy kisara-stage-copy-games" data-stage-copy="13" href={getThemePath("kisara", "/games/")}>
-        <span>GAMES</span>
-        <strong>还留着一些可以真的去玩的地方。</strong>
-      </a>
-    </div>
-
-    <div class="kisara-stage-scrub" data-stage-scrub aria-label="用滚动推进这一击">
-      <span class="kisara-stage-scrub-gesture" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span class="kisara-stage-scrub-track" aria-hidden="true"><i></i><b></b></span>
-      <span class="sr-only">向下滚动或上下拖动，以推进这一击。</span>
-    </div>
-
-    <nav class="kisara-stage-actions" aria-label="首屏演出控制">
-      <button type="button" data-stage-auto aria-pressed="false" aria-label="自动播放演出" title="自动播放">
-        <Icon name="tabler:player-play" aria-hidden="true" />
-      </button>
-      <button type="button" data-stage-skip aria-label="跳至演出结尾" title="跳过演出">
-        <Icon name="tabler:player-skip-forward" aria-hidden="true" />
-      </button>
-      <button type="button" data-stage-replay aria-label="重新播放演出" title="重新播放" hidden>
-        <Icon name="tabler:refresh" aria-hidden="true" />
-      </button>
-      <button type="button" data-stage-lovebrain-entry aria-label="进入《恋爱脑》隐藏舞台" title="进入《恋爱脑》隐藏舞台" hidden>
-        <Icon name="tabler:heart" aria-hidden="true" />
-      </button>
-    </nav>
-
-    <p class="sr-only" data-stage-status aria-live="polite"></p>
+    <article
+      class="kisara-home-chapter kisara-home-jealousy"
+      data-home-chapter="jealousy"
+      data-chapter-position="after"
+      data-jealousy-beat="entry"
+      aria-hidden="true"
+      inert
+    >
+      <figure class="kisara-chapter-layer" data-stage-layer="jealousy-slash" data-frame-state="first">
+        <img data-layer-first data-src={`${base}/jealousy-slash-first.webp`} alt="" />
+        <video data-layer-video data-src={`${base}/jealousy-slash.mp4`} muted playsinline preload="none"></video>
+        <img data-layer-hold data-src={`${base}/jealousy-slash-last.webp`} alt="" />
+      </figure>
+      <figure class="kisara-chapter-layer kisara-sword-reveal is-jealousy-reveal" data-stage-layer="jealousy-blackface" data-frame-state="first">
+        <img data-layer-first data-src={`${base}/jealousy-blackface-first.webp`} alt="" />
+        <video data-layer-video data-src={`${base}/jealousy-blackface.mp4`} muted playsinline preload="none"></video>
+        <img data-layer-hold data-src={`${base}/jealousy-blackface-last.webp`} alt="" />
+        <i class="kisara-sword-seam" aria-hidden="true"></i>
+      </figure>
+      <span class="kisara-chapter-grade" aria-hidden="true"></span>
+    </article>
   </div>
+
+  <nav class="kisara-home-chapter-rail" aria-label="首页演出章节">
+    {chapters.map((chapter, index) => (
+      <button
+        type="button"
+        data-home-chapter-target={chapter.id}
+        aria-label={`切换到${chapter.title}`}
+        aria-current={index === 0 ? "step" : undefined}
+      >
+        <i aria-hidden="true"></i>
+        <span>{chapter.label}</span>
+      </button>
+    ))}
+  </nav>
+
+  <button class="kisara-home-replay" type="button" data-home-replay aria-label="重新播放首页演出" title="重新播放">
+    <Icon name="tabler:refresh" aria-hidden="true" />
+  </button>
+  <p class="sr-only" data-stage-status aria-live="polite"></p>
 </section>
 
 <script>

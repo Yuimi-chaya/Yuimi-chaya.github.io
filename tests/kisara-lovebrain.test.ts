@@ -41,14 +41,16 @@ test("Lovebrain progress is an independent tab-session facade", () => {
   }
 });
 
-test("the legacy renderer remains the final-settled Lovebrain host while StageHome owns qualification", () => {
+test("the chapter controller is the final-settled Lovebrain host", () => {
   assert.match(
-    homeSource,
-    /__yuimiKisaraHomeLovebrain = \{\s*activate: activateLovebrain,\s*leaveToOpening: leaveLovebrainToOpening\s*\}/
+    stageRuntimeSource,
+    /__yuimiKisaraHomeLovebrain = \{\s*activate: this\.activateLovebrain,\s*leaveToOpening: this\.leaveLovebrain\s*\}/
   );
-  assert.match(homeSource, /gate\.dataset\.kisaraStageSettled = "true"/);
-  assert.match(stageRuntimeSource, /const markFinalStage = \(\) =>/);
-  assert.match(stageRuntimeSource, /runtimeWindow\.__yuimiKisaraLegacyStage\?\.setFinalStage\?\.\(\)/);
+  assert.match(homeSource, /data-kisara-stage-settled="false"/);
+  assert.match(stageRuntimeSource, /this\.host\.dataset\.kisaraStageSettled = "true"/);
+  assert.match(stageRuntimeSource, /private setFinalHold\(\)/);
+  assert.match(stageRuntimeSource, /markStage\?\.\("home-jealousy"\)/);
+  assert.doesNotMatch(stageRuntimeSource, /__yuimiKisaraLegacyStage|setFinalStage/);
 
   assert.match(componentSource, /const isHomeGate = \(\) =>/);
   assert.match(componentSource, /dataset\.kisaraStageSettled === "true"/);
@@ -118,38 +120,42 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   assert.match(componentSource, /window\.__yuimiKisaraLovebrainFinishOpening = finishOpening/);
 });
 
-test("StageHome keeps a single progress publisher and lifecycle restoration", () => {
+test("HomeChapterController keeps a single progress publisher and lifecycle restoration", () => {
   assert.match(stageRuntimeSource, /new CustomEvent\("kisara:gate-progress"/);
   assert.match(stageRuntimeSource, /document\.addEventListener\("astro:before-swap"/);
-  assert.match(stageRuntimeSource, /runtimeWindow\.__yuimiKisaraStageHomeCleanup\?\.\(\)/);
-  assert.match(stageRuntimeSource, /lifecycle\.abort\(\)/);
-  assert.match(stageRuntimeSource, /const enterLegacy = async/);
-  assert.match(stageRuntimeSource, /const enterFinal = async/);
+  assert.match(stageRuntimeSource, /runtimeWindow\.__yuimiKisaraStageHomeController\?\.dispose\(\)/);
+  assert.match(stageRuntimeSource, /this\.lifecycle\.abort\(\)/);
+  assert.match(stageRuntimeSource, /private async switchChapter\(/);
+  assert.match(stageRuntimeSource, /private async startJealousyReveal\(/);
+  assert.match(stageRuntimeSource, /private suspend = \(\) =>/);
+  assert.match(stageRuntimeSource, /private resume = \(\) =>/);
+  assert.match(stageRuntimeSource, /this\.resumeVideos\.add\(video\)/);
+  assert.match(stageRuntimeSource, /this\.resumeVideos\.forEach/);
+  assert.match(stageRuntimeSource, /private transitionSerial = 0/);
+  assert.match(stageRuntimeSource, /private playbackToken = 0/);
+  assert.match(stageRuntimeSource, /await this\.hydrateChapter\(bounded, true\)/);
 
-  assert.match(stageRuntimeSource, /const handleVisibility = \(\) =>/);
-  assert.match(stageRuntimeSource, /resumeVideoAfterVisibility = phase === "playing"/);
-  assert.match(stageRuntimeSource, /phase === "playing" && video instanceof HTMLVideoElement && video\.paused/);
-  assert.match(stageRuntimeSource, /const play = video\.play\(\)/);
-  assert.match(stageRuntimeSource, /let transitionSerial =/);
-  assert.match(stageRuntimeSource, /await hydrateScene\(index, true\)/);
+  const runtimeStart = stageRuntimeSource.indexOf("export const initKisaraStageHomeLifecycle =");
+  const rootLookup = stageRuntimeSource.indexOf('document.querySelector<HTMLElement>("[data-kisara-stage-home]")', runtimeStart);
+  const priorCleanup = stageRuntimeSource.indexOf("runtimeWindow.__yuimiKisaraStageHomeController?.dispose();", rootLookup);
+  const controllerCreate = stageRuntimeSource.indexOf("new HomeChapterController(root)", priorCleanup);
+  assert.ok(runtimeStart >= 0 && rootLookup > runtimeStart && priorCleanup > rootLookup && controllerCreate > priorCleanup);
 
-  const runtimeStart = stageRuntimeSource.indexOf("const createStageRuntime =");
-  const boundGuard = stageRuntimeSource.indexOf('if (root.dataset.bound === "true") return;', runtimeStart);
-  const priorCleanup = stageRuntimeSource.indexOf("runtimeWindow.__yuimiKisaraStageHomeCleanup?.();", runtimeStart);
-  assert.ok(runtimeStart >= 0 && boundGuard > runtimeStart && priorCleanup > boundGuard);
+  const stageVideoStart = stageRuntimeSource.indexOf("private async playLayer");
+  const stageVideoEnd = stageRuntimeSource.indexOf("private pauseAllVideos", stageVideoStart);
+  const stageVideoSource = stageRuntimeSource.slice(stageVideoStart, stageVideoEnd);
+  assert.match(stageVideoSource, /const token = \+\+this\.playbackToken/);
+  assert.match(stageVideoSource, /this\.playbackToken === token/);
+  assert.match(stageVideoSource, /requestVideoFrameCallback/);
+  assert.match(stageVideoSource, /video\.removeEventListener\("playing", onPlaying\)/);
+  assert.match(stageVideoSource, /video\.removeEventListener\("ended", onEnded\)/);
+  assert.match(stageVideoSource, /playback\?\.catch\(onError\)/);
 
-  const autoVideoStart = stageRuntimeSource.indexOf("const startAutoVideo =");
-  const autoVideoEnd = stageRuntimeSource.indexOf("const renderScrub =", autoVideoStart);
-  const autoVideoSource = stageRuntimeSource.slice(autoVideoStart, autoVideoEnd);
-  assert.match(autoVideoSource, /activeIndex !== index \|\| phase !== "playing"/);
-  assert.match(autoVideoSource, /video\.removeEventListener\("canplay", onCanPlay\)/);
-
-  const reducedStart = stageRuntimeSource.indexOf("if (reducedMotion) {");
-  const reducedEnd = stageRuntimeSource.indexOf("if (saved)", reducedStart);
+  const reducedStart = stageRuntimeSource.indexOf("private async restore() {");
+  const reducedEnd = stageRuntimeSource.indexOf("const saved = readSavedState", reducedStart);
   const reducedSource = stageRuntimeSource.slice(reducedStart, reducedEnd);
-  assert.match(reducedSource, /await skipToEnd\(\)/);
-  assert.match(stageRuntimeSource, /const skipToEnd = async/);
-  assert.match(stageRuntimeSource, /markFinalStage\(\)/);
+  assert.match(reducedSource, /await this\.switchChapter\(5, \{ instant: true, restoreBeat: "blackface-hold" \}\)/);
+  assert.match(stageRuntimeSource, /private setFinalHold\(\)/);
 });
 
 test("Audio suspension releases only the final owner", () => {
