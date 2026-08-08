@@ -58,7 +58,9 @@ const CHAPTER_IDS: ChapterId[] = [
 const STORAGE_KEY = "yuimi-kisara-home-chapters-v1";
 const WHEEL_THRESHOLD = 42;
 const GESTURE_GAP = 180;
+const CHAPTER_TRANSITION_MS = 560;
 const JEALOUSY_SETUP_AT = 2.72;
+const JEALOUSY_ACTION_START_AT = 7.38;
 const JEALOUSY_ACTION_HOLD_AT = 1.08;
 const JEALOUSY_BLACKFACE_AT = 1.25;
 
@@ -110,8 +112,6 @@ class HomeChapterController {
   private readonly markers: HTMLButtonElement[];
   private readonly replayButton: HTMLButtonElement | null;
   private readonly status: HTMLElement | null;
-  private readonly requestLoop: HTMLVideoElement | null;
-  private readonly scrubVideo: HTMLVideoElement | null;
   private readonly foundSelfOverlay: HTMLElement | null;
   private readonly foundSelfVideo: HTMLVideoElement | null;
   private readonly foundSelfSkip: HTMLButtonElement | null;
@@ -134,13 +134,6 @@ class HomeChapterController {
   private suspended = false;
   private readonly visibilityWaiters = new Set<() => void>();
   private readonly resumeVideos = new Set<HTMLVideoElement>();
-  private scrubTarget = 0;
-  private scrubVisual = 0;
-  private scrubFrame = 0;
-  private scrubTimestamp = 0;
-  private scrubBusy = false;
-  private scrubPendingTime: number | null = null;
-  private montageStarting = false;
   private spareKeyGranted = false;
   private finalQualified = false;
   private foundSelfActive = false;
@@ -169,8 +162,6 @@ class HomeChapterController {
     this.markers = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-home-chapter-target]"));
     this.replayButton = root.querySelector<HTMLButtonElement>("[data-home-replay]");
     this.status = root.querySelector<HTMLElement>("[data-stage-status]");
-    this.requestLoop = root.querySelector<HTMLVideoElement>('[data-stage-loop="request-shu"]');
-    this.scrubVideo = root.querySelector<HTMLVideoElement>('[data-stage-scrub="counter-run"]');
     this.foundSelfOverlay = this.host.querySelector<HTMLElement>("[data-kisara-found-self]");
     this.foundSelfVideo = this.host.querySelector<HTMLVideoElement>("[data-kisara-found-self-video]");
     this.foundSelfSkip = this.host.querySelector<HTMLButtonElement>("[data-kisara-found-self-skip]");
@@ -204,7 +195,6 @@ class HomeChapterController {
     this.transitionSerial += 1;
     this.stopPlayback();
     this.pauseAllVideos();
-    this.stopScrubFrame();
     if (this.foundSelfTimer) window.clearTimeout(this.foundSelfTimer);
     this.foundSelfTimer = 0;
     this.visibilityWaiters.forEach((wake) => wake());
@@ -232,8 +222,6 @@ class HomeChapterController {
     this.epoch += 1;
     this.transitionSerial += 1;
     this.stopPlayback();
-    this.stopScrubFrame();
-    this.montageStarting = false;
     return this.epoch;
   }
 
@@ -317,7 +305,6 @@ class HomeChapterController {
       .map((element) => element.dataset.stageLayer ?? "")
       .filter(Boolean);
     const results = await Promise.all(names.map((name) => this.hydrateLayer(name, eager)));
-    if (chapter.dataset.homeChapter === "request") void this.hydrateVideo(this.requestLoop, false);
     return results.some(Boolean);
   }
 
@@ -428,6 +415,136 @@ class HomeChapterController {
     });
   }
 
+  private async playLayerGroup(
+    items: Array<{
+      name: string;
+      startAt?: number;
+      endAt?: number;
+      holdOnFinish?: boolean;
+    }>,
+    onAllReveal?: () => void
+  ) {
+    const epoch = this.epoch;
+    await Promise.all(items.map((item) => this.hydrateLayer(item.name, true)));
+    if (!this.isCurrent(epoch) || !(await this.waitUntilVisible(epoch))) return false;
+
+    const states = items.flatMap((item) => {
+      const layer = this.layers.get(item.name);
+      if (!layer?.video) return [];
+      return [{
+        ...item,
+        layer,
+        video: layer.video,
+        done: false,
+        revealed: false,
+        frameCallback: 0,
+        onPlaying: null as (() => void) | null,
+        onEnded: null as (() => void) | null,
+        onError: null as (() => void) | null
+      }];
+    });
+    if (states.length !== items.length) return false;
+
+    this.stopPlayback();
+    const token = ++this.playbackToken;
+    states.forEach((state) => {
+      state.video.pause();
+      try { state.video.currentTime = Math.max(0, state.startAt ?? 0); } catch {}
+      this.setLayerFrame(state.name, "first");
+    });
+
+    return await new Promise<boolean>((resolve) => {
+      let finished = false;
+      let revealedCount = 0;
+      let completedCount = 0;
+      let timeFrame = 0;
+      const current = () => !this.disposed
+        && this.epoch === epoch
+        && this.playbackToken === token
+        && !finished;
+      const reveal = (state: (typeof states)[number]) => {
+        if (!current() || state.revealed) return;
+        state.revealed = true;
+        revealedCount += 1;
+        this.setLayerFrame(state.name, "video");
+        if (revealedCount === states.length) onAllReveal?.();
+      };
+      const cleanup = () => {
+        states.forEach((state) => {
+          if (state.onPlaying) state.video.removeEventListener("playing", state.onPlaying);
+          if (state.onEnded) state.video.removeEventListener("ended", state.onEnded);
+          if (state.onError) state.video.removeEventListener("error", state.onError);
+          if (state.frameCallback && typeof state.video.cancelVideoFrameCallback === "function") {
+            state.video.cancelVideoFrameCallback(state.frameCallback);
+          }
+          state.frameCallback = 0;
+        });
+        if (timeFrame) window.cancelAnimationFrame(timeFrame);
+        timeFrame = 0;
+      };
+      const finish = (success: boolean) => {
+        if (finished) return;
+        finished = true;
+        cleanup();
+        if (this.playbackCleanup === cancel) this.playbackCleanup = null;
+        resolve(success && this.epoch === epoch);
+      };
+      const finishState = (state: (typeof states)[number]) => {
+        if (!current() || state.done) return;
+        state.done = true;
+        state.video.pause();
+        this.setLayerFrame(state.name, state.holdOnFinish === false ? "video" : "hold");
+        if (!state.revealed) {
+          state.revealed = true;
+          revealedCount += 1;
+          if (revealedCount === states.length) onAllReveal?.();
+        }
+        completedCount += 1;
+        if (completedCount === states.length) finish(true);
+      };
+      const tick = () => {
+        timeFrame = 0;
+        if (!current()) return;
+        states.forEach((state) => {
+          if (!state.done && typeof state.endAt === "number" && state.video.currentTime >= state.endAt) {
+            finishState(state);
+          }
+        });
+        if (current() && states.some((state) => !state.done && !state.video.paused && !state.video.ended)) {
+          timeFrame = window.requestAnimationFrame(tick);
+        }
+      };
+      const scheduleTick = () => {
+        if (!timeFrame) timeFrame = window.requestAnimationFrame(tick);
+      };
+      const cancel = () => {
+        states.forEach((state) => state.video.pause());
+        finish(false);
+      };
+
+      states.forEach((state) => {
+        state.onPlaying = () => {
+          if (!current()) return;
+          if (!state.revealed) {
+            if (typeof state.video.requestVideoFrameCallback === "function") {
+              state.frameCallback = state.video.requestVideoFrameCallback(() => reveal(state));
+            } else {
+              window.requestAnimationFrame(() => window.requestAnimationFrame(() => reveal(state)));
+            }
+          }
+          scheduleTick();
+        };
+        state.onEnded = () => finishState(state);
+        state.onError = () => finishState(state);
+        state.video.addEventListener("playing", state.onPlaying);
+        state.video.addEventListener("ended", state.onEnded);
+        state.video.addEventListener("error", state.onError);
+      });
+      this.playbackCleanup = cancel;
+      states.forEach((state) => state.video.play()?.catch(() => finishState(state)));
+    });
+  }
+
   private pauseAllVideos() {
     this.root.querySelectorAll("video").forEach((video) => video.pause());
     this.foundSelfVideo?.pause();
@@ -466,12 +583,12 @@ class HomeChapterController {
     const to = CHAPTER_IDS[bounded];
     const epoch = this.beginOperation();
     const serial = this.transitionSerial;
-    this.stopRequestLoop();
     await this.hydrateChapter(bounded, true);
     if (!this.isCurrent(epoch) || serial !== this.transitionSerial || !(await this.waitUntilVisible(epoch))) return false;
 
     this.activeIndex = bounded;
     this.beat = options.restoreBeat ?? "entry";
+    this.setBeat(this.beat);
     this.root.dataset.stageState = options.instant ? "settled" : "switching";
     this.root.dataset.chapterTransition = this.transitionName(from, to);
     this.root.classList.toggle("is-switching", !options.instant && !this.reducedMotion);
@@ -483,7 +600,7 @@ class HomeChapterController {
     if (!this.isCurrent(epoch) || serial !== this.transitionSerial) return false;
 
     if (!options.instant && !this.reducedMotion) {
-      if (!(await this.wait(720, epoch)) || serial !== this.transitionSerial) return false;
+      if (!(await this.wait(CHAPTER_TRANSITION_MS, epoch)) || serial !== this.transitionSerial) return false;
     }
     this.root.classList.remove("is-switching");
     this.root.dataset.stageState = "settled";
@@ -514,13 +631,26 @@ class HomeChapterController {
     if (id === "rescue") chapter.dataset.rescueBeat = value;
     if (id === "request") chapter.dataset.requestBeat = value;
     if (id === "counterattack") chapter.dataset.counterBeat = value;
+    if (id === "contract") chapter.dataset.contractBeat = value;
+    if (id === "transformation") chapter.dataset.transformationBeat = value;
     if (id === "jealousy") chapter.dataset.jealousyBeat = value;
     this.root.dataset.stageState = value.includes("playing") || value.includes("transition") || value.includes("covering") || value.includes("reveal")
       ? "playing"
-      : value.includes("scrub")
-        ? "scrub"
-        : "settled";
+      : "settled";
     this.publishProgress(false);
+  }
+
+  private async playBeatSequence(
+    steps: Array<{ beat: string; duration: number; onEnter?: () => void }>,
+    epoch: number
+  ) {
+    for (const step of steps) {
+      if (!this.isCurrent(epoch)) return false;
+      this.setBeat(step.beat);
+      step.onEnter?.();
+      if (step.duration > 0 && !(await this.wait(step.duration, epoch))) return false;
+    }
+    return this.isCurrent(epoch);
   }
 
   private async runChapterEntry(id: ChapterId, epoch: number) {
@@ -541,45 +671,51 @@ class HomeChapterController {
       return;
     }
     if (id === "request") {
-      this.setBeat("request-playing");
-      const ended = await this.playLayer("request-background");
-      if (ended && this.isCurrent(epoch)) {
-        this.settle("request-hold", "请求定格");
-        void this.startRequestLoop();
-      }
+      const ended = await this.playBeatSequence([
+        { beat: "request-face", duration: 620 },
+        { beat: "request-comic", duration: 680 }
+      ], epoch);
+      if (ended) this.settle("request-hold", "请求定格");
       return;
     }
     if (id === "counterattack") {
       this.setBeat("entry-playing");
-      const ended = await this.playLayer("counter-entry");
-      if (ended && this.isCurrent(epoch)) await this.prepareCounterScrub(0);
+      const entryEnded = await this.playLayer("counter-entry");
+      if (!entryEnded || !this.isCurrent(epoch)) return;
+      this.setBeat("entry-hold");
+      const runEnded = await this.playLayer("counter-run", {
+        onReveal: () => this.setBeat("run-playing")
+      });
+      if (!runEnded || !this.isCurrent(epoch)) return;
+      this.setBeat("run-hold");
+      const rollEnded = await this.playLayer("counter-roll", {
+        onReveal: () => this.setBeat("impact-playing")
+      });
+      if (rollEnded && this.isCurrent(epoch)) this.settle("roll-hold", "落地定格");
       return;
     }
     if (id === "contract") {
-      this.setBeat("contract-playing");
-      const ended = await this.playLayer("contract-kiss", {
-        onTime: (time) => {
-          if (time >= 1.7) this.grantSpareKey();
-        }
-      });
-      if (ended && this.isCurrent(epoch)) {
-        this.grantSpareKey();
-        this.settle("kiss-hold", "契约定格");
-      }
+      const ended = await this.playBeatSequence([
+        { beat: "contract-embrace", duration: 520 },
+        { beat: "contract-kiss-1", duration: 380 },
+        { beat: "contract-kiss-2", duration: 430, onEnter: () => this.grantSpareKey() },
+        { beat: "contract-kiss-3", duration: 560 }
+      ], epoch);
+      if (ended) this.settle("kiss-hold", "契约定格");
       return;
     }
     if (id === "transformation") {
-      this.setBeat("transform-playing");
-      const ended = await this.playLayer("transformation");
-      if (ended && this.isCurrent(epoch)) this.settle("transform-hold", "变身定格");
+      const ended = await this.playBeatSequence([
+        { beat: "transform-explosion", duration: 320 },
+        { beat: "transform-detail", duration: 420 },
+        { beat: "transform-silhouette", duration: 500 },
+        { beat: "transform-fight", duration: 680 }
+      ], epoch);
+      if (ended) this.settle("transform-hold", "变身定格");
       return;
     }
-    this.setBeat("slash-playing");
-    const ended = await this.playLayer("jealousy-slash", {
-      endAt: JEALOUSY_SETUP_AT,
-      holdOnFinish: false
-    });
-    if (ended && this.isCurrent(epoch)) this.settle("slash-hold", "刀锋待发");
+    this.setLayerFrame("jealousy-slash", "first");
+    this.settle("slash-hold", "刀锋待发");
   }
 
   private settle(beat: string, status: string) {
@@ -588,26 +724,26 @@ class HomeChapterController {
     this.persist();
   }
 
-  private async startRescueSlash() {
+  private async startRescueMemoryCut() {
     if (this.currentId() !== "rescue") return false;
     const epoch = this.beginOperation();
-    await this.hydrateLayer("rescue-slash", true);
+    await Promise.all([
+      this.hydrateLayer("rescue-severed", true),
+      this.hydrateLayer("rescue-back", true)
+    ]);
     if (!this.isCurrent(epoch)) return false;
-    this.setBeat("slash-transition");
-    let revealIncoming = () => undefined;
-    const incomingReady = new Promise<void>((resolve) => { revealIncoming = resolve; });
-    const playback = this.playLayer("rescue-slash", { onReveal: revealIncoming });
-    await incomingReady;
-    if (!this.isCurrent(epoch)) return false;
-    this.setBeat("slash-playing");
-    const ended = await playback;
-    if (ended && this.isCurrent(epoch)) this.settle("back-hold", "背影定格");
+    const ended = await this.playBeatSequence([
+      { beat: "cut-severed", duration: 340 },
+      { beat: "back-reveal", duration: 620 }
+    ], epoch);
+    if (ended) this.settle("back-hold", "背影定格");
     return ended;
   }
 
   private async startJealousyReveal() {
     if (this.currentId() !== "jealousy") return false;
     const epoch = this.beginOperation();
+    this.host.dataset.kisaraStageSettled = "false";
     await Promise.all([
       this.hydrateLayer("jealousy-slash", true),
       this.hydrateLayer("jealousy-action", true),
@@ -618,31 +754,23 @@ class HomeChapterController {
     this.setBeat("swing-playing");
     const swung = await this.playLayer("jealousy-slash", {
       startAt: JEALOUSY_SETUP_AT,
+      endAt: JEALOUSY_ACTION_START_AT,
       holdOnFinish: false,
       preserveFrame: true
     });
     if (!swung || !this.isCurrent(epoch)) return false;
 
-    this.setBeat("action-playing");
-    const actionHeld = await this.playLayer("jealousy-action", {
-      endAt: JEALOUSY_ACTION_HOLD_AT
+    this.setBeat("parallel-preparing");
+    const ended = await this.playLayerGroup([
+      { name: "jealousy-action", startAt: 0, endAt: JEALOUSY_ACTION_HOLD_AT },
+      { name: "jealousy-blackface", startAt: JEALOUSY_BLACKFACE_AT }
+    ], () => {
+      if (!this.isCurrent(epoch)) return;
+      this.setBeat("parallel-reveal");
+      window.setTimeout(() => {
+        if (this.isCurrent(epoch) && this.beat === "parallel-reveal") this.setBeat("parallel-playing");
+      }, 420);
     });
-    if (!actionHeld || !this.isCurrent(epoch)) return false;
-    this.setBeat("action-hold");
-
-    let revealIncoming = () => undefined;
-    const incomingReady = new Promise<void>((resolve) => { revealIncoming = resolve; });
-    const playback = this.playLayer("jealousy-blackface", {
-      startAt: JEALOUSY_BLACKFACE_AT,
-      onReveal: revealIncoming
-    });
-    await incomingReady;
-    if (!this.isCurrent(epoch)) return false;
-    this.setBeat("blackface-reveal");
-    if (await this.wait(560, epoch)) {
-      if (this.isCurrent(epoch) && this.beat === "blackface-reveal") this.setBeat("blackface-playing");
-    }
-    const ended = await playback;
     if (ended && this.isCurrent(epoch)) this.setFinalHold();
     return ended;
   }
@@ -674,155 +802,40 @@ class HomeChapterController {
     }));
   }
 
-  private async startRequestLoop() {
-    const video = this.requestLoop;
-    const shell = video?.closest<HTMLElement>("[data-stage-loop-shell]");
-    if (!(video instanceof HTMLVideoElement) || this.currentId() !== "request") return false;
-    await this.hydrateVideo(video, true);
-    if (this.currentId() !== "request" || this.suspended) return false;
-    shell?.setAttribute("aria-hidden", "false");
-    shell?.classList.add("is-active");
-    return await Promise.resolve(video.play()).then(() => true).catch(() => false);
-  }
-
-  private stopRequestLoop() {
-    this.requestLoop?.pause();
-    this.requestLoop?.closest<HTMLElement>("[data-stage-loop-shell]")?.classList.remove("is-active");
-  }
-
-  private async prepareCounterScrub(ratio: number) {
-    const video = this.scrubVideo;
-    if (!(video instanceof HTMLVideoElement) || this.currentId() !== "counterattack") return false;
-    await this.hydrateLayer("counter-run", true);
-    if (this.currentId() !== "counterattack") return false;
-    video.pause();
-    this.scrubTarget = clamp(ratio);
-    this.scrubVisual = this.scrubTarget;
-    this.root.style.setProperty("--counter-scrub", this.scrubVisual.toFixed(5));
-    this.setLayerFrame("counter-run", this.scrubVisual >= 0.999 ? "hold" : "video");
-    this.setBeat(this.scrubVisual > 0 ? "run-scrub" : "run-ready");
-    this.queueScrubSeek(this.scrubVisual);
-    this.persist();
-    return true;
-  }
-
-  private queueScrubSeek(ratio: number) {
-    const video = this.scrubVideo;
-    if (!(video instanceof HTMLVideoElement)) return;
-    const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
-    if (!duration) {
-      video.addEventListener("loadedmetadata", () => this.queueScrubSeek(ratio), { once: true, signal: this.lifecycle.signal });
-      return;
-    }
-    this.scrubPendingTime = clamp(ratio) * Math.max(0, duration - 1 / 60);
-    this.flushScrubSeek();
-  }
-
-  private flushScrubSeek() {
-    const video = this.scrubVideo;
-    if (!(video instanceof HTMLVideoElement) || this.scrubBusy || this.scrubPendingTime === null || video.seeking) return;
-    const target = this.scrubPendingTime;
-    this.scrubPendingTime = null;
-    if (Math.abs(video.currentTime - target) < 1 / 90) return;
-    this.scrubBusy = true;
-    try {
-      video.currentTime = target;
-    } catch {
-      this.scrubBusy = false;
-    }
-  }
-
-  private pushCounterScrub(delta: number) {
-    if (this.currentId() !== "counterattack" || !["run-ready", "run-scrub"].includes(this.beat)) return false;
-    this.scrubTarget = clamp(this.scrubTarget + delta / 1350);
-    if (this.scrubTarget > 0.001) this.setBeat("run-scrub");
-    if (!this.scrubFrame) {
-      this.scrubTimestamp = 0;
-      this.scrubFrame = window.requestAnimationFrame(this.advanceScrub);
-    }
-    return true;
-  }
-
-  private advanceScrub = (timestamp: number) => {
-    this.scrubFrame = 0;
-    if (this.disposed || this.suspended || this.currentId() !== "counterattack") return;
-    const elapsed = this.scrubTimestamp ? clamp(timestamp - this.scrubTimestamp, 8, 40) : 16.667;
-    this.scrubTimestamp = timestamp;
-    const distance = this.scrubTarget - this.scrubVisual;
-    const response = 1 - Math.exp(-elapsed / 78);
-    const maxStep = elapsed * 0.00018;
-    this.scrubVisual += clamp(distance * response, -maxStep, maxStep);
-    if (Math.abs(distance) < 0.0007) this.scrubVisual = this.scrubTarget;
-    this.scrubVisual = clamp(this.scrubVisual);
-    this.root.style.setProperty("--counter-scrub", this.scrubVisual.toFixed(5));
-    this.queueScrubSeek(this.scrubVisual);
-    this.publishProgress(false);
-
-    if (this.scrubTarget >= 0.999 && this.scrubVisual >= 0.995 && !this.montageStarting) {
-      this.montageStarting = true;
-      void this.startCounterMontage();
-      return;
-    }
-    if (Math.abs(this.scrubTarget - this.scrubVisual) > 0.0007) {
-      this.scrubFrame = window.requestAnimationFrame(this.advanceScrub);
-    } else {
-      this.persist();
-    }
-  };
-
-  private stopScrubFrame() {
-    if (this.scrubFrame) window.cancelAnimationFrame(this.scrubFrame);
-    this.scrubFrame = 0;
-    this.scrubTimestamp = 0;
-  }
-
-  private async startCounterMontage() {
-    if (this.currentId() !== "counterattack") return false;
-    const epoch = this.beginOperation();
-    this.scrubTarget = 1;
-    this.scrubVisual = 1;
-    this.setLayerFrame("counter-run", "hold");
-    this.setBeat("montage-playing");
-    const ended = await this.playLayer("counter-roll");
-    if (ended && this.isCurrent(epoch)) this.settle("roll-hold", "落地定格");
-    return ended;
-  }
-
-  private async restoreStableBeat(id: ChapterId, beat: string, scrub: number) {
+  private async restoreStableBeat(id: ChapterId, beat: string, _scrub: number) {
     if (id === "rescue") {
       this.setLayerFrame("rescue-eye", "hold");
-      this.setLayerFrame("rescue-slash", beat === "back-hold" ? "hold" : "first");
+      this.setLayerFrame("rescue-severed", "hold");
+      this.setLayerFrame("rescue-back", "hold");
       this.settle(beat === "back-hold" ? "back-hold" : "eye-hold", "阻断定格");
       return;
     }
     if (id === "request") {
-      this.setLayerFrame("request-background", "hold");
+      this.setLayerFrame("request-face", "hold");
+      this.setLayerFrame("request-emerged", "hold");
       this.settle("request-hold", "请求定格");
-      void this.startRequestLoop();
       return;
     }
     if (id === "counterattack") {
-      if (beat === "roll-hold") {
-        this.scrubTarget = 1;
-        this.scrubVisual = 1;
-        this.root.style.setProperty("--counter-scrub", "1");
-        this.setLayerFrame("counter-entry", "hold");
-        this.setLayerFrame("counter-run", "hold");
-        this.setLayerFrame("counter-roll", "hold");
-        this.settle("roll-hold", "落地定格");
-      } else {
-        this.setLayerFrame("counter-entry", "hold");
-        await this.prepareCounterScrub(scrub);
-      }
+      this.setLayerFrame("counter-entry", "hold");
+      this.setLayerFrame("counter-run", "hold");
+      this.setLayerFrame("counter-roll", "hold");
+      this.settle("roll-hold", "落地定格");
       return;
     }
     if (id === "contract") {
-      this.setLayerFrame("contract-kiss", "hold");
+      this.setLayerFrame("contract-embrace", "hold");
+      this.setLayerFrame("contract-kiss-01", "hold");
+      this.setLayerFrame("contract-kiss-02", "hold");
+      this.setLayerFrame("contract-kiss-03", "hold");
       this.settle("kiss-hold", "契约定格");
       return;
     }
     if (id === "transformation") {
-      this.setLayerFrame("transformation", "hold");
+      this.setLayerFrame("transform-explosion", "hold");
+      this.setLayerFrame("transform-detail", "hold");
+      this.setLayerFrame("transform-silhouette", "hold");
+      this.setLayerFrame("transform-fight", "hold");
       this.settle("transform-hold", "变身定格");
       return;
     }
@@ -831,13 +844,8 @@ class HomeChapterController {
       this.setLayerFrame("jealousy-blackface", "hold");
       this.setFinalHold();
     } else {
-      const video = this.layers.get("jealousy-slash")?.video;
-      if (video) {
-        await this.hydrateVideo(video, true);
-        video.pause();
-        try { video.currentTime = JEALOUSY_SETUP_AT; } catch {}
-        this.setLayerFrame("jealousy-slash", "video");
-      }
+      this.host.dataset.kisaraStageSettled = "false";
+      this.setLayerFrame("jealousy-slash", "first");
       this.setLayerFrame("jealousy-action", "first");
       this.setLayerFrame("jealousy-blackface", "first");
       this.settle("slash-hold", "刀锋待发");
@@ -851,19 +859,28 @@ class HomeChapterController {
         version: 1,
         chapter: this.currentId(),
         beat: this.beat,
-        scrub: this.scrubVisual
+        scrub: 0
       } satisfies SavedChapterState));
     } catch {}
   }
 
   private localProgress() {
-    if (this.currentId() === "rescue") return this.beat === "back-hold" ? 1 : this.beat.includes("slash") ? 0.65 : 0.2;
-    if (this.currentId() === "counterattack") return this.beat === "roll-hold" ? 1 : 0.18 + this.scrubVisual * 0.7;
+    if (this.currentId() === "rescue") return this.beat === "back-hold" ? 1 : this.beat.includes("cut") || this.beat.includes("back") ? 0.66 : 0.2;
+    if (this.currentId() === "request") return this.beat === "request-hold" ? 1 : this.beat.includes("comic") ? 0.72 : 0.28;
+    if (this.currentId() === "counterattack") return this.beat === "roll-hold"
+      ? 1
+      : this.beat.includes("impact") || this.beat.includes("run-hold")
+        ? 0.78
+        : this.beat.includes("run")
+          ? 0.52
+          : 0.2;
     if (this.currentId() === "jealousy") return this.beat === "blackface-hold"
       ? 1
-      : this.beat.includes("blackface") || this.beat.includes("action") || this.beat === "swing-playing"
+      : this.beat.includes("parallel")
         ? 0.7
-        : 0.25;
+        : this.beat === "swing-playing"
+          ? 0.42
+          : 0.2;
     return this.beat.includes("playing") ? 0.42 : 1;
   }
 
@@ -884,7 +901,7 @@ class HomeChapterController {
         transitioning,
         releaseMode: "chapter",
         playbackRate: 1,
-        pressure: this.currentId() === "counterattack" ? this.scrubVisual : 0
+        pressure: 0
       }
     }));
   }
@@ -898,27 +915,31 @@ class HomeChapterController {
         this.settle("eye-hold", "眼神定格");
         return true;
       }
-      if (this.beat === "eye-hold") return await this.startRescueSlash();
-      if (this.beat.includes("slash") && this.beat !== "back-hold") {
-        this.stopPlayback();
-        this.setLayerFrame("rescue-slash", "hold");
+      if (this.beat === "eye-hold") return await this.startRescueMemoryCut();
+      if (this.beat !== "back-hold") {
+        this.beginOperation();
+        this.setLayerFrame("rescue-severed", "hold");
+        this.setLayerFrame("rescue-back", "hold");
         this.settle("back-hold", "背影定格");
         return true;
       }
       return await this.switchChapter(1);
     }
     if (id === "request") {
-      if (this.beat === "request-playing") return await this.switchChapter(2);
+      if (this.beat !== "request-hold") {
+        this.beginOperation();
+        this.setLayerFrame("request-face", "hold");
+        this.setLayerFrame("request-emerged", "hold");
+        this.settle("request-hold", "请求定格");
+        return true;
+      }
       return await this.switchChapter(2);
     }
     if (id === "counterattack") {
-      if (this.beat === "entry-playing") {
-        this.stopPlayback();
-        return await this.prepareCounterScrub(0);
-      }
-      if (["run-ready", "run-scrub"].includes(this.beat)) return this.pushCounterScrub(118);
-      if (this.beat === "montage-playing") {
-        this.stopPlayback();
+      if (this.beat !== "roll-hold") {
+        this.beginOperation();
+        this.setLayerFrame("counter-entry", "hold");
+        this.setLayerFrame("counter-run", "hold");
         this.setLayerFrame("counter-roll", "hold");
         this.settle("roll-hold", "落地定格");
         return true;
@@ -926,21 +947,26 @@ class HomeChapterController {
       return await this.switchChapter(3);
     }
     if (id === "contract") {
-      if (this.beat === "contract-playing") return await this.switchChapter(4);
+      if (this.beat !== "kiss-hold") {
+        this.beginOperation();
+        this.grantSpareKey();
+        this.setLayerFrame("contract-kiss-03", "hold");
+        this.settle("kiss-hold", "契约定格");
+        return true;
+      }
       return await this.switchChapter(4);
     }
     if (id === "transformation") {
-      if (this.beat === "transform-playing") return await this.switchChapter(5);
+      if (this.beat !== "transform-hold") {
+        this.beginOperation();
+        this.setLayerFrame("transform-fight", "hold");
+        this.settle("transform-hold", "变身定格");
+        return true;
+      }
       return await this.switchChapter(5);
     }
-    if (this.beat === "slash-playing") {
-      this.stopPlayback();
-      this.setLayerFrame("jealousy-slash", "hold");
-      this.settle("slash-hold", "刀锋待发");
-      return true;
-    }
     if (this.beat === "slash-hold") return await this.startJealousyReveal();
-    if (["swing-playing", "action-playing", "action-hold", "blackface-reveal", "blackface-playing"].includes(this.beat)) {
+    if (this.beat === "swing-playing" || this.beat.includes("parallel")) {
       this.stopPlayback();
       this.setFinalHold();
       return true;
@@ -961,19 +987,10 @@ class HomeChapterController {
       return false;
     }
     if (id === "request") return await this.switchChapter(0, { restoreBeat: "back-hold" });
-    if (id === "counterattack") {
-      if (this.beat === "roll-hold" || this.beat === "montage-playing") {
-        this.beginOperation();
-        return await this.prepareCounterScrub(1);
-      }
-      if (["run-ready", "run-scrub"].includes(this.beat) && this.scrubTarget > 0.001) {
-        return this.pushCounterScrub(-118);
-      }
-      return await this.switchChapter(1, { restoreBeat: "request-hold" });
-    }
-    if (id === "contract") return await this.switchChapter(2, { restoreBeat: "roll-hold", scrub: 1 });
+    if (id === "counterattack") return await this.switchChapter(1, { restoreBeat: "request-hold" });
+    if (id === "contract") return await this.switchChapter(2, { restoreBeat: "roll-hold" });
     if (id === "transformation") return await this.switchChapter(3, { restoreBeat: "kiss-hold" });
-    if (this.beat === "blackface-hold" || this.beat.includes("blackface") || this.beat.includes("action") || this.beat === "swing-playing") {
+    if (this.beat !== "slash-hold") {
       const epoch = this.beginOperation();
       await this.restoreStableBeat("jealousy", "slash-hold", 0);
       return this.isCurrent(epoch);
@@ -1000,10 +1017,6 @@ class HomeChapterController {
     if (this.foundSelfActive || this.suspended) return;
     const delta = normalizeWheel(event);
     if (!delta) return;
-    if (this.currentId() === "counterattack" && ["run-ready", "run-scrub"].includes(this.beat)) {
-      this.pushCounterScrub(delta);
-      return;
-    }
 
     const now = performance.now();
     if (now - this.lastWheelAt > GESTURE_GAP) this.wheelAccumulator = 0;
@@ -1037,10 +1050,6 @@ class HomeChapterController {
         : 0;
     if (!direction) return;
     event.preventDefault();
-    if (this.currentId() === "counterattack" && ["run-ready", "run-scrub"].includes(this.beat)) {
-      this.pushCounterScrub(direction * 126);
-      return;
-    }
     void (direction > 0 ? this.stepForward() : this.stepBackward());
   };
 
@@ -1053,12 +1062,7 @@ class HomeChapterController {
   private handleTouchMove = (event: TouchEvent) => {
     if (event.touches.length !== 1 || this.touchLastY === null || this.foundSelfActive || this.lovebrainActive) return;
     const y = event.touches[0]?.clientY ?? this.touchLastY;
-    const delta = this.touchLastY - y;
     this.touchLastY = y;
-    if (this.currentId() === "counterattack" && ["run-ready", "run-scrub"].includes(this.beat)) {
-      event.preventDefault();
-      this.pushCounterScrub(delta * 2.4);
-    }
   };
 
   private handleTouchEnd = (event: TouchEvent) => {
@@ -1066,7 +1070,6 @@ class HomeChapterController {
     const delta = this.touchStartY - this.touchLastY;
     this.touchStartY = null;
     this.touchLastY = null;
-    if (this.currentId() === "counterattack" && ["run-ready", "run-scrub"].includes(this.beat)) return;
     if (Math.abs(delta) < 44) return;
     event.preventDefault();
     void (delta > 0 ? this.stepForward() : this.stepBackward());
@@ -1190,7 +1193,6 @@ class HomeChapterController {
       if (!video.paused && !video.ended) this.resumeVideos.add(video);
       video.pause();
     });
-    this.stopScrubFrame();
   };
 
   private resume = () => {
@@ -1203,9 +1205,6 @@ class HomeChapterController {
       if (video.isConnected && !video.ended) video.play()?.catch(() => undefined);
     });
     this.resumeVideos.clear();
-    if (this.currentId() === "counterattack" && ["run-ready", "run-scrub"].includes(this.beat)) {
-      this.queueScrubSeek(this.scrubVisual);
-    }
   };
 
   private bindEvents() {
@@ -1228,10 +1227,6 @@ class HomeChapterController {
       void this.switchChapter(0);
     }, { signal });
     this.foundSelfSkip?.addEventListener("click", () => this.finishFoundSelf(), { signal });
-    this.scrubVideo?.addEventListener("seeked", () => {
-      this.scrubBusy = false;
-      this.flushScrubSeek();
-    }, { signal });
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") this.suspend();
       else this.resume();

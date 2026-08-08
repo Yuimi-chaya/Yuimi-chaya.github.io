@@ -27,14 +27,22 @@ test("Home exposes six authored chapters with semantic media instead of a legacy
   ]);
   for (const asset of [
     "rescue-eye.mp4",
-    "rescue-slash.mp4",
-    "request-background.mp4",
-    "request-shu-loop.mp4",
+    "rescue-severed.webp",
+    "rescue-slash-last.webp",
+    "request-face.webp",
+    "request-emerged.webp",
     "counter-entry.mp4",
     "counter-run-scrub.mp4",
     "counter-roll.mp4",
-    "contract-kiss.mp4",
-    "transformation.mp4",
+    "contract-embrace.webp",
+    "contract-kiss-01.webp",
+    "contract-kiss-02.webp",
+    "contract-kiss-03.webp",
+    "transformation-explosion.webp",
+    "transformation-detail.webp",
+    "transformation-silhouette.webp",
+    "fight.webp",
+    "jealousy-setup.webp",
     "jealousy-slash.mp4",
     "jealousy-blackface.mp4",
     "jealousy-action-hold.webp"
@@ -55,14 +63,11 @@ test("HomeChapterController owns chapter beats, bounded input, and decoded playb
   assert.match(stageRuntimeSource, /private beginOperation\(\)/);
   assert.match(stageRuntimeSource, /private async switchChapter\(/);
   assert.match(stageRuntimeSource, /requestVideoFrameCallback/);
-  assert.match(stageRuntimeSource, /private async startRescueSlash\(\)/);
+  assert.match(stageRuntimeSource, /private async startRescueMemoryCut\(\)/);
   assert.match(stageRuntimeSource, /private async startJealousyReveal\(\)/);
-  assert.match(stageRuntimeSource, /private async startCounterMontage\(\)/);
-  assert.match(stageRuntimeSource, /private pushCounterScrub\(delta: number\)/);
-  assert.match(stageRuntimeSource, /private queueScrubSeek\(ratio: number\)/);
-  assert.match(stageRuntimeSource, /private scrubPendingTime: number \| null = null/);
-  assert.match(stageRuntimeSource, /private scrubBusy = false/);
-  assert.match(stageRuntimeSource, /this\.scrubTarget = clamp\(this\.scrubTarget \+ delta \/ 1350\)/);
+  assert.match(stageRuntimeSource, /private async playLayerGroup\(/);
+  assert.match(stageRuntimeSource, /private async playBeatSequence\(/);
+  assert.match(stageRuntimeSource, /JEALOUSY_ACTION_START_AT = 7\.38/);
   assert.match(stageRuntimeSource, /WHEEL_THRESHOLD = 42/);
   assert.match(stageRuntimeSource, /window\.addEventListener\("wheel", this\.handleWheel/);
   assert.match(stageRuntimeSource, /window\.addEventListener\("keydown", this\.handleKeydown/);
@@ -70,42 +75,55 @@ test("HomeChapterController owns chapter beats, bounded input, and decoded playb
   assert.doesNotMatch(stageRuntimeSource, /LegacyStageBridge|__yuimiKisaraLegacyStage|playImpactReconstruction|releaseAutoplayKeyframes/);
 });
 
-test("Chapter-local beats implement eye, sword, loop, scrub, montage, kiss, and black-face holds", () => {
+test("Chapter-local beats implement the tightened eye, still-sequence, auto-run, kiss, and parallel black-face holds", () => {
   for (const beat of [
     "eye-hold",
-    "slash-transition",
+    "cut-severed",
+    "back-reveal",
     "back-hold",
+    "request-face",
+    "request-comic",
     "request-hold",
-    "run-ready",
-    "run-scrub",
-    "montage-playing",
+    "run-playing",
+    "impact-playing",
     "roll-hold",
+    "contract-kiss-1",
+    "contract-kiss-2",
+    "contract-kiss-3",
     "kiss-hold",
+    "transform-explosion",
+    "transform-detail",
+    "transform-silhouette",
+    "transform-fight",
     "transform-hold",
-    "action-hold",
-    "blackface-reveal",
+    "parallel-reveal",
+    "parallel-playing",
     "blackface-hold"
   ]) {
     assert.match(stageRuntimeSource, new RegExp(`"${beat}"`), `${beat} must be implemented`);
   }
-  assert.match(stageRuntimeSource, /startRequestLoop/);
-  assert.match(stageRuntimeSource, /video\.play\(\)/);
-  assert.match(stageRuntimeSource, /time >= 1\.7/);
+  assert.match(stageRuntimeSource, /playLayer\("counter-run"/);
+  assert.match(stageRuntimeSource, /playLayer\("counter-roll"/);
+  assert.match(stageRuntimeSource, /playLayerGroup\(\[/);
+  assert.match(stageRuntimeSource, /onEnter: \(\) => this\.grantSpareKey\(\)/);
   assert.match(stageRuntimeSource, /setFinalHold/);
+  assert.doesNotMatch(stageRuntimeSource, /pushCounterScrub|startRequestLoop|requestLoop/);
 });
 
 test("Sword transitions and chapter boundaries have distinct visual grammars", () => {
-  assert.match(stageStyles, /\.is-rescue-reveal \{[\s\S]*clip-path:/);
+  assert.match(stageStyles, /\.kisara-rescue-severed \{[\s\S]*clip-path:/);
   assert.match(stageStyles, /\.kisara-jealousy-split \{[\s\S]*clip-path:/);
-  assert.match(stageStyles, /data-rescue-beat="slash-playing"/);
-  assert.match(stageStyles, /data-jealousy-beat="action-hold"/);
-  assert.match(stageStyles, /data-jealousy-beat="blackface-reveal"/);
+  assert.match(stageStyles, /data-rescue-beat="cut-severed"/);
+  assert.match(stageStyles, /data-jealousy-beat="parallel-reveal"/);
+  assert.match(stageStyles, /data-jealousy-beat="parallel-playing"/);
   assert.match(stageStyles, /data-chapter-transition="request-counter"/);
   assert.match(stageStyles, /data-chapter-transition="counter-contract"/);
   assert.match(stageStyles, /data-chapter-transition="contract-transform"/);
   assert.match(stageStyles, /data-chapter-transition="transform-jealousy"/);
-  assert.match(stageStyles, /\.kisara-request-loop/);
-  assert.match(stageStyles, /\.kisara-scrub-signal/);
+  assert.match(stageStyles, /\.kisara-request-comic/);
+  assert.match(stageStyles, /\.kisara-request-doodles/);
+  assert.match(stageStyles, /\.kisara-still-shot/);
+  assert.doesNotMatch(stageStyles, /\.kisara-request-loop|\.kisara-scrub-signal/);
   assert.doesNotMatch(stageStyles, /kisara-gate-legacy-media|space-lens|impact-reconstruct/);
 });
 

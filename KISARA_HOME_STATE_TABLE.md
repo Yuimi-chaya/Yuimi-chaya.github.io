@@ -11,12 +11,12 @@
 
 | Index | ID | Primary behavior | Stable entry/rest | Forward contract | Backward contract | Secret behavior |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | `rescue` | auto eye clip, then authored slash continuation | `eye-hold` -> `back-hold` | first down runs slash/tentacle continuation; next down enters Request | from back hold return to eye hold; from eye hold stay at start edge | FoundSelf may run before this chapter |
-| 1 | `request` | auto complaint background plus kneeling loop overlay | complaint/background hold with active Shu loop | fresh down enters Counterattack | fresh up returns to Rescue back hold | none |
-| 2 | `counterattack` | auto sword entry -> reversible running scrub -> clash/roll montage | `run-ready`, scrub position, or `roll-hold` | down advances scrub; completion runs montage; fresh down from roll hold enters Contract | up reverses scrub or returns to Request hold | none |
-| 3 | `contract` | continuous embrace/spoiled/kiss auto clip | kiss hold | fresh down enters Transformation | fresh up returns to Counterattack roll hold | grant spare key at decoded kiss threshold |
-| 4 | `transformation` | independent automatic transformation clip | transformation/attack hold | fresh down enters Jealousy | fresh up returns to Contract hold | none |
-| 5 | `jealousy` | auto slash setup, then diagonal reveal into black-face follow-up | `slash-hold` -> `blackface-hold` | first down runs diagonal reveal; further down nudges end edge | from blackface return to slash hold; further up returns to Transformation hold | mark `home-jealousy`; enable eligible Lovebrain entry |
+| 0 | `rescue` | auto eye clip, then two authored still cuts | `eye-hold` -> `back-hold` | first down cuts to the severed tentacle and soft-hands off to Kisara's back; next down enters Request | from back hold return to eye hold; from eye hold stay at start edge | FoundSelf may run before this chapter |
+| 1 | `request` | Kisara face still -> oversized comic-paste emergence still | emerged comic hold | fresh down enters Counterattack; input during the short still sequence settles it first | fresh up returns to Rescue back hold | none |
+| 2 | `counterattack` | sword entry -> automatic run/clash -> automatic impact/roll | `roll-hold` | fresh down enters Contract; input during playback settles on the roll hold | fresh up returns to Request hold | none |
+| 3 | `contract` | embrace still plus three kiss stills | final kiss hold | fresh down enters Transformation; input during the still sequence settles it first | fresh up returns to Counterattack roll hold | grant spare key on the second kiss cut |
+| 4 | `transformation` | explosion still -> legacy detail/silhouette/fight still sequence | fight hold | fresh down enters Jealousy; input during the still sequence settles it first | fresh up returns to Contract hold | none |
+| 5 | `jealousy` | setup still -> slash continuation -> concurrent action/black-face split | `slash-hold` -> `blackface-hold` | first down runs the action and diagonal split; further down nudges end edge | from blackface return to slash hold; further up returns to Transformation hold | mark `home-jealousy`; enable eligible Lovebrain entry |
 
 ## Selected Runtime Media
 
@@ -25,62 +25,66 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 | Slot | Runtime file | Source range / duration | Stable behavior |
 | --- | --- | --- | --- |
 | `rescue-eye` | `rescue-eye.mp4` | about `00:16:11:22-00:16:14:00`, `2.13s` | holds on the maximum eye frame |
-| `rescue-slash` | `rescue-slash.mp4` | about `00:16:15.25-00:16:20.63`, `5.38s` | begins after the source flash and holds on Kisara's back |
-| `request-background` | `request-background.mp4` | about `00:16:30.75-00:16:36.75`, `6.01s` | holds on the wide request composition |
-| `request-shu-loop` | `request-shu-loop.mp4` | ping-pong derivative of `00:16:35.00-00:16:35.50`, about `1s` | complete kneeling Shu crop at source-space `x=560, y=420, w=380, h=500` |
+| `rescue-severed` | `rescue-severed.webp` | selected near `0.48s` of the old slash clip | one clean severed-tentacle still |
+| `rescue-back` | `rescue-slash-last.webp` | old slash clip final frame | Kisara back-view hold |
+| `request-face` | `request-face.webp` | selected near `2.75s` of the old Request clip | full-bleed speaking close-up |
+| `request-emerged` | `request-emerged.webp` | selected near `5.72s` of the old Request clip | complete emergence frame used as a large irregular comic paste |
 | `counter-entry` | `counter-entry.mp4` | about `00:17:03.97-00:17:05.55`, `1.585s` | full relation shot into faceless sword detail |
-| `counter-run-scrub` | `counter-run-scrub.mp4` | `3.23s`, 30fps short-GOP/no-B-frame derivative | reversible queued wheel/touch scrub |
+| `counter-run` | `counter-run-scrub.mp4` | `3.23s`, 30fps short-GOP/no-B-frame derivative | now plays automatically through the run/clash |
 | `counter-roll` | `counter-roll.mp4` | montage from about `00:17:08.67-00:17:09.25` and `00:17:14.39-00:17:16.57`, `2.753s` | ends with Kisara down before Shu touches her |
-| `contract-kiss` | `contract-kiss.mp4` | `25.27s` | in-arms request through stable kiss hold |
-| `transformation` | `transformation.mp4` | `18.31s` | smoke through transformed attack hold |
-| `jealousy-slash` | `jealousy-slash.mp4` | `8.01s` | holds at the authored sword trigger |
-| `jealousy-blackface` | `jealousy-blackface.mp4` | `2.25s` | resolves to the red-eye black-face close-up |
+| `contract-stills` | `contract-embrace.webp`, `contract-kiss-01/02/03.webp` | selected from the old `25.27s` Contract clip | embrace, approach, contact, and final kiss cuts |
+| `transformation-stills` | `transformation-explosion.webp`, `transformation-detail.webp`, `transformation-silhouette.webp`, `fight.webp` | explosion plus the proven legacy finale assets | compact explosion-to-fight sequence |
+| `jealousy-setup` | `jealousy-setup.webp` | selected at `2.72s` | direct chapter entry hold |
+| `jealousy-slash` | `jealousy-slash.mp4` | resumes at `2.72s` and hands off around `7.38s` | carries the setup into the first back-action frame |
+| `jealousy-action` | `jealousy-blackface.mp4` from `0-1.08s` | duplicated action lane | remains visible as the lower-left/base composition |
+| `jealousy-blackface` | `jealousy-blackface.mp4` from `1.25s` | duplicated close-up lane | plays concurrently inside the upper-right triangle |
 
-Every ordinary video has matching `-first.webp` and `-last.webp` posters. The Request background and kneeling loop share one centered 16:9 coordinate space so the portrait crop stays aligned under `object-fit: cover`; it is not positioned as a free-floating card.
+Every remaining ordinary video keeps decoded first/hold fallbacks. Static sequences are hydrated before their chapter becomes visible, and the Request composition intentionally reads as an oversized pasted manga panel rather than a repaired in-scene loop.
 
 ## Chapter-Local Beat State
 
 ### Rescue
 
-`entry -> eye-playing -> eye-hold -> slash-transition -> slash-playing -> back-hold`
+`entry -> eye-playing -> eye-hold -> cut-severed -> back-reveal -> back-hold`
 
-- Incoming slash media is decoded and started behind the diagonal mask before the mask opens.
-- Original blade-flash frames are not present in the runtime clip.
+- The diagonal cut reveals one severed-tentacle still without replaying the source flash.
+- The severed frame and back-view frame use the legacy stage's decoded two-layer blur/scale handoff.
 
 ### Request
 
-`entry -> complaint-playing -> request-hold`
+`entry -> request-face -> request-comic -> request-hold`
 
-- The cropped Shu loop begins only after its first decoded frame is ready.
-- Background and loop pause together when hidden and resume without phase reset.
+- The rejected kneeling loop/window is removed.
+- The emergence frame enters as an intentionally irregular, doodled comic paste over the dimmed face still.
 
 ### Counterattack
 
-`entry -> sword-playing -> run-ready -> run-scrub -> montage-playing -> roll-hold`
+`entry -> entry-playing -> entry-hold -> run-playing -> run-hold -> impact-playing -> roll-hold`
 
-- Scrub input changes a target ratio.
-- One RAF smooths visible ratio.
-- Only one seek is in flight; the latest target replaces older queued targets.
-- Reversing direction reverses the same scrub media instead of switching clips.
+- Running and impact now auto-play as one bounded chapter sequence.
+- Each incoming video remains hidden until its first decoded frame is available; the outgoing hold remains visible until then.
 
 ### Contract
 
-`entry -> contract-playing -> kiss-hold`
+`entry -> contract-embrace -> contract-kiss-1 -> contract-kiss-2 -> contract-kiss-3 -> kiss-hold`
 
-- The spare-key threshold is tied to decoded media time and is idempotent per chapter run.
+- The four stills use the same soft two-slot handoff grammar as the proven legacy scene compositor.
+- The spare-key grant is tied to the second kiss cut and remains idempotent per chapter run.
 
 ### Transformation
 
-`entry -> transform-playing -> transform-hold`
+`entry -> transform-explosion -> transform-detail -> transform-silhouette -> transform-fight -> transform-hold`
 
 - No legacy title/chain/black-hole renderer is layered on this chapter.
+- Only the proven legacy scene stills are reused; the old long transformation video is no longer played.
 
 ### Jealousy
 
-`entry -> slash-playing -> slash-hold -> diagonal-reveal -> blackface-playing -> blackface-hold`
+`entry -> slash-hold -> swing-playing -> parallel-preparing -> parallel-reveal -> parallel-playing -> blackface-hold`
 
-- The black-face clip starts beneath the mask before reveal.
-- The outgoing slash video stays frozen at its authored trigger frame.
+- The chapter enters directly on the former first manual trigger frame.
+- After the slash reaches the first back-action frame, two copies of the follow-up clip run concurrently: the action lane at `0s` and the black-face lane at `1.25s`.
+- The top-left-to-bottom-right cut opens the upper-right triangle while both lanes are already moving, then both settle to independent hold images.
 
 ## Marker Navigation
 
