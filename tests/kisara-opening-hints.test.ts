@@ -115,7 +115,8 @@ test("Chapter-local beats implement the tightened eye, still-sequence, auto-run,
 
 test("Sword transitions and chapter boundaries have distinct visual grammars", () => {
   assert.match(stageStyles, /\.kisara-rescue-severed \{[\s\S]*clip-path:/);
-  assert.match(stageStyles, /\.kisara-jealousy-split \{[\s\S]*clip-path:/);
+  assert.match(stageStyles, /\.kisara-jealousy-split \{[\s\S]*clip-path: polygon\(45\.5% -3%/);
+  assert.match(stageStyles, /@keyframes kisara-jealousy-panel[\s\S]*clip-path:/);
   assert.match(stageStyles, /data-rescue-beat="cut-severed"/);
   assert.match(stageStyles, /data-jealousy-beat="parallel-reveal"/);
   assert.match(stageStyles, /data-jealousy-beat="parallel-playing"/);

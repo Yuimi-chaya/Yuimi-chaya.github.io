@@ -85,7 +85,7 @@ Every remaining ordinary video keeps decoded first/hold fallbacks. Static sequen
 
 - The chapter enters directly on the user-selected closed-mouth frame at `5.589s`, immediately before Kisara turns.
 - After the slash reaches the first back-action frame, two copies of the follow-up clip run concurrently: the action lane at `0s` and the black-face lane at `1.25s`.
-- The close-up opens as an irregular upper-right manga panel with a light gutter and dark offset seam while both lanes are already moving; the rejected full-screen diagonal triangle and slash line are removed.
+- The close-up fills the right-side manga region drawn from upper middle to lower right, leaving the full left swing and Ayano's lower-right reaction readable. Its boundary follows an irregular comic gutter with a narrow warm edge and restrained dark offset; the rejected giant-face crop, full-screen diagonal triangle, and slash line are removed.
 
 ## Marker Navigation
 

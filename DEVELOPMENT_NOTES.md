@@ -241,6 +241,11 @@
 - The rejected full-screen diagonal Jealousy triangle and separate slash line are removed. The black-face lane now arrives as an irregular upper-right manga panel with a pale gutter, dark offset edge, bounded scale/rotation settle, and a short base-action carry, keeping the two moving shots visually related without pretending they are one continuous full-frame shot.
 - Validation: media probes confirm H.264/yuv420p runtime clips at `1920x1080` and `24000/1001fps`; `git diff --check`, `npm test` (`26/26`), and `npm run build` (62 pages, Pagefind 63) pass. Browser review was intentionally not used; Rescue tension, Counter handoffs, and the Jealousy panel composition remain for the user's direct visual acceptance.
 
+### Jealousy panel scale correction (`2026-08-08`, pending human review)
+
+- Human review rejected the first irregular Jealousy cut: it still treated the close-up as a full-viewport layer and merely clipped it, producing an oversized face that obscured the swing instead of a readable comic panel. The same-tab media timing from `406dc1e` remains unchanged.
+- The initial follow-up made the panel too small and card-like. The approved spatial direction is instead one right-side comic region following the user-drawn upper-middle-to-lower-right divider: the black-face lane fills that region with its own crop, while the swing remains readable on the left and Ayano stays exposed at lower right. Keep the cut as a single integrated viewport region with a narrow warm gutter; do not return either to a floating card or a giant face crop that overwhelms the full frame.
+
 ## Architecture Decision
 
 - Shared layer: content collections, article queries, site metadata, category labels, SEO inputs, and theme registry/path helpers.
