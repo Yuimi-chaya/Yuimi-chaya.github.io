@@ -274,6 +274,13 @@
 - The first browser sample at `1440x900` confirmed no third visible chapter during Rescue -> Request, Request -> Counter, and Counter -> Contract. Counter reported duration `1.000s`, continuous `currentTime` growth, `readyState=4`, and no rewind. That sample also showed the outgoing chapter remained composited too long because its participant rule held `opacity: 1`; the rule was corrected so the normal chapter transition fades it from the first handoff frame. A single directed browser retry failed when the browser connection became unavailable, so Contract -> Transformation, Transformation -> Jealousy, the final outgoing-opacity correction, marker/backward paths, and `390x844` remain pending user visual verification.
 - Static validation after the final CSS correction: focused Home tests passed `7/7`; final full `npm test` passed `25/25`; final `npm run build` generated 62 pages and a 63-page Pagefind index; `git diff --check` passed. The scoped local checkpoint is created from this verified state without including unrelated untracked materials.
 
+### Home Awaken crossfade and Jealousy cue alignment (`2026-08-08`, pending human review)
+
+- Recovery baseline: clean tracked `main` at `8fdecb0 refine(kisara): restore home action timing`; unrelated untracked source and generated assets remain untouched.
+- Human review rejected Awaken's isolated image flashes. Its explosion/detail/silhouette/Fight layers now reuse the legacy stage's adjacent two-slot visual grammar as a time-based static sequence: neighboring images overlap through soft opacity and edge-blur envelopes across about `1.32s`, while the final Fight frame remains unchanged after settle.
+- Human review also found Jealousy's preparation too slow and its black-face panel detached from the actual slash. The `6.32s -> 7.05s` source segment is restored from `0.82x` to `1.00x`; the opening `1.70x` pickup and final `2.20x` acceleration remain, producing a `1.376375s` H.264/yuv420p clip. The panel no longer uses a `1040ms` chapter-entry delay: `requestVideoFrameCallback`/`timeupdate` cues it at media time `1.10s`, after the action decoder reaches the slash onset, so hydration or seek delay cannot expose it before the turn.
+- Runtime first/last boundaries are unchanged, so the existing first/last/hold posters remain valid and were not regenerated. Fine fade comfort, source-speed preparation, and the exact panel-on-sword timing remain pending the user's direct visual review.
+
 ## Architecture Decision
 
 - Shared layer: content collections, article queries, site metadata, category labels, SEO inputs, and theme registry/path helpers.

@@ -15,8 +15,8 @@
 | 1 | `request` | emerged comic still | static face-to-paste action, about `0.62s` | enters Counterattack directly | restores Rescue stable frame | none |
 | 2 | `counterattack` | roll/landing still | `counter-action.mp4`, about `1.00s`, from the run-end launch through the energy clash | enters Contract directly | restores Request stable frame | none |
 | 3 | `contract` | final kiss still | two-frame embrace-to-kiss action, about `0.52s` | enters Transformation directly | restores Counterattack stable frame | grant spare key on stable arrival |
-| 4 | `transformation` | Fight still | unhurried static explosion/detail/silhouette/Fight sequence, about `1.08s` | enters Jealousy and starts its slash immediately | restores Contract stable frame | none |
-| 5 | `jealousy` | completed action plus right comic panel | `jealousy-action.mp4`, about `1.54s`, with a fast-slow-fast turn/slash curve | edge nudge; Lovebrain may be activated after settle | restores Transformation stable frame | mark `home-jealousy` on final settle |
+| 4 | `transformation` | Fight still | old-stage-style overlapping explosion/detail/silhouette/Fight fades, about `1.32s` | enters Jealousy and starts its slash immediately | restores Contract stable frame | none |
+| 5 | `jealousy` | completed action plus right comic panel | `jealousy-action.mp4`, about `1.38s`; the preparation uses source speed and the final slash accelerates | edge nudge; Lovebrain may be activated after settle | restores Transformation stable frame | mark `home-jealousy` on final settle |
 
 ## Runtime Media
 
@@ -35,7 +35,7 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 | Contract cut | `contract-embrace.webp` | the only pre-kiss still; it cuts directly to the stable kiss frame |
 | Transformation stable | `fight.webp` | final Fight hold |
 | Transformation cuts | `transformation-explosion.webp`, `transformation-detail.webp`, `transformation-silhouette.webp` | static reconstruction keyframes only |
-| Jealousy action | `jealousy-action.mp4` | complete closed-mouth turn and slash with encoded fast-slow-fast timing, no long spoken prelude |
+| Jealousy action | `jealousy-action.mp4` | complete closed-mouth turn and slash with source-speed preparation and accelerated final slash, no long spoken prelude |
 | Jealousy stable | `jealousy-action-hold.webp`, `jealousy-blackface-last.webp` | completed base and right comic panel |
 
 ## Scene Action Contract
@@ -72,14 +72,14 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 
 `scene-active -> action-running -> settled`
 
-- Explosion, detail, silhouette, and Fight are static layers with enough dwell to read each key image; they are not compressed like a micro-video. The legacy title/chain/black-hole renderer remains absent.
+- Explosion, detail, silhouette, and Fight remain static layers, but adjacent images overlap through the legacy stage's soft opacity/edge-blur envelope instead of appearing as isolated flashes. The legacy title/chain/black-hole renderer remains absent.
 
 ### Jealousy
 
 `scene-active -> action-running -> final`
 
 - The slash video starts as part of entering Jealousy from Transformation. The user never needs a second forward gesture to start it.
-- The turn and sword arc remain visible through a fast-slow-fast source-frame curve. The right-side black-face image waits for the final acceleration, then settles with the action base.
+- The turn and sword arc remain visible with the former slow preparation restored to source speed. The right-side black-face image is triggered from the decoded media time at the slash onset, then settles with the action base.
 
 ## Input And Restoration
 

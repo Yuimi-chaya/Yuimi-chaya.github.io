@@ -1124,6 +1124,9 @@ html[data-kisara-found-self-entry] .kisara-found-self,
 
 .kisara-contract-final { z-index: 3; }
 .kisara-transform-final { z-index: 11; }
+.kisara-transform-explosion { z-index: 7; }
+.kisara-transform-detail { z-index: 8; }
+.kisara-transform-silhouette { z-index: 9; }
 
 .kisara-home-contract[data-scene-action="settled"] .kisara-contract-final,
 .kisara-home-transformation[data-scene-action="settled"] .kisara-transform-final {
@@ -1167,35 +1170,42 @@ html[data-kisara-found-self-entry] .kisara-found-self,
 }
 
 .kisara-home-transformation[data-scene-action="running"] .kisara-transform-explosion {
-  opacity: 1;
-  animation: kisara-home-transform-explosion 300ms ease-out both;
+  animation: kisara-home-transform-explosion 1320ms cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 
 .kisara-home-transformation[data-scene-action="running"] .kisara-transform-detail {
-  opacity: 1;
-  animation: kisara-home-transform-still 360ms cubic-bezier(0.18, 0.78, 0.18, 1) 180ms both;
+  animation: kisara-home-transform-detail 1320ms cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 
 .kisara-home-transformation[data-scene-action="running"] .kisara-transform-silhouette {
-  opacity: 1;
-  animation: kisara-home-transform-still 400ms cubic-bezier(0.18, 0.78, 0.18, 1) 470ms both;
+  animation: kisara-home-transform-silhouette 1320ms cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 
 .kisara-home-transformation[data-scene-action="running"] .kisara-transform-final {
-  opacity: 1;
-  animation: kisara-home-final-reveal 380ms cubic-bezier(0.16, 0.8, 0.18, 1) 760ms both;
+  animation: kisara-home-transform-fight 1320ms cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 
 @keyframes kisara-home-transform-explosion {
-  0% { opacity: 0; transform: scale(1.08); filter: brightness(1.8) saturate(0.64); }
-  42% { opacity: 1; transform: scale(1.012); filter: brightness(1.08) saturate(0.9); }
-  100% { opacity: 0; transform: scale(1); filter: none; }
+  0% { opacity: 0; transform: scale(1.03); filter: blur(6px) saturate(0.9); }
+  13%, 28% { opacity: 1; transform: scale(1.006); filter: blur(0) saturate(1); }
+  44%, 100% { opacity: 0; transform: scale(1); filter: blur(5px) saturate(0.94); }
 }
 
-@keyframes kisara-home-transform-still {
-  0% { opacity: 0; transform: scale(1.035); filter: brightness(0.74) saturate(0.74); }
-  24%, 72% { opacity: 1; transform: scale(1.008); filter: none; }
-  100% { opacity: 0; transform: scale(1); filter: brightness(0.86); }
+@keyframes kisara-home-transform-detail {
+  0%, 24% { opacity: 0; transform: scale(1.025); filter: blur(6px) saturate(0.92); }
+  40%, 52% { opacity: 1; transform: scale(1.006); filter: blur(0) saturate(1); }
+  70%, 100% { opacity: 0; transform: scale(1); filter: blur(5px) saturate(0.95); }
+}
+
+@keyframes kisara-home-transform-silhouette {
+  0%, 50% { opacity: 0; transform: scale(1.024); filter: blur(6px) saturate(0.92); }
+  66%, 76% { opacity: 1; transform: scale(1.005); filter: blur(0) saturate(1); }
+  92%, 100% { opacity: 0; transform: scale(1); filter: blur(4px) saturate(0.96); }
+}
+
+@keyframes kisara-home-transform-fight {
+  0%, 74% { opacity: 0; transform: scale(1.022); filter: blur(6px) saturate(0.92); }
+  90%, 100% { opacity: 1; transform: scale(1); filter: blur(0) saturate(1); }
 }
 
 .kisara-home-jealousy .kisara-jealousy-panel {
@@ -1214,12 +1224,12 @@ html[data-kisara-found-self-entry] .kisara-found-self,
   transform: translate(-50%, -50%) rotate(-7deg) scale(0.72);
 }
 
-.kisara-home-jealousy[data-scene-action="running"] .kisara-jealousy-panel {
+.kisara-home-jealousy[data-jealousy-panel-state="revealing"] .kisara-jealousy-panel {
   opacity: 1;
-  animation: kisara-home-jealousy-panel 420ms cubic-bezier(0.16, 0.84, 0.18, 1) 1040ms both;
+  animation: kisara-home-jealousy-panel 260ms cubic-bezier(0.16, 0.84, 0.18, 1) both;
 }
 
-.kisara-home-jealousy[data-scene-action="settled"] .kisara-jealousy-panel {
+.kisara-home-jealousy[data-jealousy-panel-state="settled"] .kisara-jealousy-panel {
   opacity: 1;
   clip-path: polygon(48% -2%, 102% -2%, 102% 102%, 76% 102%);
 }

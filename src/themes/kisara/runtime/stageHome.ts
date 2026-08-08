@@ -62,13 +62,14 @@ const WHEEL_THRESHOLD = 42;
 const GESTURE_GAP = 180;
 const INPUT_LOCK_MS = 720;
 const SCENE_HANDOFF_MS = 520;
+const JEALOUSY_PANEL_REVEAL_AT = 1.1;
 const SCENE_ACTION_MS: Record<ChapterId, number> = {
   rescue: 320,
   request: 620,
   counterattack: 1000,
   contract: 520,
-  transformation: 1080,
-  jealousy: 1560
+  transformation: 1320,
+  jealousy: 1380
 };
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
@@ -342,6 +343,12 @@ class HomeChapterController {
     if (layer) layer.element.dataset.frameState = state;
   }
 
+  private setJealousyPanelState(state: "hidden" | "revealing" | "settled") {
+    const index = this.chapterIndex.get("jealousy");
+    const chapter = index === undefined ? null : this.chapters[index];
+    if (chapter) chapter.dataset.jealousyPanelState = state;
+  }
+
   private videoLayerName(id: ChapterId) {
     return id === "rescue"
       ? "rescue-action"
@@ -406,6 +413,7 @@ class HomeChapterController {
         video.removeEventListener("playing", onPlaying);
         video.removeEventListener("ended", onEnded);
         video.removeEventListener("error", onError);
+        video.removeEventListener("timeupdate", onTimeUpdate);
         if (frameCallback && typeof video.cancelVideoFrameCallback === "function") {
           video.cancelVideoFrameCallback(frameCallback);
         }
@@ -425,12 +433,25 @@ class HomeChapterController {
         video.pause();
         finish(false);
       };
+      const revealJealousyPanel = () => {
+        if (name !== "jealousy-action" || video.currentTime < JEALOUSY_PANEL_REVEAL_AT) return false;
+        this.setJealousyPanelState("revealing");
+        return true;
+      };
+      const onTimeUpdate = () => {
+        if (current()) revealJealousyPanel();
+      };
+      const onVideoFrame = () => {
+        if (!current()) return;
+        this.setLayerFrame(name, "video");
+        if (name === "jealousy-action" && !revealJealousyPanel()) {
+          frameCallback = video.requestVideoFrameCallback(onVideoFrame);
+        }
+      };
       const onPlaying = () => {
         if (!current()) return;
         if (typeof video.requestVideoFrameCallback === "function") {
-          frameCallback = video.requestVideoFrameCallback(() => {
-            if (current()) this.setLayerFrame(name, "video");
-          });
+          frameCallback = video.requestVideoFrameCallback(onVideoFrame);
         } else {
           window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
             if (current()) this.setLayerFrame(name, "video");
@@ -442,6 +463,7 @@ class HomeChapterController {
       video.addEventListener("playing", onPlaying);
       video.addEventListener("ended", onEnded);
       video.addEventListener("error", onError);
+      if (name === "jealousy-action") video.addEventListener("timeupdate", onTimeUpdate);
       this.playbackCleanup = cancel;
       video.play()?.catch(() => finish(false));
     });
@@ -503,6 +525,9 @@ class HomeChapterController {
     this.stableState = options.restoreStable ? (to === "jealousy" ? "final" : "settled") : "opening";
     this.actionState = shouldRunAction ? "running" : "settled";
     if (incoming) incoming.dataset.sceneAction = shouldRunAction ? "running" : "settled";
+    if (to === "jealousy") {
+      this.setJealousyPanelState(shouldRunAction ? "hidden" : "settled");
+    }
     const videoLayer = this.videoLayerName(to);
     if (shouldRunAction && videoLayer) this.setLayerFrame(videoLayer, "first");
     this.root.dataset.sceneTransition = this.transitionName(from, to);
@@ -572,6 +597,7 @@ class HomeChapterController {
     this.stableState = id === "jealousy" ? "final" : "settled";
     const chapter = this.chapters[this.activeIndex];
     if (chapter) chapter.dataset.sceneAction = "settled";
+    if (id === "jealousy") this.setJealousyPanelState("settled");
     this.root.dataset.stageState = "settled";
     this.host.dataset.kisaraStageSettled = id === "jealousy" ? "true" : "false";
     if (id === "contract") this.grantSpareKey();
@@ -606,6 +632,7 @@ class HomeChapterController {
     this.actionState = "settled";
     this.stableState = id === "jealousy" ? "final" : "settled";
     this.chapters[this.activeIndex]?.setAttribute("data-scene-action", "settled");
+    if (id === "jealousy") this.setJealousyPanelState("settled");
     this.root.dataset.stageState = "settled";
     this.host.dataset.kisaraStageSettled = id === "jealousy" ? "true" : "false";
     if (id === "contract") this.grantSpareKey();

@@ -68,7 +68,7 @@ Use the Me scene model as the behavioral baseline:
 
 ### 6. Jealousy
 
-- Enter on the selected pre-turn static frame. The very next forward transition immediately runs the complete turn-and-slash action with an encoded fast-slow-fast curve, then brings in the right-side black-face composition during the final acceleration.
+- Enter on the selected pre-turn static frame. The very next forward transition immediately runs the complete turn-and-slash action with the previously slowed preparation restored to source speed and only the final slash accelerated. The right-side black-face composition is cued from the decoded slash media time, not from chapter-entry wall time.
 - The user must never enter Jealousy, see a static setup, and need another downward gesture just to trigger the actual slash.
 - Preserve the accepted simple right-side comic region and independent close-up framing direction, but treat the completed split as the scene's static end composition.
 - The settled end marks `home-jealousy`, exposes Lovebrain eligibility, and retains replay/end behavior.
