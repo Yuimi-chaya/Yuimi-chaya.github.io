@@ -231,6 +231,16 @@
 - `KISARA_HOME_STATE_TABLE.md` now records the new media/beat ownership. Focused tests were updated to reject the old Request loop and Counter scrub while requiring the still sequences and parallel Jealousy playback.
 - Validation: `git diff --check` passed, `npm test` passed `26/26`, and `npm run build` generated 62 pages with a 63-page Pagefind index. A delegated desktop browser pass captured broad-state evidence for Rescue eye/back holds, the Request comic paste, Counter roll hold, and Awaken fight hold under `C:\Users\a1234\Documents\Codex\browser-review\kisara-home-tightened-20260808\`. The browser agent stalled during the final Jealousy/console audit and was closed after one directed retry, so Contract timing, Jealousy concurrent motion/cut timing, console cleanliness, and all fine motion remain explicitly pending the user's visual acceptance.
 
+### Stage Home media-continuity refinement (`2026-08-08`, pending human review)
+
+- Recovery point before this pass: clean tracked `main` at `08e63db refactor(kisara): tighten home chapter pacing`. Unrelated untracked source/candidate assets remain untouched.
+- Rescue now plays its `2.127s` eye clip at `1.22x`, tightening the rush into the maximum-eye hold without changing the accepted severed-tentacle/back-view still handoff.
+- Counter's visible rewind was confirmed as a media-boundary problem rather than CSS layering. `counter-entry.mp4` was re-encoded from the old clip's `0.35s` hand/sword detail and is now `1.251s`; `counter-roll.mp4` was re-encoded from `1.38s` and is now `1.376s`, removing the repeated pink obstruction, energy clash, and idle Shu interval. Their first/last WebP fallbacks were regenerated from the new files. The run clip remains the sole run/clash section.
+- Reused videos now wait for `seeked` (or a bounded ready-state fallback) before playback can reveal a decoded frame. This prevents a settled video from briefly exposing its prior end frame when a chapter is replayed or restored.
+- The user-provided Jealousy frame was matched to `jealousy-slash.mp4` at approximately `5.589s`; `jealousy-setup.webp` and the resume constant now use that point, so the next gesture begins with the turn instead of replaying the spoken line. The swing handoff is normalized to `7.382s`, and the base action hold is regenerated at `1.00s` to settle with the close-up lane.
+- The rejected full-screen diagonal Jealousy triangle and separate slash line are removed. The black-face lane now arrives as an irregular upper-right manga panel with a pale gutter, dark offset edge, bounded scale/rotation settle, and a short base-action carry, keeping the two moving shots visually related without pretending they are one continuous full-frame shot.
+- Validation: media probes confirm H.264/yuv420p runtime clips at `1920x1080` and `24000/1001fps`; `git diff --check`, `npm test` (`26/26`), and `npm run build` (62 pages, Pagefind 63) pass. Browser review was intentionally not used; Rescue tension, Counter handoffs, and the Jealousy panel composition remain for the user's direct visual acceptance.
+
 ## Architecture Decision
 
 - Shared layer: content collections, article queries, site metadata, category labels, SEO inputs, and theme registry/path helpers.

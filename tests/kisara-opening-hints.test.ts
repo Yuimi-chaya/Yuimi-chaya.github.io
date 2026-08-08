@@ -104,6 +104,9 @@ test("Chapter-local beats implement the tightened eye, still-sequence, auto-run,
   }
   assert.match(stageRuntimeSource, /playLayer\("counter-run"/);
   assert.match(stageRuntimeSource, /playLayer\("counter-roll"/);
+  assert.match(stageRuntimeSource, /RESCUE_PLAYBACK_RATE = 1\.22/);
+  assert.match(stageRuntimeSource, /JEALOUSY_SETUP_AT = 5\.589/);
+  assert.match(stageRuntimeSource, /private async seekVideo\(/);
   assert.match(stageRuntimeSource, /playLayerGroup\(\[/);
   assert.match(stageRuntimeSource, /onEnter: \(\) => this\.grantSpareKey\(\)/);
   assert.match(stageRuntimeSource, /setFinalHold/);
@@ -116,6 +119,8 @@ test("Sword transitions and chapter boundaries have distinct visual grammars", (
   assert.match(stageStyles, /data-rescue-beat="cut-severed"/);
   assert.match(stageStyles, /data-jealousy-beat="parallel-reveal"/);
   assert.match(stageStyles, /data-jealousy-beat="parallel-playing"/);
+  assert.match(stageStyles, /kisara-jealousy-panel/);
+  assert.doesNotMatch(stageStyles, /kisara-jealousy-cut/);
   assert.match(stageStyles, /data-chapter-transition="request-counter"/);
   assert.match(stageStyles, /data-chapter-transition="counter-contract"/);
   assert.match(stageStyles, /data-chapter-transition="contract-transform"/);

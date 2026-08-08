@@ -59,10 +59,12 @@ const STORAGE_KEY = "yuimi-kisara-home-chapters-v1";
 const WHEEL_THRESHOLD = 42;
 const GESTURE_GAP = 180;
 const CHAPTER_TRANSITION_MS = 560;
-const JEALOUSY_SETUP_AT = 2.72;
-const JEALOUSY_ACTION_START_AT = 7.38;
-const JEALOUSY_ACTION_HOLD_AT = 1.08;
+const RESCUE_PLAYBACK_RATE = 1.22;
+const JEALOUSY_SETUP_AT = 5.589;
+const JEALOUSY_ACTION_START_AT = 7.382;
+const JEALOUSY_ACTION_HOLD_AT = 1;
 const JEALOUSY_BLACKFACE_AT = 1.25;
+const JEALOUSY_PANEL_REVEAL_MS = 560;
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const nextFrame = () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
@@ -319,6 +321,29 @@ class HomeChapterController {
     this.playbackCleanup = null;
   }
 
+  private async seekVideo(video: HTMLVideoElement, time: number, epoch: number, token: number) {
+    const target = Math.max(0, time);
+    if (Math.abs(video.currentTime - target) < 0.025 && video.readyState >= 2) return true;
+
+    return await new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (success: boolean) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        video.removeEventListener("seeked", onSeeked);
+        video.removeEventListener("error", onError);
+        resolve(success && !this.disposed && this.epoch === epoch && this.playbackToken === token);
+      };
+      const onSeeked = () => finish(true);
+      const onError = () => finish(false);
+      const timeout = window.setTimeout(() => finish(video.readyState >= 2), 520);
+      video.addEventListener("seeked", onSeeked, { once: true });
+      video.addEventListener("error", onError, { once: true });
+      try { video.currentTime = target; } catch { finish(false); }
+    });
+  }
+
   private async playLayer(
     name: string,
     options: {
@@ -328,6 +353,7 @@ class HomeChapterController {
       endAt?: number;
       holdOnFinish?: boolean;
       preserveFrame?: boolean;
+      playbackRate?: number;
     } = {}
   ) {
     const layer = this.layers.get(name);
@@ -340,8 +366,9 @@ class HomeChapterController {
     const token = ++this.playbackToken;
     const video = layer.video;
     video.pause();
-    try { video.currentTime = Math.max(0, options.startAt ?? 0); } catch {}
+    video.playbackRate = clamp(options.playbackRate ?? 1, 0.25, 3);
     if (!options.preserveFrame) this.setLayerFrame(name, "first");
+    if (!(await this.seekVideo(video, options.startAt ?? 0, epoch, token))) return false;
 
     return await new Promise<boolean>((resolve) => {
       let finished = false;
@@ -449,9 +476,13 @@ class HomeChapterController {
     const token = ++this.playbackToken;
     states.forEach((state) => {
       state.video.pause();
-      try { state.video.currentTime = Math.max(0, state.startAt ?? 0); } catch {}
+      state.video.playbackRate = 1;
       this.setLayerFrame(state.name, "first");
     });
+    const seeked = await Promise.all(states.map((state) => (
+      this.seekVideo(state.video, state.startAt ?? 0, epoch, token)
+    )));
+    if (seeked.some((ready) => !ready)) return false;
 
     return await new Promise<boolean>((resolve) => {
       let finished = false;
@@ -666,7 +697,7 @@ class HomeChapterController {
 
     if (id === "rescue") {
       this.setBeat("eye-playing");
-      const ended = await this.playLayer("rescue-eye");
+      const ended = await this.playLayer("rescue-eye", { playbackRate: RESCUE_PLAYBACK_RATE });
       if (ended && this.isCurrent(epoch)) this.settle("eye-hold", "眼神定格");
       return;
     }
@@ -769,7 +800,7 @@ class HomeChapterController {
       this.setBeat("parallel-reveal");
       window.setTimeout(() => {
         if (this.isCurrent(epoch) && this.beat === "parallel-reveal") this.setBeat("parallel-playing");
-      }, 420);
+      }, JEALOUSY_PANEL_REVEAL_MS);
     });
     if (ended && this.isCurrent(epoch)) this.setFinalHold();
     return ended;

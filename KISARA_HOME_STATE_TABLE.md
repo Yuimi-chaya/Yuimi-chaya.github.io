@@ -24,19 +24,19 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 
 | Slot | Runtime file | Source range / duration | Stable behavior |
 | --- | --- | --- | --- |
-| `rescue-eye` | `rescue-eye.mp4` | about `00:16:11:22-00:16:14:00`, `2.13s` | holds on the maximum eye frame |
+| `rescue-eye` | `rescue-eye.mp4` | about `00:16:11:22-00:16:14:00`, `2.13s` | plays at `1.22x` for a tighter eye rush, then holds on the maximum eye frame |
 | `rescue-severed` | `rescue-severed.webp` | selected near `0.48s` of the old slash clip | one clean severed-tentacle still |
 | `rescue-back` | `rescue-slash-last.webp` | old slash clip final frame | Kisara back-view hold |
 | `request-face` | `request-face.webp` | selected near `2.75s` of the old Request clip | full-bleed speaking close-up |
 | `request-emerged` | `request-emerged.webp` | selected near `5.72s` of the old Request clip | complete emergence frame used as a large irregular comic paste |
-| `counter-entry` | `counter-entry.mp4` | about `00:17:03.97-00:17:05.55`, `1.585s` | full relation shot into faceless sword detail |
+| `counter-entry` | `counter-entry.mp4` | trimmed from the old clip at `0.35s`, now `1.251s` | begins directly on the hand/sword detail without replaying the prior relation shot |
 | `counter-run` | `counter-run-scrub.mp4` | `3.23s`, 30fps short-GOP/no-B-frame derivative | now plays automatically through the run/clash |
-| `counter-roll` | `counter-roll.mp4` | montage from about `00:17:08.67-00:17:09.25` and `00:17:14.39-00:17:16.57`, `2.753s` | ends with Kisara down before Shu touches her |
+| `counter-roll` | `counter-roll.mp4` | trimmed from the old montage at `1.38s`, now `1.376s` | begins as Kisara enters the frame already thrown, removing the repeated clash and idle Shu hold |
 | `contract-stills` | `contract-embrace.webp`, `contract-kiss-01/02/03.webp` | selected from the old `25.27s` Contract clip | embrace, approach, contact, and final kiss cuts |
 | `transformation-stills` | `transformation-explosion.webp`, `transformation-detail.webp`, `transformation-silhouette.webp`, `fight.webp` | explosion plus the proven legacy finale assets | compact explosion-to-fight sequence |
-| `jealousy-setup` | `jealousy-setup.webp` | selected at `2.72s` | direct chapter entry hold |
-| `jealousy-slash` | `jealousy-slash.mp4` | resumes at `2.72s` and hands off around `7.38s` | carries the setup into the first back-action frame |
-| `jealousy-action` | `jealousy-blackface.mp4` from `0-1.08s` | duplicated action lane | remains visible as the lower-left/base composition |
+| `jealousy-setup` | `jealousy-setup.webp` | selected at `5.589s` by matching the user-provided closed-mouth turn frame | direct chapter entry hold immediately before the turn and slash |
+| `jealousy-slash` | `jealousy-slash.mp4` | resumes at `5.589s` and hands off around `7.382s` | removes the preceding spoken line and carries only the turn/swing setup |
+| `jealousy-action` | `jealousy-blackface.mp4` from `0-1.00s` | duplicated action lane | remains visible as the full-frame base composition and settles with the close-up lane |
 | `jealousy-blackface` | `jealousy-blackface.mp4` from `1.25s` | duplicated close-up lane | plays concurrently inside the upper-right triangle |
 
 Every remaining ordinary video keeps decoded first/hold fallbacks. Static sequences are hydrated before their chapter becomes visible, and the Request composition intentionally reads as an oversized pasted manga panel rather than a repaired in-scene loop.
@@ -62,7 +62,8 @@ Every remaining ordinary video keeps decoded first/hold fallbacks. Static sequen
 `entry -> entry-playing -> entry-hold -> run-playing -> run-hold -> impact-playing -> roll-hold`
 
 - Running and impact now auto-play as one bounded chapter sequence.
-- Each incoming video remains hidden until its first decoded frame is available; the outgoing hold remains visible until then.
+- The entry and roll runtime files are physically trimmed, so the browser cannot seek back into the superseded relation, clash, or idle footage.
+- Each incoming video remains hidden until its first decoded frame is available; playback also waits for an explicit seek completion before revealing a reused video.
 
 ### Contract
 
@@ -82,9 +83,9 @@ Every remaining ordinary video keeps decoded first/hold fallbacks. Static sequen
 
 `entry -> slash-hold -> swing-playing -> parallel-preparing -> parallel-reveal -> parallel-playing -> blackface-hold`
 
-- The chapter enters directly on the former first manual trigger frame.
+- The chapter enters directly on the user-selected closed-mouth frame at `5.589s`, immediately before Kisara turns.
 - After the slash reaches the first back-action frame, two copies of the follow-up clip run concurrently: the action lane at `0s` and the black-face lane at `1.25s`.
-- The top-left-to-bottom-right cut opens the upper-right triangle while both lanes are already moving, then both settle to independent hold images.
+- The close-up opens as an irregular upper-right manga panel with a light gutter and dark offset seam while both lanes are already moving; the rejected full-screen diagonal triangle and slash line are removed.
 
 ## Marker Navigation
 

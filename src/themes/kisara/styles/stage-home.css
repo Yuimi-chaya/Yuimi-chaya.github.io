@@ -224,8 +224,7 @@ body.kisara-home-page .kisara-scrollbar {
   transform: scale(1);
 }
 
-.kisara-rescue-cutline,
-.kisara-jealousy-cutline {
+.kisara-rescue-cutline {
   position: absolute;
   z-index: 17;
   left: -28vw;
@@ -345,22 +344,31 @@ body.kisara-home-page .kisara-scrollbar {
   opacity: 0;
 }
 
-.kisara-home-counterattack:is([data-counter-beat="run-playing"], [data-counter-beat="run-hold"]) [data-stage-layer="counter-run"] {
+.kisara-home-counterattack:is([data-counter-beat="run-playing"], [data-counter-beat="run-hold"], [data-counter-beat="impact-playing"]) [data-stage-layer="counter-run"] {
   opacity: 1;
-  transition: opacity 180ms ease;
+  transition: opacity 140ms ease;
+}
+
+.kisara-home-counterattack[data-counter-beat="run-playing"] [data-stage-layer="counter-run"] {
+  animation: kisara-counter-launch 240ms cubic-bezier(0.18, 0.8, 0.2, 1) both;
 }
 
 .kisara-home-counterattack:is([data-counter-beat="impact-playing"], [data-counter-beat="roll-hold"]) [data-stage-layer="counter-roll"] {
   opacity: 1;
-  transition: opacity 180ms ease, filter 260ms ease, transform 320ms ease;
+  transition: opacity 120ms ease, filter 240ms ease, transform 280ms ease;
 }
 
 .kisara-home-counterattack[data-counter-beat="impact-playing"] [data-stage-layer="counter-roll"] {
-  animation: kisara-impact-carry 340ms cubic-bezier(0.18, 0.78, 0.18, 1) both;
+  animation: kisara-impact-carry 280ms cubic-bezier(0.18, 0.78, 0.18, 1) both;
+}
+
+@keyframes kisara-counter-launch {
+  0% { filter: blur(3px) contrast(1.08); transform: scale(1.025) translate3d(0.5%, -0.4%, 0); }
+  100% { filter: none; transform: scale(1); }
 }
 
 @keyframes kisara-impact-carry {
-  0% { filter: blur(5px) contrast(1.18) brightness(0.72); transform: scale(1.035) translateX(-0.8%); }
+  0% { filter: blur(3px) contrast(1.12) brightness(0.82); transform: scale(1.022) translate3d(-0.5%, 0.2%, 0); }
   100% { filter: none; transform: scale(1); }
 }
 
@@ -398,44 +406,61 @@ body.kisara-home-page .kisara-scrollbar {
 
 .kisara-home-jealousy:is([data-jealousy-beat="parallel-reveal"], [data-jealousy-beat="parallel-playing"], [data-jealousy-beat="blackface-hold"]) [data-stage-layer="jealousy-slash"] {
   opacity: 0;
+  transition: opacity 140ms ease;
 }
 
 .kisara-home-jealousy:is([data-jealousy-beat="parallel-reveal"], [data-jealousy-beat="parallel-playing"], [data-jealousy-beat="blackface-hold"]) .kisara-jealousy-action {
   opacity: 1;
 }
 
+.kisara-home-jealousy[data-jealousy-beat="parallel-reveal"] .kisara-jealousy-action {
+  animation: kisara-jealousy-action-carry 260ms cubic-bezier(0.18, 0.78, 0.18, 1) both;
+}
+
 .kisara-jealousy-split {
   z-index: 12;
-  clip-path: polygon(0 0, 0 0, 0 0);
-  will-change: clip-path, opacity;
+  --media-position: 58% 48%;
+  --media-scale: 1.08;
+  clip-path: polygon(96% 2%, 101% 0, 101% 7%, 98% 8%);
+  filter:
+    drop-shadow(-7px 9px 0 rgba(255, 244, 229, 0.88))
+    drop-shadow(-13px 15px 0 rgba(25, 8, 18, 0.72));
+  transform: translate3d(2.5%, -1.6%, 0) rotate(0.65deg) scale(1.035);
+  transform-origin: 84% 18%;
+  will-change: clip-path, opacity, transform;
 }
 
 .kisara-home-jealousy[data-jealousy-beat="parallel-reveal"] .kisara-jealousy-split {
   opacity: 1;
-  animation: kisara-jealousy-split 420ms cubic-bezier(0.16, 0.84, 0.18, 1) both;
+  animation: kisara-jealousy-panel 560ms cubic-bezier(0.16, 0.84, 0.18, 1) both;
 }
 
 .kisara-home-jealousy:is([data-jealousy-beat="parallel-playing"], [data-jealousy-beat="blackface-hold"]) .kisara-jealousy-split {
   opacity: 1;
-  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  clip-path: polygon(45% -4%, 104% -4%, 104% 76%, 92% 74%, 85% 81%, 73% 69%, 60% 72%, 52% 58%, 44% 54%);
+  transform: translate3d(0, 0, 0) rotate(0) scale(1);
 }
 
-.kisara-jealousy-cutline { transform: rotate(29.35deg) scaleX(0.08); }
-
-.kisara-home-jealousy[data-jealousy-beat="parallel-reveal"] .kisara-jealousy-cutline {
-  animation: kisara-jealousy-cut 520ms ease-out both;
+@keyframes kisara-jealousy-action-carry {
+  0% { filter: blur(2px) brightness(0.86); transform: scale(1.016); }
+  100% { filter: none; transform: scale(1); }
 }
 
-@keyframes kisara-jealousy-split {
-  0% { clip-path: polygon(0 0, 0 0, 0 0); }
-  100% { clip-path: polygon(0 0, 100% 0, 100% 100%); }
-}
-
-@keyframes kisara-jealousy-cut {
-  0% { opacity: 0; transform: rotate(29.35deg) scaleX(0.05); filter: blur(5px); }
-  16% { opacity: 1; filter: blur(0); }
-  58% { opacity: 0.78; transform: rotate(29.35deg) scaleX(1); }
-  100% { opacity: 0; transform: rotate(29.35deg) scaleX(1); filter: blur(2px); }
+@keyframes kisara-jealousy-panel {
+  0% {
+    opacity: 0;
+    clip-path: polygon(96% 2%, 101% 0, 101% 7%, 98% 8%);
+    transform: translate3d(2.5%, -1.6%, 0) rotate(0.65deg) scale(1.035);
+  }
+  32% { opacity: 1; }
+  68% {
+    clip-path: polygon(52% -4%, 104% -4%, 104% 68%, 94% 68%, 86% 76%, 75% 66%, 63% 68%, 56% 56%, 50% 52%);
+  }
+  100% {
+    opacity: 1;
+    clip-path: polygon(45% -4%, 104% -4%, 104% 76%, 92% 74%, 85% 81%, 73% 69%, 60% 72%, 52% 58%, 44% 54%);
+    transform: translate3d(0, 0, 0) rotate(0) scale(1);
+  }
 }
 
 .kisara-home-chapter-rail {
@@ -844,7 +869,6 @@ html[data-kisara-found-self-entry] .kisara-found-self,
   .kisara-home-chapter,
   .kisara-still-shot,
   .kisara-rescue-cutline,
-  .kisara-jealousy-cutline,
   .kisara-request-comic > img,
   .kisara-request-doodles,
   .kisara-home-chapter-rail,
