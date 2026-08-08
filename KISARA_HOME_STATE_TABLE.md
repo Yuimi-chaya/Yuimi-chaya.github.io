@@ -86,6 +86,7 @@ Every remaining ordinary video keeps decoded first/hold fallbacks. Static sequen
 - The chapter enters directly on the user-selected closed-mouth frame at `5.589s`, immediately before Kisara turns.
 - After the slash reaches the first back-action frame, the full-frame action lane preserves Ayano's final reaction frames at normal speed. The right-side lane begins directly at the black-face cut (`1.25s`) and plays at `0.56x`; it never replays Ayano inside the incoming region.
 - The close-up fills one clean right-side manga region drawn from upper middle to lower right, leaving the full left swing and Ayano's lower-right reaction readable. Its boundary is one simple diagonal plane, not a jagged comic cut, a floating card, or a giant face crop.
+- The close-up media is independently framed inside that region at `72%` scale and `-7deg`, anchored toward the upper right. The unused part of the region remains transparent to the full-frame action lane instead of stretching the face to fill the entire mask.
 
 ## Marker Navigation
 

@@ -245,6 +245,7 @@
 
 - Human review rejected the first irregular Jealousy cut: it still treated the close-up as a full-viewport layer and merely clipped it, producing an oversized face that obscured the swing instead of a readable comic panel. The same-tab media timing from `406dc1e` remains unchanged.
 - The first follow-up made the panel too small and card-like; the next jagged polygon also read as an arbitrary "betel-nut" cut. The approved spatial direction is one clean right-side comic region following the user-drawn upper-middle-to-lower-right divider: the black-face lane fills that region while the swing remains readable on the left and Ayano stays exposed at lower right. Ayano's final frames belong only to the full-frame action lane; the right lane starts directly at the `1.25s` black-face cut and plays at `0.56x`, so it never repeats her inside the overlay. Keep one simple diagonal plane; do not return to a floating card, a jagged border, or a giant face crop that overwhelms the full frame.
+- Human review then confirmed that the region geometry was acceptable but the source close-up was still rendered at full-viewport scale. The media itself is now independently reduced to `72%`, rotated `-7deg`, and anchored near the upper-right center; transparent space inside the mask falls through to the action lane. Future crop tuning should change only this inner transform, not the accepted right-side divider or playback timing.
 
 ## Architecture Decision
 
