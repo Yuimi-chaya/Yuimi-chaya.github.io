@@ -11,12 +11,12 @@
 
 | Index | ID | Stable composition | Short action | Forward behavior | Backward behavior | Qualification |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | `rescue` | maximum-eye still | `rescue-action.mp4`, about `0.29s` | enters Request directly | edge nudge | FoundSelf may run before entry |
+| 0 | `rescue` | Kisara back-view still | `rescue-action.mp4`, about `0.29s`, then an automatic `0.50s` diagonal cut/back-view reveal | enters Request directly | edge nudge | FoundSelf may run before entry |
 | 1 | `request` | emerged comic still | static face-to-paste action, about `0.62s` | enters Counterattack directly | restores Rescue stable frame | none |
 | 2 | `counterattack` | roll/landing still | `counter-action.mp4`, about `1.00s`, from the run-end launch through the energy clash | enters Contract directly | restores Request stable frame | none |
 | 3 | `contract` | final kiss still | two-frame embrace-to-kiss action, about `0.52s` | enters Transformation directly | restores Counterattack stable frame | grant spare key on stable arrival |
 | 4 | `transformation` | Fight still | old-stage-style overlapping explosion/detail/silhouette/Fight fades, about `1.32s` | enters Jealousy and starts its slash immediately | restores Contract stable frame | none |
-| 5 | `jealousy` | completed action plus right comic panel | `jealousy-action.mp4`, about `1.38s`; the preparation uses source speed and the final slash accelerates | edge nudge; Lovebrain may be activated after settle | restores Transformation stable frame | mark `home-jealousy` on final settle |
+| 5 | `jealousy` | completed action plus right comic panel | `jealousy-action.mp4`, about `1.25s`; the preparation runs at `1.25x` and the final slash accelerates | edge nudge; Lovebrain may be activated after settle | restores Transformation stable frame | mark `home-jealousy` on final settle |
 
 ## Runtime Media
 
@@ -25,8 +25,8 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 | Slot | Runtime file | Role |
 | --- | --- | --- |
 | Rescue action | `rescue-action.mp4` | selected eye rush only; no source white flash |
-| Rescue stable | `rescue-eye-last.webp` | maximum-eye scene hold |
-| Rescue bridge | `rescue-severed.webp`, `rescue-slash-last.webp` | static outgoing relation during Rescue -> Request |
+| Rescue action hold | `rescue-eye-last.webp` | maximum-eye frame before the automatic cut |
+| Rescue stable | `rescue-severed.webp`, `rescue-slash-last.webp` | diagonal cut followed by the persistent Kisara back-view composition |
 | Request stable | `request-emerged.webp` | oversized manga/OP paste hold |
 | Request source | `request-face.webp` | dimmed source still below the paste |
 | Counter action | `counter-action.mp4` | continuous run-end launch to energy clash; no sword prelude, hit/roll chain, or wheel scrub |
@@ -35,7 +35,7 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 | Contract cut | `contract-embrace.webp` | the only pre-kiss still; it cuts directly to the stable kiss frame |
 | Transformation stable | `fight.webp` | final Fight hold |
 | Transformation cuts | `transformation-explosion.webp`, `transformation-detail.webp`, `transformation-silhouette.webp` | static reconstruction keyframes only |
-| Jealousy action | `jealousy-action.mp4` | complete closed-mouth turn and slash with source-speed preparation and accelerated final slash, no long spoken prelude |
+| Jealousy action | `jealousy-action.mp4` | complete closed-mouth turn and slash with `1.25x` preparation and accelerated final slash, no long spoken prelude |
 | Jealousy stable | `jealousy-action-hold.webp`, `jealousy-blackface-last.webp` | completed base and right comic panel |
 
 ## Scene Action Contract
@@ -45,7 +45,7 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 `scene-active -> action-running -> settled`
 
 - The initial eye action is a purpose-cut `0.20-0.30s` clip.
-- The stable eye composition remains readable after the action. The severed/back images are used only as a short static bridge while leaving for Request.
+- Its completion automatically starts the existing diagonal severed-tentacle cut and back-view reveal. The back-view image is the stable composition, and the cut does not replay when leaving for Request.
 
 ### Request
 
@@ -79,7 +79,7 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 `scene-active -> action-running -> final`
 
 - The slash video starts as part of entering Jealousy from Transformation. The user never needs a second forward gesture to start it.
-- The turn and sword arc remain visible with the former slow preparation restored to source speed. The right-side black-face image is triggered from the decoded media time at the slash onset, then settles with the action base.
+- The turn and sword arc remain visible with the preparation tightened to `1.25x`. The right-side black-face image is triggered from decoded media time `0.98s` at the slash onset, then settles with the action base.
 
 ## Input And Restoration
 

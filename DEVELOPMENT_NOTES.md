@@ -281,6 +281,13 @@
 - Human review also found Jealousy's preparation too slow and its black-face panel detached from the actual slash. The `6.32s -> 7.05s` source segment is restored from `0.82x` to `1.00x`; the opening `1.70x` pickup and final `2.20x` acceleration remain, producing a `1.376375s` H.264/yuv420p clip. The panel no longer uses a `1040ms` chapter-entry delay: `requestVideoFrameCallback`/`timeupdate` cues it at media time `1.10s`, after the action decoder reaches the slash onset, so hydration or seek delay cannot expose it before the turn.
 - Runtime first/last boundaries are unchanged, so the existing first/last/hold posters remain valid and were not regenerated. Fine fade comfort, source-speed preparation, and the exact panel-on-sword timing remain pending the user's direct visual review.
 
+### Home Rescue auto-cut and Jealousy pre-back tightening (`2026-08-08`, pending human review)
+
+- Recovery baseline: clean tracked `main` at `d222225 refine(kisara): align awaken and jealousy timing`; unrelated untracked assets remain untouched.
+- Rescue now continues automatically after the `0.291958s` eye action: the existing `240ms` diagonal severed-tentacle cut and delayed `360ms` back-view reveal run within the same scene, then the back-view image becomes the stable composition. The former Rescue -> Request transition selectors were removed so leaving the scene cannot replay the cut.
+- Jealousy's source boundaries remain `5.95s -> 8.008s`. Only the `6.32s -> 7.05s` preparation segment changes from `1.00x` to `1.25x`; the `1.70x` pickup and `2.20x` final acceleration remain. The result is a `1.251s`, 30-frame H.264/yuv420p clip, and the decoded-media black-face cue moves from `1.10s` to `0.98s` to remain aligned with the slash onset.
+- The delegated media worker was stopped after the permitted directed retry remained unavailable through an upstream 503; the main thread produced the bounded candidate locally without further agent retries. Fine hand feel remains pending the user's direct visual review.
+
 ## Architecture Decision
 
 - Shared layer: content collections, article queries, site metadata, category labels, SEO inputs, and theme registry/path helpers.

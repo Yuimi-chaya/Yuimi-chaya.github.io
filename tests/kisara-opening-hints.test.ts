@@ -48,6 +48,7 @@ test("Home exposes six public scenes with one action lane per scene", () => {
   }
   assert.match(stageHomeSource, /data-stage-engine="keyframe-owner"/);
   assert.match(stageHomeSource, /data-scene-action="idle"/);
+  assert.match(stageHomeSource, /data-rescue-bridge-state="hidden"/);
   assert.doesNotMatch(stageHomeSource, /data-rescue-beat|data-request-beat|data-counter-beat|data-contract-beat|data-transformation-beat|data-jealousy-beat/);
 });
 
@@ -76,7 +77,7 @@ test("Home scene state table defines short actions and no hidden internal stops"
   assert.match(stateTable, /Public Scenes|六个稳定场景/i);
   assert.match(stateTable, /rescue-action\.mp4.*0\.29s/);
   assert.match(stateTable, /counter-action\.mp4.*1\.00s/);
-  assert.match(stateTable, /jealousy-action\.mp4.*1\.38s/);
+  assert.match(stateTable, /jealousy-action\.mp4.*1\.25s/);
   assert.match(stateTable, /There is no scrub state/);
   assert.match(stateTable, /The user never needs a second forward gesture/);
   assert.doesNotMatch(stateTable, /chapter-local beats|run-playing|parallel-preparing/);
@@ -94,6 +95,7 @@ test("Scene transitions use Me-like positions and delayed copy without a generic
   assert.match(stageStyles, /kisara-home-jealousy-panel/);
   assert.match(stageStyles, /data-jealousy-panel-state="revealing"/);
   assert.match(stageStyles, /kisara-home-transform-detail/);
+  assert.match(stageStyles, /data-rescue-bridge-state="playing"/);
   assert.match(stageStyles, /data-transition-participant="outgoing"/);
   assert.doesNotMatch(stageStyles, /is-switching \.kisara-home-chapter\[data-chapter-position="before"\]/);
   assert.doesNotMatch(stageStyles, /data-transition-participant="outgoing"[^}]*opacity:\s*1/s);
@@ -123,7 +125,9 @@ test("FoundSelf, spare-key, jealousy, and Lovebrain remain on the scene controll
   assert.match(stageRuntimeSource, /markSpareKey\?\.\(\) === true/);
   assert.match(stageRuntimeSource, /mark\?\.\("photo-archive"\)/);
   assert.match(stageRuntimeSource, /markStage\?\.\("home-jealousy"\)/);
-  assert.match(stageRuntimeSource, /JEALOUSY_PANEL_REVEAL_AT = 1\.1/);
+  assert.match(stageRuntimeSource, /RESCUE_BRIDGE_MS = 500/);
+  assert.match(stageRuntimeSource, /setRescueBridgeState\("playing"\)/);
+  assert.match(stageRuntimeSource, /JEALOUSY_PANEL_REVEAL_AT = 0\.98/);
   assert.match(stageRuntimeSource, /setJealousyPanelState\("revealing"\)/);
   assert.match(stageRuntimeSource, /activate: this\.activateLovebrain/);
   assert.match(stageRuntimeSource, /leaveToOpening: this\.leaveLovebrain/);

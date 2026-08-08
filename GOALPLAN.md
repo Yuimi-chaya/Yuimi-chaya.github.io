@@ -39,8 +39,8 @@ Use the Me scene model as the behavioral baseline:
 ### 1. Rescue
 
 - Preserve the eye-poke as the opening impact, but derive a compact `0.20-0.30s` cut from only the forceful eye frames. Frame removal and a controlled speed ramp are preferred to optical-flow interpolation.
-- The scene settles into one accepted rescue composition. Any severed-tentacle/back-view material becomes a brief scene-entry/exit relation, not two additional user stops.
-- This scene carries the smallest site-introduction layer only after the action settles; the eye frame remains visually dominant.
+- The eye action automatically continues into the accepted diagonal severed-tentacle cut and back-view image without another user gesture. The back-view image becomes the stable Rescue composition; leaving for Request must not replay the cut.
+- This scene carries the smallest site-introduction layer after the automatic cut settles.
 
 ### 2. Request
 
@@ -68,7 +68,7 @@ Use the Me scene model as the behavioral baseline:
 
 ### 6. Jealousy
 
-- Enter on the selected pre-turn static frame. The very next forward transition immediately runs the complete turn-and-slash action with the previously slowed preparation restored to source speed and only the final slash accelerated. The right-side black-face composition is cued from the decoded slash media time, not from chapter-entry wall time.
+- Enter on the selected pre-turn static frame. The very next forward transition immediately runs the complete turn-and-slash action with the preparation tightened to `1.25x` and the final slash kept accelerated. The right-side black-face composition is cued from the decoded slash media time, not from chapter-entry wall time.
 - The user must never enter Jealousy, see a static setup, and need another downward gesture just to trigger the actual slash.
 - Preserve the accepted simple right-side comic region and independent close-up framing direction, but treat the completed split as the scene's static end composition.
 - The settled end marks `home-jealousy`, exposes Lovebrain eligibility, and retains replay/end behavior.

@@ -62,14 +62,15 @@ const WHEEL_THRESHOLD = 42;
 const GESTURE_GAP = 180;
 const INPUT_LOCK_MS = 720;
 const SCENE_HANDOFF_MS = 520;
-const JEALOUSY_PANEL_REVEAL_AT = 1.1;
+const RESCUE_BRIDGE_MS = 500;
+const JEALOUSY_PANEL_REVEAL_AT = 0.98;
 const SCENE_ACTION_MS: Record<ChapterId, number> = {
-  rescue: 320,
+  rescue: 800,
   request: 620,
   counterattack: 1000,
   contract: 520,
   transformation: 1320,
-  jealousy: 1380
+  jealousy: 1260
 };
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
@@ -349,6 +350,12 @@ class HomeChapterController {
     if (chapter) chapter.dataset.jealousyPanelState = state;
   }
 
+  private setRescueBridgeState(state: "hidden" | "playing" | "settled") {
+    const index = this.chapterIndex.get("rescue");
+    const chapter = index === undefined ? null : this.chapters[index];
+    if (chapter) chapter.dataset.rescueBridgeState = state;
+  }
+
   private videoLayerName(id: ChapterId) {
     return id === "rescue"
       ? "rescue-action"
@@ -525,6 +532,9 @@ class HomeChapterController {
     this.stableState = options.restoreStable ? (to === "jealousy" ? "final" : "settled") : "opening";
     this.actionState = shouldRunAction ? "running" : "settled";
     if (incoming) incoming.dataset.sceneAction = shouldRunAction ? "running" : "settled";
+    if (to === "rescue") {
+      this.setRescueBridgeState(shouldRunAction ? "hidden" : "settled");
+    }
     if (to === "jealousy") {
       this.setJealousyPanelState(shouldRunAction ? "hidden" : "settled");
     }
@@ -587,6 +597,10 @@ class HomeChapterController {
       ended = await this.wait(SCENE_ACTION_MS[id], epoch);
     }
     if (!ended || !this.isCurrent(epoch)) return false;
+    if (id === "rescue") {
+      this.setRescueBridgeState("playing");
+      if (!(await this.wait(RESCUE_BRIDGE_MS, epoch)) || !this.isCurrent(epoch)) return false;
+    }
     this.finishScene(id, true);
     return true;
   }
@@ -597,6 +611,7 @@ class HomeChapterController {
     this.stableState = id === "jealousy" ? "final" : "settled";
     const chapter = this.chapters[this.activeIndex];
     if (chapter) chapter.dataset.sceneAction = "settled";
+    if (id === "rescue") this.setRescueBridgeState("settled");
     if (id === "jealousy") this.setJealousyPanelState("settled");
     this.root.dataset.stageState = "settled";
     this.host.dataset.kisaraStageSettled = id === "jealousy" ? "true" : "false";
@@ -632,6 +647,7 @@ class HomeChapterController {
     this.actionState = "settled";
     this.stableState = id === "jealousy" ? "final" : "settled";
     this.chapters[this.activeIndex]?.setAttribute("data-scene-action", "settled");
+    if (id === "rescue") this.setRescueBridgeState("settled");
     if (id === "jealousy") this.setJealousyPanelState("settled");
     this.root.dataset.stageState = "settled";
     this.host.dataset.kisaraStageSettled = id === "jealousy" ? "true" : "false";
