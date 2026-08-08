@@ -13,11 +13,12 @@ const stageHomeSource = readSource("src/themes/kisara/components/KisaraStageHome
 const stageRuntimeSource = readSource("src/themes/kisara/runtime/stageHome.ts");
 const stageStyles = readSource("src/themes/kisara/styles/stage-home.css");
 const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
+const stateTable = readSource("KISARA_HOME_STATE_TABLE.md");
 
-test("Home exposes six authored chapters with semantic media instead of a legacy finale", () => {
-  const chapters = [...stageHomeSource.matchAll(/\{ id: "([^"]+)", label: "([^"]+)", title: "([^"]+)" \}/g)]
+test("Home exposes six public scenes with one action lane per scene", () => {
+  const scenes = [...stageHomeSource.matchAll(/\{ id: "([^"]+)", label: "([^"]+)", title: "([^"]+)" \}/g)]
     .map((match) => match[1]);
-  assert.deepEqual(chapters, [
+  assert.deepEqual(scenes, [
     "rescue",
     "request",
     "counterattack",
@@ -26,14 +27,13 @@ test("Home exposes six authored chapters with semantic media instead of a legacy
     "jealousy"
   ]);
   for (const asset of [
-    "rescue-eye.mp4",
+    "rescue-action.mp4",
+    "rescue-eye-last.webp",
     "rescue-severed.webp",
-    "rescue-slash-last.webp",
     "request-face.webp",
     "request-emerged.webp",
-    "counter-entry.mp4",
-    "counter-run-scrub.mp4",
-    "counter-roll.mp4",
+    "counter-action.mp4",
+    "counter-roll-last.webp",
     "contract-embrace.webp",
     "contract-kiss-01.webp",
     "contract-kiss-02.webp",
@@ -42,101 +42,60 @@ test("Home exposes six authored chapters with semantic media instead of a legacy
     "transformation-detail.webp",
     "transformation-silhouette.webp",
     "fight.webp",
-    "jealousy-setup.webp",
-    "jealousy-slash.mp4",
-    "jealousy-blackface.mp4",
-    "jealousy-action-hold.webp"
+    "jealousy-action.mp4",
+    "jealousy-action-hold.webp",
+    "jealousy-blackface-last.webp"
   ]) {
     assert.match(stageHomeSource, new RegExp(asset.replaceAll(".", "\\.")), `${asset} must be declared`);
   }
-  assert.match(stageHomeSource, /data-stage-engine="chapter-owner"/);
-  assert.match(stageHomeSource, /data-home-chapter-target/);
-  assert.doesNotMatch(stageHomeSource, /legacy-finale|legacy-transform|data-kisara-legacy-media/);
+  assert.match(stageHomeSource, /data-stage-engine="keyframe-owner"/);
+  assert.match(stageHomeSource, /data-scene-action="idle"/);
+  assert.doesNotMatch(stageHomeSource, /data-rescue-beat|data-request-beat|data-counter-beat|data-contract-beat|data-transformation-beat|data-jealousy-beat/);
 });
 
-test("HomeChapterController owns chapter beats, bounded input, and decoded playback", () => {
+test("Home controller uses scene/stable/action ownership instead of nested beat playback", () => {
   assert.match(stageRuntimeSource, /class HomeChapterController/);
   assert.match(stageRuntimeSource, /const CHAPTER_IDS: ChapterId\[\] =/);
+  assert.match(stageRuntimeSource, /private stableState: StableState/);
+  assert.match(stageRuntimeSource, /private actionState: "idle" \| "running" \| "settled"/);
   assert.match(stageRuntimeSource, /private epoch = 0/);
   assert.match(stageRuntimeSource, /private transitionSerial = 0/);
   assert.match(stageRuntimeSource, /private playbackToken = 0/);
   assert.match(stageRuntimeSource, /private beginOperation\(\)/);
   assert.match(stageRuntimeSource, /private async switchChapter\(/);
+  assert.match(stageRuntimeSource, /private async runSceneAction\(/);
   assert.match(stageRuntimeSource, /requestVideoFrameCallback/);
-  assert.match(stageRuntimeSource, /private async startRescueMemoryCut\(\)/);
-  assert.match(stageRuntimeSource, /private async startJealousyReveal\(\)/);
-  assert.match(stageRuntimeSource, /private async playLayerGroup\(/);
-  assert.match(stageRuntimeSource, /private async playBeatSequence\(/);
-  assert.match(stageRuntimeSource, /JEALOUSY_ACTION_START_AT = 7\.38/);
-  assert.match(stageRuntimeSource, /WHEEL_THRESHOLD = 42/);
+  assert.match(stageRuntimeSource, /const INPUT_LOCK_MS = 720/);
+  assert.match(stageRuntimeSource, /const GESTURE_GAP = 180/);
   assert.match(stageRuntimeSource, /window\.addEventListener\("wheel", this\.handleWheel/);
-  assert.match(stageRuntimeSource, /window\.addEventListener\("keydown", this\.handleKeydown/);
   assert.match(stageRuntimeSource, /marker\.dataset\.homeChapterTarget/);
-  assert.doesNotMatch(stageRuntimeSource, /LegacyStageBridge|__yuimiKisaraLegacyStage|playImpactReconstruction|releaseAutoplayKeyframes/);
+  assert.doesNotMatch(stageRuntimeSource, /playBeatSequence|playLayerGroup|startRescueMemoryCut|startJealousyReveal|CHAPTER_TRANSITION_MS|JEALOUSY_SETUP_AT|JEALOUSY_BLACKFACE_AT/);
 });
 
-test("Chapter-local beats implement the tightened eye, still-sequence, auto-run, kiss, and parallel black-face holds", () => {
-  for (const beat of [
-    "eye-hold",
-    "cut-severed",
-    "back-reveal",
-    "back-hold",
-    "request-face",
-    "request-comic",
-    "request-hold",
-    "run-playing",
-    "impact-playing",
-    "roll-hold",
-    "contract-kiss-1",
-    "contract-kiss-2",
-    "contract-kiss-3",
-    "kiss-hold",
-    "transform-explosion",
-    "transform-detail",
-    "transform-silhouette",
-    "transform-fight",
-    "transform-hold",
-    "parallel-reveal",
-    "parallel-playing",
-    "blackface-hold"
-  ]) {
-    assert.match(stageRuntimeSource, new RegExp(`"${beat}"`), `${beat} must be implemented`);
-  }
-  assert.match(stageRuntimeSource, /playLayer\("counter-run"/);
-  assert.match(stageRuntimeSource, /playLayer\("counter-roll"/);
-  assert.match(stageRuntimeSource, /RESCUE_PLAYBACK_RATE = 1\.22/);
-  assert.match(stageRuntimeSource, /JEALOUSY_SETUP_AT = 5\.589/);
-  assert.match(stageRuntimeSource, /private async seekVideo\(/);
-  assert.match(stageRuntimeSource, /playLayerGroup\(\[/);
-  assert.match(stageRuntimeSource, /onEnter: \(\) => this\.grantSpareKey\(\)/);
-  assert.match(stageRuntimeSource, /setFinalHold/);
-  assert.doesNotMatch(stageRuntimeSource, /pushCounterScrub|startRequestLoop|requestLoop/);
+test("Home scene state table defines short actions and no hidden internal stops", () => {
+  assert.match(stateTable, /Public Scenes|六个稳定场景/i);
+  assert.match(stateTable, /rescue-action\.mp4.*0\.29s/);
+  assert.match(stateTable, /counter-action\.mp4.*0\.43s/);
+  assert.match(stateTable, /jealousy-action\.mp4.*0\.46s/);
+  assert.match(stateTable, /There is no scrub state/);
+  assert.match(stateTable, /The user never needs a second forward gesture/);
+  assert.doesNotMatch(stateTable, /chapter-local beats|run-playing|parallel-preparing/);
 });
 
-test("Sword transitions and chapter boundaries have distinct visual grammars", () => {
-  assert.match(stageStyles, /\.kisara-rescue-severed \{[\s\S]*clip-path:/);
-  assert.match(stageStyles, /\.kisara-jealousy-split \{[\s\S]*clip-path: polygon\(48% -2%, 102% -2%, 102% 102%, 76% 102%\);/);
-  assert.match(stageStyles, /\.kisara-jealousy-split > :is\(img, video\)[\s\S]*rotate\(-7deg\) scale\(0\.72\)/);
-  assert.match(stageStyles, /@keyframes kisara-jealousy-panel[\s\S]*clip-path:/);
-  assert.match(stageRuntimeSource, /JEALOUSY_BLACKFACE_AT = 1\.25/);
-  assert.match(stageRuntimeSource, /JEALOUSY_BLACKFACE_PLAYBACK_RATE = 0\.56/);
-  assert.match(stageStyles, /data-rescue-beat="cut-severed"/);
-  assert.match(stageStyles, /data-jealousy-beat="parallel-reveal"/);
-  assert.match(stageStyles, /data-jealousy-beat="parallel-playing"/);
-  assert.match(stageStyles, /kisara-jealousy-panel/);
-  assert.doesNotMatch(stageStyles, /kisara-jealousy-cut/);
-  assert.match(stageStyles, /data-chapter-transition="request-counter"/);
-  assert.match(stageStyles, /data-chapter-transition="counter-contract"/);
+test("Scene transitions use Me-like positions and delayed copy without a generic flash layer", () => {
+  assert.match(stageStyles, /data-chapter-position="before"/);
+  assert.match(stageStyles, /data-chapter-position="after"/);
+  assert.match(stageStyles, /data-chapter-transition="rescue-request"/);
   assert.match(stageStyles, /data-chapter-transition="contract-transform"/);
-  assert.match(stageStyles, /data-chapter-transition="transform-jealousy"/);
-  assert.match(stageStyles, /\.kisara-request-comic/);
-  assert.match(stageStyles, /\.kisara-request-doodles/);
-  assert.match(stageStyles, /\.kisara-still-shot/);
-  assert.doesNotMatch(stageStyles, /\.kisara-request-loop|\.kisara-scrub-signal/);
-  assert.doesNotMatch(stageStyles, /kisara-gate-legacy-media|space-lens|impact-reconstruct/);
+  assert.match(stageStyles, /kisara-home-copy-in/);
+  assert.match(stageStyles, /animation-delay: 120ms/);
+  assert.match(stageStyles, /animation-delay: 300ms/);
+  assert.match(stageStyles, /animation-delay: 410ms/);
+  assert.match(stageStyles, /kisara-home-jealousy-panel/);
+  assert.doesNotMatch(stageStyles, /kisara-home-chapter\[data-chapter-position="active"\].*data-.*beat/);
 });
 
-test("Home is a thin assembly layer and does not initialize the old gate runtime", () => {
+test("Home remains a thin assembly layer and does not initialize the old gate runtime", () => {
   assert.match(homeSource, /<KisaraStageHome \/>/);
   assert.match(homeSource, /<KisaraFoundSelfEasterEgg \/>/);
   assert.match(homeSource, /<KisaraLovebrainEasterEgg \/>/);
@@ -147,7 +106,7 @@ test("Home is a thin assembly layer and does not initialize the old gate runtime
   assert.match(layoutSource, /\{!isHome && \(\s*<footer class="kisara-footer">/);
 });
 
-test("FoundSelf, spare-key, jealousy, and Lovebrain remain on the chapter controller boundary", () => {
+test("FoundSelf, spare-key, jealousy, and Lovebrain remain on the scene controller boundary", () => {
   assert.match(stageRuntimeSource, /document\.documentElement\.dataset\.kisaraFoundSelfEntry === "pending"/);
   assert.match(stageRuntimeSource, /private async startFoundSelf\(\)/);
   assert.match(stageRuntimeSource, /private finishFoundSelf\(\)/);
@@ -161,25 +120,18 @@ test("FoundSelf, spare-key, jealousy, and Lovebrain remain on the chapter contro
   assert.match(stageRuntimeSource, /leaveToOpening: this\.leaveLovebrain/);
 });
 
-test("Home retires the global progress rail in favor of compact clickable chapter markers", () => {
+test("Home keeps compact markers, no global progress rail, and lifecycle-safe stable restoration", () => {
   assert.match(stageStyles, /body\.kisara-home-page \.kisara-scrollbar \{\s*display: none !important;/);
   assert.match(stageStyles, /\.kisara-home-chapter-rail/);
   assert.match(stageStyles, /button\[aria-current="step"\]/);
   assert.match(stageStyles, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
   assert.match(stageRuntimeSource, /marker\.dataset\.homeChapterTarget/);
-});
-
-test("Chapter lifecycle pauses media, preserves BFCache ownership, and restores stable state", () => {
+  assert.match(stageRuntimeSource, /yuimi-kisara-home-keyframe-v2/);
   assert.match(stageRuntimeSource, /private suspend = \(\) =>/);
   assert.match(stageRuntimeSource, /private resume = \(\) =>/);
-  assert.match(stageRuntimeSource, /this\.resumeVideos\.add\(video\)/);
-  assert.match(stageRuntimeSource, /private async waitUntilVisible\(epoch: number\)/);
   assert.match(stageRuntimeSource, /window\.addEventListener\("pagehide", this\.suspend/);
   assert.match(stageRuntimeSource, /window\.addEventListener\("pageshow", this\.resume/);
   assert.match(stageRuntimeSource, /document\.addEventListener\("astro:before-swap"/);
-  assert.match(stageRuntimeSource, /event\.persisted && root\?\.dataset\.bound === "true"/);
-  assert.match(stageRuntimeSource, /yuimi-kisara-home-chapters-v1/);
-  assert.match(stageRuntimeSource, /private async restoreStableBeat/);
   assert.match(stageRuntimeSource, /if \(this\.reducedMotion\)/);
   assert.match(stageStyles, /body\.kisara-home-page \.kisara-header \{\s*z-index: 64;/);
 });

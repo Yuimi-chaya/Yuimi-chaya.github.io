@@ -1,5 +1,6 @@
 type ChapterId = "rescue" | "request" | "counterattack" | "contract" | "transformation" | "jealousy";
 type FrameState = "first" | "video" | "hold";
+type StableState = "opening" | "settled" | "final";
 
 interface ChapterConfig {
   id: ChapterId;
@@ -16,11 +17,10 @@ interface LayerNode {
   hold: HTMLImageElement | null;
 }
 
-interface SavedChapterState {
-  version: 1;
-  chapter: ChapterId;
-  beat: string;
-  scrub: number;
+interface SavedStageState {
+  version: 2;
+  scene: ChapterId;
+  stable: StableState;
 }
 
 type HomeLovebrainApi = {
@@ -55,17 +55,21 @@ const CHAPTER_IDS: ChapterId[] = [
   "transformation",
   "jealousy"
 ];
-const STORAGE_KEY = "yuimi-kisara-home-chapters-v1";
+
+const STORAGE_KEY = "yuimi-kisara-home-keyframe-v2";
+const LEGACY_STORAGE_KEY = "yuimi-kisara-home-chapters-v1";
 const WHEEL_THRESHOLD = 42;
 const GESTURE_GAP = 180;
-const CHAPTER_TRANSITION_MS = 560;
-const RESCUE_PLAYBACK_RATE = 1.22;
-const JEALOUSY_SETUP_AT = 5.589;
-const JEALOUSY_ACTION_START_AT = 7.382;
-const JEALOUSY_ACTION_HOLD_AT = 1;
-const JEALOUSY_BLACKFACE_AT = 1.25;
-const JEALOUSY_BLACKFACE_PLAYBACK_RATE = 0.56;
-const JEALOUSY_PANEL_REVEAL_MS = 560;
+const INPUT_LOCK_MS = 720;
+const SCENE_HANDOFF_MS = 520;
+const SCENE_ACTION_MS: Record<ChapterId, number> = {
+  rescue: 320,
+  request: 620,
+  counterattack: 500,
+  contract: 620,
+  transformation: 660,
+  jealousy: 560
+};
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const nextFrame = () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
@@ -89,19 +93,27 @@ const readManifest = (root: HTMLElement): ChapterConfig[] => {
   }
 };
 
-const readSavedState = (): SavedChapterState | null => {
+const readSavedState = (): SavedStageState | null => {
   try {
-    const parsed = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? "null");
-    if (parsed?.version !== 1 || !CHAPTER_IDS.includes(parsed.chapter)) return null;
-    return {
-      version: 1,
-      chapter: parsed.chapter,
-      beat: typeof parsed.beat === "string" ? parsed.beat : "hold",
-      scrub: clamp(Number(parsed.scrub) || 0)
-    };
-  } catch {
-    return null;
-  }
+    const current = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? "null");
+    if (current?.version === 2 && CHAPTER_IDS.includes(current.scene)) {
+      return {
+        version: 2,
+        scene: current.scene,
+        stable: current.stable === "final" ? "final" : "settled"
+      };
+    }
+
+    const legacy = JSON.parse(sessionStorage.getItem(LEGACY_STORAGE_KEY) ?? "null");
+    if (legacy?.version === 1 && CHAPTER_IDS.includes(legacy.chapter)) {
+      return {
+        version: 2,
+        scene: legacy.chapter,
+        stable: legacy.beat === "blackface-hold" ? "final" : "settled"
+      };
+    }
+  } catch {}
+  return null;
 };
 
 class HomeChapterController {
@@ -124,7 +136,8 @@ class HomeChapterController {
 
   private disposed = false;
   private activeIndex = 0;
-  private beat = "entry";
+  private stableState: StableState = "opening";
+  private actionState: "idle" | "running" | "settled" = "idle";
   private epoch = 0;
   private transitionSerial = 0;
   private playbackToken = 0;
@@ -150,7 +163,9 @@ class HomeChapterController {
     this.runtimeWindow = window as KisaraWindow;
     this.manifest = readManifest(root);
     this.manifest.forEach((chapter, index) => this.chapterIndex.set(chapter.id, index));
-    this.chapters = CHAPTER_IDS.map((id) => root.querySelector<HTMLElement>(`[data-home-chapter="${id}"]`)).filter(Boolean) as HTMLElement[];
+    this.chapters = CHAPTER_IDS
+      .map((id) => root.querySelector<HTMLElement>(`[data-home-chapter="${id}"]`))
+      .filter(Boolean) as HTMLElement[];
     root.querySelectorAll<HTMLElement>("[data-stage-layer]").forEach((element) => {
       const name = element.dataset.stageLayer ?? "";
       if (!name) return;
@@ -225,6 +240,8 @@ class HomeChapterController {
     this.epoch += 1;
     this.transitionSerial += 1;
     this.stopPlayback();
+    this.actionState = "idle";
+    this.chapters.forEach((chapter) => { chapter.dataset.sceneAction = "idle"; });
     return this.epoch;
   }
 
@@ -278,7 +295,7 @@ class HomeChapterController {
     }
     if (!eager || video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return true;
     await new Promise<void>((resolve) => {
-      const timer = window.setTimeout(resolve, 4200);
+      const timer = window.setTimeout(resolve, 2400);
       const finish = () => {
         window.clearTimeout(timer);
         resolve();
@@ -325,7 +342,6 @@ class HomeChapterController {
   private async seekVideo(video: HTMLVideoElement, time: number, epoch: number, token: number) {
     const target = Math.max(0, time);
     if (Math.abs(video.currentTime - target) < 0.025 && video.readyState >= 2) return true;
-
     return await new Promise<boolean>((resolve) => {
       let settled = false;
       const finish = (success: boolean) => {
@@ -345,19 +361,7 @@ class HomeChapterController {
     });
   }
 
-  private async playLayer(
-    name: string,
-    options: {
-      onTime?: (time: number, duration: number) => void;
-      onReveal?: () => void;
-      startAt?: number;
-      endAt?: number;
-      holdOnFinish?: boolean;
-      playbackRate?: number;
-      preserveFrame?: boolean;
-      playbackRate?: number;
-    } = {}
-  ) {
+  private async playLayer(name: string) {
     const layer = this.layers.get(name);
     if (!layer?.video) return false;
     const epoch = this.epoch;
@@ -368,36 +372,17 @@ class HomeChapterController {
     const token = ++this.playbackToken;
     const video = layer.video;
     video.pause();
-    video.playbackRate = clamp(options.playbackRate ?? 1, 0.25, 3);
-    if (!options.preserveFrame) this.setLayerFrame(name, "first");
-    if (!(await this.seekVideo(video, options.startAt ?? 0, epoch, token))) return false;
+    video.playbackRate = 1;
+    this.setLayerFrame(name, "first");
+    if (!(await this.seekVideo(video, 0, epoch, token))) return false;
 
     return await new Promise<boolean>((resolve) => {
       let finished = false;
-      let revealed = false;
       let frameCallback = 0;
-      let timeFrame = 0;
       const current = () => !this.disposed
         && this.epoch === epoch
         && this.playbackToken === token
         && !finished;
-      const tick = () => {
-        timeFrame = 0;
-        if (!current()) return;
-        options.onTime?.(video.currentTime, Number.isFinite(video.duration) ? video.duration : 0);
-        if (typeof options.endAt === "number" && video.currentTime >= options.endAt) {
-          video.pause();
-          finish(true);
-          return;
-        }
-        if (!video.paused && !video.ended) timeFrame = window.requestAnimationFrame(tick);
-      };
-      const reveal = () => {
-        if (!current()) return;
-        revealed = true;
-        this.setLayerFrame(name, "video");
-        options.onReveal?.();
-      };
       const cleanup = () => {
         video.removeEventListener("playing", onPlaying);
         video.removeEventListener("ended", onEnded);
@@ -405,17 +390,14 @@ class HomeChapterController {
         if (frameCallback && typeof video.cancelVideoFrameCallback === "function") {
           video.cancelVideoFrameCallback(frameCallback);
         }
-        if (timeFrame) window.cancelAnimationFrame(timeFrame);
         frameCallback = 0;
-        timeFrame = 0;
       };
       const finish = (success: boolean) => {
         if (finished) return;
         finished = true;
         cleanup();
         if (success && this.epoch === epoch) {
-          this.setLayerFrame(name, options.holdOnFinish === false ? "video" : "hold");
-          if (!revealed) options.onReveal?.();
+          this.setLayerFrame(name, "hold");
         }
         if (this.playbackCleanup === cancel) this.playbackCleanup = null;
         resolve(success && this.epoch === epoch);
@@ -427,154 +409,22 @@ class HomeChapterController {
       const onPlaying = () => {
         if (!current()) return;
         if (typeof video.requestVideoFrameCallback === "function") {
-          frameCallback = video.requestVideoFrameCallback(reveal);
+          frameCallback = video.requestVideoFrameCallback(() => {
+            if (current()) this.setLayerFrame(name, "video");
+          });
         } else {
-          window.requestAnimationFrame(() => window.requestAnimationFrame(reveal));
+          window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+            if (current()) this.setLayerFrame(name, "video");
+          }));
         }
-        if (!timeFrame) timeFrame = window.requestAnimationFrame(tick);
       };
       const onEnded = () => finish(true);
-      const onError = () => finish(true);
+      const onError = () => finish(false);
       video.addEventListener("playing", onPlaying);
       video.addEventListener("ended", onEnded);
       video.addEventListener("error", onError);
       this.playbackCleanup = cancel;
-      const playback = video.play();
-      playback?.catch(onError);
-    });
-  }
-
-  private async playLayerGroup(
-    items: Array<{
-      name: string;
-      startAt?: number;
-      endAt?: number;
-      holdOnFinish?: boolean;
-    }>,
-    onAllReveal?: () => void
-  ) {
-    const epoch = this.epoch;
-    await Promise.all(items.map((item) => this.hydrateLayer(item.name, true)));
-    if (!this.isCurrent(epoch) || !(await this.waitUntilVisible(epoch))) return false;
-
-    const states = items.flatMap((item) => {
-      const layer = this.layers.get(item.name);
-      if (!layer?.video) return [];
-      return [{
-        ...item,
-        layer,
-        video: layer.video,
-        done: false,
-        revealed: false,
-        frameCallback: 0,
-        onPlaying: null as (() => void) | null,
-        onEnded: null as (() => void) | null,
-        onError: null as (() => void) | null
-      }];
-    });
-    if (states.length !== items.length) return false;
-
-    this.stopPlayback();
-    const token = ++this.playbackToken;
-    states.forEach((state) => {
-      state.video.pause();
-      state.video.playbackRate = clamp(state.playbackRate ?? 1, 0.25, 3);
-      this.setLayerFrame(state.name, "first");
-    });
-    const seeked = await Promise.all(states.map((state) => (
-      this.seekVideo(state.video, state.startAt ?? 0, epoch, token)
-    )));
-    if (seeked.some((ready) => !ready)) return false;
-
-    return await new Promise<boolean>((resolve) => {
-      let finished = false;
-      let revealedCount = 0;
-      let completedCount = 0;
-      let timeFrame = 0;
-      const current = () => !this.disposed
-        && this.epoch === epoch
-        && this.playbackToken === token
-        && !finished;
-      const reveal = (state: (typeof states)[number]) => {
-        if (!current() || state.revealed) return;
-        state.revealed = true;
-        revealedCount += 1;
-        this.setLayerFrame(state.name, "video");
-        if (revealedCount === states.length) onAllReveal?.();
-      };
-      const cleanup = () => {
-        states.forEach((state) => {
-          if (state.onPlaying) state.video.removeEventListener("playing", state.onPlaying);
-          if (state.onEnded) state.video.removeEventListener("ended", state.onEnded);
-          if (state.onError) state.video.removeEventListener("error", state.onError);
-          if (state.frameCallback && typeof state.video.cancelVideoFrameCallback === "function") {
-            state.video.cancelVideoFrameCallback(state.frameCallback);
-          }
-          state.frameCallback = 0;
-        });
-        if (timeFrame) window.cancelAnimationFrame(timeFrame);
-        timeFrame = 0;
-      };
-      const finish = (success: boolean) => {
-        if (finished) return;
-        finished = true;
-        cleanup();
-        if (this.playbackCleanup === cancel) this.playbackCleanup = null;
-        resolve(success && this.epoch === epoch);
-      };
-      const finishState = (state: (typeof states)[number]) => {
-        if (!current() || state.done) return;
-        state.done = true;
-        state.video.pause();
-        this.setLayerFrame(state.name, state.holdOnFinish === false ? "video" : "hold");
-        if (!state.revealed) {
-          state.revealed = true;
-          revealedCount += 1;
-          if (revealedCount === states.length) onAllReveal?.();
-        }
-        completedCount += 1;
-        if (completedCount === states.length) finish(true);
-      };
-      const tick = () => {
-        timeFrame = 0;
-        if (!current()) return;
-        states.forEach((state) => {
-          if (!state.done && typeof state.endAt === "number" && state.video.currentTime >= state.endAt) {
-            finishState(state);
-          }
-        });
-        if (current() && states.some((state) => !state.done && !state.video.paused && !state.video.ended)) {
-          timeFrame = window.requestAnimationFrame(tick);
-        }
-      };
-      const scheduleTick = () => {
-        if (!timeFrame) timeFrame = window.requestAnimationFrame(tick);
-      };
-      const cancel = () => {
-        states.forEach((state) => state.video.pause());
-        finish(false);
-      };
-
-      states.forEach((state) => {
-        state.onPlaying = () => {
-          if (!current()) return;
-          if (!state.revealed) {
-            if (typeof state.video.requestVideoFrameCallback === "function") {
-              state.frameCallback = state.video.requestVideoFrameCallback(() => reveal(state));
-            } else {
-              window.requestAnimationFrame(() => window.requestAnimationFrame(() => reveal(state)));
-            }
-          }
-          scheduleTick();
-        };
-        state.onEnded = () => finishState(state);
-        state.onError = () => finishState(state);
-        state.video.addEventListener("playing", state.onPlaying);
-        state.video.addEventListener("ended", state.onEnded);
-        state.video.addEventListener("error", state.onError);
-      });
-      this.playbackCleanup = cancel;
-      states.forEach((state) => state.video.play()?.catch(() => finishState(state)));
+      video.play()?.catch(() => finish(false));
     });
   }
 
@@ -589,6 +439,7 @@ class HomeChapterController {
       chapter.dataset.chapterPosition = active ? "active" : chapterIndex < index ? "before" : "after";
       chapter.setAttribute("aria-hidden", String(!active));
       chapter.inert = !active;
+      if (!active) chapter.dataset.sceneAction = "idle";
     });
     this.markers.forEach((marker) => {
       const active = marker.dataset.homeChapterTarget === CHAPTER_IDS[index];
@@ -600,6 +451,7 @@ class HomeChapterController {
 
   private transitionName(from: ChapterId, to: ChapterId) {
     if (from === to) return "reset";
+    if (from === "rescue" && to === "request") return "rescue-request";
     if (from === "request" && to === "counterattack") return "request-counter";
     if (from === "counterattack" && to === "contract") return "counter-contract";
     if (from === "contract" && to === "transformation") return "contract-transform";
@@ -609,7 +461,7 @@ class HomeChapterController {
 
   private async switchChapter(
     index: number,
-    options: { instant?: boolean; restoreBeat?: string; scrub?: number } = {}
+    options: { instant?: boolean; restoreStable?: boolean; runAction?: boolean } = {}
   ) {
     const bounded = Math.max(0, Math.min(CHAPTER_IDS.length - 1, index));
     const from = this.currentId();
@@ -620,30 +472,30 @@ class HomeChapterController {
     if (!this.isCurrent(epoch) || serial !== this.transitionSerial || !(await this.waitUntilVisible(epoch))) return false;
 
     this.activeIndex = bounded;
-    this.beat = options.restoreBeat ?? "entry";
-    this.setBeat(this.beat);
-    this.root.dataset.stageState = options.instant ? "settled" : "switching";
-    this.root.dataset.chapterTransition = this.transitionName(from, to);
+    this.stableState = options.restoreStable ? (to === "jealousy" ? "final" : "settled") : "opening";
+    this.actionState = options.restoreStable ? "settled" : "idle";
+    this.root.dataset.sceneTransition = this.transitionName(from, to);
+    this.root.dataset.stageState = options.restoreStable || options.instant ? "settled" : "switching";
     this.root.classList.toggle("is-switching", !options.instant && !this.reducedMotion);
     this.host.dataset.kisaraStageSettled = "false";
     this.setChapterPositions(bounded);
-    this.publishProgress(true);
-    await nextFrame();
+    this.publishProgress(!options.restoreStable && !options.instant);
     await nextFrame();
     if (!this.isCurrent(epoch) || serial !== this.transitionSerial) return false;
 
-    if (!options.instant && !this.reducedMotion) {
-      if (!(await this.wait(CHAPTER_TRANSITION_MS, epoch)) || serial !== this.transitionSerial) return false;
-    }
-    this.root.classList.remove("is-switching");
-    this.root.dataset.stageState = "settled";
-    delete this.root.dataset.chapterTransition;
-
-    if (options.restoreBeat) {
-      await this.restoreStableBeat(to, options.restoreBeat, options.scrub ?? 0);
+    if (options.restoreStable) {
+      this.restoreStableScene(to);
+    } else if (options.runAction !== false) {
+      void this.runSceneAction(to, epoch);
     } else {
-      void this.runChapterEntry(to, epoch);
+      this.finishScene(to, false);
     }
+
+    window.setTimeout(() => {
+      if (!this.isCurrent(epoch)) return;
+      this.root.classList.remove("is-switching");
+      delete this.root.dataset.sceneTransition;
+    }, options.instant || this.reducedMotion ? 1 : SCENE_HANDOFF_MS);
     this.prewarmAdjacent(bounded);
     return true;
   }
@@ -653,175 +505,59 @@ class HomeChapterController {
       if (this.disposed) return;
       void this.hydrateChapter(index + 1, false);
       void this.hydrateChapter(index - 1, false);
-    }, 160);
+    }, 120);
   }
 
-  private setBeat(value: string) {
-    this.beat = value;
-    const chapter = this.chapters[this.activeIndex];
-    if (!chapter) return;
-    const id = this.currentId();
-    if (id === "rescue") chapter.dataset.rescueBeat = value;
-    if (id === "request") chapter.dataset.requestBeat = value;
-    if (id === "counterattack") chapter.dataset.counterBeat = value;
-    if (id === "contract") chapter.dataset.contractBeat = value;
-    if (id === "transformation") chapter.dataset.transformationBeat = value;
-    if (id === "jealousy") chapter.dataset.jealousyBeat = value;
-    this.root.dataset.stageState = value.includes("playing") || value.includes("transition") || value.includes("covering") || value.includes("reveal")
-      ? "playing"
-      : "settled";
-    this.publishProgress(false);
-  }
-
-  private async playBeatSequence(
-    steps: Array<{ beat: string; duration: number; onEnter?: () => void }>,
-    epoch: number
-  ) {
-    for (const step of steps) {
-      if (!this.isCurrent(epoch)) return false;
-      this.setBeat(step.beat);
-      step.onEnter?.();
-      if (step.duration > 0 && !(await this.wait(step.duration, epoch))) return false;
-    }
-    return this.isCurrent(epoch);
-  }
-
-  private async runChapterEntry(id: ChapterId, epoch: number) {
-    if (!this.isCurrent(epoch)) return;
+  private async runSceneAction(id: ChapterId, epoch: number) {
+    if (!this.isCurrent(epoch)) return false;
     if (this.reducedMotion) {
-      const stable = id === "rescue" ? "eye-hold"
-        : id === "counterattack" ? "roll-hold"
-          : id === "jealousy" ? "blackface-hold"
-            : "hold";
-      await this.restoreStableBeat(id, stable, id === "counterattack" ? 1 : 0);
-      return;
+      this.finishScene(id, false);
+      return true;
     }
 
-    if (id === "rescue") {
-      this.setBeat("eye-playing");
-      const ended = await this.playLayer("rescue-eye", { playbackRate: RESCUE_PLAYBACK_RATE });
-      if (ended && this.isCurrent(epoch)) this.settle("eye-hold", "眼神定格");
-      return;
+    this.actionState = "running";
+    const chapter = this.chapters[this.activeIndex];
+    if (chapter) chapter.dataset.sceneAction = "running";
+    this.root.dataset.stageState = "playing";
+    this.publishProgress(true);
+
+    let ended = true;
+    const videoLayer = id === "rescue"
+      ? "rescue-action"
+      : id === "counterattack"
+        ? "counter-action"
+        : id === "jealousy"
+          ? "jealousy-action"
+          : null;
+    if (videoLayer) {
+      ended = await this.playLayer(videoLayer);
+    } else {
+      ended = await this.wait(SCENE_ACTION_MS[id], epoch);
     }
-    if (id === "request") {
-      const ended = await this.playBeatSequence([
-        { beat: "request-face", duration: 620 },
-        { beat: "request-comic", duration: 680 }
-      ], epoch);
-      if (ended) this.settle("request-hold", "请求定格");
-      return;
-    }
-    if (id === "counterattack") {
-      this.setBeat("entry-playing");
-      const entryEnded = await this.playLayer("counter-entry");
-      if (!entryEnded || !this.isCurrent(epoch)) return;
-      this.setBeat("entry-hold");
-      const runEnded = await this.playLayer("counter-run", {
-        onReveal: () => this.setBeat("run-playing")
-      });
-      if (!runEnded || !this.isCurrent(epoch)) return;
-      this.setBeat("run-hold");
-      const rollEnded = await this.playLayer("counter-roll", {
-        onReveal: () => this.setBeat("impact-playing")
-      });
-      if (rollEnded && this.isCurrent(epoch)) this.settle("roll-hold", "落地定格");
-      return;
-    }
-    if (id === "contract") {
-      const ended = await this.playBeatSequence([
-        { beat: "contract-embrace", duration: 520 },
-        { beat: "contract-kiss-1", duration: 380 },
-        { beat: "contract-kiss-2", duration: 430, onEnter: () => this.grantSpareKey() },
-        { beat: "contract-kiss-3", duration: 560 }
-      ], epoch);
-      if (ended) this.settle("kiss-hold", "契约定格");
-      return;
-    }
-    if (id === "transformation") {
-      const ended = await this.playBeatSequence([
-        { beat: "transform-explosion", duration: 320 },
-        { beat: "transform-detail", duration: 420 },
-        { beat: "transform-silhouette", duration: 500 },
-        { beat: "transform-fight", duration: 680 }
-      ], epoch);
-      if (ended) this.settle("transform-hold", "变身定格");
-      return;
-    }
-    this.setLayerFrame("jealousy-slash", "first");
-    this.settle("slash-hold", "刀锋待发");
+    if (!ended || !this.isCurrent(epoch)) return false;
+    this.finishScene(id, true);
+    return true;
   }
 
-  private settle(beat: string, status: string) {
-    this.setBeat(beat);
-    this.setStatus(status);
+  private finishScene(id: ChapterId, actionCompleted: boolean) {
+    if (this.currentId() !== id || this.disposed) return;
+    this.actionState = "settled";
+    this.stableState = id === "jealousy" ? "final" : "settled";
+    const chapter = this.chapters[this.activeIndex];
+    if (chapter) chapter.dataset.sceneAction = "settled";
+    this.root.dataset.stageState = "settled";
+    this.host.dataset.kisaraStageSettled = id === "jealousy" ? "true" : "false";
+    if (id === "contract") this.grantSpareKey();
+    if (id === "jealousy") this.qualifyFinalScene();
+    this.setStatus(actionCompleted ? `${id} 场景定格` : `${id} 场景已恢复`);
     this.persist();
-  }
-
-  private async startRescueMemoryCut() {
-    if (this.currentId() !== "rescue") return false;
-    const epoch = this.beginOperation();
-    await Promise.all([
-      this.hydrateLayer("rescue-severed", true),
-      this.hydrateLayer("rescue-back", true)
-    ]);
-    if (!this.isCurrent(epoch)) return false;
-    const ended = await this.playBeatSequence([
-      { beat: "cut-severed", duration: 340 },
-      { beat: "back-reveal", duration: 620 }
-    ], epoch);
-    if (ended) this.settle("back-hold", "背影定格");
-    return ended;
-  }
-
-  private async startJealousyReveal() {
-    if (this.currentId() !== "jealousy") return false;
-    const epoch = this.beginOperation();
-    this.host.dataset.kisaraStageSettled = "false";
-    await Promise.all([
-      this.hydrateLayer("jealousy-slash", true),
-      this.hydrateLayer("jealousy-action", true),
-      this.hydrateLayer("jealousy-blackface", true)
-    ]);
-    if (!this.isCurrent(epoch)) return false;
-
-    this.setBeat("swing-playing");
-    const swung = await this.playLayer("jealousy-slash", {
-      startAt: JEALOUSY_SETUP_AT,
-      endAt: JEALOUSY_ACTION_START_AT,
-      holdOnFinish: false,
-      preserveFrame: true
-    });
-    if (!swung || !this.isCurrent(epoch)) return false;
-
-    this.setBeat("parallel-preparing");
-    const ended = await this.playLayerGroup([
-      { name: "jealousy-action", startAt: 0, endAt: JEALOUSY_ACTION_HOLD_AT },
-      {
-        name: "jealousy-blackface",
-        startAt: JEALOUSY_BLACKFACE_AT,
-        playbackRate: JEALOUSY_BLACKFACE_PLAYBACK_RATE
-      }
-    ], () => {
-      if (!this.isCurrent(epoch)) return;
-      this.setBeat("parallel-reveal");
-      window.setTimeout(() => {
-        if (this.isCurrent(epoch) && this.beat === "parallel-reveal") this.setBeat("parallel-playing");
-      }, JEALOUSY_PANEL_REVEAL_MS);
-    });
-    if (ended && this.isCurrent(epoch)) this.setFinalHold();
-    return ended;
-  }
-
-  private setFinalHold() {
-    this.setLayerFrame("jealousy-action", "hold");
-    this.setLayerFrame("jealousy-blackface", "hold");
-    this.settle("blackface-hold", "演出结束");
-    this.host.dataset.kisaraStageSettled = "true";
-    if (!this.finalQualified) {
-      this.finalQualified = true;
-      this.runtimeWindow.__yuimiKisaraLovebrainProgress?.markStage?.("home-jealousy");
-    }
     this.publishProgress(false);
+  }
+
+  private qualifyFinalScene() {
+    if (this.finalQualified) return;
+    this.finalQualified = true;
+    this.runtimeWindow.__yuimiKisaraLovebrainProgress?.markStage?.("home-jealousy");
   }
 
   private grantSpareKey() {
@@ -839,86 +575,34 @@ class HomeChapterController {
     }));
   }
 
-  private async restoreStableBeat(id: ChapterId, beat: string, _scrub: number) {
-    if (id === "rescue") {
-      this.setLayerFrame("rescue-eye", "hold");
-      this.setLayerFrame("rescue-severed", "hold");
-      this.setLayerFrame("rescue-back", "hold");
-      this.settle(beat === "back-hold" ? "back-hold" : "eye-hold", "阻断定格");
-      return;
-    }
-    if (id === "request") {
-      this.setLayerFrame("request-face", "hold");
-      this.setLayerFrame("request-emerged", "hold");
-      this.settle("request-hold", "请求定格");
-      return;
-    }
-    if (id === "counterattack") {
-      this.setLayerFrame("counter-entry", "hold");
-      this.setLayerFrame("counter-run", "hold");
-      this.setLayerFrame("counter-roll", "hold");
-      this.settle("roll-hold", "落地定格");
-      return;
-    }
-    if (id === "contract") {
-      this.setLayerFrame("contract-embrace", "hold");
-      this.setLayerFrame("contract-kiss-01", "hold");
-      this.setLayerFrame("contract-kiss-02", "hold");
-      this.setLayerFrame("contract-kiss-03", "hold");
-      this.settle("kiss-hold", "契约定格");
-      return;
-    }
-    if (id === "transformation") {
-      this.setLayerFrame("transform-explosion", "hold");
-      this.setLayerFrame("transform-detail", "hold");
-      this.setLayerFrame("transform-silhouette", "hold");
-      this.setLayerFrame("transform-fight", "hold");
-      this.settle("transform-hold", "变身定格");
-      return;
-    }
-    if (beat === "blackface-hold") {
-      this.setLayerFrame("jealousy-action", "hold");
-      this.setLayerFrame("jealousy-blackface", "hold");
-      this.setFinalHold();
-    } else {
-      this.host.dataset.kisaraStageSettled = "false";
-      this.setLayerFrame("jealousy-slash", "first");
-      this.setLayerFrame("jealousy-action", "first");
-      this.setLayerFrame("jealousy-blackface", "first");
-      this.settle("slash-hold", "刀锋待发");
-    }
+  private restoreStableScene(id: ChapterId) {
+    this.actionState = "settled";
+    this.stableState = id === "jealousy" ? "final" : "settled";
+    this.chapters[this.activeIndex]?.setAttribute("data-scene-action", "settled");
+    this.root.dataset.stageState = "settled";
+    this.host.dataset.kisaraStageSettled = id === "jealousy" ? "true" : "false";
+    if (id === "contract") this.grantSpareKey();
+    if (id === "jealousy") this.qualifyFinalScene();
+    this.setStatus(`${id} 场景定格`);
+    this.persist();
+    this.publishProgress(false);
   }
 
   private persist() {
     if (this.foundSelfActive || this.lovebrainActive || this.disposed) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 1,
-        chapter: this.currentId(),
-        beat: this.beat,
-        scrub: 0
-      } satisfies SavedChapterState));
+        version: 2,
+        scene: this.currentId(),
+        stable: this.stableState
+      } satisfies SavedStageState));
     } catch {}
   }
 
   private localProgress() {
-    if (this.currentId() === "rescue") return this.beat === "back-hold" ? 1 : this.beat.includes("cut") || this.beat.includes("back") ? 0.66 : 0.2;
-    if (this.currentId() === "request") return this.beat === "request-hold" ? 1 : this.beat.includes("comic") ? 0.72 : 0.28;
-    if (this.currentId() === "counterattack") return this.beat === "roll-hold"
-      ? 1
-      : this.beat.includes("impact") || this.beat.includes("run-hold")
-        ? 0.78
-        : this.beat.includes("run")
-          ? 0.52
-          : 0.2;
-    if (this.currentId() === "jealousy") return this.beat === "blackface-hold"
-      ? 1
-      : this.beat.includes("parallel")
-        ? 0.7
-        : this.beat === "swing-playing"
-          ? 0.42
-          : 0.2;
-    return this.beat.includes("playing") ? 0.42 : 1;
+    if (this.actionState === "running") return 0.42;
+    if (this.actionState === "settled") return 1;
+    return 0.12;
   }
 
   private publishProgress(transitioning: boolean) {
@@ -944,95 +628,20 @@ class HomeChapterController {
   }
 
   private async stepForward() {
-    const id = this.currentId();
-    if (id === "rescue") {
-      if (this.beat === "eye-playing") {
-        this.stopPlayback();
-        this.setLayerFrame("rescue-eye", "hold");
-        this.settle("eye-hold", "眼神定格");
-        return true;
-      }
-      if (this.beat === "eye-hold") return await this.startRescueMemoryCut();
-      if (this.beat !== "back-hold") {
-        this.beginOperation();
-        this.setLayerFrame("rescue-severed", "hold");
-        this.setLayerFrame("rescue-back", "hold");
-        this.settle("back-hold", "背影定格");
-        return true;
-      }
-      return await this.switchChapter(1);
+    if (this.activeIndex >= CHAPTER_IDS.length - 1) {
+      this.root.dataset.edge = "end";
+      this.nudgeEdge("end");
+      return false;
     }
-    if (id === "request") {
-      if (this.beat !== "request-hold") {
-        this.beginOperation();
-        this.setLayerFrame("request-face", "hold");
-        this.setLayerFrame("request-emerged", "hold");
-        this.settle("request-hold", "请求定格");
-        return true;
-      }
-      return await this.switchChapter(2);
-    }
-    if (id === "counterattack") {
-      if (this.beat !== "roll-hold") {
-        this.beginOperation();
-        this.setLayerFrame("counter-entry", "hold");
-        this.setLayerFrame("counter-run", "hold");
-        this.setLayerFrame("counter-roll", "hold");
-        this.settle("roll-hold", "落地定格");
-        return true;
-      }
-      return await this.switchChapter(3);
-    }
-    if (id === "contract") {
-      if (this.beat !== "kiss-hold") {
-        this.beginOperation();
-        this.grantSpareKey();
-        this.setLayerFrame("contract-kiss-03", "hold");
-        this.settle("kiss-hold", "契约定格");
-        return true;
-      }
-      return await this.switchChapter(4);
-    }
-    if (id === "transformation") {
-      if (this.beat !== "transform-hold") {
-        this.beginOperation();
-        this.setLayerFrame("transform-fight", "hold");
-        this.settle("transform-hold", "变身定格");
-        return true;
-      }
-      return await this.switchChapter(5);
-    }
-    if (this.beat === "slash-hold") return await this.startJealousyReveal();
-    if (this.beat === "swing-playing" || this.beat.includes("parallel")) {
-      this.stopPlayback();
-      this.setFinalHold();
-      return true;
-    }
-    this.nudgeEdge("end");
-    return false;
+    return await this.switchChapter(this.activeIndex + 1, { runAction: true });
   }
 
   private async stepBackward() {
-    const id = this.currentId();
-    if (id === "rescue") {
-      if (this.beat !== "eye-hold") {
-        const epoch = this.beginOperation();
-        await this.restoreStableBeat("rescue", "eye-hold", 0);
-        return this.isCurrent(epoch);
-      }
+    if (this.activeIndex <= 0) {
       this.nudgeEdge("start");
       return false;
     }
-    if (id === "request") return await this.switchChapter(0, { restoreBeat: "back-hold" });
-    if (id === "counterattack") return await this.switchChapter(1, { restoreBeat: "request-hold" });
-    if (id === "contract") return await this.switchChapter(2, { restoreBeat: "roll-hold" });
-    if (id === "transformation") return await this.switchChapter(3, { restoreBeat: "kiss-hold" });
-    if (this.beat !== "slash-hold") {
-      const epoch = this.beginOperation();
-      await this.restoreStableBeat("jealousy", "slash-hold", 0);
-      return this.isCurrent(epoch);
-    }
-    return await this.switchChapter(4, { restoreBeat: "transform-hold" });
+    return await this.switchChapter(this.activeIndex - 1, { restoreStable: true, runAction: false });
   }
 
   private nudgeEdge(edge: "start" | "end") {
@@ -1054,7 +663,6 @@ class HomeChapterController {
     if (this.foundSelfActive || this.suspended) return;
     const delta = normalizeWheel(event);
     if (!delta) return;
-
     const now = performance.now();
     if (now - this.lastWheelAt > GESTURE_GAP) this.wheelAccumulator = 0;
     this.lastWheelAt = now;
@@ -1063,21 +671,22 @@ class HomeChapterController {
     if (Math.abs(this.wheelAccumulator) < WHEEL_THRESHOLD || now < this.inputLockUntil) return;
     const direction = this.wheelAccumulator > 0 ? 1 : -1;
     this.wheelAccumulator = 0;
-    this.inputLockUntil = now + 520;
+    this.inputLockUntil = now + INPUT_LOCK_MS;
     void (direction > 0 ? this.stepForward() : this.stepBackward());
   };
 
   private handleKeydown = (event: KeyboardEvent) => {
     if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || this.isIgnoredTarget(event.target) || this.lovebrainActive) return;
     if (this.foundSelfActive) return;
+    if (performance.now() < this.inputLockUntil) return;
     if (event.key === "Home") {
       event.preventDefault();
-      void this.switchChapter(0);
+      void this.switchChapter(0, { runAction: true });
       return;
     }
     if (event.key === "End") {
       event.preventDefault();
-      void this.switchChapter(5);
+      void this.switchChapter(5, { runAction: true });
       return;
     }
     const direction = ["ArrowDown", "PageDown", " "].includes(event.key)
@@ -1098,8 +707,7 @@ class HomeChapterController {
 
   private handleTouchMove = (event: TouchEvent) => {
     if (event.touches.length !== 1 || this.touchLastY === null || this.foundSelfActive || this.lovebrainActive) return;
-    const y = event.touches[0]?.clientY ?? this.touchLastY;
-    this.touchLastY = y;
+    this.touchLastY = event.touches[0]?.clientY ?? this.touchLastY;
   };
 
   private handleTouchEnd = (event: TouchEvent) => {
@@ -1109,6 +717,8 @@ class HomeChapterController {
     this.touchLastY = null;
     if (Math.abs(delta) < 44) return;
     event.preventDefault();
+    if (performance.now() < this.inputLockUntil) return;
+    this.inputLockUntil = performance.now() + INPUT_LOCK_MS;
     void (delta > 0 ? this.stepForward() : this.stepBackward());
   };
 
@@ -1123,7 +733,7 @@ class HomeChapterController {
     this.foundSelfOverlay.setAttribute("aria-hidden", "false");
     this.foundSelfOverlay.dataset.state = "playing";
     this.foundSelfOverlay.classList.add("is-running");
-    this.foundSelfStatus && (this.foundSelfStatus.textContent = "MEMORY PLAYBACK");
+    if (this.foundSelfStatus) this.foundSelfStatus.textContent = "MEMORY PLAYBACK";
     window.dispatchEvent(new CustomEvent("yuimi:kisara-audio-suspension", {
       detail: { id: "found-self", active: true }
     }));
@@ -1150,8 +760,7 @@ class HomeChapterController {
     video.addEventListener("playing", reveal, { once: true, signal: this.lifecycle.signal });
     video.addEventListener("ended", () => this.finishFoundSelf(), { once: true, signal: this.lifecycle.signal });
     video.addEventListener("error", () => this.finishFoundSelf(), { once: true, signal: this.lifecycle.signal });
-    const playback = video.play();
-    playback?.catch(() => {
+    video.play()?.catch(() => {
       const retry = () => {
         if (!this.foundSelfActive || this.foundSelfFinishing) return;
         video.play()?.catch(() => undefined);
@@ -1167,7 +776,7 @@ class HomeChapterController {
     this.foundSelfFinishing = true;
     this.foundSelfVideo?.pause();
     this.foundSelfOverlay?.classList.add("is-leaving");
-    this.foundSelfOverlay && (this.foundSelfOverlay.dataset.state = "leaving");
+    if (this.foundSelfOverlay) this.foundSelfOverlay.dataset.state = "leaving";
     if (this.foundSelfTimer) window.clearTimeout(this.foundSelfTimer);
     this.foundSelfTimer = window.setTimeout(() => {
       this.foundSelfTimer = 0;
@@ -1186,7 +795,7 @@ class HomeChapterController {
         detail: { active: false, state: "inactive" }
       }));
       window.dispatchEvent(new CustomEvent("yuimi:kisara-legacy-found-self-finished"));
-      void this.switchChapter(0);
+      void this.switchChapter(0, { runAction: true });
     }, this.reducedMotion ? 1 : 720);
   }
 
@@ -1210,14 +819,13 @@ class HomeChapterController {
   private leaveLovebrain = () => {
     if (!this.lovebrainActive || this.disposed) return false;
     this.host.classList.add("is-lovebrain-leaving");
-    void this.switchChapter(0, { instant: true, restoreBeat: "eye-hold" });
     window.setTimeout(() => {
       if (this.disposed) return;
       this.lovebrainActive = false;
       this.host.classList.remove("is-lovebrain-active", "is-lovebrain-leaving");
       this.root.removeAttribute("aria-hidden");
       window.dispatchEvent(new CustomEvent("yuimi:kisara-lovebrain-opening-covered"));
-      void this.switchChapter(0);
+      void this.switchChapter(0, { instant: true, restoreStable: true, runAction: false });
     }, this.reducedMotion ? 1 : 720);
     return true;
   };
@@ -1254,14 +862,17 @@ class HomeChapterController {
     this.markers.forEach((marker) => marker.addEventListener("click", () => {
       const id = marker.dataset.homeChapterTarget as ChapterId | undefined;
       const index = id ? this.chapterIndex.get(id) : undefined;
-      if (typeof index === "number") void this.switchChapter(index);
+      if (typeof index === "number") void this.switchChapter(index, { runAction: true });
     }, { signal }));
     this.replayButton?.addEventListener("click", () => {
-      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+      try {
+        sessionStorage.removeItem(STORAGE_KEY);
+        sessionStorage.removeItem(LEGACY_STORAGE_KEY);
+      } catch {}
       this.spareKeyGranted = false;
       this.finalQualified = false;
       this.host.dataset.kisaraStageSettled = "false";
-      void this.switchChapter(0);
+      void this.switchChapter(0, { runAction: true });
     }, { signal });
     this.foundSelfSkip?.addEventListener("click", () => this.finishFoundSelf(), { signal });
     document.addEventListener("visibilitychange", () => {
@@ -1275,20 +886,16 @@ class HomeChapterController {
 
   private async restore() {
     if (this.reducedMotion) {
-      await this.switchChapter(5, { instant: true, restoreBeat: "blackface-hold" });
+      await this.switchChapter(5, { instant: true, restoreStable: true, runAction: false });
       return;
     }
     const saved = readSavedState();
     if (!saved) {
-      await this.switchChapter(0, { instant: true });
+      await this.switchChapter(0, { instant: true, runAction: true });
       return;
     }
-    const index = this.chapterIndex.get(saved.chapter) ?? 0;
-    await this.switchChapter(index, {
-      instant: true,
-      restoreBeat: saved.beat,
-      scrub: saved.scrub
-    });
+    const index = this.chapterIndex.get(saved.scene) ?? 0;
+    await this.switchChapter(index, { instant: true, restoreStable: true, runAction: false });
   }
 }
 

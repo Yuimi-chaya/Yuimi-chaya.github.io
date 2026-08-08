@@ -47,8 +47,9 @@ test("the chapter controller is the final-settled Lovebrain host", () => {
     /__yuimiKisaraHomeLovebrain = \{\s*activate: this\.activateLovebrain,\s*leaveToOpening: this\.leaveLovebrain\s*\}/
   );
   assert.match(homeSource, /data-kisara-stage-settled="false"/);
-  assert.match(stageRuntimeSource, /this\.host\.dataset\.kisaraStageSettled = "true"/);
-  assert.match(stageRuntimeSource, /private setFinalHold\(\)/);
+  assert.match(stageRuntimeSource, /this\.host\.dataset\.kisaraStageSettled/);
+  assert.match(stageRuntimeSource, /private qualifyFinalScene\(\)/);
+  assert.match(stageRuntimeSource, /private finishScene\(id: ChapterId/);
   assert.match(stageRuntimeSource, /markStage\?\.\("home-jealousy"\)/);
   assert.doesNotMatch(stageRuntimeSource, /__yuimiKisaraLegacyStage|setFinalStage/);
 
@@ -126,7 +127,7 @@ test("HomeChapterController keeps a single progress publisher and lifecycle rest
   assert.match(stageRuntimeSource, /runtimeWindow\.__yuimiKisaraStageHomeController\?\.dispose\(\)/);
   assert.match(stageRuntimeSource, /this\.lifecycle\.abort\(\)/);
   assert.match(stageRuntimeSource, /private async switchChapter\(/);
-  assert.match(stageRuntimeSource, /private async startJealousyReveal\(/);
+  assert.match(stageRuntimeSource, /private async runSceneAction\(/);
   assert.match(stageRuntimeSource, /private suspend = \(\) =>/);
   assert.match(stageRuntimeSource, /private resume = \(\) =>/);
   assert.match(stageRuntimeSource, /this\.resumeVideos\.add\(video\)/);
@@ -149,13 +150,13 @@ test("HomeChapterController keeps a single progress publisher and lifecycle rest
   assert.match(stageVideoSource, /requestVideoFrameCallback/);
   assert.match(stageVideoSource, /video\.removeEventListener\("playing", onPlaying\)/);
   assert.match(stageVideoSource, /video\.removeEventListener\("ended", onEnded\)/);
-  assert.match(stageVideoSource, /playback\?\.catch\(onError\)/);
+  assert.match(stageVideoSource, /video\.play\(\)\?\.catch/);
 
   const reducedStart = stageRuntimeSource.indexOf("private async restore() {");
   const reducedEnd = stageRuntimeSource.indexOf("const saved = readSavedState", reducedStart);
   const reducedSource = stageRuntimeSource.slice(reducedStart, reducedEnd);
-  assert.match(reducedSource, /await this\.switchChapter\(5, \{ instant: true, restoreBeat: "blackface-hold" \}\)/);
-  assert.match(stageRuntimeSource, /private setFinalHold\(\)/);
+  assert.match(reducedSource, /await this\.switchChapter\(5, \{ instant: true, restoreStable: true, runAction: false \}\)/);
+  assert.match(stageRuntimeSource, /private finishScene\(id: ChapterId/);
 });
 
 test("Audio suspension releases only the final owner", () => {
