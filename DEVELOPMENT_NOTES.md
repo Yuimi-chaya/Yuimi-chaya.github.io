@@ -244,7 +244,7 @@
 ### Jealousy panel scale correction (`2026-08-08`, pending human review)
 
 - Human review rejected the first irregular Jealousy cut: it still treated the close-up as a full-viewport layer and merely clipped it, producing an oversized face that obscured the swing instead of a readable comic panel. The same-tab media timing from `406dc1e` remains unchanged.
-- The initial follow-up made the panel too small and card-like. The approved spatial direction is instead one right-side comic region following the user-drawn upper-middle-to-lower-right divider: the black-face lane fills that region with its own crop, while the swing remains readable on the left and Ayano stays exposed at lower right. Keep the cut as a single integrated viewport region with a narrow warm gutter; do not return either to a floating card or a giant face crop that overwhelms the full frame.
+- The first follow-up made the panel too small and card-like; the next jagged polygon also read as an arbitrary "betel-nut" cut. The approved spatial direction is one clean right-side comic region following the user-drawn upper-middle-to-lower-right divider: the black-face lane fills that region while the swing remains readable on the left and Ayano stays exposed at lower right. The right lane now begins from `0.334s` at `0.56x`, giving its stable action several visible frames before it reaches the close-up. Keep one simple diagonal plane; do not return to a floating card, a jagged border, or a giant face crop that overwhelms the full frame.
 
 ## Architecture Decision
 

@@ -63,7 +63,8 @@ const RESCUE_PLAYBACK_RATE = 1.22;
 const JEALOUSY_SETUP_AT = 5.589;
 const JEALOUSY_ACTION_START_AT = 7.382;
 const JEALOUSY_ACTION_HOLD_AT = 1;
-const JEALOUSY_BLACKFACE_AT = 1.25;
+const JEALOUSY_BLACKFACE_AT = 0.334;
+const JEALOUSY_BLACKFACE_PLAYBACK_RATE = 0.56;
 const JEALOUSY_PANEL_REVEAL_MS = 560;
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
@@ -352,6 +353,7 @@ class HomeChapterController {
       startAt?: number;
       endAt?: number;
       holdOnFinish?: boolean;
+      playbackRate?: number;
       preserveFrame?: boolean;
       playbackRate?: number;
     } = {}
@@ -476,7 +478,7 @@ class HomeChapterController {
     const token = ++this.playbackToken;
     states.forEach((state) => {
       state.video.pause();
-      state.video.playbackRate = 1;
+      state.video.playbackRate = clamp(state.playbackRate ?? 1, 0.25, 3);
       this.setLayerFrame(state.name, "first");
     });
     const seeked = await Promise.all(states.map((state) => (
@@ -794,7 +796,11 @@ class HomeChapterController {
     this.setBeat("parallel-preparing");
     const ended = await this.playLayerGroup([
       { name: "jealousy-action", startAt: 0, endAt: JEALOUSY_ACTION_HOLD_AT },
-      { name: "jealousy-blackface", startAt: JEALOUSY_BLACKFACE_AT }
+      {
+        name: "jealousy-blackface",
+        startAt: JEALOUSY_BLACKFACE_AT,
+        playbackRate: JEALOUSY_BLACKFACE_PLAYBACK_RATE
+      }
     ], () => {
       if (!this.isCurrent(epoch)) return;
       this.setBeat("parallel-reveal");
