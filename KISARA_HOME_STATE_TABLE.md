@@ -13,10 +13,10 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 0 | `rescue` | maximum-eye still | `rescue-action.mp4`, about `0.29s` | enters Request directly | edge nudge | FoundSelf may run before entry |
 | 1 | `request` | emerged comic still | static face-to-paste action, about `0.62s` | enters Counterattack directly | restores Rescue stable frame | none |
-| 2 | `counterattack` | roll/landing still | `counter-action.mp4`, about `0.43s` | enters Contract directly | restores Request stable frame | none |
-| 3 | `contract` | final kiss still | static embrace-to-kiss keyframe action, about `0.62s` | enters Transformation directly | restores Counterattack stable frame | grant spare key on stable arrival |
-| 4 | `transformation` | Fight still | static explosion/detail/silhouette reconstruction, about `0.66s` | enters Jealousy and starts its slash immediately | restores Contract stable frame | none |
-| 5 | `jealousy` | completed action plus right comic panel | `jealousy-action.mp4`, about `0.46s`, then static panel settle | edge nudge; Lovebrain may be activated after settle | restores Transformation stable frame | mark `home-jealousy` on final settle |
+| 2 | `counterattack` | roll/landing still | `counter-action.mp4`, about `1.00s`, from the run-end launch through the energy clash | enters Contract directly | restores Request stable frame | none |
+| 3 | `contract` | final kiss still | two-frame embrace-to-kiss action, about `0.52s` | enters Transformation directly | restores Counterattack stable frame | grant spare key on stable arrival |
+| 4 | `transformation` | Fight still | unhurried static explosion/detail/silhouette/Fight sequence, about `1.08s` | enters Jealousy and starts its slash immediately | restores Contract stable frame | none |
+| 5 | `jealousy` | completed action plus right comic panel | `jealousy-action.mp4`, about `1.54s`, with a fast-slow-fast turn/slash curve | edge nudge; Lovebrain may be activated after settle | restores Transformation stable frame | mark `home-jealousy` on final settle |
 
 ## Runtime Media
 
@@ -29,13 +29,13 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 | Rescue bridge | `rescue-severed.webp`, `rescue-slash-last.webp` | static outgoing relation during Rescue -> Request |
 | Request stable | `request-emerged.webp` | oversized manga/OP paste hold |
 | Request source | `request-face.webp` | dimmed source still below the paste |
-| Counter action | `counter-action.mp4` | selected sword/run/contact montage, no wheel scrub |
+| Counter action | `counter-action.mp4` | continuous run-end launch to energy clash; no sword prelude, hit/roll chain, or wheel scrub |
 | Counter stable | `counter-roll-last.webp` | landing/roll hold and Counter action fallback |
 | Contract stable | `contract-kiss-03.webp` | final kiss hold |
-| Contract cuts | `contract-embrace.webp`, `contract-kiss-01.webp`, `contract-kiss-02.webp` | static keyframe action only |
+| Contract cut | `contract-embrace.webp` | the only pre-kiss still; it cuts directly to the stable kiss frame |
 | Transformation stable | `fight.webp` | final Fight hold |
 | Transformation cuts | `transformation-explosion.webp`, `transformation-detail.webp`, `transformation-silhouette.webp` | static reconstruction keyframes only |
-| Jealousy action | `jealousy-action.mp4` | selected closed-mouth turn to slash, no long prelude |
+| Jealousy action | `jealousy-action.mp4` | complete closed-mouth turn and slash with encoded fast-slow-fast timing, no long spoken prelude |
 | Jealousy stable | `jealousy-action-hold.webp`, `jealousy-blackface-last.webp` | completed base and right comic panel |
 
 ## Scene Action Contract
@@ -58,28 +58,28 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 
 `scene-active -> action-running -> settled`
 
-- The purpose-cut clip contains only the sword/run/contact beats. The landing frame is static below the action layer.
+- The purpose-cut clip begins at the final running launch and preserves the continuous jump/contact motion at a readable speed. The landing frame is static below the action layer.
 - There is no scrub state, seek queue, or extra gesture for impact/roll.
 
 ### Contract
 
 `scene-active -> action-running -> settled`
 
-- Embrace, approach, and kiss are static cuts inside one bounded CSS action. No internal wheel stops exist.
+- The action contains exactly two compositions: embrace, then kiss. No approach intermediates or internal wheel stops exist.
 - The stable qualification point is the final kiss composition and is idempotent.
 
 ### Transformation
 
 `scene-active -> action-running -> settled`
 
-- Explosion, detail, silhouette, and Fight are static layers with a short timed reconstruction. The legacy title/chain/black-hole renderer remains absent.
+- Explosion, detail, silhouette, and Fight are static layers with enough dwell to read each key image; they are not compressed like a micro-video. The legacy title/chain/black-hole renderer remains absent.
 
 ### Jealousy
 
 `scene-active -> action-running -> final`
 
 - The slash video starts as part of entering Jealousy from Transformation. The user never needs a second forward gesture to start it.
-- The right-side black-face image enters as a single clean comic region and settles with the action base.
+- The turn and sword arc remain visible through a fast-slow-fast source-frame curve. The right-side black-face image waits for the final acceleration, then settles with the action base.
 
 ## Input And Restoration
 
@@ -89,7 +89,7 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 - Touch, keyboard, marker click, and replay use the same scene owner.
 - Marker jumps preload only the target scene and run its short entry action once.
 - Same-tab restoration stores `{ version: 2, scene, stable }` and returns directly to the stable composition.
-- Hidden-tab, BFCache, and route cleanup pause/cancel short media without revealing stale frames or replaying a scene unexpectedly.
+- Only the active scene and its explicit outgoing partner may paint during a handoff. Hidden-tab, BFCache, and route cleanup pause/cancel short media without revealing stale frames or replaying a scene unexpectedly.
 - Reduced motion restores the final stable scene without action playback.
 
 ## External Protocols To Preserve

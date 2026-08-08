@@ -65,10 +65,10 @@ const SCENE_HANDOFF_MS = 520;
 const SCENE_ACTION_MS: Record<ChapterId, number> = {
   rescue: 320,
   request: 620,
-  counterattack: 500,
-  contract: 620,
-  transformation: 660,
-  jealousy: 560
+  counterattack: 1000,
+  contract: 520,
+  transformation: 1080,
+  jealousy: 1560
 };
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
@@ -240,8 +240,17 @@ class HomeChapterController {
     this.epoch += 1;
     this.transitionSerial += 1;
     this.stopPlayback();
+    this.resumeVideos.clear();
+    this.layers.forEach((layer) => {
+      if (!layer.video) return;
+      layer.video.pause();
+      layer.element.dataset.frameState = "first";
+    });
+    this.chapters.forEach((chapter) => { delete chapter.dataset.transitionParticipant; });
     this.actionState = "idle";
-    this.chapters.forEach((chapter) => { chapter.dataset.sceneAction = "idle"; });
+    this.chapters.forEach((chapter, index) => {
+      chapter.dataset.sceneAction = index === this.activeIndex ? "settled" : "idle";
+    });
     return this.epoch;
   }
 
@@ -331,6 +340,16 @@ class HomeChapterController {
   private setLayerFrame(name: string, state: FrameState) {
     const layer = this.layers.get(name);
     if (layer) layer.element.dataset.frameState = state;
+  }
+
+  private videoLayerName(id: ChapterId) {
+    return id === "rescue"
+      ? "rescue-action"
+      : id === "counterattack"
+        ? "counter-action"
+        : id === "jealousy"
+          ? "jealousy-action"
+          : null;
   }
 
   private stopPlayback() {
@@ -471,9 +490,21 @@ class HomeChapterController {
     await this.hydrateChapter(bounded, true);
     if (!this.isCurrent(epoch) || serial !== this.transitionSerial || !(await this.waitUntilVisible(epoch))) return false;
 
+    const outgoing = this.chapters[this.activeIndex];
+    const incoming = this.chapters[bounded];
+    const shouldTransition = !options.instant && !this.reducedMotion && outgoing !== incoming;
+    if (shouldTransition) {
+      if (outgoing) outgoing.dataset.transitionParticipant = "outgoing";
+      if (incoming) incoming.dataset.transitionParticipant = "incoming";
+    }
+
+    const shouldRunAction = !options.restoreStable && options.runAction !== false && !this.reducedMotion;
     this.activeIndex = bounded;
     this.stableState = options.restoreStable ? (to === "jealousy" ? "final" : "settled") : "opening";
-    this.actionState = options.restoreStable ? "settled" : "idle";
+    this.actionState = shouldRunAction ? "running" : "settled";
+    if (incoming) incoming.dataset.sceneAction = shouldRunAction ? "running" : "settled";
+    const videoLayer = this.videoLayerName(to);
+    if (shouldRunAction && videoLayer) this.setLayerFrame(videoLayer, "first");
     this.root.dataset.sceneTransition = this.transitionName(from, to);
     this.root.dataset.stageState = options.restoreStable || options.instant ? "settled" : "switching";
     this.root.classList.toggle("is-switching", !options.instant && !this.reducedMotion);
@@ -485,7 +516,7 @@ class HomeChapterController {
 
     if (options.restoreStable) {
       this.restoreStableScene(to);
-    } else if (options.runAction !== false) {
+    } else if (shouldRunAction) {
       void this.runSceneAction(to, epoch);
     } else {
       this.finishScene(to, false);
@@ -495,6 +526,7 @@ class HomeChapterController {
       if (!this.isCurrent(epoch)) return;
       this.root.classList.remove("is-switching");
       delete this.root.dataset.sceneTransition;
+      this.chapters.forEach((chapter) => { delete chapter.dataset.transitionParticipant; });
     }, options.instant || this.reducedMotion ? 1 : SCENE_HANDOFF_MS);
     this.prewarmAdjacent(bounded);
     return true;
@@ -515,6 +547,8 @@ class HomeChapterController {
       return true;
     }
 
+    const videoLayer = this.videoLayerName(id);
+    if (videoLayer) this.setLayerFrame(videoLayer, "first");
     this.actionState = "running";
     const chapter = this.chapters[this.activeIndex];
     if (chapter) chapter.dataset.sceneAction = "running";
@@ -522,13 +556,6 @@ class HomeChapterController {
     this.publishProgress(true);
 
     let ended = true;
-    const videoLayer = id === "rescue"
-      ? "rescue-action"
-      : id === "counterattack"
-        ? "counter-action"
-        : id === "jealousy"
-          ? "jealousy-action"
-          : null;
     if (videoLayer) {
       ended = await this.playLayer(videoLayer);
     } else {
@@ -847,7 +874,19 @@ class HomeChapterController {
     this.visibilityWaiters.clear();
     waiters.forEach((wake) => wake());
     this.resumeVideos.forEach((video) => {
-      if (video.isConnected && !video.ended) video.play()?.catch(() => undefined);
+      if (!video.isConnected || video.ended) return;
+      const layer = video.closest<HTMLElement>("[data-stage-layer]");
+      if (layer) {
+        const chapter = video.closest<HTMLElement>("[data-home-chapter]");
+        if (chapter?.dataset.chapterPosition !== "active"
+          || chapter.dataset.sceneAction !== "running"
+          || layer.dataset.frameState !== "video") return;
+      } else if (video === this.foundSelfVideo) {
+        if (!this.foundSelfActive) return;
+      } else if (!this.lovebrainActive) {
+        return;
+      }
+      video.play()?.catch(() => undefined);
     });
     this.resumeVideos.clear();
   };

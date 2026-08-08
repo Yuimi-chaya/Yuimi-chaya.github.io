@@ -87,11 +87,6 @@ body.kisara-home-page .kisara-scrollbar {
   transition-timing-function: ease, cubic-bezier(0.18, 0.78, 0.18, 1), ease, step-start;
 }
 
-.kisara-stage-home.is-switching .kisara-home-chapter[data-chapter-position="before"],
-.kisara-stage-home.is-switching .kisara-home-chapter[data-chapter-position="after"] {
-  visibility: visible;
-}
-
 .kisara-stage-home[data-chapter-transition="request-counter"] .kisara-home-chapter[data-chapter-position="active"] {
   animation: kisara-counter-focus 560ms cubic-bezier(0.16, 0.8, 0.18, 1) both;
 }
@@ -184,8 +179,6 @@ body.kisara-home-page .kisara-scrollbar {
 .kisara-home-rescue [data-stage-layer="rescue-eye"],
 .kisara-home-request [data-stage-layer="request-face"],
 .kisara-home-counterattack [data-stage-layer="counter-entry"],
-.kisara-home-contract [data-stage-layer="contract-embrace"],
-.kisara-home-transformation [data-stage-layer="transform-explosion"],
 .kisara-home-jealousy [data-stage-layer="jealousy-slash"] {
   opacity: 1;
   filter: none;
@@ -930,9 +923,9 @@ html[data-kisara-found-self-entry] .kisara-found-self,
   transition: opacity 520ms ease, transform 680ms cubic-bezier(0.16, 0.8, 0.18, 1), filter 520ms ease;
 }
 
-.kisara-stage-home.is-switching .kisara-home-chapter[data-chapter-position="before"],
-.kisara-stage-home.is-switching .kisara-home-chapter[data-chapter-position="after"] {
-  opacity: 1;
+.kisara-stage-home.is-switching .kisara-home-chapter[data-transition-participant="outgoing"] {
+  z-index: 2;
+  visibility: visible;
 }
 
 .kisara-stage-home[data-chapter-transition="rescue-request"] .kisara-home-rescue[data-chapter-position="before"] {
@@ -1008,11 +1001,6 @@ html[data-kisara-found-self-entry] .kisara-found-self,
 
 .kisara-home-chapter[data-scene-action="settled"] .kisara-scene-action {
   opacity: 0;
-}
-
-.kisara-home-chapter[data-scene-action="running"] .kisara-scene-action > [data-layer-first],
-.kisara-home-chapter[data-scene-action="running"] .kisara-scene-action > [data-layer-video] {
-  opacity: 1;
 }
 
 .kisara-home-chapter[data-scene-action="settled"] .kisara-scene-action > [data-layer-hold] {
@@ -1134,6 +1122,9 @@ html[data-kisara-found-self-entry] .kisara-found-self,
   opacity: 0;
 }
 
+.kisara-contract-final { z-index: 3; }
+.kisara-transform-final { z-index: 11; }
+
 .kisara-home-contract[data-scene-action="settled"] .kisara-contract-final,
 .kisara-home-transformation[data-scene-action="settled"] .kisara-transform-final {
   opacity: 1;
@@ -1146,22 +1137,23 @@ html[data-kisara-found-self-entry] .kisara-found-self,
 
 .kisara-home-contract[data-scene-action="running"] .kisara-contract-embrace {
   opacity: 1;
-  animation: kisara-home-cut-in 160ms ease-out both;
-}
-
-.kisara-home-contract[data-scene-action="running"] .kisara-contract-kiss-01 {
-  opacity: 1;
-  animation: kisara-home-cut-in 180ms ease-out 130ms both;
-}
-
-.kisara-home-contract[data-scene-action="running"] .kisara-contract-kiss-02 {
-  opacity: 1;
-  animation: kisara-home-cut-in 180ms ease-out 280ms both;
+  animation: kisara-home-contract-embrace 520ms cubic-bezier(0.18, 0.78, 0.18, 1) both;
 }
 
 .kisara-home-contract[data-scene-action="running"] .kisara-contract-final {
   opacity: 1;
-  animation: kisara-home-final-reveal 240ms cubic-bezier(0.16, 0.8, 0.18, 1) 410ms both;
+  animation: kisara-home-contract-kiss 520ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
+}
+
+@keyframes kisara-home-contract-embrace {
+  0%, 44% { opacity: 1; transform: scale(1.018); filter: none; }
+  58%, 100% { opacity: 0; transform: scale(1.035); filter: brightness(0.78) saturate(0.76); }
+}
+
+@keyframes kisara-home-contract-kiss {
+  0%, 44% { opacity: 0; transform: scale(1.04); filter: brightness(0.76) saturate(0.72); }
+  58% { opacity: 1; transform: scale(1.008); filter: none; }
+  100% { opacity: 1; transform: none; filter: none; }
 }
 
 @keyframes kisara-home-cut-in {
@@ -1176,28 +1168,34 @@ html[data-kisara-found-self-entry] .kisara-found-self,
 
 .kisara-home-transformation[data-scene-action="running"] .kisara-transform-explosion {
   opacity: 1;
-  animation: kisara-home-transform-explosion 180ms ease-out both;
+  animation: kisara-home-transform-explosion 300ms ease-out both;
 }
 
 .kisara-home-transformation[data-scene-action="running"] .kisara-transform-detail {
   opacity: 1;
-  animation: kisara-home-cut-in 170ms ease-out 150ms both;
+  animation: kisara-home-transform-still 360ms cubic-bezier(0.18, 0.78, 0.18, 1) 180ms both;
 }
 
 .kisara-home-transformation[data-scene-action="running"] .kisara-transform-silhouette {
   opacity: 1;
-  animation: kisara-home-cut-in 190ms ease-out 300ms both;
+  animation: kisara-home-transform-still 400ms cubic-bezier(0.18, 0.78, 0.18, 1) 470ms both;
 }
 
 .kisara-home-transformation[data-scene-action="running"] .kisara-transform-final {
   opacity: 1;
-  animation: kisara-home-final-reveal 260ms cubic-bezier(0.16, 0.8, 0.18, 1) 430ms both;
+  animation: kisara-home-final-reveal 380ms cubic-bezier(0.16, 0.8, 0.18, 1) 760ms both;
 }
 
 @keyframes kisara-home-transform-explosion {
   0% { opacity: 0; transform: scale(1.08); filter: brightness(1.8) saturate(0.64); }
-  48% { opacity: 1; transform: scale(1.012); filter: brightness(1.08) saturate(0.9); }
+  42% { opacity: 1; transform: scale(1.012); filter: brightness(1.08) saturate(0.9); }
   100% { opacity: 0; transform: scale(1); filter: none; }
+}
+
+@keyframes kisara-home-transform-still {
+  0% { opacity: 0; transform: scale(1.035); filter: brightness(0.74) saturate(0.74); }
+  24%, 72% { opacity: 1; transform: scale(1.008); filter: none; }
+  100% { opacity: 0; transform: scale(1); filter: brightness(0.86); }
 }
 
 .kisara-home-jealousy .kisara-jealousy-panel {
@@ -1216,13 +1214,13 @@ html[data-kisara-found-self-entry] .kisara-found-self,
   transform: translate(-50%, -50%) rotate(-7deg) scale(0.72);
 }
 
-.kisara-home-jealousy[data-scene-action="running"] .kisara-jealousy-panel,
-.kisara-home-jealousy[data-scene-action="settled"] .kisara-jealousy-panel {
+.kisara-home-jealousy[data-scene-action="running"] .kisara-jealousy-panel {
   opacity: 1;
-  animation: kisara-home-jealousy-panel 520ms cubic-bezier(0.16, 0.84, 0.18, 1) 180ms both;
+  animation: kisara-home-jealousy-panel 420ms cubic-bezier(0.16, 0.84, 0.18, 1) 1040ms both;
 }
 
 .kisara-home-jealousy[data-scene-action="settled"] .kisara-jealousy-panel {
+  opacity: 1;
   clip-path: polygon(48% -2%, 102% -2%, 102% 102%, 76% 102%);
 }
 

@@ -16,7 +16,7 @@ Home becomes a fixed-viewport, six-scene Episode 1 keyframe stage. It borrows th
 
 - A static composition is the actual scene. Video is only the short action verb that brings that composition on screen.
 - Every forward gesture moves directly to the next public scene. There is no separate gesture that merely finishes the current scene before navigation can happen.
-- Each scene contains at most one short tension action, normally `0.20-0.40s`, exceptionally no more than `0.60s`, then settles immediately into a readable static final frame.
+- Each scene contains at most one tension action, then settles into a readable static final frame. Duration follows the semantic gesture rather than a hard cap: tiny impacts may stay near `0.20-0.40s`, while a continuous launch/clash or turn/slash may run about `1.0-1.6s` when removing those frames destroys the action.
 - Remaining narration, composition, page copy, route cues, and easter-egg affordances use static frames and lightweight DOM motion. Do not fill quiet time with another source clip.
 - Scene transitions should be authored through adjacent composition, camera direction, and scene-local before/active/after poses. Do not add universal full-screen fades, white flashes, decorative masks, or generic damping layers.
 - The six compact Home chapter markers remain navigation, not a progress rail. A marker jump enters only the requested scene; it never plays the earlier story again.
@@ -50,25 +50,25 @@ Use the Me scene model as the behavioral baseline:
 
 ### 3. Counterattack
 
-- Replace `entry -> run -> impact -> roll` as three video phases with one `0.35-0.55s` compressed action montage: selected sword/run/contact/throw frames only.
+- Replace `entry -> run -> impact -> roll` as three video phases with one continuous purpose-cut action: only the run-end launch through the energy clash, around `1.00s`, without the sword prelude or unreadable hyper-speed hit/roll chain.
 - The final rolling/landing frame is a static rest state. The scene carries the Works introduction after the action, not during the run.
 - No wheel scrub, seek queue, or hidden instructional prompt survives in this scene.
 
 ### 4. Contract
 
-- Use a stable embrace composition and one compact `0.25-0.45s` approach-to-kiss action. Other kiss frames are still cuts or scene-local static layers, not a timed four-step sequence.
+- Use exactly two static compositions, embrace and kiss, in one compact cut. Remove the intermediate kiss frames instead of timing a four-step sequence.
 - The settled kiss composition carries the Me introduction.
 - `kokoro-spare-key` is granted exactly once when the scene reaches its stable qualification point, independent of media duration or visibility interruption.
 
 ### 5. Transformation
 
-- Keep only a short explosion/reconstruction impulse, normally `0.35-0.60s`; detail, silhouette, and Fight are stable keyframe compositions connected by Me-style spatial movement.
+- Keep explosion, detail, silhouette, and Fight as an unhurried static-image group. Do not force a pure image sequence into the same micro-duration budget as video.
 - The settled fight composition carries the Games introduction. Works/Game route cue placement must remain readable on desktop and mobile without covering the subject.
 - No long transformation clip, infinite pulse, or legacy finale renderer appears here.
 
 ### 6. Jealousy
 
-- Enter on the selected pre-turn static frame. The very next forward transition immediately runs the turn-and-slash action and brings in the right-side black-face composition in the same `0.35-0.55s` scene entrance.
+- Enter on the selected pre-turn static frame. The very next forward transition immediately runs the complete turn-and-slash action with an encoded fast-slow-fast curve, then brings in the right-side black-face composition during the final acceleration.
 - The user must never enter Jealousy, see a static setup, and need another downward gesture just to trigger the actual slash.
 - Preserve the accepted simple right-side comic region and independent close-up framing direction, but treat the completed split as the scene's static end composition.
 - The settled end marks `home-jealousy`, exposes Lovebrain eligibility, and retains replay/end behavior.
@@ -79,6 +79,7 @@ Use the Me scene model as the behavioral baseline:
 - For anime source, favor intentional frame selection, held impact frames, and variable frame cadence over interpolation. Do not introduce optical-flow artifacts in line art.
 - Normal source action cuts must not show burned subtitles, white source flashes, stale first/last video frames, blank decoders, black borders, or aspect-ratio mismatch.
 - All selected media is decoded/prewarmed for the current and adjacent scenes. If the action clip is not ready at scene activation, show the target stable first frame immediately, queue only that action, and never make a user repeat the gesture.
+- During a scene handoff, only the incoming scene and its explicitly marked outgoing partner may paint. Video visibility belongs exclusively to `data-frame-state`; old decoded frames must never bypass the poster gate.
 - Existing media files are not deleted in this task. First remove runtime references and test expectations; a later dedicated asset audit may decide cleanup.
 
 ## Architecture Boundaries
@@ -126,7 +127,7 @@ It must remove or replace:
 
 - Six stable Home scenes work on wheel, touch, keyboard, marker click, restore, replay, and reduced-motion paths.
 - Every forward gesture lands in the next scene without a preliminary "finish current beat" gesture.
-- Every source-video action is a purpose-cut tension beat no longer than `0.60s`; ordinary beats target `0.20-0.40s`.
+- Every source-video action is purpose-cut around a complete semantic gesture. Do not preserve dead setup, but do not delete the force-bearing turn, launch, contact, or follow-through frames merely to satisfy a duration target.
 - Counter no longer chains three videos, Contract no longer advances through four timed still beats, Transformation no longer chains four timed beats, and Jealousy slash begins on entry from Transformation.
 - Text enters as part of each active scene and remains readable on the settled frame; it does not use a repeated side-column template or blur transition.
 - No white flash, stale frame zero, blank video, aspect-ratio border, wheel dead zone, recursive auto-chain, or duplicate listener appears during normal use.

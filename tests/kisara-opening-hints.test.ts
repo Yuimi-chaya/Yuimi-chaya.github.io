@@ -35,8 +35,6 @@ test("Home exposes six public scenes with one action lane per scene", () => {
     "counter-action.mp4",
     "counter-roll-last.webp",
     "contract-embrace.webp",
-    "contract-kiss-01.webp",
-    "contract-kiss-02.webp",
     "contract-kiss-03.webp",
     "transformation-explosion.webp",
     "transformation-detail.webp",
@@ -62,6 +60,8 @@ test("Home controller uses scene/stable/action ownership instead of nested beat 
   assert.match(stageRuntimeSource, /private transitionSerial = 0/);
   assert.match(stageRuntimeSource, /private playbackToken = 0/);
   assert.match(stageRuntimeSource, /private beginOperation\(\)/);
+  assert.match(stageRuntimeSource, /data\.transitionParticipant|dataset\.transitionParticipant/);
+  assert.match(stageRuntimeSource, /private videoLayerName\(/);
   assert.match(stageRuntimeSource, /private async switchChapter\(/);
   assert.match(stageRuntimeSource, /private async runSceneAction\(/);
   assert.match(stageRuntimeSource, /requestVideoFrameCallback/);
@@ -75,8 +75,8 @@ test("Home controller uses scene/stable/action ownership instead of nested beat 
 test("Home scene state table defines short actions and no hidden internal stops", () => {
   assert.match(stateTable, /Public Scenes|六个稳定场景/i);
   assert.match(stateTable, /rescue-action\.mp4.*0\.29s/);
-  assert.match(stateTable, /counter-action\.mp4.*0\.43s/);
-  assert.match(stateTable, /jealousy-action\.mp4.*0\.46s/);
+  assert.match(stateTable, /counter-action\.mp4.*1\.00s/);
+  assert.match(stateTable, /jealousy-action\.mp4.*1\.54s/);
   assert.match(stateTable, /There is no scrub state/);
   assert.match(stateTable, /The user never needs a second forward gesture/);
   assert.doesNotMatch(stateTable, /chapter-local beats|run-playing|parallel-preparing/);
@@ -92,6 +92,10 @@ test("Scene transitions use Me-like positions and delayed copy without a generic
   assert.match(stageStyles, /animation-delay: 300ms/);
   assert.match(stageStyles, /animation-delay: 410ms/);
   assert.match(stageStyles, /kisara-home-jealousy-panel/);
+  assert.match(stageStyles, /data-transition-participant="outgoing"/);
+  assert.doesNotMatch(stageStyles, /is-switching \.kisara-home-chapter\[data-chapter-position="before"\]/);
+  assert.doesNotMatch(stageStyles, /data-transition-participant="outgoing"[^}]*opacity:\s*1/s);
+  assert.doesNotMatch(stageStyles, /data-scene-action="running"\] \.kisara-scene-action > \[data-layer-video\]/);
   assert.doesNotMatch(stageStyles, /kisara-home-chapter\[data-chapter-position="active"\].*data-.*beat/);
 });
 
