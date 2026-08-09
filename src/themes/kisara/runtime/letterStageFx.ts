@@ -94,52 +94,38 @@ class ChainRenderer {
       });
     };
 
-    const frameLinks = 46;
-    const radiusX = width * (0.235 - tighten * 0.028);
-    const radiusY = height * (0.365 - tighten * 0.035);
-    for (let index = 0; index < frameLinks; index += 1) {
-      const order = index / frameLinks;
-      const angle = -Math.PI * 0.62 + order * Math.PI * 2;
-      const x = centerX + Math.cos(angle) * radiusX;
-      const y = centerY + Math.sin(angle) * radiusY;
-      const tangentX = -Math.sin(angle) * radiusX;
-      const tangentY = Math.cos(angle) * radiusY;
-      addRecord({
-        x,
-        y,
-        angle: Math.atan2(tangentY, tangentX),
-        depth: Math.sin(angle),
-        index,
-        alpha: 0,
-        heat: 0,
-        scale: 0.88 + Math.max(0, Math.sin(angle)) * 0.1
-      }, order, 0.02, 0.56);
-    }
-
-    const addWeave = (phase: number, direction: number, count: number, start: number, end: number) => {
-      const amplitude = width * (0.145 - tighten * 0.018);
+    const addWeave = (
+      phase: number,
+      direction: number,
+      count: number,
+      turns: number,
+      amplitudeUnit: number,
+      start: number,
+      end: number
+    ) => {
+      const amplitude = width * (amplitudeUnit - tighten * 0.012);
       for (let index = 0; index < count; index += 1) {
         const order = index / Math.max(1, count - 1);
         const travel = direction > 0 ? order : 1 - order;
-        const wave = travel * Math.PI * 3.25 + phase;
-        const y = height * (0.105 + travel * 0.79);
+        const wave = travel * Math.PI * turns + phase;
+        const y = height * (0.09 + travel * 0.82);
         const x = centerX + Math.sin(wave) * amplitude;
-        const tangentX = Math.cos(wave) * amplitude * Math.PI * 3.25;
-        const tangentY = height * 0.79;
+        const tangentX = Math.cos(wave) * amplitude * Math.PI * turns;
+        const tangentY = height * 0.82;
         addRecord({
           x,
           y,
           angle: Math.atan2(tangentY, tangentX),
           depth: Math.cos(wave),
-          index: index + Math.round(phase * 13),
+          index: index + Math.round((phase + Math.PI * 2) * 13),
           alpha: 0,
           heat: 0,
-          scale: 0.78
+          scale: 0.76
         }, order, start, end);
       }
     };
-    addWeave(-0.72, 1, 23, 0.12, 0.78);
-    addWeave(Math.PI * 0.86, -1, 21, 0.34, 0.96);
+    addWeave(-0.62, 1, 28, 4.8, 0.118, 0.02, 0.72);
+    addWeave(Math.PI * 0.76, -1, 25, 4.35, 0.098, 0.28, 0.96);
 
     const backRecords = records.filter((record) => record.depth < -0.06);
     const frontRecords = records.filter((record) => record.depth >= -0.06);

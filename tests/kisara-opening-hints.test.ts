@@ -87,9 +87,12 @@ test("Home carries one indexed KISARA wordmark contract through all six scenes",
   assert.match(letterFxSource, /createHeartPath/);
   assert.match(letterFxSource, /createLiquidRenderer/);
   assert.match(letterFxSource, /data-chapter-position="active"/);
+  assert.doesNotMatch(letterFxSource, /const frameLinks/);
   assert.match(stageRuntimeSource, /new KisaraLetterFxController\(root\)/);
   assert.match(stageRuntimeSource, /this\.letterFx\.dispose\(\)/);
   assert.match(stageStyles, /display: flex;[\s\S]*width: max-content;[\s\S]*font-size: 13\.4rem/);
+  assert.match(stageStyles, /data-wordmark-scene="rescue"[\s\S]*?kisara-stage-letter-material \{\s*background-image:/);
+  assert.match(stageStyles, /data-wordmark-scene="request"[\s\S]*?kisara-stage-letter-material \{\s*background-image:/);
   assert.doesNotMatch(stageHomeSource, /kisara-title-stage|data-kisara-chain|data-kisara-title-data/);
   assert.doesNotMatch(stageStyles, /\.kisara-stage-wordmark[^}]*backdrop-filter/s);
   assert.match(stageStyles, /@media \(max-width: 720px\)[\s\S]*\.kisara-stage-letter-fx \{\s*display: none;/);
