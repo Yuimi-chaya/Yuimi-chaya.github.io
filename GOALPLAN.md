@@ -1,135 +1,146 @@
-# Kisara Home Keyframe Stage Rebuild
+# Kisara Home Six-Letter Continuity Stage
 
 ## Status And Recovery
 
-This plan supersedes the August 7-8 six-chapter implementation and its later key-frame trimming pass. The current implementation remains a recovery point, but it must not be refined through more chapter-local auto chains, scrub behavior, or generic transition layers.
+- Date: `2026-08-09`.
+- Repository: `C:\Users\a1234\Desktop\个人博客`.
+- Starting branch / HEAD: `main` / `d20447b refine(kisara): extend rescue and tighten jealousy`.
+- Starting tracked worktree is clean. Existing untracked source, candidate, generated, and temporary assets are user-owned and must not be staged, moved, deleted, or overwritten.
+- The complete pre-redesign Home remains recoverable on `codex/kisara-pre-home-redesign-20260806` and historical commit `72a7719`. They are reference sources only and must not be restored wholesale.
+- Browser QA is explicitly excluded. Static validation is required; final motion, hierarchy, timing, and comfort belong to the user's direct visual review.
 
-- Repository: `C:\Users\a1234\Desktop\个人博客`
-- Active branch / starting HEAD: `main` / `9b5d37b refine(kisara): reframe jealousy closeup`
-- Starting tracked worktree: clean. Existing untracked source, candidate, generated, and temporary assets are user-owned and must not be staged, moved, deleted, or overwritten.
-- Previous pre-redesign recovery material remains valid under `C:\Users\a1234\Documents\Codex\backups\yuimi-home\`. It is historical recovery material only; do not restore it blindly.
-- Before writing Home runtime, scene, CSS, tests, or selected media, create a scoped local Git checkpoint or a binary patch covering only tracked task files.
+## Execution Warning
+
+Do not be lazy.
+
+- Do not ship six identical letters that merely swap color or glow.
+- Do not copy the old multi-thousand-line Home renderer back into the new six-scene controller.
+- Do not create six independent full-screen canvases, filters, or permanent GPU surfaces.
+- Do not stop after a convincing K/I/S sample and label A/R/A as later polish.
+- Do not let the title cover every subject or force all scene copy into one repeated side column.
+- Do not break, simplify, or silently defer FoundSelf, Lovebrain, secret audio, marker, restore, BFCache, mobile, or reduced-motion behavior.
+- Do not claim visual acceptance. Deliver the complete implementation, evidence, and checkpoints, then stop for human review.
 
 ## Product Decision
 
-Home becomes a fixed-viewport, six-scene Episode 1 keyframe stage. It borrows the proven Me page interaction grammar, not its visual templates.
+The six-scene Home keeps its current media, copy, navigation, and one-gesture scene grammar. A fixed `KISARA` word becomes the continuous visual state carrier that the old Home previously provided.
 
-- A static composition is the actual scene. Video is only the short action verb that brings that composition on screen.
-- Every forward gesture moves directly to the next public scene. There is no separate gesture that merely finishes the current scene before navigation can happen.
-- Each scene contains at most one tension action, then settles into a readable static final frame. Duration follows the semantic gesture rather than a hard cap: tiny impacts may stay near `0.20-0.40s`, while a continuous launch/clash or turn/slash may run about `1.0-1.6s` when removing those frames destroys the action.
-- Remaining narration, composition, page copy, route cues, and easter-egg affordances use static frames and lightweight DOM motion. Do not fill quiet time with another source clip.
-- Scene transitions should be authored through adjacent composition, camera direction, and scene-local before/active/after poses. Do not add universal full-screen fades, white flashes, decorative masks, or generic damping layers.
-- The six compact Home chapter markers remain navigation, not a progress rail. A marker jump enters only the requested scene; it never plays the earlier story again.
-- The normal Home flow does not initialize the old legacy `KISARA` chain, heart, blade, black-hole, data-reconstruction renderer.
+- `KISARA` contains six independently addressable letters and maps one-to-one to the six public scenes.
+- The word keeps one stable responsive position and letter spacing across the entire normal Home performance.
+- Exactly one letter is active in a stable scene. The other five remain readable only as restrained translucent glass outlines with edge refraction and almost transparent interiors.
+- Previously visited letters may retain a faint scene-specific scar or residue. Future letters remain clean glass. Neither state may compete with the active letter.
+- The active letter owns the scene-specific effect. Scene media remains the primary image; the word is a persistent narrative instrument, not an opaque logo card.
+- On scene changes, energy/material travels from the outgoing letter to the incoming letter. The word must not behave like six unrelated traffic lights switching instantly.
+- At the final Jealousy settle, all six letters may synchronize briefly once, then cool back to glass with the damaged final `A` remaining active.
 
-## Interaction Grammar To Reuse From Me
+## Letter And Scene Contract
 
-Use the Me scene model as the behavioral baseline:
+### K / Rescue
 
-- Maintain one active scene plus adjacent `before` and `after` spatial states.
-- Group wheel intent after roughly `180ms` quiet time, use one threshold, and discard momentum tails during the transition lock.
-- A successful gesture changes scene ownership immediately. The incoming scene displays a ready first/stable frame at once, starts its short action when decoded, then settles. It must never wait for a second wheel gesture.
-- Use scene-specific transform/clip/camera poses only where adjacent imagery supports them. Home must not copy Me's exact shapes or each scene's decoration.
-- Copy is a scene-local DOM layer: title may enter after roughly `120-180ms`, supporting line around `220-300ms`, and route/secondary cue around `320-420ms`. Use opacity plus small transform/scale movement; do not use blur-based text entrances.
-- When moving backward, return to the previous scene's stable composition through its authored spatial exit. Do not force reverse playback of anime footage.
-- During an action, input is blocked and discarded until the short settle completes. Auto mode may advance only after a readable dwell; it may not recursively chain scenes without user intent.
+- Starts as the weakest gray glass state.
+- The eye impact introduces the first internal pink response.
+- The automatic diagonal blade transition cuts through the `K`; the back-view settle leaves a thin pink incision and one damaged edge.
+- No chain, heart, or full enchantment appears yet.
 
-## Six Scene Contract
+### I / Request
 
-### 1. Rescue
+- The transfer from `K` reaches the vertical `I` as a restrained pulse.
+- A lightweight chain wraps the letter from opposite directions and settles under visible tension.
+- The chain is scene-local and must not require the old full-title chain simulation or a permanent animation loop.
+- The Request comic and copy remain readable around the fixed word.
 
-- Preserve the eye-poke as the opening impact, but derive a compact `0.20-0.30s` cut from only the forceful eye frames. Frame removal and a controlled speed ramp are preferred to optical-flow interpolation.
-- The eye action automatically continues into the accepted diagonal severed-tentacle cut and back-view image without another user gesture. The back-view image becomes the stable Rescue composition; leaving for Request must not replay the cut.
-- This scene carries the smallest site-introduction layer after the automatic cut settles.
+### S / Counterattack
 
-### 2. Request
+- Energy releases from the chained `I` and runs along the curvature of `S`.
+- The active material behaves as a fast directional ribbon with local exposure, color separation, and a short impact surge tied to launch/contact.
+- Stable motion is low-frequency and bounded. It may not look like a generic neon loading spinner.
 
-- Retain the face/emergence relation, but use no looped window and no attempt to conceal a continuing source video.
-- The movement is one `0.25-0.40s` OP/manga-style paste or cut. The settled composition is static and can carry the Blog introduction.
-- Typography must occupy deliberate negative space and belong to the source composition; it must not repeat a generic side column.
+### A1 / Contract
 
-### 3. Counterattack
+- Pink and muted green strands enter from opposite sides and connect through the counter of the first `A`.
+- The embrace-to-kiss cut triggers one heart pulse and a short connection wave through the word.
+- The heart is integrated with the letter opening, not placed as a floating emoji or independent icon.
+- Spare-key qualification remains owned by the scene controller and is not coupled to the decorative effect completing.
 
-- Replace `entry -> run -> impact -> roll` as three video phases with one continuous purpose-cut action: only the run-end launch through the energy clash, around `1.00s`, without the sword prelude or unreadable hyper-speed hit/roll chain.
-- The final rolling/landing frame is a static rest state. The scene carries the Works introduction after the action, not during the run.
-- No wheel scrub, seek queue, or hidden instructional prompt survives in this scene.
+### R / Awaken
 
-### 4. Contract
+- The connection pulse reaches `R` and becomes the most complete enchantment state.
+- Contract-like traces, hot pink material, restrained glyph fragments, and local reconstruction cells travel along the strokes while the existing four-image crossfade runs.
+- The effect may borrow the old enchantment/data language, but not the old black-hole renderer or full-screen reconstruction field.
+- The final Fight image remains the stable media composition.
 
-- Use exactly two static compositions, embrace and kiss, in one compact cut. Remove the intermediate kiss frames instead of timing a four-step sequence.
-- The settled kiss composition carries the Me introduction.
-- `kokoro-spare-key` is granted exactly once when the scene reaches its stable qualification point, independent of media duration or visibility interruption.
+### A2 / Jealousy
 
-### 5. Transformation
+- The second `A` begins vivid pink, then deepens toward wine red and black as the turn-and-slash action advances.
+- The decoded slash cue cuts the letter diagonally. That cut continues into the existing right-side black-face comic boundary so both effects share one cause.
+- The completed state retains a dark fracture and red edge rather than reusing the Contract heart.
+- `home-jealousy`, Lovebrain eligibility, Replay, and the final one-time six-letter synchronization remain scene-controller outcomes.
 
-- Keep explosion, detail, silhouette, and Fight as an unhurried static-image group. Do not force a pure image sequence into the same micro-duration budget as video.
-- The settled fight composition carries the Games introduction. Works/Game route cue placement must remain readable on desktop and mobile without covering the subject.
-- No long transformation clip, infinite pulse, or legacy finale renderer appears here.
+## Architecture
 
-### 6. Jealousy
+### Markup
 
-- Enter on the selected pre-turn static frame. The very next forward transition immediately runs the complete turn-and-slash action with the preparation tightened to `1.25x` and the final slash kept accelerated. The right-side black-face composition is cued from the decoded slash media time, not from chapter-entry wall time.
-- The user must never enter Jealousy, see a static setup, and need another downward gesture just to trigger the actual slash.
-- Preserve the accepted simple right-side comic region and independent close-up framing direction, but treat the completed split as the scene's static end composition.
-- The settled end marks `home-jealousy`, exposes Lovebrain eligibility, and retains replay/end behavior.
+- Add one dedicated `KisaraLetterStage` component inside `KisaraStageHome`.
+- Render six indexed letter nodes, not IDs derived from the glyph, because the two `A` letters have different behavior.
+- Each node owns glass, active material, edge, residue, and scene-decoration sublayers.
+- Add at most one shared lightweight FX canvas for particles, sparks, or chain accents. It must be clipped/bounded around the word and must never become another full-screen compositor.
 
-## Media Rules
+### State Ownership
 
-- Selected runtime clips must be purpose-exported short actions with semantic names, first-frame poster, hold-frame poster, H.264/yuv420p, no audio, and a verified frame boundary. Do not reuse long clips with runtime speed changes as the primary solution.
-- For anime source, favor intentional frame selection, held impact frames, and variable frame cadence over interpolation. Do not introduce optical-flow artifacts in line art.
-- Normal source action cuts must not show burned subtitles, white source flashes, stale first/last video frames, blank decoders, black borders, or aspect-ratio mismatch.
-- All selected media is decoded/prewarmed for the current and adjacent scenes. If the action clip is not ready at scene activation, show the target stable first frame immediately, queue only that action, and never make a user repeat the gesture.
-- During a scene handoff, only the incoming scene and its explicitly marked outgoing partner may paint. Video visibility belongs exclusively to `data-frame-state`; old decoded frames must never bypass the poster gate.
-- Existing media files are not deleted in this task. First remove runtime references and test expectations; a later dedicated asset audit may decide cleanup.
+- `HomeChapterController` remains the only input, navigation, playback, restore, and lifecycle owner.
+- Active letter index derives directly from the active public scene. Do not persist a second independent letter timeline.
+- The controller exposes only bounded semantic states to the letter renderer: scene ID/index, entering, active, settled, leaving, direction, suspended, reduced motion, and final synchronization.
+- Marker jumps activate only the requested scene/letter. Skipped scene effects do not replay.
+- Backward navigation restores the previous letter's stable residue without reverse-playing its source action.
+- Same-tab restoration derives the correct active letter and stable effect from the persisted scene/stable state.
 
-## Architecture Boundaries
+### Rendering And Performance
 
-`HomeChapterController` remains the sole Home owner for input, playback, restoration, and lifecycle. It must become a scene controller rather than a nested beat sequencer.
+- Prefer DOM/CSS text masks, gradients, strokes, pseudo-elements, and bounded transforms for persistent letter materials.
+- A shared Canvas renderer is allowed only for effects that materially benefit from it. Cap DPR, pause when hidden, stop on route changes, and avoid readback or per-frame layout measurements.
+- Measure letter bounds on init/resize only. Cache geometry and update it through one resize path.
+- Do not use full-word `filter: blur(...)` surfaces, hidden full-size filtered layers, repeated visibility churn, or per-letter permanent `will-change` promotion.
+- Stable scenes receive one low-frequency ambient response at most. Action effects may briefly increase intensity, then settle.
+- The title layer sits above scene media and grades but below interactive copy, navigation, player, FoundSelf, and Lovebrain overlays.
 
-It must retain:
+## Responsive And Accessibility
 
-- wheel, touch, keyboard, marker navigation, reduced-motion, and mobile behavior;
-- `FoundSelf` ticket, input lock, audio suspension, skip, visibility and route recovery;
-- `Lovebrain` qualification, entry/departure, return path, and persistent-player rules;
-- `kokoro-spare-key`, `home-jealousy`, secret-session, and audio protocols;
-- `kisara:gate-progress`, Home boot-ready, `astro:before-swap`, `pagehide`, `pageshow`, BFCache, and same-tab restoration;
-- operation epochs plus playback/transition tokens so a stale decoder, timeout, or route callback can never reveal inactive media.
+- Desktop keeps the fixed full-word composition and all six scene identities.
+- Mobile keeps the same word and active-letter mapping but reduces particle count, chain detail, filter use, and ambient motion. Inactive glass letters become thinner and less bright so media remains readable.
+- Use stable responsive dimensions and `clamp()` sizing; do not scale font size directly with viewport width.
+- `prefers-reduced-motion` shows the correct active material and stable residue without chain travel, energy chase, heart burst, reconstruction motion, or final synchronization animation.
+- Decorative layers are `aria-hidden`. The scene titles, route links, markers, and status text remain the accessible controls.
 
-It must remove or replace:
+## External Protocols To Preserve
 
-- chapter-local `playBeatSequence()` chains;
-- forward behavior that first settles an unfinished beat instead of entering the next scene;
-- Counter scrub/seek state and instructional affordance;
-- generic `CHAPTER_TRANSITION_MS` style ownership and a large beat-to-CSS state matrix;
-- restoration fields that describe transient playback instead of `{ sceneId, stableState }`.
+- Current Rescue automatic eye -> blade -> back-view action.
+- Request comic paste, Counter action, Contract two-frame cut, Awaken crossfade, and Jealousy media-time panel cue.
+- FoundSelf ticket, skip, audio suspension, hidden-tab recovery, and return state.
+- Lovebrain eligibility, activation, departure, return path, and persistent-player rules.
+- `kokoro-spare-key`, `home-jealousy`, secret-session, and audio protocols.
+- `kisara:gate-progress`, Home boot-ready, marker/replay, keyboard/touch/wheel ownership, `astro:before-swap`, `pagehide`, `pageshow`, BFCache, and same-tab restoration.
 
-## Visual Motion Budget
+## Implementation Order And Checkpoints
 
-- Per viewport: one primary action, one text/interaction response, and at most one low-frequency ambient effect.
-- Scene action is the transition. Avoid stacking an unrelated overlay transition on top of it.
-- Copy does not appear as opaque cards or repeated dashboard panels. Each scene gets its own placement, typographic scale, and relation to its source composition.
-- Stable scenes must remain legible and calm enough for the user to choose a route or notice an easter clue.
-- Mobile uses the same narrative stops but may replace micro-clips with stable posters or lighter motion where decoding/performance pressure would weaken the experience.
-
-## Implementation Order
-
-1. Create a scoped recovery checkpoint before functional changes.
-2. Inspect and export only the selected short action candidates plus first/hold posters outside tracked runtime paths; review compressed previews before adoption.
-3. Replace `KISARA_HOME_STATE_TABLE.md` with six single-scene contracts, exact qualifying moments, and no hidden internal stops.
-4. Refactor `KisaraStageHome.astro`, `stageHome.ts`, and `stage-home.css` around Me-like scene positions and short action overlays; preserve existing secret hosts and external protocol names.
-5. Implement Rescue, Request, and Counterattack first as a coherent hand-feel sample. Create a scoped checkpoint before expanding to Contract, Transformation, and Jealousy.
-6. Migrate the remaining three scenes, secret trigger timing, marker jumps, backward return poses, same-tab restoration, reduced motion, and mobile gates.
-7. Add/update focused tests for one-gesture navigation, action readiness, no nested auto chains, lifecycle cancellation, restored stable states, spare-key, jealousy, FoundSelf, and Lovebrain.
-8. Run `git diff --check`, focused tests, full `npm test`, and a production build. Browser navigation/lifecycle review uses `luna max`; fine visual timing remains for human review.
-9. After human acceptance, create a local Git checkpoint containing only tracked task files, update `DEVELOPMENT_NOTES.md`, and push only if the user explicitly asks.
+1. Inspect the old title renderer and current Home layering. Record reusable visual language and rejected performance patterns.
+2. Replace this plan and create a plan-only local Git checkpoint from `d20447b`.
+3. Add the fixed six-letter component, glass states, active-index binding, layer ordering, mobile sizing, reduced-motion baseline, and focused structural tests.
+4. Create a skeleton checkpoint before scene-specific effects.
+5. Implement K/I/S effects and their transfer behavior without changing scene media timing.
+6. Implement A1/R/A2 effects, connect the final slash to the black-face panel, and add the one-time final synchronization.
+7. Integrate suspend/resume/dispose, marker jumps, restoration, FoundSelf/Lovebrain hiding, and mobile performance limits.
+8. Update `KISARA_HOME_STATE_TABLE.md`, focused tests, and `DEVELOPMENT_NOTES.md` with exact ownership and remaining human-review risks.
+9. Run `git diff --check`, focused Home tests, full `npm test`, and `npm run build`. Do not run browser QA.
+10. Create the final scoped local checkpoint containing only task-owned tracked files. Do not push unless explicitly requested.
 
 ## Delivery Criteria
 
-- Six stable Home scenes work on wheel, touch, keyboard, marker click, restore, replay, and reduced-motion paths.
-- Every forward gesture lands in the next scene without a preliminary "finish current beat" gesture.
-- Every source-video action is purpose-cut around a complete semantic gesture. Do not preserve dead setup, but do not delete the force-bearing turn, launch, contact, or follow-through frames merely to satisfy a duration target.
-- Counter no longer chains three videos, Contract no longer advances through four timed still beats, Transformation no longer chains four timed beats, and Jealousy slash begins on entry from Transformation.
-- Text enters as part of each active scene and remains readable on the settled frame; it does not use a repeated side-column template or blur transition.
-- No white flash, stale frame zero, blank video, aspect-ratio border, wheel dead zone, recursive auto-chain, or duplicate listener appears during normal use.
-- FoundSelf, Lovebrain, spare-key, secret audio, `home-jealousy`, route cleanup, BFCache/visibility recovery, and mobile/reduced-motion behavior remain correct.
-- Static validation passes. Fine timing, crop, and visual comfort are explicitly subject to the user's human review.
+- A fixed, readable `KISARA` silhouette persists across all six normal Home scenes without dominating every composition.
+- Exactly one indexed letter is active per stable scene; the other five remain restrained glass outlines.
+- K, I, S, A1, R, and A2 each have a visibly distinct effect tied to Rescue, Request, Counterattack, Contract, Awaken, and Jealousy respectively.
+- Letter-to-letter transfers feel continuous and do not introduce white flashes, full-screen color cuts, generic overlay fades, or extra user gestures.
+- The Jealousy slash and right comic boundary share one decoded-media cue.
+- Marker jumps, backward navigation, replay, same-tab restore, reduced motion, and mobile all resolve to the correct active letter without replaying skipped effects.
+- No old full-title runtime, black-hole renderer, full-screen data compositor, duplicate input owner, stale callback, or permanent heavy GPU layer returns.
+- Existing easter eggs and audio protocols remain intact.
+- Static validation passes. Final visual acceptance is explicitly reserved for the user.
