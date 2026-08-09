@@ -841,6 +841,381 @@ body.kisara-home-page .kisara-scrollbar {
   }
 }
 
+/* The six letters share the old title's compact center mass. Effects are layered
+   around glyph silhouettes instead of living inside one visible rectangular FX box. */
+.kisara-stage-wordmark {
+  display: flex;
+  grid-template-columns: none;
+  justify-content: center;
+  width: max-content;
+  height: 15.5rem;
+  font-size: 13.4rem;
+  line-height: 0.8;
+  transform: translate3d(-50%, -52%, 0) scaleX(0.94);
+}
+
+.kisara-stage-letter {
+  flex: none;
+  width: max-content;
+  height: 1em;
+  margin-inline: -0.035em;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.kisara-stage-letter[data-wordmark-letter="1"] {
+  margin-inline: -0.075em;
+}
+
+.kisara-stage-letter > :is(
+  .kisara-stage-letter-glass,
+  .kisara-stage-letter-residue,
+  .kisara-stage-letter-material,
+  .kisara-stage-letter-enchant,
+  .kisara-letter-gloss
+) {
+  position: relative;
+  z-index: 3;
+  grid-area: 1 / 1;
+  display: block;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+.kisara-stage-letter-enchant,
+.kisara-letter-gloss {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.kisara-stage-letter-enchant {
+  z-index: 5;
+  background-image:
+    linear-gradient(
+      112deg,
+      transparent 31%,
+      rgba(126, 170, 255, 0.38) 41%,
+      rgba(255, 235, 244, 0.94) 48%,
+      #fff 50%,
+      rgba(255, 76, 136, 0.9) 54%,
+      rgba(255, 75, 137, 0.28) 62%,
+      transparent 71%
+    ),
+    repeating-linear-gradient(
+      112deg,
+      transparent 0 7%,
+      rgba(255, 244, 248, 0.92) 8% 9.2%,
+      rgba(255, 77, 135, 0.46) 10.2% 12.5%,
+      transparent 14% 22%
+    ),
+    linear-gradient(180deg, #fff8fb 0%, #ff7da1 48%, #7fa8ff 100%);
+  background-size: 100% 100%, 240% 100%, 100% 100%;
+  background-position: center, 0% 50%, center;
+  -webkit-text-stroke: 1px rgba(255, 236, 244, 0.62);
+  clip-path: circle(4% at 53% 57%);
+  mix-blend-mode: screen;
+  text-shadow:
+    0 0 7px rgba(255, 246, 250, 0.94),
+    0 0 20px rgba(255, 55, 121, 0.72),
+    0 0 32px rgba(103, 151, 255, 0.46);
+}
+
+.kisara-letter-gloss {
+  z-index: 9;
+  background-image: linear-gradient(180deg, #fff 0%, #fff8fb 38%, #ffb0c2 72%, #ff7894 100%);
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.72);
+  clip-path: polygon(-18% 100%, -7% 100%, 2% 0%, -9% 0%);
+  mix-blend-mode: screen;
+  text-shadow: 0 0 10px rgba(255, 247, 250, 0.98), 0 0 26px rgba(255, 82, 117, 0.78);
+}
+
+.kisara-stage-wordmark[data-wordmark-scene="contract"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant,
+.kisara-stage-letter[data-wordmark-letter="3"][data-letter-state="past"] .kisara-stage-letter-enchant,
+.kisara-stage-wordmark[data-wordmark-scene="transformation"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant,
+.kisara-stage-letter[data-wordmark-letter="4"][data-letter-state="past"] .kisara-stage-letter-enchant {
+  opacity: 0.9;
+  clip-path: circle(130% at 53% 57%);
+}
+
+.kisara-stage-letter[data-wordmark-letter="3"][data-letter-state="past"] .kisara-stage-letter-enchant,
+.kisara-stage-letter[data-wordmark-letter="4"][data-letter-state="past"] .kisara-stage-letter-enchant {
+  opacity: 0.16;
+  filter: saturate(0.66) brightness(0.74);
+}
+
+.kisara-home-contract[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant,
+.kisara-home-transformation[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant {
+  animation: kisara-letter-legacy-enchant 1320ms cubic-bezier(0.16, 0.8, 0.18, 1) both;
+}
+
+.kisara-home-contract[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant {
+  animation-duration: 520ms;
+}
+
+.kisara-home-contract[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-letter-gloss,
+.kisara-home-transformation[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-letter-gloss {
+  animation: kisara-letter-legacy-gloss 520ms ease-out both;
+}
+
+.kisara-home-transformation[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-letter-gloss {
+  animation-duration: 900ms;
+  animation-delay: 260ms;
+}
+
+.kisara-letter-chain-canvas,
+.kisara-letter-contract-canvas,
+.kisara-letter-data-canvas,
+.kisara-letter-lens-canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0);
+}
+
+.kisara-letter-chain-canvas {
+  width: 1.72em;
+  height: 1.42em;
+}
+
+.kisara-letter-chain-back {
+  z-index: 1;
+  filter: saturate(0.82) brightness(0.72) drop-shadow(0 4px 8px rgba(5, 7, 29, 0.64));
+}
+
+.kisara-letter-chain-front {
+  z-index: 8;
+  filter: saturate(0.92) contrast(1.12) drop-shadow(0 5px 9px rgba(7, 8, 28, 0.72));
+}
+
+.kisara-stage-letter[data-wordmark-letter="1"][data-letter-state="past"] .kisara-letter-chain-canvas {
+  opacity: 0.13 !important;
+  filter: grayscale(0.45) brightness(0.62);
+}
+
+.kisara-stage-letter[data-wordmark-letter="1"][data-letter-state="future"] .kisara-letter-chain-canvas {
+  opacity: 0 !important;
+}
+
+.kisara-letter-contract-canvas {
+  width: 1.86em;
+  height: 1.42em;
+}
+
+.kisara-letter-contract-back { z-index: 1; }
+.kisara-letter-contract-front {
+  z-index: 8;
+  mix-blend-mode: screen;
+}
+
+.kisara-stage-letter[data-wordmark-letter="3"][data-letter-state="past"] .kisara-letter-contract-canvas {
+  opacity: 0.14 !important;
+  filter: saturate(0.62) brightness(0.68);
+}
+
+.kisara-letter-data-canvas,
+.kisara-letter-lens-canvas {
+  width: 1.52em;
+  height: 1.38em;
+}
+
+.kisara-letter-data-canvas {
+  z-index: 6;
+  mix-blend-mode: screen;
+  filter:
+    saturate(1.08)
+    contrast(1.025)
+    drop-shadow(0 0 7px rgba(255, 58, 132, 0.28))
+    drop-shadow(0 0 16px rgba(117, 163, 255, 0.1));
+}
+
+.kisara-letter-lens-canvas {
+  z-index: 7;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 12px rgba(255, 54, 126, 0.34));
+}
+
+.kisara-stage-letter[data-wordmark-letter="4"][data-letter-state="past"] :is(.kisara-letter-data-canvas, .kisara-letter-lens-canvas) {
+  opacity: 0.12 !important;
+  filter: saturate(0.58) brightness(0.7);
+}
+
+.kisara-stage-wordmark[data-wordmark-scene="transformation"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-material {
+  animation: none;
+  opacity: 0.18;
+}
+
+.kisara-letter-cut,
+.kisara-letter-charge,
+.kisara-letter-fracture {
+  position: absolute;
+  z-index: 8;
+  inset: -8%;
+  display: block;
+  pointer-events: none;
+}
+
+.kisara-letter-cut > *,
+.kisara-letter-charge > *,
+.kisara-letter-fracture > * {
+  position: absolute;
+  display: block;
+}
+
+.kisara-letter-cut > i,
+.kisara-letter-fracture > i {
+  top: 48%;
+  left: -18%;
+  width: 138%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 237, 244, 0.96) 18%, #ff5c97 48%, rgba(123, 18, 57, 0.88) 74%, transparent);
+  box-shadow: 0 0 8px rgba(255, 225, 237, 0.78), 0 0 18px rgba(255, 54, 122, 0.46);
+  opacity: 0;
+  transform: rotate(-37deg) scaleX(0.08);
+  transform-origin: 6% 50%;
+}
+
+.kisara-letter-cut > b,
+.kisara-letter-fracture > em {
+  top: 43%;
+  left: 47%;
+  width: 0.1em;
+  height: 0.1em;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0.08em rgba(255, 255, 255, 0.92), 0 0 0.24em rgba(255, 48, 119, 0.82);
+  opacity: 0;
+}
+
+.kisara-home-rescue[data-rescue-bridge-state="playing"] .kisara-letter-cut > i {
+  animation: kisara-letter-k-slash 430ms cubic-bezier(0.12, 0.82, 0.16, 1) 30ms both;
+}
+
+.kisara-home-rescue[data-rescue-bridge-state="playing"] .kisara-letter-cut > b {
+  animation: kisara-letter-k-spark 360ms ease-out 110ms both;
+}
+
+.kisara-home-rescue[data-rescue-bridge-state="settled"] .kisara-letter-cut > i,
+.kisara-stage-letter[data-wordmark-letter="0"][data-letter-state="past"] .kisara-letter-cut > i {
+  opacity: 0.42;
+  transform: rotate(-37deg) scaleX(1);
+  filter: brightness(0.72) saturate(0.78);
+}
+
+.kisara-letter-charge > i {
+  top: 49%;
+  left: -22%;
+  width: 148%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(124, 164, 255, 0.38), #fff 48%, rgba(255, 79, 142, 0.76) 62%, transparent);
+  opacity: 0;
+  transform: rotate(-8deg) scaleX(0.18);
+  transform-origin: 16% 50%;
+}
+
+.kisara-letter-charge > b {
+  top: 47%;
+  right: -2%;
+  width: 0.12em;
+  height: 0.12em;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0.08em #fff, 0 0 0.24em rgba(255, 65, 133, 0.8), 0 0 0.4em rgba(91, 139, 255, 0.48);
+  opacity: 0.18;
+}
+
+.kisara-home-counterattack[data-scene-action="running"] .kisara-letter-charge > i {
+  animation: kisara-letter-s-streak 1000ms cubic-bezier(0.12, 0.82, 0.16, 1) both;
+}
+
+.kisara-home-counterattack[data-scene-action="running"] .kisara-letter-charge > b {
+  animation: kisara-letter-s-impact 1000ms ease-out both;
+}
+
+.kisara-letter-fracture > i {
+  height: 3px;
+  transform: rotate(-42deg) scaleX(0.08);
+}
+
+.kisara-letter-fracture > b {
+  top: 18%;
+  left: 52%;
+  width: 2px;
+  height: 68%;
+  background: linear-gradient(180deg, transparent, rgba(29, 4, 15, 0.92) 18% 82%, transparent);
+  opacity: 0;
+  transform: rotate(18deg) scaleY(0.2);
+  transform-origin: 50% 32%;
+}
+
+.kisara-home-jealousy[data-jealousy-panel-state="revealing"] .kisara-letter-fracture > i {
+  animation: kisara-letter-a2-slash 260ms cubic-bezier(0.12, 0.82, 0.16, 1) both;
+}
+
+.kisara-home-jealousy:is([data-jealousy-panel-state="revealing"], [data-jealousy-panel-state="settled"]) .kisara-letter-fracture > b {
+  opacity: 0.76;
+  transform: rotate(18deg) scaleY(1);
+  transition: opacity 220ms ease, transform 360ms cubic-bezier(0.16, 0.82, 0.18, 1);
+}
+
+.kisara-home-jealousy[data-jealousy-panel-state="revealing"] .kisara-letter-fracture > em {
+  animation: kisara-letter-a2-spark 260ms ease-out both;
+}
+
+.kisara-home-jealousy[data-jealousy-panel-state="settled"] .kisara-letter-fracture > i {
+  opacity: 0.7;
+  transform: rotate(-42deg) scaleX(1);
+  filter: brightness(0.58) saturate(0.82);
+}
+
+@keyframes kisara-letter-legacy-enchant {
+  0% {
+    opacity: 0.08;
+    background-position: center, 0% 50%, center;
+    clip-path: circle(4% at 53% 57%);
+    filter: brightness(0.56) saturate(0.46);
+  }
+  58% {
+    opacity: 1;
+    background-position: center, 72% 50%, center;
+    clip-path: circle(74% at 53% 57%);
+    filter: brightness(1.18) saturate(1.18);
+  }
+  100% {
+    opacity: 0.9;
+    background-position: center, 100% 50%, center;
+    clip-path: circle(130% at 53% 57%);
+    filter: brightness(1.02) saturate(1.04);
+  }
+}
+
+@keyframes kisara-letter-legacy-gloss {
+  0%, 18% { opacity: 0; clip-path: polygon(-18% 100%, -7% 100%, 2% 0%, -9% 0%); }
+  42% { opacity: 0.92; }
+  76% { opacity: 0.54; clip-path: polygon(96% 100%, 107% 100%, 116% 0%, 105% 0%); }
+  100% { opacity: 0; clip-path: polygon(114% 100%, 125% 100%, 134% 0%, 123% 0%); }
+}
+
+@media (max-width: 1200px) {
+  .kisara-stage-wordmark {
+    width: max-content;
+    height: 12.8rem;
+    font-size: 10.8rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .kisara-stage-wordmark {
+    width: max-content;
+    height: 10.4rem;
+    font-size: 8.7rem;
+  }
+}
+
 .kisara-home-rescue [data-stage-layer="rescue-eye"],
 .kisara-home-request [data-stage-layer="request-face"],
 .kisara-home-counterattack [data-stage-layer="counter-entry"],
@@ -1434,9 +1809,9 @@ html[data-kisara-found-self-entry] .kisara-found-self,
 @media (max-width: 720px) {
   .kisara-stage-wordmark {
     top: 45%;
-    width: 94vw;
-    height: 6rem;
-    font-size: 4.6rem;
+    width: max-content;
+    height: 6.8rem;
+    font-size: 5.6rem;
     opacity: 0.82;
   }
 
@@ -1456,6 +1831,13 @@ html[data-kisara-found-self-entry] .kisara-found-self,
   }
 
   .kisara-stage-letter-fx {
+    display: none;
+  }
+
+  .kisara-letter-chain-canvas,
+  .kisara-letter-contract-canvas,
+  .kisara-letter-data-canvas,
+  .kisara-letter-lens-canvas {
     display: none;
   }
 
@@ -1570,8 +1952,8 @@ html[data-kisara-found-self-entry] .kisara-found-self,
 
 @media (max-width: 420px) {
   .kisara-stage-wordmark {
-    height: 5rem;
-    font-size: 3.7rem;
+    height: 5.8rem;
+    font-size: 4.65rem;
   }
 }
 
@@ -2156,7 +2538,11 @@ html[data-kisara-found-self-entry] .kisara-found-self,
   .kisara-stage-wordmark[data-wordmark-scene="counterattack"] .kisara-stage-letter-fx,
   .kisara-stage-wordmark[data-wordmark-scene="contract"] .kisara-stage-letter-fx,
   .kisara-stage-wordmark[data-wordmark-scene="transformation"] .kisara-stage-letter-fx,
-  .kisara-stage-letter[data-letter-state="past"] .kisara-stage-letter-fx {
+  .kisara-stage-letter[data-letter-state="past"] .kisara-stage-letter-fx,
+  .kisara-letter-chain-canvas,
+  .kisara-letter-contract-canvas,
+  .kisara-letter-data-canvas,
+  .kisara-letter-lens-canvas {
     display: none;
   }
 }

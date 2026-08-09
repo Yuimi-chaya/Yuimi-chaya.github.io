@@ -21,10 +21,33 @@ const letters = ["K", "I", "S", "A", "R", "A"] as const;
       data-letter-state={index === activeIndex ? "active" : index < activeIndex ? "past" : "future"}
       style={`--letter-index: ${index}; --letter-distance: ${Math.abs(index - activeIndex)};`}
     >
+      {index === 1 && (
+        <canvas class="kisara-letter-chain-canvas kisara-letter-chain-back" data-letter-chain-back width="720" height="420"></canvas>
+      )}
       <span class="kisara-stage-letter-glass">{letter}</span>
       <span class="kisara-stage-letter-residue">{letter}</span>
       <span class="kisara-stage-letter-material">{letter}</span>
-      <span class="kisara-stage-letter-fx" aria-hidden="true"><i></i><b></b><em></em></span>
+      {(index === 3 || index === 4) && <span class="kisara-stage-letter-enchant">{letter}</span>}
+      {index === 0 && <span class="kisara-letter-cut" aria-hidden="true"><i></i><b></b></span>}
+      {index === 2 && <span class="kisara-letter-charge" aria-hidden="true"><i></i><b></b></span>}
+      {index === 3 && (
+        <>
+          <canvas class="kisara-letter-contract-canvas kisara-letter-contract-back" data-letter-contract-back width="560" height="420"></canvas>
+          <canvas class="kisara-letter-contract-canvas kisara-letter-contract-front" data-letter-contract-front width="560" height="420"></canvas>
+          <span class="kisara-letter-gloss" aria-hidden="true">{letter}</span>
+        </>
+      )}
+      {index === 4 && (
+        <>
+          <canvas class="kisara-letter-data-canvas" data-letter-data width="560" height="420"></canvas>
+          <canvas class="kisara-letter-lens-canvas" data-letter-lens width="560" height="420"></canvas>
+          <span class="kisara-letter-gloss" aria-hidden="true">{letter}</span>
+        </>
+      )}
+      {index === 5 && <span class="kisara-letter-fracture" aria-hidden="true"><i></i><b></b><em></em></span>}
+      {index === 1 && (
+        <canvas class="kisara-letter-chain-canvas kisara-letter-chain-front" data-letter-chain-front width="720" height="420"></canvas>
+      )}
     </span>
   ))}
 </div>

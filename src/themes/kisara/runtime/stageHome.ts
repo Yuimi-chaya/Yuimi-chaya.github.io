@@ -1,3 +1,5 @@
+import { KisaraLetterFxController } from "./letterStageFx";
+
 type ChapterId = "rescue" | "request" | "counterattack" | "contract" | "transformation" | "jealousy";
 type FrameState = "first" | "video" | "hold";
 type StableState = "opening" | "settled" | "final";
@@ -135,6 +137,7 @@ class HomeChapterController {
   private readonly foundSelfStatus: HTMLElement | null;
   private readonly lifecycle = new AbortController();
   private readonly reducedMotion: boolean;
+  private readonly letterFx: KisaraLetterFxController;
 
   private disposed = false;
   private activeIndex = 0;
@@ -188,6 +191,7 @@ class HomeChapterController {
     this.foundSelfSkip = this.host.querySelector<HTMLButtonElement>("[data-kisara-found-self-skip]");
     this.foundSelfStatus = this.host.querySelector<HTMLElement>("[data-kisara-found-self-status]");
     this.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.letterFx = new KisaraLetterFxController(root);
   }
 
   start() {
@@ -200,6 +204,7 @@ class HomeChapterController {
     }
     this.root.dataset.bound = "true";
     this.bindEvents();
+    this.letterFx.start();
     this.installLovebrainApi();
     this.runtimeWindow.__yuimiKisaraHomeBootController?.markReady?.();
     if (document.documentElement.dataset.kisaraFoundSelfEntry === "pending") {
@@ -216,6 +221,7 @@ class HomeChapterController {
     this.transitionSerial += 1;
     this.stopPlayback();
     this.pauseAllVideos();
+    this.letterFx.dispose();
     if (this.foundSelfTimer) window.clearTimeout(this.foundSelfTimer);
     this.foundSelfTimer = 0;
     if (this.wordmarkFinaleTimer) window.clearTimeout(this.wordmarkFinaleTimer);

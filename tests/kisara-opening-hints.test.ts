@@ -11,6 +11,7 @@ const readSource = (relativePath: string) => readFileSync(
 const layoutSource = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
 const stageHomeSource = readSource("src/themes/kisara/components/KisaraStageHome.astro");
 const letterStageSource = readSource("src/themes/kisara/components/KisaraLetterStage.astro");
+const letterFxSource = readSource("src/themes/kisara/runtime/letterStageFx.ts");
 const stageRuntimeSource = readSource("src/themes/kisara/runtime/stageHome.ts");
 const stageStyles = readSource("src/themes/kisara/styles/stage-home.css");
 const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
@@ -75,6 +76,20 @@ test("Home carries one indexed KISARA wordmark contract through all six scenes",
   assert.match(stageStyles, /data-wordmark-scene="jealousy"/);
   assert.match(stageStyles, /kisara-letter-a2-slash/);
   assert.match(stageStyles, /data-wordmark-finale="running"/);
+  assert.match(letterStageSource, /data-letter-chain-back/);
+  assert.match(letterStageSource, /data-letter-chain-front/);
+  assert.match(letterStageSource, /data-letter-contract-back/);
+  assert.match(letterStageSource, /data-letter-contract-front/);
+  assert.match(letterStageSource, /data-letter-data/);
+  assert.match(letterStageSource, /data-letter-lens/);
+  assert.doesNotMatch(letterStageSource, /kisara-stage-letter-fx/);
+  assert.match(letterFxSource, /class ChainRenderer/);
+  assert.match(letterFxSource, /createHeartPath/);
+  assert.match(letterFxSource, /createLiquidRenderer/);
+  assert.match(letterFxSource, /data-chapter-position="active"/);
+  assert.match(stageRuntimeSource, /new KisaraLetterFxController\(root\)/);
+  assert.match(stageRuntimeSource, /this\.letterFx\.dispose\(\)/);
+  assert.match(stageStyles, /display: flex;[\s\S]*width: max-content;[\s\S]*font-size: 13\.4rem/);
   assert.doesNotMatch(stageHomeSource, /kisara-title-stage|data-kisara-chain|data-kisara-title-data/);
   assert.doesNotMatch(stageStyles, /\.kisara-stage-wordmark[^}]*backdrop-filter/s);
   assert.match(stageStyles, /@media \(max-width: 720px\)[\s\S]*\.kisara-stage-letter-fx \{\s*display: none;/);
