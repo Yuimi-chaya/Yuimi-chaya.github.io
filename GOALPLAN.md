@@ -9,6 +9,7 @@
 - The complete pre-redesign Home remains recoverable on `codex/kisara-pre-home-redesign-20260806` and historical commit `72a7719`. They are reference sources only and must not be restored wholesale.
 - Browser QA is explicitly excluded. Static validation is required; final motion, hierarchy, timing, and comfort belong to the user's direct visual review.
 - The first human review rejected the wide letter spacing, generic rectangular FX containers, placeholder CSS chain, simplified Contract heart, and simplified Awaken reconstruction. Later reviews exposed three separate ownership bugs: K/I scene `background:` shorthands reset glyph clipping to `border-box`; Request retained a Canvas-frame chain path; and the runtime kept redrawing completed chain/heart/R canvases for every later scene. Checkpoint `fe423db fix(kisara): isolate letter effects and liquid handoff` makes those local effects active-scene-only, restores the transient legacy Contract-heart timing, and hands Awaken from source/data layers to one aligned liquid `R`. Direct human visual acceptance remains pending.
+- Human review then rejected the remaining architectural duplication and plastic-like inactive material. Checkpoint `0b2df2d refactor(kisara): persist the home wordmark` removes the six chapter-local copies and renders one Home-level `KISARA` layer for the complete performance. `HomeChapterController` now synchronizes its scene, active index, action state, Rescue bridge, Jealousy panel, and finale state without re-entering the whole word during chapter transitions. Inactive letters use transparent interiors, displaced dark/bright rims, chromatic edge separation, and a slow caustic sweep instead of a uniform translucent fill. Direct human visual acceptance remains pending.
 
 ## Execution Warning
 
@@ -83,10 +84,10 @@ The six-scene Home keeps its current media, copy, navigation, and one-gesture sc
 
 ### Markup
 
-- Add one dedicated `KisaraLetterStage` component inside `KisaraStageHome`.
+- Add exactly one dedicated `KisaraLetterStage` component as a direct Home-level overlay outside all chapter articles.
 - Render six indexed letter nodes, not IDs derived from the glyph, because the two `A` letters have different behavior.
 - Each node owns glass, active material, edge, residue, and explicit scene-decoration sublayers. The generic shared rectangular FX child is retired.
-- `I` owns front/back chain canvases, Contract `A` owns front/back heart canvases, and `R` owns one 2D reconstruction canvas plus one local liquid WebGL canvas. They are transparent, glyph-bounded, and only the active chapter copy is rendered.
+- `I` owns front/back chain canvases, Contract `A` owns front/back heart canvases, and `R` owns one 2D reconstruction canvas plus one local liquid WebGL canvas. They are transparent and glyph-bounded inside the one persistent wordmark; only the currently active letter effect is rendered.
 
 ### State Ownership
 

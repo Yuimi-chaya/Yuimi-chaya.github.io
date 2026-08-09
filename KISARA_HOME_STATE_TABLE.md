@@ -40,7 +40,7 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 
 ## Persistent KISARA Wordmark
 
-Each chapter renders the same fixed six-letter geometry through `KisaraLetterStage.astro`. The visible chapter owns the active-letter presentation, so the wordmark is derived from the public scene and adds no independent persisted timeline.
+`KisaraStageHome.astro` renders exactly one fixed six-letter `KisaraLetterStage` outside all chapter articles. `HomeChapterController.syncWordmark()` derives its scene, active index, action state, letter states, Rescue bridge, Jealousy panel, and finale from the existing public scene state, so the title remains physically continuous and adds no independent persisted timeline.
 
 | Index | Scene | Letter | Active effect | Stable residue |
 | --- | --- | --- | --- | --- |
@@ -51,7 +51,8 @@ Each chapter renders the same fixed six-letter geometry through `KisaraLetterSta
 | 4 | Transformation | `R` | glyph-clipped data reconstruction hands ownership to one aligned local liquid WebGL letter while the CSS source fades away | the WebGL liquid `R` is the sole visible active glyph layer |
 | 5 | Jealousy | second `A` | the decoded black-face cue darkens and cuts the letter on the same slash event | a wine-red fracture and dark diagonal scar |
 
-- Non-active letters remain low-opacity Liquid Glass-style glyph outlines with transparent interiors, double-edge highlights, and restrained pink/blue refraction. Past letters may show faint glyph-clipped residue; future letters remain clean glass. Scene-local canvases, enchant layers, gloss, cuts, charges, and fractures are hidden and cleared whenever their letter is not active.
+- Non-active letters remain low-opacity Liquid Glass-style glyph lenses with nearly empty interiors, displaced dark/bright rims, restrained pink/blue edge separation, and one slow caustic sweep. Past letters may show faint glyph-clipped residue; future letters remain clean glass. Scene-local canvases, enchant layers, gloss, cuts, charges, and fractures are hidden and cleared whenever their letter is not active.
+- Chapter opacity, transform, filter, and visibility transitions never own the wordmark. Only individual letter state/material changes occur when the active chapter changes, so the complete `KISARA` geometry does not leave and re-enter between scenes.
 - Scene-specific letter gradients must override `background-image` only. A high-specificity `background:` shorthand resets `background-clip: text` to `border-box` and visibly paints the glyph element's rectangle.
 - No legacy title state machine, full-screen title Canvas, backdrop blur, black-hole renderer, or second `sessionStorage` state is used. The accepted legacy visual algorithms are isolated in `runtime/letterStageFx.ts` and bounded to the currently active `I`, Contract `A`, or `R`; later scenes never redraw an earlier effect in completed form.
 - Marker jumps and backward restoration display only the target chapter's stable wordmark state; skipped letter effects do not replay.
