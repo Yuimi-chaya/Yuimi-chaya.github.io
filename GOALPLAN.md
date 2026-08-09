@@ -8,6 +8,7 @@
 - Starting tracked worktree is clean. Existing untracked source, candidate, generated, and temporary assets are user-owned and must not be staged, moved, deleted, or overwritten.
 - The complete pre-redesign Home remains recoverable on `codex/kisara-pre-home-redesign-20260806` and historical commit `72a7719`. They are reference sources only and must not be restored wholesale.
 - Browser QA is explicitly excluded. Static validation is required; final motion, hierarchy, timing, and comfort belong to the user's direct visual review.
+- The first human review rejected the wide letter spacing, generic rectangular FX containers, placeholder CSS chain, simplified Contract heart, and simplified Awaken reconstruction. The authoritative refinement checkpoint is `ad2d2e8 refine(kisara): restore legacy letter effects`; it remains pending direct human visual acceptance.
 
 ## Execution Warning
 
@@ -45,8 +46,9 @@ The six-scene Home keeps its current media, copy, navigation, and one-gesture sc
 ### I / Request
 
 - The transfer from `K` reaches the vertical `I` as a restrained pulse.
-- A lightweight chain wraps the letter from opposite directions and settles under visible tension.
-- The chain is scene-local and must not require the old full-title chain simulation or a permanent animation loop.
+- A compact two-layer Canvas chain wraps the letter from opposite directions, passes behind and in front of the glyph, and settles under visible tension.
+- Link geometry, cold/hot metal gradients, alternating edge-on links, highlights, and depth ordering are ported from the hand-tuned legacy title chain rather than approximated with CSS ellipses.
+- The renderer is scene-local, draws only the currently active chapter's wordmark, and stops after settlement; it does not restore the old full-title state machine or permanent full-screen loop.
 - The Request comic and copy remain readable around the fixed word.
 
 ### S / Counterattack
@@ -57,16 +59,17 @@ The six-scene Home keeps its current media, copy, navigation, and one-gesture sc
 
 ### A1 / Contract
 
-- Pink and muted green strands enter from opposite sides and connect through the counter of the first `A`.
-- The embrace-to-kiss cut triggers one heart pulse and a short connection wave through the word.
-- The heart is integrated with the letter opening, not placed as a floating emoji or independent icon.
+- The first `A` reuses the legacy enchant material, circular reveal, moving contract flow, gloss sweep, and layered pink/blue light treatment.
+- Pink and muted green threads enter from opposite sides and feed a front/back Canvas heart imprint through the counter of the letter.
+- The embrace-to-kiss cut triggers the legacy-style heart lock pulse and a bounded shard burst. The heart remains integrated with the letter rather than appearing as a floating emoji or card.
 - Spare-key qualification remains owned by the scene controller and is not coupled to the decorative effect completing.
 
 ### R / Awaken
 
 - The connection pulse reaches `R` and becomes the most complete enchantment state.
-- Contract-like traces, hot pink material, restrained glyph fragments, and local reconstruction cells travel along the strokes while the existing four-image crossfade runs.
-- The effect may borrow the old enchantment/data language, but not the old black-hole renderer or full-screen reconstruction field.
+- The legacy enchant material remains below a glyph-clipped 2D data reconstruction pass and one local WebGL liquid-letter lens while the existing four-image crossfade runs.
+- Reconstruction cells, contract threads, rose/blue traces, chromatic separation, caustic flow, and liquid displacement stay transparent outside the `R` silhouette.
+- The old black-hole renderer and full-screen reconstruction field remain absent. Only the active chapter's bounded `R` surfaces animate, and mobile/reduced-motion use the static material instead.
 - The final Fight image remains the stable media composition.
 
 ### A2 / Jealousy
@@ -82,8 +85,8 @@ The six-scene Home keeps its current media, copy, navigation, and one-gesture sc
 
 - Add one dedicated `KisaraLetterStage` component inside `KisaraStageHome`.
 - Render six indexed letter nodes, not IDs derived from the glyph, because the two `A` letters have different behavior.
-- Each node owns glass, active material, edge, residue, and scene-decoration sublayers.
-- Add at most one shared lightweight FX canvas for particles, sparks, or chain accents. It must be clipped/bounded around the word and must never become another full-screen compositor.
+- Each node owns glass, active material, edge, residue, and explicit scene-decoration sublayers. The generic shared rectangular FX child is retired.
+- `I` owns front/back chain canvases, Contract `A` owns front/back heart canvases, and `R` owns one 2D reconstruction canvas plus one local liquid WebGL canvas. They are transparent, glyph-bounded, and only the active chapter copy is rendered.
 
 ### State Ownership
 
@@ -96,8 +99,8 @@ The six-scene Home keeps its current media, copy, navigation, and one-gesture sc
 
 ### Rendering And Performance
 
-- Prefer DOM/CSS text masks, gradients, strokes, pseudo-elements, and bounded transforms for persistent letter materials.
-- A shared Canvas renderer is allowed only for effects that materially benefit from it. Cap DPR, pause when hidden, stop on route changes, and avoid readback or per-frame layout measurements.
+- Prefer DOM/CSS text masks, gradients, strokes, pseudo-elements, and bounded transforms for persistent letter materials. Use the local Canvas/WebGL layers only where they preserve the accepted legacy chain, heart, data, or liquid behavior.
+- Cap DPR, pause when hidden, stop on route changes, avoid readback, cache link sprites and glyph masks, and measure only on init/resize.
 - Measure letter bounds on init/resize only. Cache geometry and update it through one resize path.
 - Do not use full-word `filter: blur(...)` surfaces, hidden full-size filtered layers, repeated visibility churn, or per-letter permanent `will-change` promotion.
 - Stable scenes receive one low-frequency ambient response at most. Action effects may briefly increase intensity, then settle.
@@ -106,7 +109,7 @@ The six-scene Home keeps its current media, copy, navigation, and one-gesture sc
 ## Responsive And Accessibility
 
 - Desktop keeps the fixed full-word composition and all six scene identities.
-- Mobile keeps the same word and active-letter mapping but reduces particle count, chain detail, filter use, and ambient motion. Inactive glass letters become thinner and less bright so media remains readable.
+- Mobile keeps the same compact word and active-letter mapping but does not create the chain, heart, data, or WebGL renderers. It uses static scene materials and thinner inactive glass letters.
 - Use stable responsive dimensions and `clamp()` sizing; do not scale font size directly with viewport width.
 - `prefers-reduced-motion` shows the correct active material and stable residue without chain travel, energy chase, heart burst, reconstruction motion, or final synchronization animation.
 - Decorative layers are `aria-hidden`. The scene titles, route links, markers, and status text remain the accessible controls.
