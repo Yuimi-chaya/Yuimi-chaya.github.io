@@ -22,7 +22,7 @@ type ChainSprite = {
 
 type LiquidRenderer = {
   canvas: HTMLCanvasElement;
-  draw: (time: number, progress: number, settled: boolean) => void;
+  draw: (time: number, progress: number, opacity: number) => void;
   resize: () => void;
   clear: () => void;
   destroy: () => void;
@@ -38,6 +38,10 @@ const clamp = (value: number, minimum = 0, maximum = 1) => Math.min(maximum, Mat
 const smoothstep = (value: number) => {
   const unit = clamp(value);
   return unit * unit * (3 - 2 * unit);
+};
+const smootherstep = (value: number) => {
+  const unit = clamp(value);
+  return unit * unit * unit * (unit * (unit * 6 - 15) + 10);
 };
 const easeOutCubic = (value: number) => 1 - (1 - clamp(value)) ** 3;
 const randomSeed = (seed: number) => {
@@ -58,6 +62,29 @@ const resizeCanvas = (canvas: HTMLCanvasElement, maximumDpr = 1.3) => {
     canvas.height = pixelHeight;
   }
   return { width, height, dpr, changed };
+};
+
+const clearCanvasPair = (pair: CanvasPair) => {
+  for (const canvas of [pair.back, pair.front]) {
+    const context = canvas.getContext("2d");
+    context?.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.style.opacity = "0";
+  }
+};
+
+const glyphBaseline = (
+  context: CanvasRenderingContext2D,
+  glyph: string,
+  width: number,
+  height: number
+) => {
+  const metrics = context.measureText(glyph);
+  const ascent = metrics.actualBoundingBoxAscent || height * 0.72;
+  const descent = metrics.actualBoundingBoxDescent || height * 0.16;
+  return {
+    x: width * 0.5,
+    y: (height + ascent - descent) * 0.5
+  };
 };
 
 class ChainRenderer {
@@ -137,11 +164,7 @@ class ChainRenderer {
   }
 
   clear(pair: CanvasPair) {
-    for (const canvas of [pair.back, pair.front]) {
-      const context = canvas.getContext("2d");
-      context?.clearRect(0, 0, canvas.width, canvas.height);
-      canvas.style.opacity = "0";
-    }
+    clearCanvasPair(pair);
   }
 
   private drawLayer(context: CanvasRenderingContext2D, records: ChainRecord[], front: boolean, height: number) {
@@ -270,24 +293,53 @@ const drawContractHeart = (pair: CanvasPair, progress: number, settled: boolean,
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-  const build = smoothstep((progress - 0.18) / 0.34);
-  if (build <= 0.002) return;
-  const lockPulse = Math.exp(-Math.pow((progress - 0.68) / 0.09, 2));
-  const heartbeat = settled ? 0.5 + Math.sin(timestamp * 0.004) * 0.5 : lockPulse;
+  if (settled) {
+    pair.back.style.opacity = "0";
+    pair.front.style.opacity = "0";
+    return;
+  }
+  const build = smootherstep((progress - 0.23) / 0.105);
+  const collapse = smootherstep((progress - 0.68) / 0.105);
+  const fade = 1 - smootherstep((progress - 0.84) / 0.11);
+  const opacity = build * fade;
+  if (opacity <= 0.002) {
+    pair.back.style.opacity = "0";
+    pair.front.style.opacity = "0";
+    return;
+  }
+  const lockPulse = Math.exp(-Math.pow((progress - 0.36) / 0.042, 2));
+  const heartbeat = 0.5 + Math.sin(timestamp * 0.016) * 0.5;
   const centerX = width * 0.5;
-  const centerY = height * 0.49;
-  const size = clamp(height * 0.17, 20, 42);
-  const scale = 0.72 + build * 0.28 + lockPulse * 0.12;
+  const centerY = height * 0.535;
+  const size = clamp(height * 0.19, 17, 32);
+  const scale = (0.76 + build * 0.24 + lockPulse * 0.08) * (1 - collapse * 0.56);
   const heart = createHeartPath(centerX, centerY, size, scale);
-  const opacity = settled ? 0.48 : build;
+
+  const thread = smoothstep((progress - 0.19) / 0.065)
+    * (1 - smoothstep((progress - 0.39) / 0.11));
+  if (thread > 0.002) {
+    front.save();
+    front.globalCompositeOperation = "screen";
+    front.lineCap = "round";
+    for (const side of [-1, 1]) {
+      front.globalAlpha = thread * 0.72;
+      front.strokeStyle = side < 0 ? "rgba(255,75,138,.94)" : "rgba(151,216,172,.9)";
+      front.lineWidth = 1.05;
+      front.beginPath();
+      front.moveTo(centerX + side * width * 0.47, centerY + side * height * 0.075);
+      front.quadraticCurveTo(centerX + side * width * 0.2, centerY - height * 0.17, centerX, centerY);
+      front.stroke();
+    }
+    front.restore();
+  }
 
   back.save();
-  back.globalAlpha = opacity * 0.36;
-  back.fillStyle = "rgba(66,7,43,.82)";
-  back.shadowColor = "rgba(255,43,115,.34)";
-  back.shadowBlur = 4 + lockPulse * 7;
+  back.globalAlpha = opacity * (0.3 + lockPulse * 0.08);
+  back.fillStyle = "rgba(66,7,43,.8)";
+  back.shadowColor = "rgba(255,43,115,.3)";
+  back.shadowBlur = 4 + lockPulse * 3;
   back.fill(heart);
-  back.globalAlpha = opacity * 0.8;
+  back.globalAlpha = opacity * 0.78;
   back.strokeStyle = "rgba(24,5,28,.96)";
   back.lineWidth = 4.2;
   back.stroke(heart);
@@ -295,37 +347,32 @@ const drawContractHeart = (pair: CanvasPair, progress: number, settled: boolean,
 
   front.save();
   front.globalCompositeOperation = "screen";
-  front.globalAlpha = opacity * (0.26 + lockPulse * 0.18);
-  front.fillStyle = "rgba(255,53,121,.92)";
-  front.shadowColor = "rgba(255,47,117,.62)";
-  front.shadowBlur = 5 + lockPulse * 8;
+  front.globalAlpha = opacity * (0.24 + lockPulse * 0.16);
+  front.fillStyle = "rgba(255,53,121,.9)";
+  front.shadowColor = "rgba(255,47,117,.56)";
+  front.shadowBlur = 4 + lockPulse * 6;
   front.fill(heart);
-  front.globalAlpha = opacity * (0.82 + heartbeat * 0.12);
+  front.globalAlpha = opacity * (0.82 + heartbeat * 0.1);
   front.strokeStyle = "rgba(255,72,137,.99)";
-  front.lineWidth = 2.1 + lockPulse * 0.46;
+  front.lineWidth = 2.1 + lockPulse * 0.42;
   front.stroke(heart);
-  front.globalAlpha = opacity * (0.58 + lockPulse * 0.25);
+  front.globalAlpha = opacity * (0.58 + lockPulse * 0.24);
   front.strokeStyle = "rgba(255,247,251,.98)";
-  front.lineWidth = 0.7;
-  front.shadowBlur = 1.5;
+  front.lineWidth = 0.68 + lockPulse * 0.28;
+  front.shadowBlur = 1.4;
   front.stroke(heart);
 
-  const thread = smoothstep((progress - 0.12) / 0.28) * (1 - smoothstep((progress - 0.58) / 0.2));
-  if (thread > 0.002) {
-    front.lineCap = "round";
-    for (const side of [-1, 1]) {
-      front.globalAlpha = thread * 0.76;
-      front.strokeStyle = side < 0 ? "rgba(255,75,138,.94)" : "rgba(151,216,172,.9)";
-      front.lineWidth = 1.2;
-      front.beginPath();
-      front.moveTo(centerX + side * width * 0.42, centerY + side * height * 0.08);
-      front.quadraticCurveTo(centerX + side * width * 0.2, centerY - height * 0.18, centerX, centerY);
-      front.stroke();
-    }
+  if (lockPulse > 0.002) {
+    const pulseHeart = createHeartPath(centerX, centerY, size, scale * (1 + lockPulse * 0.34));
+    front.globalAlpha = opacity * lockPulse * 0.3;
+    front.strokeStyle = "rgba(255,229,241,.96)";
+    front.lineWidth = 0.82;
+    front.shadowBlur = 5;
+    front.stroke(pulseHeart);
   }
 
-  const burst = smoothstep((progress - 0.64) / 0.34);
-  if (!settled && burst > 0.002) {
+  const burst = smoothstep((progress - 0.695) / 0.245);
+  if (burst > 0.002) {
     for (let index = 0; index < 15; index += 1) {
       const seedA = randomSeed(52021 + index * 73.7);
       const seedB = randomSeed(62003 + index * 97.1);
@@ -351,12 +398,22 @@ const drawContractHeart = (pair: CanvasPair, progress: number, settled: boolean,
 
 const dataBuffers = new WeakMap<HTMLCanvasElement, { mask: HTMLCanvasElement; width: number; height: number }>();
 
-const drawReconstruction = (canvas: HTMLCanvasElement, letter: HTMLElement, progress: number, timestamp: number) => {
+const drawReconstruction = (
+  canvas: HTMLCanvasElement,
+  letter: HTMLElement,
+  progress: number,
+  timestamp: number,
+  opacity: number
+) => {
   const size = resizeCanvas(canvas, 1.2);
   const context = canvas.getContext("2d", { alpha: true });
   if (!context) return;
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
+  if (opacity <= 0.002) {
+    canvas.style.opacity = "0";
+    return;
+  }
   const width = canvas.width;
   const height = canvas.height;
   let buffer = dataBuffers.get(canvas);
@@ -370,13 +427,14 @@ const drawReconstruction = (canvas: HTMLCanvasElement, letter: HTMLElement, prog
     const fontSize = Math.max(1, Number.parseFloat(style.fontSize) * size.dpr);
     maskContext.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
     maskContext.textAlign = "center";
-    maskContext.textBaseline = "middle";
+    maskContext.textBaseline = "alphabetic";
     maskContext.lineJoin = "round";
     maskContext.fillStyle = "#fff";
     maskContext.strokeStyle = "#fff";
     maskContext.lineWidth = Math.max(1, 1.8 * size.dpr);
-    maskContext.strokeText("R", width * 0.5, height * 0.505);
-    maskContext.fillText("R", width * 0.5, height * 0.505);
+    const baseline = glyphBaseline(maskContext, "R", width, height);
+    maskContext.strokeText("R", baseline.x, baseline.y);
+    maskContext.fillText("R", baseline.x, baseline.y);
     buffer = { mask, width, height };
     dataBuffers.set(canvas, buffer);
   }
@@ -446,7 +504,7 @@ const drawReconstruction = (canvas: HTMLCanvasElement, letter: HTMLElement, prog
     }
     context.restore();
   }
-  canvas.style.opacity = progress > 0.01 ? "1" : "0";
+  canvas.style.opacity = opacity.toFixed(3);
 };
 
 const createLiquidRenderer = (canvas: HTMLCanvasElement, letter: HTMLElement): LiquidRenderer | null => {
@@ -557,7 +615,7 @@ const createLiquidRenderer = (canvas: HTMLCanvasElement, letter: HTMLElement): L
     sourceContext.save();
     sourceContext.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
     sourceContext.textAlign = "center";
-    sourceContext.textBaseline = "middle";
+    sourceContext.textBaseline = "alphabetic";
     sourceContext.lineJoin = "round";
     const gradient = sourceContext.createLinearGradient(0, height * 0.16, 0, height * 0.86);
     gradient.addColorStop(0, "#fff2f7");
@@ -568,9 +626,10 @@ const createLiquidRenderer = (canvas: HTMLCanvasElement, letter: HTMLElement): L
     sourceContext.shadowBlur = Math.max(4, 10 * dpr);
     sourceContext.strokeStyle = "rgba(255,235,242,.84)";
     sourceContext.lineWidth = Math.max(1.2, 1.8 * dpr);
-    sourceContext.strokeText("R", width * 0.5, height * 0.505);
+    const baseline = glyphBaseline(sourceContext, "R", width, height);
+    sourceContext.strokeText("R", baseline.x, baseline.y);
     sourceContext.fillStyle = gradient;
-    sourceContext.fillText("R", width * 0.5, height * 0.505);
+    sourceContext.fillText("R", baseline.x, baseline.y);
     sourceContext.restore();
     gl.viewport(0, 0, width, height);
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -587,7 +646,7 @@ const createLiquidRenderer = (canvas: HTMLCanvasElement, letter: HTMLElement): L
     gl.clear(gl.COLOR_BUFFER_BIT);
     canvas.style.opacity = "0";
   };
-  const draw = (time: number, progress: number, settled: boolean) => {
+  const draw = (time: number, progress: number, opacity: number) => {
     resize();
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -599,9 +658,9 @@ const createLiquidRenderer = (canvas: HTMLCanvasElement, letter: HTMLElement): L
     gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
     gl.uniform1f(uniforms.time, time / 1000);
     gl.uniform1f(uniforms.progress, progress);
-    gl.uniform1f(uniforms.opacity, settled ? 0.94 : smoothstep((progress - 0.16) / 0.52));
+    gl.uniform1f(uniforms.opacity, opacity);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    canvas.style.opacity = progress > 0.06 ? "1" : "0";
+    canvas.style.opacity = opacity > 0.01 ? "1" : "0";
   };
   const destroy = () => {
     gl.deleteTexture(texture);
@@ -719,7 +778,6 @@ export class KisaraLetterFxController {
     const wordmark = chapter?.querySelector<HTMLElement>("[data-wordmark-scene]");
     if (!chapter || !wordmark) return;
     const scene = chapter.dataset.homeChapter ?? "rescue";
-    const sceneIndex = Number.parseInt(wordmark.dataset.wordmarkActive ?? "0", 10);
     const duration = ACTION_MS[scene] ?? 1;
     const actionProgress = this.actionRunning
       ? clamp((timestamp - this.actionStartedAt) / duration)
@@ -728,9 +786,8 @@ export class KisaraLetterFxController {
     const chainBack = wordmark.querySelector<HTMLCanvasElement>("[data-letter-chain-back]");
     const chainFront = wordmark.querySelector<HTMLCanvasElement>("[data-letter-chain-front]");
     if (chainBack && chainFront) {
-      if (sceneIndex >= 1) {
-        const progress = scene === "request" ? actionProgress : 1;
-        this.chainRenderer.draw({ back: chainBack, front: chainFront }, progress, !this.actionRunning);
+      if (scene === "request") {
+        this.chainRenderer.draw({ back: chainBack, front: chainFront }, actionProgress, !this.actionRunning);
       } else {
         this.chainRenderer.clear({ back: chainBack, front: chainFront });
       }
@@ -738,27 +795,43 @@ export class KisaraLetterFxController {
 
     const heartBack = wordmark.querySelector<HTMLCanvasElement>("[data-letter-contract-back]");
     const heartFront = wordmark.querySelector<HTMLCanvasElement>("[data-letter-contract-front]");
-    if (heartBack && heartFront && sceneIndex >= 3) {
-      drawContractHeart(
-        { back: heartBack, front: heartFront },
-        scene === "contract" ? actionProgress : 1,
-        scene !== "contract" || !this.actionRunning,
-        timestamp
-      );
+    if (heartBack && heartFront) {
+      if (scene === "contract") {
+        drawContractHeart(
+          { back: heartBack, front: heartFront },
+          actionProgress,
+          !this.actionRunning,
+          timestamp
+        );
+      } else {
+        clearCanvasPair({ back: heartBack, front: heartFront });
+      }
     }
 
     const dataCanvas = wordmark.querySelector<HTMLCanvasElement>("[data-letter-data]");
     const lensCanvas = wordmark.querySelector<HTMLCanvasElement>("[data-letter-lens]");
     const rLetter = wordmark.querySelector<HTMLElement>('[data-wordmark-letter="4"]');
-    if (dataCanvas && lensCanvas && rLetter && sceneIndex >= 4) {
-      const progress = scene === "transformation" ? actionProgress : 1;
-      drawReconstruction(dataCanvas, rLetter, progress, timestamp);
+    if (dataCanvas && lensCanvas && rLetter && scene === "transformation") {
+      const progress = actionProgress;
+      const reconstructionOpacity = smoothstep((progress - 0.02) / 0.16)
+        * (1 - smoothstep((progress - 0.72) / 0.22));
       if (!this.liquid || this.liquid.canvas !== lensCanvas) {
         this.liquid?.destroy();
         this.liquid = createLiquidRenderer(lensCanvas, rLetter);
       }
-      this.liquid?.draw(timestamp, progress, scene !== "transformation" || !this.actionRunning);
+      const liquidOpacity = this.liquid ? smoothstep((progress - 0.34) / 0.58) : 0;
+      const sourceOpacity = this.liquid ? 1 - liquidOpacity : 1;
+      rLetter.style.setProperty("--kisara-r-glass-opacity", (sourceOpacity * 0.34).toFixed(3));
+      rLetter.style.setProperty("--kisara-r-material-opacity", (sourceOpacity * 0.16).toFixed(3));
+      rLetter.style.setProperty("--kisara-r-enchant-opacity", (sourceOpacity * 0.82).toFixed(3));
+      drawReconstruction(dataCanvas, rLetter, progress, timestamp, reconstructionOpacity);
+      this.liquid?.draw(timestamp, progress, liquidOpacity * 0.96);
     } else {
+      if (dataCanvas) {
+        const context = dataCanvas.getContext("2d");
+        context?.clearRect(0, 0, dataCanvas.width, dataCanvas.height);
+        dataCanvas.style.opacity = "0";
+      }
       this.liquid?.clear();
     }
   }

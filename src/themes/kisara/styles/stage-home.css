@@ -225,22 +225,47 @@ body.kisara-home-page .kisara-scrollbar {
 }
 
 .kisara-stage-letter-glass {
-  opacity: 0.38;
-  background:
-    linear-gradient(112deg, transparent 8%, rgba(255, 255, 255, 0.14) 42%, transparent 57%),
-    linear-gradient(180deg, rgba(239, 244, 251, 0.05), rgba(114, 126, 147, 0.018));
-  -webkit-text-stroke: 1.25px rgba(238, 244, 252, 0.24);
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.12)) drop-shadow(0 10px 22px rgba(2, 4, 10, 0.34));
+  opacity: 0.46;
+  background-image:
+    linear-gradient(108deg, transparent 8%, rgba(255, 255, 255, 0.3) 42%, rgba(255, 255, 255, 0.04) 55%, transparent 68%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(185, 210, 238, 0.025) 48%, rgba(255, 184, 214, 0.06));
+  background-size: 170% 100%, 100% 100%;
+  background-position: 34% 50%, center;
+  -webkit-text-stroke: 1.05px rgba(244, 249, 255, 0.38);
+  filter:
+    drop-shadow(-1px 0 rgba(132, 183, 255, 0.16))
+    drop-shadow(1px 0 rgba(255, 135, 184, 0.15))
+    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.16))
+    drop-shadow(0 10px 22px rgba(2, 4, 10, 0.28));
+  text-shadow: 0 -1px 0 rgba(255, 255, 255, 0.14), 0 1px 0 rgba(24, 31, 46, 0.22);
+}
+
+.kisara-stage-letter-glass::before {
+  content: attr(data-letter-glyph);
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 0.42px rgba(255, 255, 255, 0.68);
+  filter:
+    drop-shadow(-0.7px 0 rgba(111, 172, 255, 0.34))
+    drop-shadow(0.7px 0 rgba(255, 128, 180, 0.3));
+  opacity: 0.58;
+  pointer-events: none;
 }
 
 .kisara-stage-letter[data-letter-state="future"] .kisara-stage-letter-glass {
-  opacity: 0.27;
-  -webkit-text-stroke-color: rgba(225, 233, 244, 0.18);
+  opacity: 0.34;
+  -webkit-text-stroke-color: rgba(231, 240, 250, 0.3);
 }
 
 .kisara-stage-letter[data-letter-state="past"] .kisara-stage-letter-glass {
-  opacity: 0.32;
-  -webkit-text-stroke-color: rgba(244, 211, 222, 0.2);
+  opacity: 0.38;
+  -webkit-text-stroke-color: rgba(248, 220, 232, 0.32);
+  filter:
+    drop-shadow(-1px 0 rgba(125, 171, 238, 0.12))
+    drop-shadow(1px 0 rgba(255, 116, 170, 0.2))
+    drop-shadow(0 8px 18px rgba(8, 4, 12, 0.28));
 }
 
 .kisara-stage-letter-residue {
@@ -1002,14 +1027,15 @@ body.kisara-home-page .kisara-scrollbar {
 }
 
 .kisara-letter-contract-canvas {
-  width: 1.86em;
-  height: 1.42em;
+  width: 1.42em;
+  height: 1.12em;
 }
 
-.kisara-letter-contract-back { z-index: 1; }
+.kisara-letter-contract-back { z-index: 2; }
 .kisara-letter-contract-front {
-  z-index: 8;
+  z-index: 12;
   mix-blend-mode: screen;
+  filter: drop-shadow(0 0 8px rgba(255, 67, 133, 0.34));
 }
 
 .kisara-stage-letter[data-wordmark-letter="3"][data-letter-state="past"] .kisara-letter-contract-canvas {
@@ -1019,12 +1045,15 @@ body.kisara-home-page .kisara-scrollbar {
 
 .kisara-letter-data-canvas,
 .kisara-letter-lens-canvas {
-  width: 1.52em;
-  height: 1.38em;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
 }
 
 .kisara-letter-data-canvas {
-  z-index: 6;
+  z-index: 8;
   mix-blend-mode: screen;
   filter:
     saturate(1.08)
@@ -1034,9 +1063,12 @@ body.kisara-home-page .kisara-scrollbar {
 }
 
 .kisara-letter-lens-canvas {
-  z-index: 7;
+  z-index: 10;
   mix-blend-mode: screen;
-  filter: drop-shadow(0 0 12px rgba(255, 54, 126, 0.34));
+  filter:
+    drop-shadow(-1px 0 rgba(122, 181, 255, 0.24))
+    drop-shadow(1px 0 rgba(255, 95, 153, 0.36))
+    drop-shadow(0 0 12px rgba(255, 54, 126, 0.28));
 }
 
 .kisara-stage-letter[data-wordmark-letter="4"][data-letter-state="past"] :is(.kisara-letter-data-canvas, .kisara-letter-lens-canvas) {
@@ -1046,7 +1078,32 @@ body.kisara-home-page .kisara-scrollbar {
 
 .kisara-stage-wordmark[data-wordmark-scene="transformation"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-material {
   animation: none;
-  opacity: 0.18;
+  opacity: var(--kisara-r-material-opacity, 0.16);
+}
+
+.kisara-stage-wordmark[data-wordmark-scene="transformation"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-glass {
+  opacity: var(--kisara-r-glass-opacity, 0.34);
+}
+
+.kisara-stage-wordmark[data-wordmark-scene="transformation"] .kisara-stage-letter[data-letter-state="active"] :is(.kisara-stage-letter-enchant, .kisara-letter-gloss) {
+  animation: none !important;
+  opacity: var(--kisara-r-enchant-opacity, 0.82);
+}
+
+.kisara-stage-letter:not([data-letter-state="active"]) :is(
+  .kisara-stage-letter-enchant,
+  .kisara-letter-gloss,
+  .kisara-letter-chain-canvas,
+  .kisara-letter-contract-canvas,
+  .kisara-letter-data-canvas,
+  .kisara-letter-lens-canvas,
+  .kisara-letter-cut,
+  .kisara-letter-charge,
+  .kisara-letter-fracture
+) {
+  visibility: hidden;
+  opacity: 0 !important;
+  animation: none !important;
 }
 
 .kisara-letter-cut,
