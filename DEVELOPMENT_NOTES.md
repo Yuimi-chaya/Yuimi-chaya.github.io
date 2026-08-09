@@ -288,6 +288,16 @@
 - Jealousy's source boundaries remain `5.95s -> 8.008s`. Only the `6.32s -> 7.05s` preparation segment changes from `1.00x` to `1.25x`; the `1.70x` pickup and `2.20x` final acceleration remain. The result is a `1.251s`, 30-frame H.264/yuv420p clip, and the decoded-media black-face cue moves from `1.10s` to `0.98s` to remain aligned with the slash onset.
 - The delegated media worker was stopped after the permitted directed retry remained unavailable through an upstream 503; the main thread produced the bounded candidate locally without further agent retries. Fine hand feel remains pending the user's direct visual review.
 
+### Home six-letter KISARA continuity stage (`2026-08-09`, pending human review)
+
+- Recovery baseline: clean tracked `main` at `d20447b refine(kisara): extend rescue and tighten jealousy`. The task plan is checkpoint `c577e16`, the fixed glass/active wordmark skeleton is `9fdd35c`, K/I/S effects are `e30d96a`, and the complete six-effect implementation is `d0025e0`. Existing untracked source and generated assets remain untouched.
+- `KisaraLetterStage.astro` renders indexed `K I S A R A` geometry inside every chapter at identical responsive coordinates. The active chapter therefore carries the correct active letter while outgoing/incoming chapter opacity naturally transfers ownership; no second scene state, storage key, input owner, old `.kisara-title-stage`, or legacy Canvas runtime was added.
+- Non-active letters are restrained glass outlines with nearly transparent interiors. Past letters keep faint residue and future letters remain cleaner. The wordmark sits above media/grade layers and below chapter copy, markers, Replay, FoundSelf, and Lovebrain overlays.
+- Scene effects are complete rather than placeholders: Rescue `K` changes from gray to a retained diagonal incision; Request `I` receives bounded chain stacks; Counter `S` carries one directional charge/impact; Contract `A1` joins pink and green strands into one heart pulse; Awaken `R` uses a bounded enchantment/reconstruction pass; Jealousy `A2` darkens and receives its fracture from the existing decoded black-face cue.
+- Jealousy action completion alone starts a non-persistent `620ms` inactive-letter synchronization. The timer is cancelled by a new operation or disposal, is not stored, is skipped for reduced motion, and does not replay on stable restoration.
+- Mobile keeps the fixed word and scene-specific static materials but disables letter FX animations and expensive shadows. Reduced motion hides Request/Counter/Contract/Awaken effects while retaining the stable Rescue and Jealousy scars. No `backdrop-filter`, full-screen wordmark filter, per-letter Canvas, or browser QA was used.
+- Structural Home tests and production builds passed at the skeleton, K/I/S, and complete-effect checkpoints. Final validation after mobile/reduced-motion and state-table updates passed `git diff --check`, focused Home tests (`8/8`), full `npm test` (`26/26`), and `npm run build` (62 pages, 63-page Pagefind index). Browser QA was explicitly excluded; all visual hierarchy, exact placement, effect legibility, and scene comfort remain for the user's direct review.
+
 ## Architecture Decision
 
 - Shared layer: content collections, article queries, site metadata, category labels, SEO inputs, and theme registry/path helpers.

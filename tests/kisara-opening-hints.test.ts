@@ -77,6 +77,8 @@ test("Home carries one indexed KISARA wordmark contract through all six scenes",
   assert.match(stageStyles, /data-wordmark-finale="running"/);
   assert.doesNotMatch(stageHomeSource, /kisara-title-stage|data-kisara-chain|data-kisara-title-data/);
   assert.doesNotMatch(stageStyles, /\.kisara-stage-wordmark[^}]*backdrop-filter/s);
+  assert.match(stageStyles, /@media \(max-width: 720px\)[\s\S]*\.kisara-stage-letter-fx \{\s*display: none;/);
+  assert.match(stageStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*data-wordmark-scene="request"/);
 });
 
 test("Home controller uses scene/stable/action ownership instead of nested beat playback", () => {
@@ -105,6 +107,14 @@ test("Home scene state table defines short actions and no hidden internal stops"
   assert.match(stateTable, /rescue-action\.mp4.*0\.29s/);
   assert.match(stateTable, /counter-action\.mp4.*1\.00s/);
   assert.match(stateTable, /jealousy-action\.mp4.*1\.25s/);
+  assert.match(stateTable, /Persistent KISARA Wordmark/);
+  assert.match(stateTable, /Rescue \| `K`/);
+  assert.match(stateTable, /Request \| `I`/);
+  assert.match(stateTable, /Counterattack \| `S`/);
+  assert.match(stateTable, /Contract \| first `A`/);
+  assert.match(stateTable, /Transformation \| `R`/);
+  assert.match(stateTable, /Jealousy \| second `A`/);
+  assert.match(stateTable, /adds no independent persisted timeline/);
   assert.match(stateTable, /There is no scrub state/);
   assert.match(stateTable, /The user never needs a second forward gesture/);
   assert.doesNotMatch(stateTable, /chapter-local beats|run-playing|parallel-preparing/);

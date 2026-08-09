@@ -38,6 +38,25 @@ Runtime directory: `public/themes/kisara/assets/home-stage/chapters/`.
 | Jealousy action | `jealousy-action.mp4` | complete closed-mouth turn and slash with `1.25x` preparation and accelerated final slash, no long spoken prelude |
 | Jealousy stable | `jealousy-action-hold.webp`, `jealousy-blackface-last.webp` | completed base and right comic panel |
 
+## Persistent KISARA Wordmark
+
+Each chapter renders the same fixed six-letter geometry through `KisaraLetterStage.astro`. The visible chapter owns the active-letter presentation, so the wordmark is derived from the public scene and adds no independent persisted timeline.
+
+| Index | Scene | Letter | Active effect | Stable residue |
+| --- | --- | --- | --- | --- |
+| 0 | Rescue | `K` | cold gray material, then the accepted eye action hands off to a diagonal pink blade cut | a thin diagonal incision |
+| 1 | Request | `I` | two bounded chain stacks tighten around the vertical stroke | a restrained tension line |
+| 2 | Counterattack | `S` | directional pink/white/blue charge follows the curve and releases at impact | a static charged edge |
+| 3 | Contract | first `A` | pink and green strands meet in the counter and create one heart pulse | a faint connection trace |
+| 4 | Transformation | `R` | contract-like enchantment, glyph fragments, and local reconstruction cells follow the four-image crossfade | a stable vivid enchanted material |
+| 5 | Jealousy | second `A` | the decoded black-face cue darkens and cuts the letter on the same slash event | a wine-red fracture and dark diagonal scar |
+
+- Non-active letters remain low-opacity glass outlines. Past letters may show faint residue; future letters remain clean glass.
+- No legacy title runtime, full-screen title Canvas, backdrop blur, black-hole renderer, or second `sessionStorage` state is used.
+- Marker jumps and backward restoration display only the target chapter's stable wordmark state; skipped letter effects do not replay.
+- A completed Jealousy action may trigger one `620ms` non-persistent synchronization across the inactive letters. Restore and reduced-motion paths do not replay it.
+- Mobile keeps the fixed word and active material but disables letter FX animations and heavy shadows. Reduced motion keeps static Rescue/Jealousy scars while hiding chain, charge, heart, and enchantment FX.
+
 ## Scene Action Contract
 
 ### Rescue
