@@ -58,7 +58,8 @@ test("Home carries one indexed KISARA wordmark contract through all six scenes",
   assert.match(letterStageSource, /const letters = \["K", "I", "S", "A", "R", "A"\]/);
   assert.match(letterStageSource, /data-letter-state=/);
   assert.match(letterStageSource, /data-wordmark-letter=/);
-  assert.equal(stageHomeSource.match(/<KisaraLetterStage /g)?.length, 6);
+  assert.equal(stageHomeSource.match(/<KisaraLetterStage /g)?.length, 1);
+  assert.match(letterStageSource, /data-wordmark-action="idle"/);
   assert.match(stageStyles, /\.kisara-stage-wordmark/);
   assert.match(stageStyles, /data-letter-state="active"/);
   assert.match(stageStyles, /data-letter-state="past"/);
@@ -86,7 +87,7 @@ test("Home carries one indexed KISARA wordmark contract through all six scenes",
   assert.match(letterFxSource, /class ChainRenderer/);
   assert.match(letterFxSource, /createHeartPath/);
   assert.match(letterFxSource, /createLiquidRenderer/);
-  assert.match(letterFxSource, /data-chapter-position="active"/);
+  assert.match(letterFxSource, /data-wordmark-action/);
   assert.doesNotMatch(letterFxSource, /const frameLinks/);
   assert.doesNotMatch(letterFxSource, /sceneIndex\s*>=/);
   assert.match(letterFxSource, /scene === "request"/);
@@ -96,6 +97,9 @@ test("Home carries one indexed KISARA wordmark contract through all six scenes",
   assert.match(letterFxSource, /liquidOpacity/);
   assert.match(stageRuntimeSource, /new KisaraLetterFxController\(root\)/);
   assert.match(stageRuntimeSource, /this\.letterFx\.dispose\(\)/);
+  assert.match(stageRuntimeSource, /private syncWordmark\(/);
+  assert.match(stageRuntimeSource, /wordmark\.dataset\.wordmarkScene/);
+  assert.match(stageRuntimeSource, /letter\.dataset\.letterState/);
   assert.match(stageStyles, /display: flex;[\s\S]*width: max-content;[\s\S]*font-size: 13\.4rem/);
   assert.match(stageStyles, /data-wordmark-scene="rescue"[\s\S]*?kisara-stage-letter-material \{\s*background-image:/);
   assert.match(stageStyles, /data-wordmark-scene="request"[\s\S]*?kisara-stage-letter-material \{\s*background-image:/);
@@ -194,7 +198,7 @@ test("FoundSelf, spare-key, jealousy, and Lovebrain remain on the scene controll
   assert.match(stageRuntimeSource, /setRescueBridgeState\("playing"\)/);
   assert.match(stageRuntimeSource, /JEALOUSY_PANEL_REVEAL_AT = 0\.98/);
   assert.match(stageRuntimeSource, /setJealousyPanelState\("revealing"\)/);
-  assert.match(stageRuntimeSource, /private triggerWordmarkFinale\(/);
+  assert.match(stageRuntimeSource, /private triggerWordmarkFinale\(\)/);
   assert.match(stageRuntimeSource, /wordmark\.dataset\.wordmarkFinale = "running"/);
   assert.match(stageRuntimeSource, /id === "jealousy" && actionCompleted/);
   assert.match(stageRuntimeSource, /activate: this\.activateLovebrain/);

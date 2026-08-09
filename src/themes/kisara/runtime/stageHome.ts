@@ -131,6 +131,7 @@ class HomeChapterController {
   private readonly markers: HTMLButtonElement[];
   private readonly replayButton: HTMLButtonElement | null;
   private readonly status: HTMLElement | null;
+  private readonly wordmark: HTMLElement | null;
   private readonly foundSelfOverlay: HTMLElement | null;
   private readonly foundSelfVideo: HTMLVideoElement | null;
   private readonly foundSelfSkip: HTMLButtonElement | null;
@@ -186,6 +187,7 @@ class HomeChapterController {
     this.markers = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-home-chapter-target]"));
     this.replayButton = root.querySelector<HTMLButtonElement>("[data-home-replay]");
     this.status = root.querySelector<HTMLElement>("[data-stage-status]");
+    this.wordmark = root.querySelector<HTMLElement>("[data-wordmark-scene]");
     this.foundSelfOverlay = this.host.querySelector<HTMLElement>("[data-kisara-found-self]");
     this.foundSelfVideo = this.host.querySelector<HTMLVideoElement>("[data-kisara-found-self-video]");
     this.foundSelfSkip = this.host.querySelector<HTMLButtonElement>("[data-kisara-found-self-skip]");
@@ -253,9 +255,7 @@ class HomeChapterController {
     this.stopPlayback();
     if (this.wordmarkFinaleTimer) window.clearTimeout(this.wordmarkFinaleTimer);
     this.wordmarkFinaleTimer = 0;
-    this.root.querySelectorAll<HTMLElement>("[data-wordmark-finale]").forEach((wordmark) => {
-      delete wordmark.dataset.wordmarkFinale;
-    });
+    if (this.wordmark) delete this.wordmark.dataset.wordmarkFinale;
     this.resumeVideos.clear();
     this.layers.forEach((layer) => {
       if (!layer.video) return;
@@ -267,6 +267,7 @@ class HomeChapterController {
     this.chapters.forEach((chapter, index) => {
       chapter.dataset.sceneAction = index === this.activeIndex ? "settled" : "idle";
     });
+    this.syncWordmark(this.activeIndex, "settled");
     return this.epoch;
   }
 
@@ -362,12 +363,14 @@ class HomeChapterController {
     const index = this.chapterIndex.get("jealousy");
     const chapter = index === undefined ? null : this.chapters[index];
     if (chapter) chapter.dataset.jealousyPanelState = state;
+    this.root.dataset.jealousyPanelState = state;
   }
 
   private setRescueBridgeState(state: "hidden" | "playing" | "settled") {
     const index = this.chapterIndex.get("rescue");
     const chapter = index === undefined ? null : this.chapters[index];
     if (chapter) chapter.dataset.rescueBridgeState = state;
+    this.root.dataset.rescueBridgeState = state;
   }
 
   private videoLayerName(id: ChapterId) {
@@ -509,6 +512,23 @@ class HomeChapterController {
       else marker.removeAttribute("aria-current");
     });
     this.root.dataset.activeChapter = CHAPTER_IDS[index];
+    this.syncWordmark(index, this.actionState);
+  }
+
+  private syncWordmark(index: number, action: "idle" | "running" | "settled") {
+    if (!this.wordmark) return;
+    const bounded = Math.max(0, Math.min(CHAPTER_IDS.length - 1, index));
+    this.wordmark.dataset.wordmarkScene = CHAPTER_IDS[bounded];
+    this.wordmark.dataset.wordmarkActive = String(bounded);
+    this.wordmark.dataset.wordmarkAction = action;
+    this.wordmark.querySelectorAll<HTMLElement>("[data-wordmark-letter]").forEach((letter, letterIndex) => {
+      letter.dataset.letterState = letterIndex === bounded
+        ? "active"
+        : letterIndex < bounded
+          ? "past"
+          : "future";
+      letter.style.setProperty("--letter-distance", String(Math.abs(letterIndex - bounded)));
+    });
   }
 
   private transitionName(from: ChapterId, to: ChapterId) {
@@ -601,6 +621,7 @@ class HomeChapterController {
     this.actionState = "running";
     const chapter = this.chapters[this.activeIndex];
     if (chapter) chapter.dataset.sceneAction = "running";
+    this.syncWordmark(this.activeIndex, "running");
     this.root.dataset.stageState = "playing";
     this.publishProgress(true);
 
@@ -625,13 +646,14 @@ class HomeChapterController {
     this.stableState = id === "jealousy" ? "final" : "settled";
     const chapter = this.chapters[this.activeIndex];
     if (chapter) chapter.dataset.sceneAction = "settled";
+    this.syncWordmark(this.activeIndex, "settled");
     if (id === "rescue") this.setRescueBridgeState("settled");
     if (id === "jealousy") this.setJealousyPanelState("settled");
     this.root.dataset.stageState = "settled";
     this.host.dataset.kisaraStageSettled = id === "jealousy" ? "true" : "false";
     if (id === "contract") this.grantSpareKey();
     if (id === "jealousy") this.qualifyFinalScene();
-    if (id === "jealousy" && actionCompleted && chapter) this.triggerWordmarkFinale(chapter);
+    if (id === "jealousy" && actionCompleted) this.triggerWordmarkFinale();
     this.setStatus(actionCompleted ? `${id} 场景定格` : `${id} 场景已恢复`);
     this.persist();
     this.publishProgress(false);
@@ -643,9 +665,9 @@ class HomeChapterController {
     this.runtimeWindow.__yuimiKisaraLovebrainProgress?.markStage?.("home-jealousy");
   }
 
-  private triggerWordmarkFinale(chapter: HTMLElement) {
+  private triggerWordmarkFinale() {
     if (this.reducedMotion) return;
-    const wordmark = chapter.querySelector<HTMLElement>("[data-wordmark-scene='jealousy']");
+    const wordmark = this.wordmark;
     if (!wordmark) return;
     if (this.wordmarkFinaleTimer) window.clearTimeout(this.wordmarkFinaleTimer);
     wordmark.dataset.wordmarkFinale = "running";
@@ -676,6 +698,7 @@ class HomeChapterController {
     this.actionState = "settled";
     this.stableState = id === "jealousy" ? "final" : "settled";
     this.chapters[this.activeIndex]?.setAttribute("data-scene-action", "settled");
+    this.syncWordmark(this.activeIndex, "settled");
     if (id === "rescue") this.setRescueBridgeState("settled");
     if (id === "jealousy") this.setJealousyPanelState("settled");
     this.root.dataset.stageState = "settled";

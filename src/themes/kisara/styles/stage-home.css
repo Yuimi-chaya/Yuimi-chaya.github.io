@@ -225,19 +225,22 @@ body.kisara-home-page .kisara-scrollbar {
 }
 
 .kisara-stage-letter-glass {
-  opacity: 0.46;
+  opacity: 0.56;
   background-image:
-    linear-gradient(108deg, transparent 8%, rgba(255, 255, 255, 0.3) 42%, rgba(255, 255, 255, 0.04) 55%, transparent 68%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(185, 210, 238, 0.025) 48%, rgba(255, 184, 214, 0.06));
-  background-size: 170% 100%, 100% 100%;
-  background-position: 34% 50%, center;
-  -webkit-text-stroke: 1.05px rgba(244, 249, 255, 0.38);
+    radial-gradient(ellipse at 28% 18%, rgba(255, 255, 255, 0.82) 0 1.5%, transparent 7%),
+    linear-gradient(112deg, transparent 18%, rgba(218, 237, 255, 0.08) 32%, rgba(255, 255, 255, 0.68) 46%, rgba(255, 255, 255, 0.04) 53%, transparent 67%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(137, 173, 211, 0.008) 48%, rgba(255, 134, 187, 0.025));
+  background-size: 100% 100%, 210% 100%, 100% 100%;
+  background-position: center, 22% 50%, center;
+  -webkit-text-stroke: 1.22px rgba(242, 249, 255, 0.5);
   filter:
-    drop-shadow(-1px 0 rgba(132, 183, 255, 0.16))
-    drop-shadow(1px 0 rgba(255, 135, 184, 0.15))
-    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.16))
-    drop-shadow(0 10px 22px rgba(2, 4, 10, 0.28));
-  text-shadow: 0 -1px 0 rgba(255, 255, 255, 0.14), 0 1px 0 rgba(24, 31, 46, 0.22);
+    drop-shadow(-0.8px -0.5px rgba(224, 244, 255, 0.28))
+    drop-shadow(1.35px 0.7px rgba(255, 123, 180, 0.2))
+    drop-shadow(-1.2px 0.3px rgba(109, 174, 255, 0.18))
+    drop-shadow(0 9px 18px rgba(1, 4, 10, 0.28));
+  text-shadow:
+    0.018em 0.026em 0 rgba(6, 12, 22, 0.28),
+    -0.01em -0.012em 0 rgba(255, 255, 255, 0.2);
 }
 
 .kisara-stage-letter-glass::before {
@@ -246,26 +249,51 @@ body.kisara-home-page .kisara-scrollbar {
   inset: 0;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: 0.42px rgba(255, 255, 255, 0.68);
+  -webkit-text-stroke: 1.75px rgba(16, 28, 44, 0.38);
   filter:
-    drop-shadow(-0.7px 0 rgba(111, 172, 255, 0.34))
-    drop-shadow(0.7px 0 rgba(255, 128, 180, 0.3));
-  opacity: 0.58;
+    drop-shadow(-1px -0.5px rgba(111, 183, 255, 0.3))
+    drop-shadow(1.4px 0.8px rgba(255, 115, 174, 0.27));
+  opacity: 0.5;
+  transform: translate3d(0.012em, 0.018em, 0) scale(0.992);
+  transform-origin: 50% 54%;
+  pointer-events: none;
+}
+
+.kisara-stage-letter-glass::after {
+  content: attr(data-letter-glyph);
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 0.48px rgba(255, 255, 255, 0.84);
+  filter: drop-shadow(-0.6px -0.8px rgba(255, 255, 255, 0.5));
+  opacity: 0.72;
+  transform: translate3d(-0.006em, -0.01em, 0);
   pointer-events: none;
 }
 
 .kisara-stage-letter[data-letter-state="future"] .kisara-stage-letter-glass {
-  opacity: 0.34;
-  -webkit-text-stroke-color: rgba(231, 240, 250, 0.3);
+  opacity: 0.43;
+  -webkit-text-stroke-color: rgba(231, 242, 252, 0.42);
 }
 
 .kisara-stage-letter[data-letter-state="past"] .kisara-stage-letter-glass {
-  opacity: 0.38;
-  -webkit-text-stroke-color: rgba(248, 220, 232, 0.32);
+  opacity: 0.47;
+  -webkit-text-stroke-color: rgba(249, 224, 235, 0.44);
   filter:
-    drop-shadow(-1px 0 rgba(125, 171, 238, 0.12))
-    drop-shadow(1px 0 rgba(255, 116, 170, 0.2))
-    drop-shadow(0 8px 18px rgba(8, 4, 12, 0.28));
+    drop-shadow(-0.9px -0.4px rgba(137, 190, 255, 0.18))
+    drop-shadow(1.2px 0.7px rgba(255, 112, 169, 0.24))
+    drop-shadow(0 8px 16px rgba(8, 4, 12, 0.26));
+}
+
+.kisara-stage-letter:not([data-letter-state="active"]) .kisara-stage-letter-glass {
+  animation: kisara-letter-glass-caustic 6.8s ease-in-out calc(var(--letter-index) * -0.73s) infinite alternate;
+}
+
+@keyframes kisara-letter-glass-caustic {
+  0% { background-position: center, 18% 50%, center; }
+  54% { background-position: center, 58% 50%, center; }
+  100% { background-position: center, 82% 50%, center; }
 }
 
 .kisara-stage-letter-residue {
@@ -315,7 +343,7 @@ body.kisara-home-page .kisara-scrollbar {
   pointer-events: none;
 }
 
-.kisara-home-chapter[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] {
+.kisara-stage-wordmark[data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] {
   animation: kisara-wordmark-active-enter 620ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
@@ -333,12 +361,12 @@ body.kisara-home-page .kisara-scrollbar {
   filter: drop-shadow(0 0 9px rgba(224, 229, 238, 0.18)) drop-shadow(0 14px 26px rgba(0, 0, 0, 0.34));
 }
 
-.kisara-home-rescue[data-rescue-bridge-state="playing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-material {
+.kisara-stage-home[data-active-chapter="rescue"][data-rescue-bridge-state="playing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-material {
   animation: kisara-letter-k-material-cut 500ms cubic-bezier(0.12, 0.82, 0.16, 1) both;
 }
 
-.kisara-home-rescue[data-rescue-bridge-state="playing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx,
-.kisara-home-rescue[data-rescue-bridge-state="settled"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx {
+.kisara-stage-home[data-active-chapter="rescue"][data-rescue-bridge-state="playing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx,
+.kisara-stage-home[data-active-chapter="rescue"][data-rescue-bridge-state="settled"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx {
   opacity: 1;
 }
 
@@ -355,11 +383,11 @@ body.kisara-home-page .kisara-scrollbar {
   transform-origin: 6% 50%;
 }
 
-.kisara-home-rescue[data-rescue-bridge-state="playing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
+.kisara-stage-home[data-active-chapter="rescue"][data-rescue-bridge-state="playing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
   animation: kisara-letter-k-slash 430ms cubic-bezier(0.12, 0.82, 0.16, 1) 30ms both;
 }
 
-.kisara-home-rescue[data-rescue-bridge-state="settled"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i,
+.kisara-stage-home[data-active-chapter="rescue"][data-rescue-bridge-state="settled"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i,
 .kisara-stage-letter[data-wordmark-letter="0"][data-letter-state="past"] .kisara-stage-letter-fx > i {
   opacity: 0.42;
   transform: rotate(-37deg) scaleX(1);
@@ -381,7 +409,7 @@ body.kisara-home-page .kisara-scrollbar {
   opacity: 0;
 }
 
-.kisara-home-rescue[data-rescue-bridge-state="playing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
+.kisara-stage-home[data-active-chapter="rescue"][data-rescue-bridge-state="playing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
   animation: kisara-letter-k-spark 360ms ease-out 110ms both;
 }
 
@@ -445,11 +473,11 @@ body.kisara-home-page .kisara-scrollbar {
   transform: translate3d(28%, 10%, 0) rotate(24deg);
 }
 
-.kisara-home-request[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
+.kisara-stage-wordmark[data-wordmark-scene="request"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
   animation: kisara-letter-i-chain-left 620ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
-.kisara-home-request[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
+.kisara-stage-wordmark[data-wordmark-scene="request"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
   animation: kisara-letter-i-chain-right 620ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
@@ -521,19 +549,19 @@ body.kisara-home-page .kisara-scrollbar {
   transform-origin: 16% 50%;
 }
 
-.kisara-home-counterattack[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-material {
+.kisara-stage-wordmark[data-wordmark-scene="counterattack"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-material {
   animation: kisara-letter-s-charge 1000ms cubic-bezier(0.16, 0.8, 0.18, 1) both;
 }
 
-.kisara-home-counterattack[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
+.kisara-stage-wordmark[data-wordmark-scene="counterattack"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
   animation: kisara-letter-s-orbit 1000ms cubic-bezier(0.16, 0.8, 0.18, 1) both;
 }
 
-.kisara-home-counterattack[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
+.kisara-stage-wordmark[data-wordmark-scene="counterattack"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
   animation: kisara-letter-s-impact 1000ms ease-out both;
 }
 
-.kisara-home-counterattack[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > em {
+.kisara-stage-wordmark[data-wordmark-scene="counterattack"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > em {
   animation: kisara-letter-s-streak 1000ms cubic-bezier(0.12, 0.82, 0.16, 1) both;
 }
 
@@ -622,15 +650,15 @@ body.kisara-home-page .kisara-scrollbar {
 .kisara-stage-wordmark[data-wordmark-scene="contract"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > em::after,
 .kisara-stage-letter[data-wordmark-letter="3"][data-letter-state="past"] .kisara-stage-letter-fx > em::after { top: -50%; }
 
-.kisara-home-contract[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
+.kisara-stage-wordmark[data-wordmark-scene="contract"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
   animation: kisara-letter-a1-pink 520ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
-.kisara-home-contract[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
+.kisara-stage-wordmark[data-wordmark-scene="contract"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
   animation: kisara-letter-a1-green 520ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
-.kisara-home-contract[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > em {
+.kisara-stage-wordmark[data-wordmark-scene="contract"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > em {
   animation: kisara-letter-a1-heart 520ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
@@ -705,19 +733,19 @@ body.kisara-home-page .kisara-scrollbar {
   opacity: 0.42;
 }
 
-.kisara-home-transformation[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-material {
+.kisara-stage-wordmark[data-wordmark-scene="transformation"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-material {
   animation: kisara-letter-r-enchant 1320ms cubic-bezier(0.16, 0.8, 0.18, 1) both;
 }
 
-.kisara-home-transformation[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
+.kisara-stage-wordmark[data-wordmark-scene="transformation"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
   animation: kisara-letter-r-ring 1320ms cubic-bezier(0.16, 0.8, 0.18, 1) both;
 }
 
-.kisara-home-transformation[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
+.kisara-stage-wordmark[data-wordmark-scene="transformation"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
   animation: kisara-letter-r-rune 1320ms ease both;
 }
 
-.kisara-home-transformation[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > em {
+.kisara-stage-wordmark[data-wordmark-scene="transformation"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > em {
   animation: kisara-letter-r-cells 1320ms steps(6, end) both;
 }
 
@@ -751,11 +779,11 @@ body.kisara-home-page .kisara-scrollbar {
   filter: drop-shadow(0 0 10px rgba(255, 77, 137, 0.32)) drop-shadow(0 16px 28px rgba(0, 0, 0, 0.5));
 }
 
-.kisara-home-jealousy[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-material {
+.kisara-stage-wordmark[data-wordmark-scene="jealousy"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-material {
   animation: kisara-letter-a2-darken 1250ms cubic-bezier(0.16, 0.8, 0.18, 1) both;
 }
 
-.kisara-home-jealousy:is([data-jealousy-panel-state="revealing"], [data-jealousy-panel-state="settled"]) .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx {
+.kisara-stage-home[data-active-chapter="jealousy"]:is([data-jealousy-panel-state="revealing"], [data-jealousy-panel-state="settled"]) .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx {
   opacity: 1;
 }
 
@@ -771,11 +799,11 @@ body.kisara-home-page .kisara-scrollbar {
   transform-origin: 4% 50%;
 }
 
-.kisara-home-jealousy[data-jealousy-panel-state="revealing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
+.kisara-stage-home[data-active-chapter="jealousy"][data-jealousy-panel-state="revealing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
   animation: kisara-letter-a2-slash 260ms cubic-bezier(0.12, 0.82, 0.16, 1) both;
 }
 
-.kisara-home-jealousy[data-jealousy-panel-state="settled"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
+.kisara-stage-home[data-active-chapter="jealousy"][data-jealousy-panel-state="settled"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > i {
   opacity: 0.7;
   transform: rotate(-42deg) scaleX(1);
   filter: brightness(0.58) saturate(0.82);
@@ -792,8 +820,8 @@ body.kisara-home-page .kisara-scrollbar {
   transform-origin: 50% 32%;
 }
 
-.kisara-home-jealousy[data-jealousy-panel-state="revealing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b,
-.kisara-home-jealousy[data-jealousy-panel-state="settled"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
+.kisara-stage-home[data-active-chapter="jealousy"][data-jealousy-panel-state="revealing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b,
+.kisara-stage-home[data-active-chapter="jealousy"][data-jealousy-panel-state="settled"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > b {
   opacity: 0.76;
   transform: rotate(18deg) scaleY(1);
   transition: opacity 220ms ease, transform 360ms cubic-bezier(0.16, 0.82, 0.18, 1);
@@ -810,7 +838,7 @@ body.kisara-home-page .kisara-scrollbar {
   opacity: 0;
 }
 
-.kisara-home-jealousy[data-jealousy-panel-state="revealing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > em {
+.kisara-stage-home[data-active-chapter="jealousy"][data-jealousy-panel-state="revealing"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-fx > em {
   animation: kisara-letter-a2-spark 260ms ease-out both;
 }
 
@@ -970,21 +998,21 @@ body.kisara-home-page .kisara-scrollbar {
   filter: saturate(0.66) brightness(0.74);
 }
 
-.kisara-home-contract[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant,
-.kisara-home-transformation[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant {
+.kisara-stage-wordmark[data-wordmark-scene="contract"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant,
+.kisara-stage-wordmark[data-wordmark-scene="transformation"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant {
   animation: kisara-letter-legacy-enchant 1320ms cubic-bezier(0.16, 0.8, 0.18, 1) both;
 }
 
-.kisara-home-contract[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant {
+.kisara-stage-wordmark[data-wordmark-scene="contract"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-stage-letter-enchant {
   animation-duration: 520ms;
 }
 
-.kisara-home-contract[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-letter-gloss,
-.kisara-home-transformation[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-letter-gloss {
+.kisara-stage-wordmark[data-wordmark-scene="contract"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-letter-gloss,
+.kisara-stage-wordmark[data-wordmark-scene="transformation"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-letter-gloss {
   animation: kisara-letter-legacy-gloss 520ms ease-out both;
 }
 
-.kisara-home-transformation[data-scene-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-letter-gloss {
+.kisara-stage-wordmark[data-wordmark-scene="transformation"][data-wordmark-action="running"] .kisara-stage-letter[data-letter-state="active"] .kisara-letter-gloss {
   animation-duration: 900ms;
   animation-delay: 260ms;
 }
@@ -1148,15 +1176,15 @@ body.kisara-home-page .kisara-scrollbar {
   opacity: 0;
 }
 
-.kisara-home-rescue[data-rescue-bridge-state="playing"] .kisara-letter-cut > i {
+.kisara-stage-home[data-active-chapter="rescue"][data-rescue-bridge-state="playing"] .kisara-letter-cut > i {
   animation: kisara-letter-k-slash 430ms cubic-bezier(0.12, 0.82, 0.16, 1) 30ms both;
 }
 
-.kisara-home-rescue[data-rescue-bridge-state="playing"] .kisara-letter-cut > b {
+.kisara-stage-home[data-active-chapter="rescue"][data-rescue-bridge-state="playing"] .kisara-letter-cut > b {
   animation: kisara-letter-k-spark 360ms ease-out 110ms both;
 }
 
-.kisara-home-rescue[data-rescue-bridge-state="settled"] .kisara-letter-cut > i,
+.kisara-stage-home[data-active-chapter="rescue"][data-rescue-bridge-state="settled"] .kisara-letter-cut > i,
 .kisara-stage-letter[data-wordmark-letter="0"][data-letter-state="past"] .kisara-letter-cut > i {
   opacity: 0.42;
   transform: rotate(-37deg) scaleX(1);
@@ -1185,11 +1213,11 @@ body.kisara-home-page .kisara-scrollbar {
   opacity: 0.18;
 }
 
-.kisara-home-counterattack[data-scene-action="running"] .kisara-letter-charge > i {
+.kisara-stage-wordmark[data-wordmark-scene="counterattack"][data-wordmark-action="running"] .kisara-letter-charge > i {
   animation: kisara-letter-s-streak 1000ms cubic-bezier(0.12, 0.82, 0.16, 1) both;
 }
 
-.kisara-home-counterattack[data-scene-action="running"] .kisara-letter-charge > b {
+.kisara-stage-wordmark[data-wordmark-scene="counterattack"][data-wordmark-action="running"] .kisara-letter-charge > b {
   animation: kisara-letter-s-impact 1000ms ease-out both;
 }
 
@@ -1209,21 +1237,21 @@ body.kisara-home-page .kisara-scrollbar {
   transform-origin: 50% 32%;
 }
 
-.kisara-home-jealousy[data-jealousy-panel-state="revealing"] .kisara-letter-fracture > i {
+.kisara-stage-home[data-active-chapter="jealousy"][data-jealousy-panel-state="revealing"] .kisara-letter-fracture > i {
   animation: kisara-letter-a2-slash 260ms cubic-bezier(0.12, 0.82, 0.16, 1) both;
 }
 
-.kisara-home-jealousy:is([data-jealousy-panel-state="revealing"], [data-jealousy-panel-state="settled"]) .kisara-letter-fracture > b {
+.kisara-stage-home[data-active-chapter="jealousy"]:is([data-jealousy-panel-state="revealing"], [data-jealousy-panel-state="settled"]) .kisara-letter-fracture > b {
   opacity: 0.76;
   transform: rotate(18deg) scaleY(1);
   transition: opacity 220ms ease, transform 360ms cubic-bezier(0.16, 0.82, 0.18, 1);
 }
 
-.kisara-home-jealousy[data-jealousy-panel-state="revealing"] .kisara-letter-fracture > em {
+.kisara-stage-home[data-active-chapter="jealousy"][data-jealousy-panel-state="revealing"] .kisara-letter-fracture > em {
   animation: kisara-letter-a2-spark 260ms ease-out both;
 }
 
-.kisara-home-jealousy[data-jealousy-panel-state="settled"] .kisara-letter-fracture > i {
+.kisara-stage-home[data-active-chapter="jealousy"][data-jealousy-panel-state="settled"] .kisara-letter-fracture > i {
   opacity: 0.7;
   transform: rotate(-42deg) scaleX(1);
   filter: brightness(0.58) saturate(0.82);

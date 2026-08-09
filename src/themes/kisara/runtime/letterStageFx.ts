@@ -712,7 +712,7 @@ export class KisaraLetterFxController {
     this.observer.observe(this.root, {
       subtree: true,
       attributes: true,
-      attributeFilter: ["data-active-chapter", "data-chapter-position", "data-scene-action"]
+      attributeFilter: ["data-wordmark-scene", "data-wordmark-active", "data-wordmark-action"]
     });
     this.resizeObserver.observe(this.root);
     document.addEventListener("visibilitychange", this.handleVisibility);
@@ -740,16 +740,16 @@ export class KisaraLetterFxController {
     this.sync(true);
   };
 
-  private currentChapter() {
-    return this.root.querySelector<HTMLElement>('[data-home-chapter][data-chapter-position="active"]');
+  private currentWordmark() {
+    return this.root.querySelector<HTMLElement>("[data-wordmark-scene]");
   }
 
   private sync(force = false) {
     if (this.disposed || document.hidden) return;
-    const chapter = this.currentChapter();
-    if (!chapter) return;
-    const scene = chapter.dataset.homeChapter ?? "rescue";
-    const running = chapter.dataset.sceneAction === "running";
+    const wordmark = this.currentWordmark();
+    if (!wordmark) return;
+    const scene = wordmark.dataset.wordmarkScene ?? "rescue";
+    const running = wordmark.dataset.wordmarkAction === "running";
     if (force || scene !== this.activeScene || (running && !this.actionRunning)) {
       this.actionStartedAt = performance.now();
     }
@@ -774,14 +774,13 @@ export class KisaraLetterFxController {
   };
 
   private draw(timestamp: number) {
-    const chapter = this.currentChapter();
-    const wordmark = chapter?.querySelector<HTMLElement>("[data-wordmark-scene]");
-    if (!chapter || !wordmark) return;
-    const scene = chapter.dataset.homeChapter ?? "rescue";
+    const wordmark = this.currentWordmark();
+    if (!wordmark) return;
+    const scene = wordmark.dataset.wordmarkScene ?? "rescue";
     const duration = ACTION_MS[scene] ?? 1;
     const actionProgress = this.actionRunning
       ? clamp((timestamp - this.actionStartedAt) / duration)
-      : chapter.dataset.sceneAction === "settled" ? 1 : 0;
+      : wordmark.dataset.wordmarkAction === "settled" ? 1 : 0;
 
     const chainBack = wordmark.querySelector<HTMLCanvasElement>("[data-letter-chain-back]");
     const chainFront = wordmark.querySelector<HTMLCanvasElement>("[data-letter-chain-front]");
