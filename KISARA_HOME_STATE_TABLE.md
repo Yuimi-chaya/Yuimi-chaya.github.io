@@ -45,15 +45,15 @@ Each chapter renders the same fixed six-letter geometry through `KisaraLetterSta
 | Index | Scene | Letter | Active effect | Stable residue |
 | --- | --- | --- | --- | --- |
 | 0 | Rescue | `K` | cold gray material, then the accepted eye action hands off to a diagonal pink blade cut | a thin diagonal incision |
-| 1 | Request | `I` | legacy-derived metal links build on front/back canvases along two `I`-centered helical paths; no Canvas-frame loop remains | a dimmed settled chain |
+| 1 | Request | `I` | legacy-derived metal links build on front/back canvases along two `I`-centered helical paths; no Canvas-frame loop remains | glass/residue only; the chain canvases clear on scene exit |
 | 2 | Counterattack | `S` | directional pink/white/blue charge follows the curve and releases at impact | a static charged edge |
-| 3 | Contract | first `A` | legacy enchant material and gloss feed a layered front/back heart imprint and shard pulse | a faint enchanted heart trace |
-| 4 | Transformation | `R` | legacy enchant material, glyph-clipped data reconstruction, and a local liquid WebGL letter follow the four-image crossfade | a stable vivid enchanted material |
+| 3 | Contract | first `A` | legacy enchant material and gloss feed a layered front/back heart imprint, lock pulse, collapse, and shard burst | a faint glyph-clipped residue only; the heart canvases clear after the action |
+| 4 | Transformation | `R` | glyph-clipped data reconstruction hands ownership to one aligned local liquid WebGL letter while the CSS source fades away | the WebGL liquid `R` is the sole visible active glyph layer |
 | 5 | Jealousy | second `A` | the decoded black-face cue darkens and cuts the letter on the same slash event | a wine-red fracture and dark diagonal scar |
 
-- Non-active letters remain low-opacity glass outlines. Past letters may show faint residue; future letters remain clean glass.
+- Non-active letters remain low-opacity Liquid Glass-style glyph outlines with transparent interiors, double-edge highlights, and restrained pink/blue refraction. Past letters may show faint glyph-clipped residue; future letters remain clean glass. Scene-local canvases, enchant layers, gloss, cuts, charges, and fractures are hidden and cleared whenever their letter is not active.
 - Scene-specific letter gradients must override `background-image` only. A high-specificity `background:` shorthand resets `background-clip: text` to `border-box` and visibly paints the glyph element's rectangle.
-- No legacy title state machine, full-screen title Canvas, backdrop blur, black-hole renderer, or second `sessionStorage` state is used. The accepted legacy visual algorithms are isolated in `runtime/letterStageFx.ts` and bounded to `I`, Contract `A`, and `R`.
+- No legacy title state machine, full-screen title Canvas, backdrop blur, black-hole renderer, or second `sessionStorage` state is used. The accepted legacy visual algorithms are isolated in `runtime/letterStageFx.ts` and bounded to the currently active `I`, Contract `A`, or `R`; later scenes never redraw an earlier effect in completed form.
 - Marker jumps and backward restoration display only the target chapter's stable wordmark state; skipped letter effects do not replay.
 - A completed Jealousy action may trigger one `620ms` non-persistent synchronization across the inactive letters. Restore and reduced-motion paths do not replay it.
 - Mobile and reduced motion keep the compact fixed word and static active material without creating the local Canvas/WebGL controller. Static Rescue/Jealousy scars remain available.
