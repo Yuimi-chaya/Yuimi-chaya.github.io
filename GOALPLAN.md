@@ -8,7 +8,7 @@
 - Starting tracked worktree is clean. Existing untracked source, candidate, generated, and temporary assets are user-owned and must not be staged, moved, deleted, or overwritten.
 - The complete pre-redesign Home remains recoverable on `codex/kisara-pre-home-redesign-20260806` and historical commit `72a7719`. They are reference sources only and must not be restored wholesale.
 - Browser QA is explicitly excluded. Static validation is required; final motion, hierarchy, timing, and comfort belong to the user's direct visual review.
-- The first human review rejected the wide letter spacing, generic rectangular FX containers, placeholder CSS chain, simplified Contract heart, and simplified Awaken reconstruction. The authoritative refinement checkpoint is `ad2d2e8 refine(kisara): restore legacy letter effects`; it remains pending direct human visual acceptance.
+- The first human review rejected the wide letter spacing, generic rectangular FX containers, placeholder CSS chain, simplified Contract heart, and simplified Awaken reconstruction. A second review then exposed two remaining root bugs: K/I scene `background:` shorthands reset glyph clipping to `border-box`, and Request still contained a chain path sampled around the Canvas frame. The authoritative corrective checkpoint is `ee31a70 fix(kisara): remove letter boxes and frame chain`; it remains pending direct human visual acceptance.
 
 ## Execution Warning
 
@@ -46,7 +46,7 @@ The six-scene Home keeps its current media, copy, navigation, and one-gesture sc
 ### I / Request
 
 - The transfer from `K` reaches the vertical `I` as a restrained pulse.
-- A compact two-layer Canvas chain wraps the letter from opposite directions, passes behind and in front of the glyph, and settles under visible tension.
+- A compact two-layer Canvas chain uses only `I`-centered helical paths, passes behind and in front of the glyph, and settles under visible tension. No chain path may sample or outline the rectangular Canvas boundary.
 - Link geometry, cold/hot metal gradients, alternating edge-on links, highlights, and depth ordering are ported from the hand-tuned legacy title chain rather than approximated with CSS ellipses.
 - The renderer is scene-local, draws only the currently active chapter's wordmark, and stops after settlement; it does not restore the old full-title state machine or permanent full-screen loop.
 - The Request comic and copy remain readable around the fixed word.
