@@ -157,6 +157,7 @@ class HomeChapterController {
   private foundSelfActive = false;
   private foundSelfFinishing = false;
   private foundSelfTimer = 0;
+  private wordmarkFinaleTimer = 0;
   private lovebrainActive = false;
 
   constructor(root: HTMLElement) {
@@ -217,6 +218,8 @@ class HomeChapterController {
     this.pauseAllVideos();
     if (this.foundSelfTimer) window.clearTimeout(this.foundSelfTimer);
     this.foundSelfTimer = 0;
+    if (this.wordmarkFinaleTimer) window.clearTimeout(this.wordmarkFinaleTimer);
+    this.wordmarkFinaleTimer = 0;
     this.visibilityWaiters.forEach((wake) => wake());
     this.visibilityWaiters.clear();
     this.lifecycle.abort();
@@ -242,6 +245,11 @@ class HomeChapterController {
     this.epoch += 1;
     this.transitionSerial += 1;
     this.stopPlayback();
+    if (this.wordmarkFinaleTimer) window.clearTimeout(this.wordmarkFinaleTimer);
+    this.wordmarkFinaleTimer = 0;
+    this.root.querySelectorAll<HTMLElement>("[data-wordmark-finale]").forEach((wordmark) => {
+      delete wordmark.dataset.wordmarkFinale;
+    });
     this.resumeVideos.clear();
     this.layers.forEach((layer) => {
       if (!layer.video) return;
@@ -617,6 +625,7 @@ class HomeChapterController {
     this.host.dataset.kisaraStageSettled = id === "jealousy" ? "true" : "false";
     if (id === "contract") this.grantSpareKey();
     if (id === "jealousy") this.qualifyFinalScene();
+    if (id === "jealousy" && actionCompleted && chapter) this.triggerWordmarkFinale(chapter);
     this.setStatus(actionCompleted ? `${id} 场景定格` : `${id} 场景已恢复`);
     this.persist();
     this.publishProgress(false);
@@ -626,6 +635,20 @@ class HomeChapterController {
     if (this.finalQualified) return;
     this.finalQualified = true;
     this.runtimeWindow.__yuimiKisaraLovebrainProgress?.markStage?.("home-jealousy");
+  }
+
+  private triggerWordmarkFinale(chapter: HTMLElement) {
+    if (this.reducedMotion) return;
+    const wordmark = chapter.querySelector<HTMLElement>("[data-wordmark-scene='jealousy']");
+    if (!wordmark) return;
+    if (this.wordmarkFinaleTimer) window.clearTimeout(this.wordmarkFinaleTimer);
+    wordmark.dataset.wordmarkFinale = "running";
+    const epoch = this.epoch;
+    this.wordmarkFinaleTimer = window.setTimeout(() => {
+      this.wordmarkFinaleTimer = 0;
+      if (!this.isCurrent(epoch)) return;
+      delete wordmark.dataset.wordmarkFinale;
+    }, 620);
   }
 
   private grantSpareKey() {

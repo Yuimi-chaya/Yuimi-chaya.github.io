@@ -68,6 +68,13 @@ test("Home carries one indexed KISARA wordmark contract through all six scenes",
   assert.match(stageStyles, /kisara-letter-i-chain-left/);
   assert.match(stageStyles, /data-wordmark-scene="counterattack"/);
   assert.match(stageStyles, /kisara-letter-s-charge/);
+  assert.match(stageStyles, /data-wordmark-scene="contract"/);
+  assert.match(stageStyles, /kisara-letter-a1-heart/);
+  assert.match(stageStyles, /data-wordmark-scene="transformation"/);
+  assert.match(stageStyles, /kisara-letter-r-enchant/);
+  assert.match(stageStyles, /data-wordmark-scene="jealousy"/);
+  assert.match(stageStyles, /kisara-letter-a2-slash/);
+  assert.match(stageStyles, /data-wordmark-finale="running"/);
   assert.doesNotMatch(stageHomeSource, /kisara-title-stage|data-kisara-chain|data-kisara-title-data/);
   assert.doesNotMatch(stageStyles, /\.kisara-stage-wordmark[^}]*backdrop-filter/s);
 });
@@ -149,6 +156,9 @@ test("FoundSelf, spare-key, jealousy, and Lovebrain remain on the scene controll
   assert.match(stageRuntimeSource, /setRescueBridgeState\("playing"\)/);
   assert.match(stageRuntimeSource, /JEALOUSY_PANEL_REVEAL_AT = 0\.98/);
   assert.match(stageRuntimeSource, /setJealousyPanelState\("revealing"\)/);
+  assert.match(stageRuntimeSource, /private triggerWordmarkFinale\(/);
+  assert.match(stageRuntimeSource, /wordmark\.dataset\.wordmarkFinale = "running"/);
+  assert.match(stageRuntimeSource, /id === "jealousy" && actionCompleted/);
   assert.match(stageRuntimeSource, /activate: this\.activateLovebrain/);
   assert.match(stageRuntimeSource, /leaveToOpening: this\.leaveLovebrain/);
 });
