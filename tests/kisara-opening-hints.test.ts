@@ -10,6 +10,7 @@ const readSource = (relativePath: string) => readFileSync(
 
 const layoutSource = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
 const stageHomeSource = readSource("src/themes/kisara/components/KisaraStageHome.astro");
+const letterStageSource = readSource("src/themes/kisara/components/KisaraLetterStage.astro");
 const stageRuntimeSource = readSource("src/themes/kisara/runtime/stageHome.ts");
 const stageStyles = readSource("src/themes/kisara/styles/stage-home.css");
 const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
@@ -50,6 +51,19 @@ test("Home exposes six public scenes with one action lane per scene", () => {
   assert.match(stageHomeSource, /data-scene-action="idle"/);
   assert.match(stageHomeSource, /data-rescue-bridge-state="hidden"/);
   assert.doesNotMatch(stageHomeSource, /data-rescue-beat|data-request-beat|data-counter-beat|data-contract-beat|data-transformation-beat|data-jealousy-beat/);
+});
+
+test("Home carries one indexed KISARA wordmark contract through all six scenes", () => {
+  assert.match(letterStageSource, /const letters = \["K", "I", "S", "A", "R", "A"\]/);
+  assert.match(letterStageSource, /data-letter-state=/);
+  assert.match(letterStageSource, /data-wordmark-letter=/);
+  assert.equal(stageHomeSource.match(/<KisaraLetterStage /g)?.length, 6);
+  assert.match(stageStyles, /\.kisara-stage-wordmark/);
+  assert.match(stageStyles, /data-letter-state="active"/);
+  assert.match(stageStyles, /data-letter-state="past"/);
+  assert.match(stageStyles, /data-letter-state="future"/);
+  assert.doesNotMatch(stageHomeSource, /kisara-title-stage|data-kisara-chain|data-kisara-title-data/);
+  assert.doesNotMatch(stageStyles, /\.kisara-stage-wordmark[^}]*backdrop-filter/s);
 });
 
 test("Home controller uses scene/stable/action ownership instead of nested beat playback", () => {

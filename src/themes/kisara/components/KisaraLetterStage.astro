@@ -1,0 +1,30 @@
+---
+interface Props {
+  activeIndex: number;
+  scene: string;
+}
+
+const { activeIndex, scene } = Astro.props;
+const letters = ["K", "I", "S", "A", "R", "A"] as const;
+---
+
+<div
+  class="kisara-stage-wordmark"
+  data-wordmark-scene={scene}
+  data-wordmark-active={activeIndex}
+  aria-hidden="true"
+>
+  {letters.map((letter, index) => (
+    <span
+      class="kisara-stage-letter"
+      data-wordmark-letter={index}
+      data-letter-state={index === activeIndex ? "active" : index < activeIndex ? "past" : "future"}
+      style={`--letter-index: ${index}; --letter-distance: ${Math.abs(index - activeIndex)};`}
+    >
+      <span class="kisara-stage-letter-glass">{letter}</span>
+      <span class="kisara-stage-letter-residue">{letter}</span>
+      <span class="kisara-stage-letter-material">{letter}</span>
+      <span class="kisara-stage-letter-fx" aria-hidden="true"><i></i><b></b><em></em></span>
+    </span>
+  ))}
+</div>
