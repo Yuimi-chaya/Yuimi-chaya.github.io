@@ -104,6 +104,10 @@ test("Home carries one indexed KISARA wordmark contract through all six scenes",
   assert.match(stageStyles, /data-wordmark-scene="rescue"[\s\S]*?kisara-stage-letter-material \{\s*background-image:/);
   assert.match(stageStyles, /data-wordmark-scene="request"[\s\S]*?kisara-stage-letter-material \{\s*background-image:/);
   assert.match(stageStyles, /\.kisara-stage-letter:not\(\[data-letter-state="active"\]\)[\s\S]*?\.kisara-letter-lens-canvas[\s\S]*?opacity: 0 !important/);
+  assert.match(stageStyles, /\.kisara-stage-letter:not\(\[data-letter-state="active"\]\) \.kisara-stage-letter-glass \{[\s\S]*?text-shadow: none;/);
+  assert.match(stageStyles, /\.kisara-stage-letter:not\(\[data-letter-state="active"\]\) \.kisara-stage-letter-glass::before \{[\s\S]*?transform: none;/);
+  assert.match(stageStyles, /\.kisara-stage-letter:not\(\[data-letter-state="active"\]\) \.kisara-stage-letter-glass::after \{\s*content: none;/);
+  assert.match(stageStyles, /\.kisara-stage-letter-residue \{[\s\S]*?-webkit-text-stroke: 0 transparent;/);
   assert.match(stageStyles, /\.kisara-letter-contract-front \{[\s\S]*?z-index: 12/);
   assert.match(stageStyles, /\.kisara-letter-data-canvas,[\s\S]*?width: 100%;[\s\S]*?height: 100%/);
   assert.match(stageStyles, /--kisara-r-material-opacity/);
