@@ -64,6 +64,20 @@ const resizeCanvas = (canvas: HTMLCanvasElement, maximumDpr = 1.3) => {
   return { width, height, dpr, changed };
 };
 
+const resizeLetterCanvas = (canvas: HTMLCanvasElement, maximumDpr = 1.2) => {
+  const width = Math.max(1, canvas.clientWidth);
+  const height = Math.max(1, canvas.clientHeight);
+  const dpr = Math.min(window.devicePixelRatio || 1, maximumDpr, 960 / width, 720 / height);
+  const pixelWidth = Math.max(1, Math.round(width * dpr));
+  const pixelHeight = Math.max(1, Math.round(height * dpr));
+  const changed = canvas.width !== pixelWidth || canvas.height !== pixelHeight;
+  if (changed) {
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+  }
+  return { width, height, dpr, changed };
+};
+
 const clearCanvasPair = (pair: CanvasPair) => {
   for (const canvas of [pair.back, pair.front]) {
     const context = canvas.getContext("2d");
@@ -79,8 +93,8 @@ const glyphBaseline = (
   height: number
 ) => {
   const metrics = context.measureText(glyph);
-  const ascent = metrics.actualBoundingBoxAscent || height * 0.72;
-  const descent = metrics.actualBoundingBoxDescent || height * 0.16;
+  const ascent = metrics.fontBoundingBoxAscent || metrics.actualBoundingBoxAscent || height * 0.72;
+  const descent = metrics.fontBoundingBoxDescent || metrics.actualBoundingBoxDescent || height * 0.16;
   return {
     x: width * 0.5,
     y: (height + ascent - descent) * 0.5
@@ -310,7 +324,7 @@ const drawContractHeart = (pair: CanvasPair, progress: number, settled: boolean,
   const lockPulse = Math.exp(-Math.pow((progress - 0.36) / 0.042, 2));
   const heartbeat = 0.5 + Math.sin(timestamp * 0.016) * 0.5;
   const centerX = width * 0.5;
-  const centerY = height * 0.535;
+  const centerY = height * 0.46;
   const size = clamp(height * 0.19, 17, 32);
   const scale = (0.76 + build * 0.24 + lockPulse * 0.08) * (1 - collapse * 0.56);
   const heart = createHeartPath(centerX, centerY, size, scale);
@@ -346,8 +360,8 @@ const drawContractHeart = (pair: CanvasPair, progress: number, settled: boolean,
   back.restore();
 
   front.save();
-  front.globalCompositeOperation = "screen";
-  front.globalAlpha = opacity * (0.24 + lockPulse * 0.16);
+  front.globalCompositeOperation = "source-over";
+  front.globalAlpha = opacity * (0.46 + lockPulse * 0.18);
   front.fillStyle = "rgba(255,53,121,.9)";
   front.shadowColor = "rgba(255,47,117,.56)";
   front.shadowBlur = 4 + lockPulse * 6;
@@ -356,6 +370,7 @@ const drawContractHeart = (pair: CanvasPair, progress: number, settled: boolean,
   front.strokeStyle = "rgba(255,72,137,.99)";
   front.lineWidth = 2.1 + lockPulse * 0.42;
   front.stroke(heart);
+  front.globalCompositeOperation = "screen";
   front.globalAlpha = opacity * (0.58 + lockPulse * 0.24);
   front.strokeStyle = "rgba(255,247,251,.98)";
   front.lineWidth = 0.68 + lockPulse * 0.28;
@@ -405,7 +420,7 @@ const drawReconstruction = (
   timestamp: number,
   opacity: number
 ) => {
-  const size = resizeCanvas(canvas, 1.2);
+  const size = resizeLetterCanvas(canvas, 1.2);
   const context = canvas.getContext("2d", { alpha: true });
   if (!context) return;
   context.setTransform(1, 0, 0, 1, 0, 0);
@@ -441,14 +456,6 @@ const drawReconstruction = (
   const unit = smoothstep(progress);
   const pressure = Math.sin(unit * Math.PI);
   context.save();
-  const base = context.createLinearGradient(0, height * 0.12, 0, height * 0.9);
-  base.addColorStop(0, "rgba(255,239,246,.94)");
-  base.addColorStop(0.34, "rgba(255,91,151,.92)");
-  base.addColorStop(0.68, "rgba(142,61,132,.9)");
-  base.addColorStop(1, "rgba(66,37,91,.92)");
-  context.globalAlpha = 0.35 + unit * 0.44;
-  context.fillStyle = base;
-  context.fillRect(0, 0, width, height);
   const columns = 13;
   const rows = 18;
   const front = unit * (columns + rows + 7);
@@ -538,24 +545,27 @@ const createLiquidRenderer = (canvas: HTMLCanvasElement, letter: HTMLElement): L
     uniform float uOpacity;
     void main(){
       vec2 p=vUv-.5;
+      float morph=smoothstep(.08,.92,clamp(uProgress,0.,1.));
       float pressure=sin(clamp(uProgress,0.,1.)*3.14159265);
       float settled=smoothstep(.86,1.,uProgress);
       float phase=uTime*(.72+settled*.38);
       float waveA=sin(p.y*18.+phase*1.7+sin(p.x*8.-phase*.5)*1.4);
       float waveB=sin(p.x*14.-p.y*9.-phase*1.15);
       float curl=cos((p.x+p.y*.72)*22.+phase*1.9);
-      float strength=.0035+pressure*.012+settled*.005;
+      float strength=(.0035+pressure*.012+settled*.005)*morph;
       vec2 offset=vec2(waveA*1.15+waveB*.52,waveB*.7+curl*.34)*strength;
       offset.x+=sin(p.y*11.-phase)*pressure*.006;
       vec2 uv=clamp(vUv+offset,vec2(.001),vec2(.999));
       vec2 chroma=vec2(.0018+pressure*.0022,-.0005);
-      vec4 base=texture(uTexture,uv);
+      vec4 hard=texture(uTexture,vUv);
+      vec4 liquid=texture(uTexture,uv);
       vec4 rose=texture(uTexture,clamp(uv+chroma,vec2(.001),vec2(.999)));
       vec4 blue=texture(uTexture,clamp(uv-chroma,vec2(.001),vec2(.999)));
-      base.r=mix(base.r,rose.r,.24+pressure*.16);
-      base.b=mix(base.b,blue.b,.18+pressure*.12);
+      liquid.r=mix(liquid.r,rose.r,(.24+pressure*.16)*morph);
+      liquid.b=mix(liquid.b,blue.b,(.18+pressure*.12)*morph);
+      vec4 base=mix(hard,liquid,morph);
       float caustic=pow(max(0.,.5+.5*sin((uv.y+sin(uv.x*7.-phase*.4)*.08)*32.+phase*2.2)),7.);
-      base.rgb+=base.a*vec3(.22,.04,.13)*caustic*(.22+pressure*.32);
+      base.rgb+=base.a*vec3(.22,.04,.13)*caustic*(.22+pressure*.32)*morph;
       float edge=smoothstep(0.,.018,uv.x)*smoothstep(0.,.018,uv.y)*smoothstep(0.,.018,1.-uv.x)*smoothstep(0.,.018,1.-uv.y);
       outputColor=vec4(base.rgb*edge*uOpacity,base.a*edge*uOpacity);
     }
@@ -599,13 +609,11 @@ const createLiquidRenderer = (canvas: HTMLCanvasElement, letter: HTMLElement): L
   const resize = () => {
     if (!dirty) return;
     dirty = false;
-    const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.15, 960 / Math.max(1, rect.width));
-    const width = Math.max(1, Math.round(rect.width * dpr));
-    const height = Math.max(1, Math.round(rect.height * dpr));
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
+    const size = resizeLetterCanvas(canvas, 1.15);
+    const width = canvas.width;
+    const height = canvas.height;
+    const dpr = size.dpr;
+    if (source.width !== width || source.height !== height) {
       source.width = width;
       source.height = height;
     }
@@ -812,26 +820,27 @@ export class KisaraLetterFxController {
     const rLetter = wordmark.querySelector<HTMLElement>('[data-wordmark-letter="4"]');
     if (dataCanvas && lensCanvas && rLetter && scene === "transformation") {
       const progress = actionProgress;
-      const reconstructionOpacity = smoothstep((progress - 0.02) / 0.16)
-        * (1 - smoothstep((progress - 0.72) / 0.22));
       if (!this.liquid || this.liquid.canvas !== lensCanvas) {
         this.liquid?.destroy();
         this.liquid = createLiquidRenderer(lensCanvas, rLetter);
       }
-      const liquidOpacity = this.liquid ? smoothstep((progress - 0.34) / 0.58) : 0;
-      const sourceOpacity = this.liquid ? 1 - liquidOpacity : 1;
-      rLetter.style.setProperty("--kisara-r-glass-opacity", (sourceOpacity * 0.34).toFixed(3));
-      rLetter.style.setProperty("--kisara-r-material-opacity", (sourceOpacity * 0.16).toFixed(3));
-      rLetter.style.setProperty("--kisara-r-enchant-opacity", (sourceOpacity * 0.82).toFixed(3));
+      const reconstructionOpacity = smoothstep((progress - 0.06) / 0.2)
+        * (1 - smoothstep((progress - 0.64) / 0.22))
+        * 0.62;
+      const sourceOpacity = this.liquid ? 0 : 0.82;
+      const liquidOpacity = this.liquid ? 0.96 : 0;
+      rLetter.style.setProperty("--kisara-r-source-opacity", sourceOpacity.toFixed(3));
       drawReconstruction(dataCanvas, rLetter, progress, timestamp, reconstructionOpacity);
-      this.liquid?.draw(timestamp, progress, liquidOpacity * 0.96);
+      this.liquid?.draw(timestamp, progress, liquidOpacity);
     } else {
       if (dataCanvas) {
         const context = dataCanvas.getContext("2d");
         context?.clearRect(0, 0, dataCanvas.width, dataCanvas.height);
         dataCanvas.style.opacity = "0";
       }
-      this.liquid?.clear();
+      this.liquid?.destroy();
+      this.liquid = null;
+      rLetter?.style.removeProperty("--kisara-r-source-opacity");
     }
   }
 }
