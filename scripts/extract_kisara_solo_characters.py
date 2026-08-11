@@ -937,7 +937,12 @@ def repair_kisara_runtime_ribbon_edges(
         component = labels == label
         area = int(component_stats[label, cv2.CC_STAT_AREA])
         max_alpha = int(alpha[component].max()) if np.any(component) else 0
-        if area <= 4 and max_alpha <= 12 and np.any(component & upper_roi):
+        remove_low_alpha_noise = area <= 4 and max_alpha <= 12
+        remove_marked_floating_fragment = area <= 15 and np.all(target_roi[component])
+        if (
+            (remove_low_alpha_noise or remove_marked_floating_fragment)
+            and np.any(component & upper_roi)
+        ):
             remove |= component
             removed_components += 1
     repaired[remove] = 0
@@ -974,10 +979,78 @@ def repair_kisara_runtime_ribbon_edges(
         ).astype(np.uint8)
         decontaminated[target_y, target_x] = True
 
+    red = repaired[..., 0].astype(np.int16)
+    green = repaired[..., 1].astype(np.int16)
+    blue = repaired[..., 2].astype(np.int16)
+    alpha = repaired[..., 3]
+    ribbon_seed = (
+        target_roi
+        & (alpha >= 12)
+        & (red > green + 40)
+        & (red > blue + 32)
+        & (red > 105)
+    )
+    seed_count, seed_labels, seed_stats, _ = cv2.connectedComponentsWithStats(
+        ribbon_seed.astype(np.uint8),
+        8,
+    )
+    ribbon_seed.fill(False)
+    for label in range(1, seed_count):
+        if int(seed_stats[label, cv2.CC_STAT_AREA]) >= 6:
+            ribbon_seed |= seed_labels == label
+
+    support_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+    ribbon_support = cv2.dilate(ribbon_seed.astype(np.uint8), support_kernel) > 0
+    solid_alpha = ribbon_support & (alpha >= 96)
+    edge_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    rebuilt_solid = cv2.morphologyEx(
+        solid_alpha.astype(np.uint8),
+        cv2.MORPH_CLOSE,
+        edge_kernel,
+    )
+    rebuilt_solid = cv2.morphologyEx(rebuilt_solid, cv2.MORPH_OPEN, edge_kernel) > 0
+    rebuilt_alpha = cv2.GaussianBlur(
+        rebuilt_solid.astype(np.float32) * 255.0,
+        (0, 0),
+        sigmaX=0.48,
+        sigmaY=0.48,
+    )
+    inner_distance = distance_transform_edt(solid_alpha)
+    outer_distance = distance_transform_edt(~solid_alpha)
+    contour_band = (
+        (solid_alpha & (inner_distance <= 2.2))
+        | (~solid_alpha & (outer_distance <= 2.2))
+    )
+    alpha_edit = (
+        target_roi
+        & ribbon_support
+        & (contour_band | (solid_alpha != rebuilt_solid))
+    )
+    old_alpha = alpha.copy()
+    alpha[alpha_edit] = np.clip(rebuilt_alpha[alpha_edit], 0, 255).astype(np.uint8)
+
+    new_edge = alpha_edit & (old_alpha < 12) & (alpha >= 12)
+    safe_red = (
+        (alpha >= 220)
+        & (red > green + 40)
+        & (red > blue + 32)
+        & (red > 105)
+    )
+    if np.any(new_edge) and np.any(safe_red):
+        _, nearest = distance_transform_edt(~safe_red, return_indices=True)
+        repaired[new_edge, :3] = repaired[
+            nearest[0][new_edge],
+            nearest[1][new_edge],
+            :3,
+        ]
+
     return repaired, {
         "floating_components_removed": removed_components,
         "floating_pixels_removed": int(np.count_nonzero(remove)),
         "edge_rgb_pixels_repaired": int(np.count_nonzero(decontaminated)),
+        "ribbon_alpha_pixels_repaired": int(np.count_nonzero(alpha_edit)),
+        "ribbon_alpha_pixels_added": int(np.count_nonzero(alpha > old_alpha)),
+        "ribbon_alpha_pixels_removed": int(np.count_nonzero(alpha < old_alpha)),
     }
 
 
