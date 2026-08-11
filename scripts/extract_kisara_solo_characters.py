@@ -914,6 +914,73 @@ def place_runtime(
     return canvas
 
 
+def repair_kisara_runtime_ribbon_edges(
+    rgba: np.ndarray,
+) -> tuple[np.ndarray, dict[str, int]]:
+    repaired = rgba.copy()
+    alpha = repaired[..., 3]
+    upper_roi = np.zeros(alpha.shape, dtype=bool)
+    upper_roi[451:507, 919:1045] = True
+    target_roi = upper_roi.copy()
+    target_roi[493:545, 932:988] = True
+
+    component_count, labels, component_stats, _ = cv2.connectedComponentsWithStats(
+        (alpha >= 3).astype(np.uint8),
+        8,
+    )
+    main_label = 1 + int(np.argmax(component_stats[1:, cv2.CC_STAT_AREA]))
+    remove = np.zeros(alpha.shape, dtype=bool)
+    removed_components = 0
+    for label in range(1, component_count):
+        if label == main_label:
+            continue
+        component = labels == label
+        area = int(component_stats[label, cv2.CC_STAT_AREA])
+        max_alpha = int(alpha[component].max()) if np.any(component) else 0
+        if area <= 4 and max_alpha <= 12 and np.any(component & upper_roi):
+            remove |= component
+            removed_components += 1
+    repaired[remove] = 0
+
+    red = repaired[..., 0].astype(np.int16)
+    green = repaired[..., 1].astype(np.int16)
+    blue = repaired[..., 2].astype(np.int16)
+    alpha = repaired[..., 3]
+    red_edge = (red > green + 24) & (red > blue + 8) & (red > 88)
+    dark_edge = np.maximum(np.maximum(red, green), blue) < 112
+    partial_edge = (
+        target_roi
+        & (labels == main_label)
+        & (alpha >= 3)
+        & (alpha <= 128)
+    )
+    decontaminated = np.zeros(alpha.shape, dtype=bool)
+    for color_family in (red_edge, dark_edge):
+        safe = (alpha >= 220) & color_family
+        target = partial_edge & color_family
+        if not np.any(safe) or not np.any(target):
+            continue
+        _, nearest = distance_transform_edt(~safe, return_indices=True)
+        nearest_rgb = repaired[nearest[0][target], nearest[1][target], :3].astype(np.float32)
+        current_rgb = repaired[target, :3].astype(np.float32)
+        replace = np.linalg.norm(current_rgb - nearest_rgb, axis=1) > 48.0
+        target_y, target_x = np.where(target)
+        target_y = target_y[replace]
+        target_x = target_x[replace]
+        repaired[target_y, target_x, :3] = np.clip(
+            nearest_rgb[replace] * 0.72 + current_rgb[replace] * 0.28,
+            0,
+            255,
+        ).astype(np.uint8)
+        decontaminated[target_y, target_x] = True
+
+    return repaired, {
+        "floating_components_removed": removed_components,
+        "floating_pixels_removed": int(np.count_nonzero(remove)),
+        "edge_rgb_pixels_repaired": int(np.count_nonzero(decontaminated)),
+    }
+
+
 def save_webp(path: Path, rgba: np.ndarray) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(rgba, mode="RGBA").save(path, "WEBP", quality=94, method=6, exact=True)
@@ -1016,6 +1083,9 @@ def main() -> None:
             )
         stage_bbox = tuple(int(value) for value in config["stage_bbox"])
         runtime = place_runtime(rgba, stage_bbox)
+        runtime_edge_repair_stats: dict[str, int] = {}
+        if character_id == "kisara":
+            runtime, runtime_edge_repair_stats = repair_kisara_runtime_ribbon_edges(runtime)
 
         solo_path = final_dir / f"{character_id}-solo.png"
         aligned_path = final_dir / f"{layer_name}-solo-v1.png"
@@ -1039,6 +1109,7 @@ def main() -> None:
             "reported_repairs": reported_repair_stats,
             "edge_repairs": edge_repair_stats,
             "shoulder_repairs": shoulder_repair_stats,
+            "runtime_edge_repairs": runtime_edge_repair_stats,
             "alignment": alignment_stats,
             "stage_bbox": list(stage_bbox),
             "quality": quality_metrics(rgba, key_rgb),
