@@ -1054,6 +1054,187 @@ def repair_kisara_runtime_ribbon_edges(
     }
 
 
+def repair_kisara_runtime_hair_and_ribbon(
+    rgba: np.ndarray,
+    source_bgr: np.ndarray,
+    source_rgba: np.ndarray,
+    target_bbox: tuple[int, int, int, int],
+) -> tuple[np.ndarray, dict[str, int]]:
+    repaired = rgba.copy()
+    original_alpha = repaired[..., 3].copy()
+    hair_mask = np.zeros(original_alpha.shape, dtype=np.uint8)
+    ribbon_mask = np.zeros(original_alpha.shape, dtype=np.uint8)
+    for left, top, right, bottom in (
+        (991, 470, 1004, 486),
+        (1009, 473, 1021, 488),
+        (1004, 485, 1014, 501),
+        (1027, 498, 1037, 511),
+        (1036, 503, 1045, 516),
+    ):
+        hair_mask[top:bottom, left:right] = 255
+    for left, top, right, bottom in (
+        (931, 498, 942, 510),
+        (944, 510, 955, 521),
+        (954, 517, 967, 533),
+    ):
+        ribbon_mask[top:bottom, left:right] = 255
+
+    source_alpha = source_rgba[..., 3]
+    source_y, source_x = np.where(source_alpha > 0)
+    source_left = int(source_x.min())
+    source_top = int(source_y.min())
+    source_right = int(source_x.max()) + 1
+    source_bottom = int(source_y.max()) + 1
+    source_crop = np.s_[source_top:source_bottom, source_left:source_right]
+    left, top, right, bottom = target_bbox
+    available_width = right - left
+    available_height = bottom - top
+    scale = min(
+        available_width / (source_right - source_left),
+        available_height / (source_bottom - source_top),
+    )
+    target_width = max(1, int(round((source_right - source_left) * scale)))
+    target_height = max(1, int(round((source_bottom - source_top) * scale)))
+    target_left = left + (available_width - target_width) // 2
+    target_top = top + (available_height - target_height) // 2
+
+    source_rgb = cv2.cvtColor(source_bgr, cv2.COLOR_BGR2RGB)
+    red = source_rgb[..., 0].astype(np.int16)
+    green = source_rgb[..., 1].astype(np.int16)
+    blue = source_rgb[..., 2].astype(np.int16)
+    clean_green = (
+        (green > red + 55)
+        & (green > blue + 45)
+        & (green > 145)
+        & (red < 95)
+    )
+    _, nearest_background = distance_transform_edt(~clean_green, return_indices=True)
+    background = source_rgb[
+        nearest_background[0],
+        nearest_background[1],
+    ].astype(np.float32)
+    color_distance = np.linalg.norm(source_rgb.astype(np.float32) - background, axis=2)
+    chroma_alpha = smoothstep(10.0, 72.0, color_distance) * 255.0
+
+    runtime_source = np.zeros(repaired.shape[:2] + (3,), dtype=np.uint8)
+    runtime_chroma = np.zeros(repaired.shape[:2], dtype=np.float32)
+    runtime_solo_rgb = np.zeros(repaired.shape[:2] + (3,), dtype=np.uint8)
+    runtime_solo_alpha = np.zeros(repaired.shape[:2], dtype=np.float32)
+    placement = np.s_[
+        target_top : target_top + target_height,
+        target_left : target_left + target_width,
+    ]
+    runtime_source[placement] = cv2.resize(
+        source_rgb[source_crop],
+        (target_width, target_height),
+        interpolation=cv2.INTER_LANCZOS4,
+    )
+    runtime_chroma[placement] = cv2.resize(
+        chroma_alpha[source_crop].astype(np.float32),
+        (target_width, target_height),
+        interpolation=cv2.INTER_LANCZOS4,
+    )
+    solo_crop = source_rgba[source_crop]
+    solo_alpha = solo_crop[..., 3:4].astype(np.float32) / 255.0
+    solo_premultiplied = solo_crop[..., :3].astype(np.float32) * solo_alpha
+    resized_solo_alpha = cv2.resize(
+        solo_alpha,
+        (target_width, target_height),
+        interpolation=cv2.INTER_LANCZOS4,
+    )
+    resized_solo_premultiplied = cv2.resize(
+        solo_premultiplied,
+        (target_width, target_height),
+        interpolation=cv2.INTER_LANCZOS4,
+    )
+    if resized_solo_alpha.ndim == 2:
+        resized_solo_alpha = resized_solo_alpha[..., None]
+    resized_solo_rgb = np.divide(
+        resized_solo_premultiplied,
+        np.maximum(resized_solo_alpha, 1e-6),
+        out=np.zeros_like(resized_solo_premultiplied),
+        where=resized_solo_alpha > 1e-6,
+    )
+    runtime_solo_rgb[placement] = np.clip(resized_solo_rgb, 0, 255).astype(np.uint8)
+    runtime_solo_alpha[placement] = np.clip(resized_solo_alpha[..., 0] * 255.0, 0, 255)
+    runtime_chroma = np.clip(runtime_chroma, 0, 255)
+
+    runtime_red = runtime_source[..., 0].astype(np.int16)
+    runtime_green = runtime_source[..., 1].astype(np.int16)
+    runtime_blue = runtime_source[..., 2].astype(np.int16)
+    red_ribbon = (
+        (runtime_red > runtime_green + 34)
+        & (runtime_red > runtime_blue + 16)
+        & (runtime_red > 105)
+    )
+    hair_family = (
+        (runtime_red > 30)
+        & (runtime_green > 45)
+        & (runtime_blue > 62)
+        & (runtime_blue * 2 > runtime_red)
+        & ~red_ribbon
+    )
+
+    def feather_marked(mask: np.ndarray) -> np.ndarray:
+        softened = cv2.GaussianBlur(
+            mask.astype(np.float32) / 255.0,
+            (0, 0),
+            sigmaX=0.58,
+            sigmaY=0.58,
+        )
+        return np.clip(softened, 0.0, 1.0) * (mask > 0)
+
+    current_alpha = repaired[..., 3].astype(np.float32)
+    desired_hair = np.where(hair_family, runtime_chroma, 0.0)
+    hair_weight = feather_marked(hair_mask)
+    hair_target = np.maximum(current_alpha, desired_hair)
+    repaired[..., 3] = np.clip(
+        current_alpha * (1.0 - hair_weight) + hair_target * hair_weight,
+        0,
+        255,
+    ).astype(np.uint8)
+    hair_added = repaired[..., 3] > original_alpha
+
+    hair_neighborhood = cv2.dilate(
+        hair_mask,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25)),
+    ) > 0
+    strong_hair = hair_family & (runtime_solo_alpha >= 160) & hair_neighborhood
+    if np.any(strong_hair) and np.any(hair_added):
+        _, nearest_hair = distance_transform_edt(~strong_hair, return_indices=True)
+        repaired[hair_added, :3] = runtime_solo_rgb[
+            nearest_hair[0][hair_added],
+            nearest_hair[1][hair_added],
+        ]
+
+    red_support = cv2.dilate(
+        (red_ribbon & (runtime_chroma >= 72)).astype(np.uint8),
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)),
+    ) > 0
+    desired_ribbon = np.where(red_support, runtime_chroma, 0.0)
+    current_alpha = repaired[..., 3].astype(np.float32)
+    inside_distance = distance_transform_edt(current_alpha >= 16)
+    ribbon_contour = (inside_distance <= 3.4) | (current_alpha < 230)
+    ribbon_weight = feather_marked((ribbon_mask > 0) & ribbon_contour)
+    ribbon_target = np.minimum(current_alpha, desired_ribbon)
+    repaired[..., 3] = np.clip(
+        current_alpha * (1.0 - ribbon_weight) + ribbon_target * ribbon_weight,
+        0,
+        255,
+    ).astype(np.uint8)
+    ribbon_removed = repaired[..., 3] < original_alpha
+    repaired[ribbon_removed & (repaired[..., 3] == 0), :3] = 0
+
+    changed = np.any(repaired != rgba, axis=2)
+    allowed = (hair_mask > 0) | (ribbon_mask > 0)
+    return repaired, {
+        "hair_alpha_pixels_added": int(np.count_nonzero(hair_added)),
+        "ribbon_alpha_pixels_removed": int(np.count_nonzero(ribbon_removed)),
+        "source_guided_pixels_changed": int(np.count_nonzero(changed)),
+        "source_guided_pixels_outside_rois": int(np.count_nonzero(changed & ~allowed)),
+    }
+
+
 def save_webp(path: Path, rgba: np.ndarray) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(rgba, mode="RGBA").save(path, "WEBP", quality=94, method=6, exact=True)
@@ -1157,8 +1338,15 @@ def main() -> None:
         stage_bbox = tuple(int(value) for value in config["stage_bbox"])
         runtime = place_runtime(rgba, stage_bbox)
         runtime_edge_repair_stats: dict[str, int] = {}
+        runtime_source_repair_stats: dict[str, int] = {}
         if character_id == "kisara":
             runtime, runtime_edge_repair_stats = repair_kisara_runtime_ribbon_edges(runtime)
+            runtime, runtime_source_repair_stats = repair_kisara_runtime_hair_and_ribbon(
+                runtime,
+                original_source_bgr,
+                rgba,
+                stage_bbox,
+            )
 
         solo_path = final_dir / f"{character_id}-solo.png"
         aligned_path = final_dir / f"{layer_name}-solo-v1.png"
@@ -1183,6 +1371,7 @@ def main() -> None:
             "edge_repairs": edge_repair_stats,
             "shoulder_repairs": shoulder_repair_stats,
             "runtime_edge_repairs": runtime_edge_repair_stats,
+            "runtime_source_repairs": runtime_source_repair_stats,
             "alignment": alignment_stats,
             "stage_bbox": list(stage_bbox),
             "quality": quality_metrics(rgba, key_rgb),
