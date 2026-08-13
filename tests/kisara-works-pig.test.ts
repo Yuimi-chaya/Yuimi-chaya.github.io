@@ -35,3 +35,12 @@ test("Pig bounces from side and top walls, never the bottom, then fades", () => 
   assert.match(projectsCssSource, /kisara-works-pig-impact/);
   assert.match(projectsCssSource, /@keyframes kisara-works-pig-hit/);
 });
+
+test("Works title cut exposes a persistent cut face and replayable blade feedback", () => {
+  assert.equal((projectsPageSource.match(/kisara-works-title-cut-face/g) ?? []).length, 2);
+  assert.match(projectsCssSource, /data-cut-face/);
+  assert.match(projectsCssSource, /kisara-works-title-cut-face-reveal/);
+  assert.match(projectsCssSource, /is-knife-active \.kisara-works-title-cut-face/);
+  assert.match(projectsCssSource, /is-knife-active \.kisara-works-title-cut i/);
+  assert.match(projectsCssSource, /prefers-reduced-motion: reduce/);
+});
