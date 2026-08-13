@@ -40,6 +40,8 @@ test("Works title cut exposes a persistent cut face and replayable blade feedbac
   assert.equal((projectsPageSource.match(/kisara-works-title-cut-face/g) ?? []).length, 2);
   assert.match(projectsCssSource, /data-cut-face/);
   assert.match(projectsCssSource, /kisara-works-title-cut-face-reveal/);
+  assert.match(projectsCssSource, /\.kisara-works-title-cut-face::before[\s\S]*position: absolute/);
+  assert.match(projectsCssSource, /\.kisara-works-title-cut-face::before[\s\S]*inset: 0/);
   assert.match(projectsCssSource, /is-knife-active \.kisara-works-title-cut-face/);
   assert.match(projectsCssSource, /is-knife-active \.kisara-works-title-cut i/);
   assert.match(projectsCssSource, /prefers-reduced-motion: reduce/);
