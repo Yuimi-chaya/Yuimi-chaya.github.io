@@ -59,3 +59,11 @@ test("Opening hint strike keeps the Pulse-style layered motion and reduced-motio
   assert.match(homeCssSource, /is-hint-achieved/);
   assert.match(homeCssSource, /prefers-reduced-motion: reduce/);
 });
+
+test("Each achieved opening hint draws one continuous stroke across its full sentence", () => {
+  const hintCopies = openingSource.match(/<span class="kisara-opening-easter-hint-copy">[\s\S]*?<\/span><\/span>/g) ?? [];
+  assert.equal(hintCopies.length, hintIds.length);
+  for (const hintCopy of hintCopies) {
+    assert.equal((hintCopy.match(/kisara-opening-easter-hint-fragment/g) ?? []).length, 1);
+  }
+});

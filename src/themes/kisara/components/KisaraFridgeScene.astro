@@ -208,13 +208,16 @@ import { Icon } from "astro-icon/components";
         let stallRecoveries = 0;
         let reloadPipelineOnResume = false;
         let playbackEndedHandler: (() => void) | null = null;
+        let bodyReleaseHandler: (() => void) | null = null;
         let animationFrame = 0;
         let lastFrameAt = 0;
         let boundsWidth = 1;
         let boundsHeight = 1;
         let floorY = 1;
         let activeDrag: FridgeBody | null = null;
+        let bodiesLaunched = false;
         const launchTimers: number[] = [];
+        const bodyDropStartTime = 1;
         const spawnRatios = [0.61, 0.75, 0.87];
         const settledAngles = [-0.09, 0.06, -0.045];
 
@@ -274,6 +277,7 @@ import { Icon } from "astro-icon/components";
         const resetBodies = () => {
           clearLaunchTimers();
           stopLoop();
+          bodiesLaunched = false;
           measureBodies();
           bodies.forEach((body, index) => {
             body.active = false;
@@ -292,6 +296,7 @@ import { Icon } from "astro-icon/components";
 
         const placeBodiesForReducedMotion = () => {
           measureBodies();
+          bodiesLaunched = true;
           bodies.forEach((body, index) => {
             body.active = true;
             body.x = boundsWidth * spawnRatios[index];
@@ -357,7 +362,7 @@ import { Icon } from "astro-icon/components";
 
         const tick = (now: number) => {
           animationFrame = 0;
-          if (!sceneVisible || !opened) return;
+          if (!sceneVisible || !bodiesLaunched) return;
           if (!lastFrameAt) lastFrameAt = now;
           const deltaTime = Math.min(0.032, Math.max(0.001, (now - lastFrameAt) / 1000));
           lastFrameAt = now;
@@ -421,17 +426,19 @@ import { Icon } from "astro-icon/components";
         };
 
         const ensureLoop = () => {
-          if (!animationFrame && sceneVisible && opened && !reducedMotion) {
+          if (!animationFrame && sceneVisible && bodiesLaunched && !reducedMotion) {
             lastFrameAt = 0;
             animationFrame = requestAnimationFrame(tick);
           }
         };
 
         const launchBodies = () => {
+          if (bodiesLaunched) return;
           resetBodies();
+          bodiesLaunched = true;
           bodies.forEach((body, index) => {
             const timer = window.setTimeout(() => {
-              if (signal.aborted || !opened) return;
+              if (signal.aborted || !bodiesLaunched || (!openingStarted && !opened)) return;
               body.active = true;
               body.x = boundsWidth * spawnRatios[index];
               body.y = -body.height * 0.55;
@@ -446,12 +453,18 @@ import { Icon } from "astro-icon/components";
           });
         };
 
+        const clearBodyReleaseHandler = () => {
+          if (bodyReleaseHandler) video.removeEventListener("timeupdate", bodyReleaseHandler);
+          bodyReleaseHandler = null;
+        };
+
         const finishOpening = () => {
           if (opened) return;
           playbackGeneration += 1;
           if (playbackWatchdog) window.clearTimeout(playbackWatchdog);
           if (playbackRetryTimer) window.clearTimeout(playbackRetryTimer);
           if (playbackEndedHandler) video.removeEventListener("ended", playbackEndedHandler);
+          clearBodyReleaseHandler();
           playbackWatchdog = 0;
           playbackRetryTimer = 0;
           playbackEndedHandler = null;
@@ -471,6 +484,7 @@ import { Icon } from "astro-icon/components";
           if (playbackWatchdog) window.clearTimeout(playbackWatchdog);
           if (playbackRetryTimer) window.clearTimeout(playbackRetryTimer);
           if (playbackEndedHandler) video.removeEventListener("ended", playbackEndedHandler);
+          clearBodyReleaseHandler();
           playbackWatchdog = 0;
           playbackRetryTimer = 0;
           playbackEndedHandler = null;
@@ -592,6 +606,13 @@ import { Icon } from "astro-icon/components";
           };
           playbackEndedHandler = handleEnded;
           video.addEventListener("ended", handleEnded, { once: true });
+          bodyReleaseHandler = () => {
+            if (openingStarted && !opened && video.currentTime >= bodyDropStartTime) {
+              clearBodyReleaseHandler();
+              launchBodies();
+            }
+          };
+          video.addEventListener("timeupdate", bodyReleaseHandler);
           schedulePlaybackWatchdog(playGeneration, 0);
           void video.play().catch(() => recoverStalledOpening(playGeneration));
         };
