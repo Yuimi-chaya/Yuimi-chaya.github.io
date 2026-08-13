@@ -36,13 +36,10 @@ test("Pig bounces from side and top walls, never the bottom, then fades", () => 
   assert.match(projectsCssSource, /@keyframes kisara-works-pig-hit/);
 });
 
-test("Works title cut exposes a persistent cut face and replayable blade feedback", () => {
-  assert.equal((projectsPageSource.match(/kisara-works-title-cut-face/g) ?? []).length, 2);
-  assert.match(projectsCssSource, /data-cut-face/);
-  assert.match(projectsCssSource, /kisara-works-title-cut-face-reveal/);
-  assert.match(projectsCssSource, /\.kisara-works-title-cut-face::before[\s\S]*position: absolute/);
-  assert.match(projectsCssSource, /\.kisara-works-title-cut-face::before[\s\S]*inset: 0/);
-  assert.match(projectsCssSource, /is-knife-active \.kisara-works-title-cut-face/);
+test("Works title cut stays single-layer while replaying the blade feedback", () => {
+  assert.doesNotMatch(projectsPageSource, /data-cut-copy|kisara-works-title-cut-face|data-cut-face/);
+  assert.match(projectsCssSource, /\.kisara-works-editorial h1 span[\s\S]*background-clip: text/);
+  assert.match(projectsCssSource, /\.kisara-works-editorial h1 em[\s\S]*background-clip: text/);
   assert.match(projectsCssSource, /is-knife-active \.kisara-works-title-cut i/);
   assert.match(projectsCssSource, /prefers-reduced-motion: reduce/);
 });
