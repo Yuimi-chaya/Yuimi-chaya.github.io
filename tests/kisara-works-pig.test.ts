@@ -36,10 +36,18 @@ test("Pig bounces from side and top walls, never the bottom, then fades", () => 
   assert.match(projectsCssSource, /@keyframes kisara-works-pig-hit/);
 });
 
-test("Works title cut stays single-layer while replaying the blade feedback", () => {
-  assert.doesNotMatch(projectsPageSource, /data-cut-copy|kisara-works-title-cut-face|data-cut-face/);
-  assert.match(projectsCssSource, /\.kisara-works-editorial h1 span[\s\S]*background-clip: text/);
-  assert.match(projectsCssSource, /\.kisara-works-editorial h1 em[\s\S]*background-clip: text/);
+test("Works title uses one measured canvas model for its split-and-merge cut", () => {
+  assert.match(projectsPageSource, /data-works-title-canvas/);
+  assert.match(projectsPageSource, /const measureWorksTitleCanvas =/);
+  assert.match(projectsPageSource, /const triggerWorksTitleCut =/);
+  assert.match(projectsPageSource, /triggerWorksTitleCut\("intro"\)/);
+  assert.match(projectsPageSource, /triggerWorksTitleCut\("recut"\)/);
+  assert.match(projectsPageSource, /document\.fonts\?\.ready/);
+  assert.match(projectsPageSource, /new ResizeObserver\(scheduleWorksTitleMeasure\)/);
+  assert.match(projectsPageSource, /document\.createElement\("canvas"\)/);
+  assert.match(projectsPageSource, /const finishWorksTitleCut =/);
+  assert.match(projectsCssSource, /\.kisara-works-title-canvas/);
+  assert.match(projectsCssSource, /is-title-canvas-active/);
   assert.match(projectsCssSource, /is-knife-active \.kisara-works-title-cut i/);
   assert.match(projectsCssSource, /prefers-reduced-motion: reduce/);
 });
