@@ -137,6 +137,19 @@ import { Icon } from "astro-icon/components";
           <path d="m38 19 16 8 18-7 19 7 20-8 20 8 20-7 17 8 18-8-9 27 9 190-18-7-18 9-20-8-20 9-19-9-19 8-18-9-17 8 8-190Z" fill="none" stroke="#53122f" stroke-width="3" opacity="0.68" />
         </svg>
       </button>
+
+      <button class="kisara-fridge-body is-pig-capsule" type="button" data-fridge-body data-fridge-kind="pig-capsule" aria-label="按住拖拽装着小猪的透明胶囊">
+        <span class="kisara-fridge-pig-capsule" aria-hidden="true">
+          <img
+            src="/themes/fuyukawa-kagari/assets/mini-pig-scroll.webp"
+            alt=""
+            width="1899"
+            height="1625"
+            loading="eager"
+            decoding="async"
+          />
+        </span>
+      </button>
     </div>
 
     <button class="kisara-fridge-replay" type="button" data-fridge-replay aria-label="重新播放冰箱开门" title="重新播放冰箱开门">
@@ -195,7 +208,7 @@ import { Icon } from "astro-icon/components";
         const status = this.querySelector<HTMLElement>("[data-fridge-status]");
         const replay = this.querySelector<HTMLButtonElement>("[data-fridge-replay]");
         const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        if (!video || !stage || bodyElements.length !== 3) return;
+        if (!video || !stage || bodyElements.length !== 4) return;
 
         let sceneVisible = false;
         let openingStarted = false;
@@ -217,9 +230,9 @@ import { Icon } from "astro-icon/components";
         let activeDrag: FridgeBody | null = null;
         let bodiesLaunched = false;
         const launchTimers: number[] = [];
-        const bodyDropStartTime = 1;
-        const spawnRatios = [0.61, 0.75, 0.87];
-        const settledAngles = [-0.09, 0.06, -0.045];
+        const bodyDropStartTime = 0.88;
+        const spawnRatios = [0.57, 0.69, 0.82, 0.94];
+        const settledAngles = [-0.09, 0.06, -0.045, 0.08];
 
         const bodies: FridgeBody[] = bodyElements.map((element, index) => ({
           element,
@@ -442,9 +455,9 @@ import { Icon } from "astro-icon/components";
               body.active = true;
               body.x = boundsWidth * spawnRatios[index];
               body.y = -body.height * 0.55;
-              body.vx = [-64, 34, -26][index];
+              body.vx = [-64, 34, -26, -38][index];
               body.vy = 130 + index * 42;
-              body.angularVelocity = [-0.72, 0.58, -0.45][index];
+              body.angularVelocity = [-0.72, 0.58, -0.45, 0.4][index];
               body.element.classList.add("is-launched");
               renderBody(body);
               ensureLoop();

@@ -8,10 +8,13 @@ const fridgeSource = readFileSync(
   "utf8"
 );
 
-test("Fridge inventory begins dropping when the door reaches its open frame", () => {
-  assert.match(fridgeSource, /const bodyDropStartTime = 1;/);
+test("Fridge inventory begins dropping just before the door reaches its open frame", () => {
+  assert.match(fridgeSource, /const bodyDropStartTime = 0\.88;/);
   assert.match(fridgeSource, /video\.addEventListener\("timeupdate", bodyReleaseHandler\)/);
   assert.match(fridgeSource, /video\.currentTime >= bodyDropStartTime/);
+  assert.match(fridgeSource, /bodyElements\.length !== 4/);
+  assert.match(fridgeSource, /data-fridge-kind="pig-capsule"/);
+  assert.match(fridgeSource, /mini-pig-scroll\.webp/);
 
   const startOpening = fridgeSource.slice(fridgeSource.indexOf("const startOpening"));
   const bodyReleaseIndex = startOpening.indexOf("bodyReleaseHandler =");

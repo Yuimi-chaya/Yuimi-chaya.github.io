@@ -6720,6 +6720,72 @@ html.kisara-event-modal-open {
   aspect-ratio: 220 / 280;
 }
 
+.kisara-fridge-body.is-pig-capsule {
+  width: clamp(82px, 6.3vw, 108px);
+  aspect-ratio: 118 / 146;
+}
+
+.kisara-fridge-pig-capsule {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(235, 250, 255, 0.74);
+  border-radius: 48% 48% 45% 45% / 39% 39% 50% 50%;
+  background:
+    linear-gradient(112deg, rgba(255, 255, 255, 0.46) 0 13%, transparent 30% 64%, rgba(146, 211, 235, 0.28) 100%),
+    radial-gradient(circle at 67% 74%, rgba(255, 148, 190, 0.32), transparent 40%),
+    rgba(202, 239, 250, 0.14);
+  box-shadow:
+    inset 9px 8px 14px rgba(255, 255, 255, 0.26),
+    inset -10px -12px 17px rgba(74, 157, 188, 0.17),
+    0 3px 10px rgba(118, 213, 239, 0.2);
+  isolation: isolate;
+}
+
+.kisara-fridge-pig-capsule::before,
+.kisara-fridge-pig-capsule::after {
+  position: absolute;
+  z-index: 2;
+  content: "";
+  pointer-events: none;
+}
+
+.kisara-fridge-pig-capsule::before {
+  top: 9%;
+  left: 14%;
+  width: 27%;
+  height: 46%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0));
+  filter: blur(1px);
+  opacity: 0.74;
+  transform: rotate(17deg);
+}
+
+.kisara-fridge-pig-capsule::after {
+  right: 11%;
+  bottom: 13%;
+  left: 11%;
+  height: 17%;
+  border-radius: 50%;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  background: radial-gradient(ellipse at center, rgba(237, 253, 255, 0.36), transparent 72%);
+}
+
+.kisara-fridge-pig-capsule img {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 83%;
+  height: 72%;
+  object-fit: contain;
+  pointer-events: none;
+  transform: translateY(3%) rotate(-3deg);
+}
+
 .kisara-fridge-body.is-launched {
   opacity: 1;
   pointer-events: auto;
@@ -6743,13 +6809,16 @@ html.kisara-event-modal-open {
 
 @media (hover: hover) and (pointer: fine) {
   .kisara-fridge-body.is-launched:hover svg,
-  .kisara-fridge-body.is-launched:focus-visible svg {
+  .kisara-fridge-body.is-launched:focus-visible svg,
+  .kisara-fridge-body.is-launched:hover .kisara-fridge-pig-capsule,
+  .kisara-fridge-body.is-launched:focus-visible .kisara-fridge-pig-capsule {
     transform: translateY(-2px) scale(1.025);
     filter: saturate(1.08) brightness(1.04);
   }
 }
 
-.kisara-fridge-body:focus-visible svg {
+.kisara-fridge-body:focus-visible svg,
+.kisara-fridge-body:focus-visible .kisara-fridge-pig-capsule {
   filter: drop-shadow(0 0 8px rgba(255, 181, 205, 0.82));
 }
 
@@ -6903,6 +6972,10 @@ html.kisara-event-modal-open {
     width: clamp(76px, 22vw, 92px);
   }
 
+  .kisara-fridge-body.is-pig-capsule {
+    width: clamp(68px, 18vw, 82px);
+  }
+
   .kisara-fridge-physics::after {
     right: 0;
     left: 48%;
@@ -6920,6 +6993,7 @@ html.kisara-event-modal-open {
   .kisara-fridge-copy,
   .kisara-fridge-body,
   .kisara-fridge-body svg,
+  .kisara-fridge-pig-capsule,
   .kisara-fridge-replay,
   .kisara-fridge-physics::after {
     animation: none !important;
