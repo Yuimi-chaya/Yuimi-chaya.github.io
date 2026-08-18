@@ -1,6 +1,10 @@
 <div align="center">
 
-# Yuimi Lab
+<h1>
+  <img src="./public/themes/kisara/favicon.ico" width="32" height="32" alt="Kisara" />
+  Yuimi Lab
+  <img src="./public/themes/fuyukawa-kagari/assets/pig-favicon.png" width="32" height="32" alt="Fuyukawa Kagari" />
+</h1>
 
 **一个将二次元叙事、可玩交互与技术记录放进同一处的 Astro 个人博客。**
 
@@ -39,19 +43,21 @@ Yuimi Lab 不是简单换一层颜色的主题站点。每套主题都有自己�
 
 Kisara 是这个博客最具角色感的一面。它不把首页当作静态封面，而是把访问过程设计成可推进、可发现、可返回的场景序列：深靛蓝的底色、粉红和蓝色的能量、Canvas 与 WebGL 的画面层，以及围绕角色展开的路线和记忆。
 
-![Kisara 首页开场与门扉交互](./public/readme/kisara-home-desktop.png)
+![Kisara 首页舞台与门扉交互](./public/readme/kisara-home-stage.gif)
 
 ### 一次访问，从进入场景开始
 
 首页的开场由门扉、能量反馈、标题画布和自动/跳过控制共同组成。继续向下，页面并不会变成普通信息流：Opening Memory 用多层画面与记忆提示建立情绪，`002` 冰箱场景会按视频时间释放可交互物体，`Event 003` 则把照片热点、线索、成就和隐藏奖励放进一段小型调查。
 
-这种设计的重点不是堆叠特效，而是让每个段落有明确职责。读者可以浏览最新文章，也可以停下来操作、探索，并从页面留下的细节中理解这套主题的叙事顺序。
+![Kisara Event 003 的调查片段](./public/readme/kisara-find003.gif)
+
+这种设计的重点不是堆叠特效，而是让每个段落有明确职责。读者可以浏览最新文章，也可以停下来操作、探索，并从页面留下的细节中理解这套主题的叙事顺序。Chibi 路线和隐藏提示则把部分线索藏在不打扰阅读的细节里，给愿意多停留一会儿的人一条轻量的支线。
+
+![Kisara Chibi 路线片段](./public/readme/kisara-chibi.gif)
 
 ### 不只是博客页
 
 Kisara 为 Home、Blog、文章页、Games、Works、About 和 Friends 分别设计了页面结构。文章页保留阅读节奏，Blog 支持筛选与检索；Works 是可以直接玩起来的操作台，Games 和个人页则继续延展角色与场景的关系。
-
-![Kisara Works 的切割操作台](./public/readme/kisara-works-desktop.png)
 
 Works 页面把标题切开、分离和重组成短暂的 Canvas 动画，并让水果切割成为可重复触发的反馈。画面里的小猪是一个低频出现、不能被直接切开的特殊目标：它会阻断刀路、受碰撞影响反弹，给操作过程留下一点意外。
 
@@ -59,9 +65,11 @@ Works 页面把标题切开、分离和重组成短暂的 Canvas 动画，并让
 
 主题拥有独立的持久音乐控制，也把部分内容放进同标签页、一次性的探索条件里。完成指定访问路线并发现线索后，Lovebrain 会开启一条单独的互动章节：滚轮、键盘和触摸可以推进画面，角色焦点、视频 scrub 和音乐共同构成这段短暂的分支体验。
 
-这类内容不会挤占普通阅读。它们有明确的进入条件、页面模式和清理逻辑；离开后，默认首页的运行时会恢复，故事留下痕迹而不会把页面状态带到不该去的地方。
+![Kisara Lovebrain 互动章节](./public/readme/kisara-lovebrain.gif)
 
-![Kisara Friends 的轨道式友链页面](./public/readme/kisara-friends-desktop.png)
+这类内容不会挤占普通阅读。它们有明确的进入条件、页面模式和清理逻辑；离开后，默认首页的运行时会恢复，故事留下痕迹而不会把页面状态带到不该去的地方。Profile 与 Friends 则把这份叙事落回人物和连接本身，让站点保留一个可以安静停靠的内页。
+
+![Kisara Profile 记忆片段](./public/readme/kisara-me.gif)
 
 ### Kisara 适合什么
 
@@ -72,8 +80,6 @@ Works 页面把标题切开、分离和重组成短暂的 Canvas 动画，并让
 ## Fuyukawa Kagari：保留完整的手账宇宙
 
 Fuyukawa Kagari 不是 Kisara 之前的残留版本，而是一套仍然完整、独立维护的主题。它位于 `/themes/fuyukawa-kagari/`，拥有自己的页面布局、主题资源、导航、SEO 与交互脚本。进入这个入口，就像翻开另一册个人手账：温和、轻松，也更适合慢慢浏览。
-
-![Fuyukawa Kagari 的首页与身份卡](./public/readme/fuyukawa-home-desktop.png)
 
 ### 从手账开始，而不是从舞台开始
 
@@ -169,7 +175,7 @@ src/
 
 public/
 ├─ themes/                       各主题公开运行时资源
-└─ readme/                       README 页面截图
+└─ readme/                       README 动图与展示资源
 
 scripts/                         本地资源生成与优化脚本
 tests/                           静态回归测试
