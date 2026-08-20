@@ -44,6 +44,6 @@ test("Works title uses a CSS print-and-registration entrance without cut layers"
   assert.match(projectsCssSource, /kisara-works-title-registration-line/);
   assert.match(projectsCssSource, /kisara-works-title-registration-mark/);
   assert.match(projectsCssSource, /prefers-reduced-motion: reduce/);
-  assert.doesNotMatch(projectsPageSource, /data-works-title-canvas|data-works-title-line|triggerWorksTitleCut|finishWorksTitleCut/);
+  assert.doesNotMatch(projectsPageSource, /data-works-title-canvas|data-works-title-line|triggerWorksTitleCut|finishWorksTitleCut|scheduleWorksTitleMeasure/);
   assert.doesNotMatch(projectsCssSource, /kisara-works-title-canvas|kisara-works-title-cut|kisara-works-blade-pass|is-title-canvas-active/);
 });
