@@ -133,6 +133,7 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
 test("Lovebrain uses a dedicated page mode and bridge transport", () => {
   assert.match(homeSource, /let lovebrainActive = false/);
   assert.match(homeSource, /pageMode = "lovebrain"/);
+  assert.match(homeSource, /const enterNextPage = \(onArrival = null\) =>/);
   assert.match(homeSource, /const enterLovebrainNextPage =/);
   assert.match(homeSource, /window\.__yuimiKisaraHomeLovebrain/);
   assert.match(homeSource, /activate: activateLovebrain/);
@@ -154,6 +155,10 @@ test("Lovebrain uses a dedicated page mode and bridge transport", () => {
   assert.doesNotMatch(forwardSource, /scheduleWarningWarmup/);
   assert.match(forwardSource, /lovebrainExitCommitted = true/);
   assert.match(forwardSource, /lovebrainActive = false/);
+  assert.match(forwardSource, /gate\.classList\.remove\("is-lovebrain-active"\)/);
+  assert.match(forwardSource, /document\.body\.classList\.remove\("is-lovebrain-home-active"\)/);
+  assert.match(forwardSource, /const started = enterNextPage\(/);
+  assert.doesNotMatch(forwardSource, /smoothScrollTo\(/);
   assert.match(forwardSource, /finalizeLovebrainExit\(\)/);
   assert.match(finalizeSource, /document\.body\.classList\.remove\("is-lovebrain-home-active"\)/);
   assert.match(finalizeSource, /startSpaceLens\(\)/);

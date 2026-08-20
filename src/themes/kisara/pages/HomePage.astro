@@ -12842,7 +12842,7 @@ const gateStyle = [
         settleOpeningBridgeDissolve();
       };
 
-      const enterNextPage = () => {
+      const enterNextPage = (onArrival = null) => {
         if (lovebrainActive || pageMode === "lovebrain" || scrollTransitionDirection === "forward") return;
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
         clearOpeningTitleBridgeDissolve();
@@ -12862,6 +12862,7 @@ const gateStyle = [
           lockOpeningEdgeState();
           gateVisualResetPending = true;
           if (foundSelfState === "leaving") finalizeFoundSelfExit();
+          if (typeof onArrival === "function") onArrival();
         }, () => {
           syncOpeningEdgeLiveGeometry(true);
         }, "forward");
@@ -12897,15 +12898,20 @@ const gateStyle = [
         opening?.classList.add("is-lovebrain-transporting");
         lovebrainExitCommitted = true;
         lovebrainActive = false;
-        const started = smoothScrollTo(getNextPageTop(), () => {
-          pageMode = "next";
-          lastObservedScrollY = window.scrollY;
-          finalizeLovebrainExit();
-        }, undefined, "forward", "lovebrain");
+        gate.classList.remove("is-lovebrain-active");
+        document.body.classList.remove("is-lovebrain-home-active");
+        startSpaceLens();
+        startTitleLens();
+        const started = enterNextPage(() => {
+          if (lovebrainExitCommitted) finalizeLovebrainExit();
+        });
         if (!started) {
           lovebrainActive = true;
           lovebrainExitCommitted = false;
           pageMode = "lovebrain";
+          gate.classList.add("is-lovebrain-active");
+          document.body.classList.add("is-lovebrain-home-active");
+          stopLovebrainDefaultResources();
           gate.classList.remove("is-lovebrain-transporting");
           opening?.classList.remove("is-lovebrain-transporting");
         }
