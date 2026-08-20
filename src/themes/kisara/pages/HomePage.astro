@@ -12842,7 +12842,7 @@ const gateStyle = [
         settleOpeningBridgeDissolve();
       };
 
-      const enterNextPage = (onArrival = null) => {
+      const enterNextPage = () => {
         if (lovebrainActive || pageMode === "lovebrain" || scrollTransitionDirection === "forward") return;
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
         clearOpeningTitleBridgeDissolve();
@@ -12862,7 +12862,6 @@ const gateStyle = [
           lockOpeningEdgeState();
           gateVisualResetPending = true;
           if (foundSelfState === "leaving") finalizeFoundSelfExit();
-          if (typeof onArrival === "function") onArrival();
         }, () => {
           syncOpeningEdgeLiveGeometry(true);
         }, "forward");
@@ -12898,20 +12897,24 @@ const gateStyle = [
         opening?.classList.add("is-lovebrain-transporting");
         lovebrainExitCommitted = true;
         lovebrainActive = false;
-        gate.classList.remove("is-lovebrain-active");
-        document.body.classList.remove("is-lovebrain-home-active");
-        startSpaceLens();
-        startTitleLens();
-        const started = enterNextPage(() => {
-          if (lovebrainExitCommitted) finalizeLovebrainExit();
-        });
+        const publishLovebrainOpeningProgress = (progress) => {
+          window.dispatchEvent(new CustomEvent("yuimi:kisara-lovebrain-opening-progress", {
+            detail: { progress: clamp(progress, 0, 1) }
+          }));
+        };
+        publishLovebrainOpeningProgress(0);
+        const started = smoothScrollTo(getNextPageTop(), () => {
+          pageMode = "next";
+          lastObservedScrollY = window.scrollY;
+          publishLovebrainOpeningProgress(1);
+          finalizeLovebrainExit();
+        }, (journeyProgress) => {
+          publishLovebrainOpeningProgress(journeyProgress);
+        }, "forward", "lovebrain");
         if (!started) {
           lovebrainActive = true;
           lovebrainExitCommitted = false;
           pageMode = "lovebrain";
-          gate.classList.add("is-lovebrain-active");
-          document.body.classList.add("is-lovebrain-home-active");
-          stopLovebrainDefaultResources();
           gate.classList.remove("is-lovebrain-transporting");
           opening?.classList.remove("is-lovebrain-transporting");
         }

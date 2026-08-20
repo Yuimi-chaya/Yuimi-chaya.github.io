@@ -280,6 +280,18 @@ import { Icon } from "astro-icon/components";
     const setStatus = (value) => {
       if (status) status.textContent = value;
     };
+    const resetOpeningExitPresentation = () => {
+      root.style.removeProperty("--lovebrain-exit-opacity");
+      root.style.removeProperty("--lovebrain-exit-shift");
+      root.style.removeProperty("--lovebrain-exit-scale");
+    };
+    const updateOpeningExitPresentation = (value) => {
+      const progress = clamp(value, 0, 1);
+      const exit = reducedMotion ? progress : smoothstep(0.22, 0.99, progress);
+      root.style.setProperty("--lovebrain-exit-opacity", (1 - exit).toFixed(5));
+      root.style.setProperty("--lovebrain-exit-shift", (-2.5 * exit).toFixed(3) + "%");
+      root.style.setProperty("--lovebrain-exit-scale", (1 + exit * 0.012).toFixed(5));
+    };
     const currentStage = (value) => {
       let selected = stages[0];
       stages.forEach((stage) => {
@@ -653,6 +665,7 @@ import { Icon } from "astro-icon/components";
       progressTimestamp = 0;
       if (progressFrame) window.cancelAnimationFrame(progressFrame);
       progressFrame = 0;
+      resetOpeningExitPresentation();
       warmMediaTo(1, 260);
       hydrateMediaTo(0.16);
       root.classList.add("is-active");
@@ -670,6 +683,7 @@ import { Icon } from "astro-icon/components";
       targetProgress = progress;
       if (progressFrame) window.cancelAnimationFrame(progressFrame);
       progressFrame = 0;
+      updateOpeningExitPresentation(0);
       root.classList.add("is-transporting");
       setStatus("DISSOLVE / 001");
       syncPinchVideo(false);
@@ -697,6 +711,7 @@ import { Icon } from "astro-icon/components";
       document.body.classList.remove("is-lovebrain-scene-visible");
       root.dataset.state = "consumed";
       scene?.setAttribute("aria-hidden", "true");
+      resetOpeningExitPresentation();
       render();
       updateEligibility();
       return true;
@@ -781,6 +796,14 @@ import { Icon } from "astro-icon/components";
       root.style.setProperty("--lovebrain-pointer-y", (y * 10).toFixed(2) + "px");
     }, { passive: true, signal });
     window.addEventListener("yuimi:kisara-lovebrain-progress", updateEligibility, { signal });
+    window.addEventListener("yuimi:kisara-lovebrain-opening-progress", (event) => {
+      if (!leaving) return;
+      const detail = event instanceof CustomEvent && event.detail && typeof event.detail === "object"
+        ? event.detail
+        : {};
+      const progress = typeof detail.progress === "number" ? detail.progress : 0;
+      updateOpeningExitPresentation(progress);
+    }, { signal });
     window.addEventListener("yuimi:kisara-found-self-state", updateEligibility, { signal });
     window.addEventListener("scroll", updateEligibility, { passive: true, signal });
     window.addEventListener("yuimi:kisara-lovebrain-opening-covered", finishOpening, { signal });
@@ -850,6 +873,9 @@ import { Icon } from "astro-icon/components";
     --lovebrain-pointer-x: 0px;
     --lovebrain-pointer-y: 0px;
     --lovebrain-scene-shift: 0px;
+    --lovebrain-exit-opacity: 1;
+    --lovebrain-exit-shift: 0%;
+    --lovebrain-exit-scale: 1;
     position: static;
     z-index: 60;
     filter: none !important;
@@ -938,13 +964,13 @@ import { Icon } from "astro-icon/components";
   }
 
   .kisara-lovebrain.is-transporting .kisara-lovebrain-scene {
-    opacity: 0;
+    opacity: var(--lovebrain-exit-opacity);
     pointer-events: none;
     filter: none;
-    transform: translate3d(0, -2.5%, 0) scale(1.012);
+    transform: translate3d(0, var(--lovebrain-exit-shift), 0) scale(var(--lovebrain-exit-scale));
     transition:
-      opacity 760ms cubic-bezier(0.32, 0.02, 0.18, 1),
-      transform 900ms cubic-bezier(0.32, 0.02, 0.18, 1);
+      opacity 90ms linear,
+      transform 140ms cubic-bezier(0.32, 0.02, 0.18, 1);
   }
 
   .kisara-lovebrain.is-returning .kisara-lovebrain-scene {

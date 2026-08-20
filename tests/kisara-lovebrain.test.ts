@@ -115,7 +115,11 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   assert.match(componentSource, /entry\.hidden = false/);
   assert.match(componentSource, /entry\.hidden = true/);
   assert.match(componentSource, /translate3d\(0, 16px, 0\) scale\(0\.82\) rotate\(-8deg\)/);
-  assert.match(componentSource, /\.kisara-lovebrain\.is-transporting \.kisara-lovebrain-scene[\s\S]*?opacity: 0;[\s\S]*?filter: none;[\s\S]*?translate3d\(0, -2\.5%, 0\) scale\(1\.012\)/);
+  assert.match(componentSource, /yuimi:kisara-lovebrain-opening-progress/);
+  assert.match(componentSource, /const updateOpeningExitPresentation = \(value\) =>/);
+  assert.match(componentSource, /smoothstep\(0\.22, 0\.99, progress\)/);
+  assert.match(componentSource, /--lovebrain-exit-opacity/);
+  assert.match(componentSource, /\.kisara-lovebrain\.is-transporting \.kisara-lovebrain-scene[\s\S]*?opacity: var\(--lovebrain-exit-opacity\);[\s\S]*?translate3d\(0, var\(--lovebrain-exit-shift\), 0\) scale\(var\(--lovebrain-exit-scale\)\)/);
 
   const pinchStart = componentSource.indexOf('data-lovebrain-loop="pinch"');
   const embraceStart = componentSource.indexOf('data-lovebrain-loop="embrace"');
@@ -133,7 +137,6 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
 test("Lovebrain uses a dedicated page mode and bridge transport", () => {
   assert.match(homeSource, /let lovebrainActive = false/);
   assert.match(homeSource, /pageMode = "lovebrain"/);
-  assert.match(homeSource, /const enterNextPage = \(onArrival = null\) =>/);
   assert.match(homeSource, /const enterLovebrainNextPage =/);
   assert.match(homeSource, /window\.__yuimiKisaraHomeLovebrain/);
   assert.match(homeSource, /activate: activateLovebrain/);
@@ -155,10 +158,11 @@ test("Lovebrain uses a dedicated page mode and bridge transport", () => {
   assert.doesNotMatch(forwardSource, /scheduleWarningWarmup/);
   assert.match(forwardSource, /lovebrainExitCommitted = true/);
   assert.match(forwardSource, /lovebrainActive = false/);
-  assert.match(forwardSource, /gate\.classList\.remove\("is-lovebrain-active"\)/);
-  assert.match(forwardSource, /document\.body\.classList\.remove\("is-lovebrain-home-active"\)/);
-  assert.match(forwardSource, /const started = enterNextPage\(/);
-  assert.doesNotMatch(forwardSource, /smoothScrollTo\(/);
+  assert.match(forwardSource, /publishLovebrainOpeningProgress/);
+  assert.match(forwardSource, /new CustomEvent\("yuimi:kisara-lovebrain-opening-progress"/);
+  assert.match(forwardSource, /const started = smoothScrollTo\(/);
+  assert.doesNotMatch(forwardSource, /startSpaceLens\(\)/);
+  assert.doesNotMatch(forwardSource, /startTitleLens\(\)/);
   assert.match(forwardSource, /finalizeLovebrainExit\(\)/);
   assert.match(finalizeSource, /document\.body\.classList\.remove\("is-lovebrain-home-active"\)/);
   assert.match(finalizeSource, /startSpaceLens\(\)/);

@@ -69,6 +69,7 @@ test("Each achieved opening hint draws one continuous stroke across its full sen
 });
 
 test("Opening 001 keeps the upper edge physically transparent before its media fade begins", () => {
+  assert.match(homeCssSource, /\.kisara-opening \{[\s\S]*?rgba\(241, 239, 235, 0\) 0 116px[\s\S]*?rgba\(241, 239, 235, 0\.06\) 146px/);
   assert.match(homeCssSource, /\.kisara-opening-video-media[\s\S]*?transparent 0 72px[\s\S]*?#000 206px/);
   assert.match(homeCssSource, /\.kisara-opening::after[\s\S]*?transparent 0 72px[\s\S]*?#000 182px/);
   assert.match(homeCssSource, /\.kisara-opening\.is-opening-bridge-live[\s\S]*?rgba\(241, 233, 224, 0\) 0 116px[\s\S]*?rgba\(241, 233, 224, 0\.06\) 146px[\s\S]*?#f1e9e0 218px/);
