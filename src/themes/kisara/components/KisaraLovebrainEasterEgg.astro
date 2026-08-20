@@ -255,6 +255,8 @@ import { Icon } from "astro-icon/components";
     let sceneConsumed = false;
     let touchY = null;
     let touchId = null;
+    let entryEnterFrame = 0;
+    let entryExitTimer = 0;
     const hydratedMedia = new WeakSet();
     const queuedMedia = new WeakSet();
     const mediaRetryCounts = new WeakMap();
@@ -596,11 +598,33 @@ import { Icon } from "astro-icon/components";
         progressFrame = window.requestAnimationFrame(animateProgress);
       }
     };
-    const updateEligibility = () => {
+    const setEntryVisible = (visible) => {
       if (!(entry instanceof HTMLButtonElement)) return;
+      if (entryExitTimer) window.clearTimeout(entryExitTimer);
+      entryExitTimer = 0;
+      if (entryEnterFrame) window.cancelAnimationFrame(entryEnterFrame);
+      entryEnterFrame = 0;
+
+      if (visible) {
+        entry.hidden = false;
+        entry.setAttribute("aria-hidden", "false");
+        entryEnterFrame = window.requestAnimationFrame(() => {
+          entryEnterFrame = 0;
+          if (!disposed && !entry.hidden) entry.classList.add("is-entry-visible");
+        });
+        return;
+      }
+
+      entry.classList.remove("is-entry-visible");
+      entry.setAttribute("aria-hidden", "true");
+      entryExitTimer = window.setTimeout(() => {
+        entryExitTimer = 0;
+        if (!entry.classList.contains("is-entry-visible")) entry.hidden = true;
+      }, reducedMotion ? 0 : 360);
+    };
+    const updateEligibility = () => {
       const visible = isEligible() && isHomeGate() && !active && !leaving;
-      entry.hidden = !visible;
-      entry.setAttribute("aria-hidden", String(!visible));
+      setEntryVisible(visible);
       root.dataset.qualified = String(isEligible());
     };
     const pushProgress = (delta, event, inputType) => {
@@ -782,6 +806,10 @@ import { Icon } from "astro-icon/components";
       lifecycle.abort();
       if (progressFrame) window.cancelAnimationFrame(progressFrame);
       progressFrame = 0;
+      if (entryEnterFrame) window.cancelAnimationFrame(entryEnterFrame);
+      entryEnterFrame = 0;
+      if (entryExitTimer) window.clearTimeout(entryExitTimer);
+      entryExitTimer = 0;
       mediaWarmupTimers.forEach((timer) => window.clearTimeout(timer));
       mediaWarmupTimers.clear();
       mediaRetryTimers.forEach((timer) => window.clearTimeout(timer));
@@ -848,7 +876,21 @@ import { Icon } from "astro-icon/components";
     background: rgba(248, 250, 247, 0.94);
     box-shadow: 0 7px 22px rgba(45, 62, 58, 0.16), 0 0 0 1px rgba(240, 92, 151, 0.28);
     border-radius: 50%;
-    transition: transform 220ms cubic-bezier(0.2, 0.75, 0.2, 1), color 180ms ease, box-shadow 180ms ease;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(0, 16px, 0) scale(0.82) rotate(-8deg);
+    transform-origin: center;
+    transition:
+      opacity 260ms ease,
+      transform 360ms cubic-bezier(0.18, 0.82, 0.22, 1),
+      color 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .kisara-lovebrain-entry.is-entry-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
   }
 
   .kisara-lovebrain-entry::after {
@@ -863,7 +905,7 @@ import { Icon } from "astro-icon/components";
   .kisara-lovebrain-entry:hover,
   .kisara-lovebrain-entry:focus-visible {
     color: #c92f72;
-    transform: translateY(-3px) scale(1.08);
+    transform: translate3d(0, -3px, 0) scale(1.08) rotate(0deg);
     box-shadow: 0 12px 28px rgba(45, 62, 58, 0.2), 0 0 0 2px rgba(240, 92, 151, 0.3);
   }
 
@@ -898,8 +940,11 @@ import { Icon } from "astro-icon/components";
   .kisara-lovebrain.is-transporting .kisara-lovebrain-scene {
     opacity: 0;
     pointer-events: none;
-    filter: blur(20px) saturate(0.68);
-    transform: translate3d(0, -1.5%, 0) scale(1.045);
+    filter: none;
+    transform: translate3d(0, -2.5%, 0) scale(1.012);
+    transition:
+      opacity 760ms cubic-bezier(0.32, 0.02, 0.18, 1),
+      transform 900ms cubic-bezier(0.32, 0.02, 0.18, 1);
   }
 
   .kisara-lovebrain.is-returning .kisara-lovebrain-scene {
@@ -1493,6 +1538,7 @@ import { Icon } from "astro-icon/components";
     }
 
     .kisara-lovebrain-scene,
+    .kisara-lovebrain-entry,
     .kisara-lovebrain-panel,
     .kisara-lovebrain-portrait-lineup button,
     .kisara-lovebrain-portrait-card {

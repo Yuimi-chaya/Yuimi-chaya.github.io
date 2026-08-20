@@ -108,6 +108,14 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   assert.doesNotMatch(componentSource, /<img[^>]*\ssrc="\/themes\/kisara\/assets\/lovebrain\//);
   assert.doesNotMatch(componentSource, /<video[^>]*\ssrc="\/themes\/kisara\/assets\/lovebrain\//);
   assert.match(componentSource, /is-lovebrain-scene-visible/);
+  assert.match(componentSource, /const setEntryVisible = \(visible\) =>/);
+  assert.match(componentSource, /is-entry-visible/);
+  assert.match(componentSource, /entryEnterFrame/);
+  assert.match(componentSource, /entryExitTimer/);
+  assert.match(componentSource, /entry\.hidden = false/);
+  assert.match(componentSource, /entry\.hidden = true/);
+  assert.match(componentSource, /translate3d\(0, 16px, 0\) scale\(0\.82\) rotate\(-8deg\)/);
+  assert.match(componentSource, /\.kisara-lovebrain\.is-transporting \.kisara-lovebrain-scene[\s\S]*?opacity: 0;[\s\S]*?filter: none;[\s\S]*?translate3d\(0, -2\.5%, 0\) scale\(1\.012\)/);
 
   const pinchStart = componentSource.indexOf('data-lovebrain-loop="pinch"');
   const embraceStart = componentSource.indexOf('data-lovebrain-loop="embrace"');
