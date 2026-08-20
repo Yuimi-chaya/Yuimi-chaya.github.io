@@ -81,6 +81,8 @@ Works 页面把标题切开、分离和重组成短暂的 Canvas 动画，并让
 
 Fuyukawa Kagari 不是 Kisara 之前的残留版本，而是一套仍然完整、独立维护的主题。它位于 `/themes/fuyukawa-kagari/`，拥有自己的页面布局、主题资源、导航、SEO 与交互脚本。进入这个入口，就像翻开另一册个人手账：温和、轻松，也更适合慢慢浏览。
 
+![Fuyukawa Kagari 首页手账场景](./public/readme/fuyukawa-home.gif)
+
 ### 从手账开始，而不是从舞台开始
 
 首页用大图 Hero、终端式打字副标题、头像和身份卡建立第一印象。日期、时间、本地信号、公告和 Tag Rain 让信息有了细微的生活感；Live2D 控制台、Yuimi Radio、樱花雨和小猪滚动条则把“个人主页”做得更像一个可停留的房间。
@@ -90,6 +92,8 @@ Fuyukawa Kagari 不是 Kisara 之前的残留版本，而是一套仍然完整�
 ### 为长期记录准备的页面
 
 Blog 使用时间线式归档，提供 Pagefind 搜索、标签与正确的主题前缀链接处理。Projects 是带技术线看板的项目陈列，可按类别筛选并展开细节；About 把资料、技术线、兴趣、XP、游戏和近况放进一份可慢慢补完的自我介绍。
+
+![Fuyukawa Kagari 的归档与个人记录](./public/readme/fuyukawa-notes.gif)
 
 Games 页面则以展示和介绍为主，保留游戏原作者、仓库与许可证信息，并明确站点只是个人展示与外链入口。这让主题的可爱外观之外，也有清晰、诚实的内容边界。
 
