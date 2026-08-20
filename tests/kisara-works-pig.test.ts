@@ -36,18 +36,14 @@ test("Pig bounces from side and top walls, never the bottom, then fades", () => 
   assert.match(projectsCssSource, /@keyframes kisara-works-pig-hit/);
 });
 
-test("Works title uses one measured canvas model for its split-and-merge cut", () => {
-  assert.match(projectsPageSource, /data-works-title-canvas/);
-  assert.match(projectsPageSource, /const measureWorksTitleCanvas =/);
-  assert.match(projectsPageSource, /const triggerWorksTitleCut =/);
-  assert.match(projectsPageSource, /triggerWorksTitleCut\("intro"\)/);
-  assert.match(projectsPageSource, /triggerWorksTitleCut\("recut"\)/);
-  assert.match(projectsPageSource, /document\.fonts\?\.ready/);
-  assert.match(projectsPageSource, /new ResizeObserver\(scheduleWorksTitleMeasure\)/);
-  assert.match(projectsPageSource, /document\.createElement\("canvas"\)/);
-  assert.match(projectsPageSource, /const finishWorksTitleCut =/);
-  assert.match(projectsCssSource, /\.kisara-works-title-canvas/);
-  assert.match(projectsCssSource, /is-title-canvas-active/);
-  assert.match(projectsCssSource, /is-knife-active \.kisara-works-title-cut i/);
+test("Works title uses a CSS print-and-registration entrance without cut layers", () => {
+  assert.match(projectsPageSource, /kisara-works-title-primary/);
+  assert.match(projectsPageSource, /kisara-works-title-secondary/);
+  assert.match(projectsCssSource, /kisara-works-title-primary-print/);
+  assert.match(projectsCssSource, /kisara-works-title-secondary-set/);
+  assert.match(projectsCssSource, /kisara-works-title-registration-line/);
+  assert.match(projectsCssSource, /kisara-works-title-registration-mark/);
   assert.match(projectsCssSource, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(projectsPageSource, /data-works-title-canvas|data-works-title-line|triggerWorksTitleCut|finishWorksTitleCut/);
+  assert.doesNotMatch(projectsCssSource, /kisara-works-title-canvas|kisara-works-title-cut|kisara-works-blade-pass|is-title-canvas-active/);
 });

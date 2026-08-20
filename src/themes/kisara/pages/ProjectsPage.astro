@@ -212,9 +212,8 @@ const kitchenCatalog = {
     <div class="kisara-works-editorial">
       <p class="kisara-works-editorial-meta"><span>04</span><em>KISARA KITCHEN / WORKS</em></p>
       <h1 id="kisara-works-title" data-works-title>
-        <span data-works-title-line>WORKS,</span>
-        <em data-works-title-line>one layer at a time.</em>
-        <canvas class="kisara-works-title-canvas" data-works-title-canvas aria-hidden="true"></canvas>
+        <span class="kisara-works-title-primary">WORKS<sup aria-hidden="true">,</sup></span>
+        <em class="kisara-works-title-secondary">one layer <b>at a time.</b></em>
       </h1>
       <p class="kisara-works-editorial-lead">场景、插件、模型和页面，都是还没下锅的材料。挑一份，送上砧板。</p>
 
@@ -238,7 +237,6 @@ const kitchenCatalog = {
       </p>
     </div>
 
-    <div class="kisara-works-title-cut" aria-hidden="true"><i></i><i></i></div>
     <div class="kisara-works-onion-rings" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="kisara-works-cut-trail" aria-hidden="true"><span></span><i></i><i></i><i></i><i></i></div>
     <a class="kisara-works-intro-jump" href="#kisara-kitchen-lab">
@@ -422,9 +420,6 @@ const kitchenCatalog = {
       const sliceField = hero?.querySelector("[data-works-slice-field]");
       const sliceTrails = hero?.querySelector("[data-works-slice-trails]");
       const sliceScore = hero?.querySelector("[data-works-slice-score]");
-      const worksTitle = hero?.querySelector("[data-works-title]");
-      const worksTitleCanvas = hero?.querySelector("[data-works-title-canvas]");
-      const worksTitleLines = Array.from(hero?.querySelectorAll("[data-works-title-line]") || []);
       const sliceFruits = Array.from(hero?.querySelectorAll("[data-works-slice-fruit]") || []);
       const sliceTimers = new Set();
       const fruitPhysics = new Map();
@@ -432,9 +427,6 @@ const kitchenCatalog = {
       let heroPointerFrame = 0;
       let heroScrollFrame = 0;
       let fruitPhysicsFrame = 0;
-      let titleCanvasFrame = 0;
-      let titleCanvasResizeFrame = 0;
-      let titleCanvasObserver = null;
       let fruitPhysicsLastTime = 0;
       let fruitPhysicsReady = false;
       let fruitPhysicsVisible = true;
@@ -454,11 +446,6 @@ const kitchenCatalog = {
       let heroPointerRenderedY = 0;
       let lastSlicePoint = null;
       let sliceCount = 0;
-      let titleCutTimer = 0;
-      let titleCanvasCutStartedAt = 0;
-      let titleCanvasCutKind = "idle";
-      let titleCanvasReady = false;
-      let titleCanvasModel = null;
       const settlingGhosts = new Set();
 
       const cleanup = () => {
@@ -467,13 +454,8 @@ const kitchenCatalog = {
         if (heroPointerFrame) cancelAnimationFrame(heroPointerFrame);
         if (heroScrollFrame) cancelAnimationFrame(heroScrollFrame);
         if (fruitPhysicsFrame) cancelAnimationFrame(fruitPhysicsFrame);
-        if (titleCanvasFrame) cancelAnimationFrame(titleCanvasFrame);
-        if (titleCanvasResizeFrame) cancelAnimationFrame(titleCanvasResizeFrame);
         fruitPhysicsObserver?.disconnect();
-        titleCanvasObserver?.disconnect();
-        worksTitle?.classList.remove("is-title-canvas-active");
         if (heroIntroTimer) window.clearTimeout(heroIntroTimer);
-        if (titleCutTimer) window.clearTimeout(titleCutTimer);
         sliceTimers.forEach((timer) => window.clearTimeout(timer));
         sliceTimers.clear();
         if (dragFrame) cancelAnimationFrame(dragFrame);
@@ -501,214 +483,6 @@ const kitchenCatalog = {
       const fruitDiameter = 76;
       const pigWidth = 104;
       const pigHeight = 89;
-      const titleCanvasEnabled = !heroReducedMotion
-        && worksTitle instanceof HTMLElement
-        && worksTitleCanvas instanceof HTMLCanvasElement
-        && worksTitleLines.length === 2;
-
-      const easeOutCubic = (value) => 1 - Math.pow(1 - clamp(value, 0, 1), 3);
-      const finishWorksTitleCut = () => {
-        titleCanvasCutKind = "idle";
-        titleCanvasCutStartedAt = 0;
-        worksTitle?.classList.remove("is-title-canvas-active");
-        if (!titleCanvasModel) return;
-        const { context, pixelRatio, width, height } = titleCanvasModel;
-        context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-        context.clearRect(0, 0, width, height);
-      };
-
-      const drawWorksTitle = (timestamp = performance.now()) => {
-        titleCanvasFrame = 0;
-        if (!titleCanvasReady || !(worksTitleCanvas instanceof HTMLCanvasElement) || !titleCanvasModel) return;
-        const { context, pixelRatio, width, height, lines } = titleCanvasModel;
-        context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-        context.clearRect(0, 0, width, height);
-
-        if (titleCanvasCutKind === "idle") return;
-        let active = false;
-        let opacity = 1;
-        let separation = 0.7;
-        if (titleCanvasCutKind === "intro") {
-          const progress = clamp((timestamp - titleCanvasCutStartedAt) / 1160, 0, 1);
-          const reveal = easeOutCubic(progress / 0.28);
-          const open = Math.sin(Math.PI * clamp((progress - 0.18) / 0.6, 0, 1));
-          opacity = reveal;
-          separation += open * 8.8;
-          active = progress < 1;
-          if (!active) titleCanvasCutKind = "settled";
-        } else if (titleCanvasCutKind === "recut") {
-          const progress = clamp((timestamp - titleCanvasCutStartedAt) / 540, 0, 1);
-          separation += Math.sin(Math.PI * progress) * 8.4;
-          active = progress < 1;
-          if (!active) titleCanvasCutKind = "settled";
-        }
-
-        context.globalAlpha = opacity;
-        lines.forEach((line) => {
-          const slope = (line.cutRight - line.cutLeft) / Math.max(1, line.width);
-          const normalLength = Math.hypot(slope, 1);
-          const normalX = -slope / normalLength;
-          const normalY = 1 / normalLength;
-          const faceHalf = line.faceHalf;
-
-          const drawHalf = (topHalf) => {
-            context.save();
-            context.beginPath();
-            if (topHalf) {
-              context.moveTo(line.x - 2, line.top - 2);
-              context.lineTo(line.x + line.width + 2, line.top - 2);
-              context.lineTo(line.x + line.width + 2, line.cutRight - faceHalf);
-              context.lineTo(line.x - 2, line.cutLeft - faceHalf);
-            } else {
-              context.moveTo(line.x - 2, line.cutLeft + faceHalf);
-              context.lineTo(line.x + line.width + 2, line.cutRight + faceHalf);
-              context.lineTo(line.x + line.width + 2, line.top + line.height + 2);
-              context.lineTo(line.x - 2, line.top + line.height + 2);
-            }
-            context.closePath();
-            context.clip();
-            const direction = topHalf ? -1 : 1;
-            context.translate(normalX * separation * direction, normalY * separation * direction);
-            context.drawImage(
-              line.source,
-              line.x - line.sourcePadding,
-              line.top - line.sourcePadding,
-              line.sourceWidth,
-              line.sourceHeight
-            );
-            context.restore();
-          };
-
-          drawHalf(true);
-          drawHalf(false);
-
-          context.save();
-          context.beginPath();
-          context.moveTo(line.x - 2, line.cutLeft - faceHalf);
-          context.lineTo(line.x + line.width + 2, line.cutRight - faceHalf);
-          context.lineTo(line.x + line.width + 2, line.cutRight + faceHalf);
-          context.lineTo(line.x - 2, line.cutLeft + faceHalf);
-          context.closePath();
-          context.clip();
-          context.drawImage(
-            line.face,
-            line.x - line.sourcePadding,
-            line.top - line.sourcePadding,
-            line.sourceWidth,
-            line.sourceHeight
-          );
-          context.restore();
-        });
-        context.globalAlpha = 1;
-        if (active && !signal.aborted) {
-          titleCanvasFrame = window.requestAnimationFrame(drawWorksTitle);
-        } else {
-          finishWorksTitleCut();
-        }
-      };
-
-      const triggerWorksTitleCut = (kind) => {
-        if (!titleCanvasReady) return;
-        titleCanvasCutKind = kind;
-        titleCanvasCutStartedAt = performance.now();
-        worksTitle?.classList.add("is-title-canvas-active");
-        if (!titleCanvasFrame) titleCanvasFrame = window.requestAnimationFrame(drawWorksTitle);
-      };
-
-      const measureWorksTitleCanvas = () => {
-        titleCanvasResizeFrame = 0;
-        if (!titleCanvasEnabled || !(worksTitle instanceof HTMLElement) || !(worksTitleCanvas instanceof HTMLCanvasElement)) return;
-        const titleRect = worksTitle.getBoundingClientRect();
-        if (titleRect.width < 1 || titleRect.height < 1) return;
-        const padding = 20;
-        const pixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
-        const width = titleRect.width + padding * 2;
-        const height = titleRect.height + padding * 2;
-        worksTitleCanvas.width = Math.round(width * pixelRatio);
-        worksTitleCanvas.height = Math.round(height * pixelRatio);
-        worksTitleCanvas.style.width = `${width}px`;
-        worksTitleCanvas.style.height = `${height}px`;
-        const context = worksTitleCanvas.getContext("2d");
-        if (!context) return;
-        const lines = worksTitleLines.map((node) => {
-          const element = node instanceof HTMLElement ? node : null;
-          if (!element) return null;
-          const rect = element.getBoundingClientRect();
-          const style = window.getComputedStyle(element);
-          const font = `${style.fontStyle} ${style.fontVariant} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-          context.font = font;
-          const text = element.textContent || "";
-          const metrics = context.measureText(text);
-          const ascent = metrics.fontBoundingBoxAscent || metrics.actualBoundingBoxAscent || parseFloat(style.fontSize) * 0.8;
-          const descent = metrics.fontBoundingBoxDescent || metrics.actualBoundingBoxDescent || parseFloat(style.fontSize) * 0.2;
-          const glyphHeight = Math.max(1, ascent + descent);
-          const top = rect.top - titleRect.top + padding;
-          const height = rect.height;
-          const sourcePadding = 14;
-          const sourceWidth = rect.width + sourcePadding * 2;
-          const sourceHeight = height + sourcePadding * 2;
-          const source = document.createElement("canvas");
-          source.width = Math.round(sourceWidth * pixelRatio);
-          source.height = Math.round(sourceHeight * pixelRatio);
-          const sourceContext = source.getContext("2d");
-          if (!sourceContext) return null;
-          sourceContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-          sourceContext.font = font;
-          sourceContext.textBaseline = "alphabetic";
-          sourceContext.fillStyle = element.matches("em") ? "#bd356d" : "#342b37";
-          const sourceBaseline = sourcePadding + (height - glyphHeight) * 0.5 + ascent;
-          sourceContext.fillText(text, sourcePadding, sourceBaseline);
-          const face = document.createElement("canvas");
-          face.width = source.width;
-          face.height = source.height;
-          const faceContext = face.getContext("2d");
-          if (!faceContext) return null;
-          faceContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-          faceContext.drawImage(source, 0, 0, sourceWidth, sourceHeight);
-          faceContext.globalCompositeOperation = "source-in";
-          const faceGradient = faceContext.createLinearGradient(0, height * 0.45, 0, height * 0.62);
-          faceGradient.addColorStop(0, "#fff6e8");
-          faceGradient.addColorStop(0.38, "#f1bea9");
-          faceGradient.addColorStop(0.7, "#bd647d");
-          faceGradient.addColorStop(1, "#7b374f");
-          faceContext.fillStyle = faceGradient;
-          faceContext.fillRect(0, 0, sourceWidth, sourceHeight);
-          return {
-            x: rect.left - titleRect.left + padding,
-            width: rect.width,
-            top,
-            height,
-            cutLeft: top + height * 0.59,
-            cutRight: top + height * 0.45,
-            faceHalf: Math.max(2, Math.min(5, height * 0.045)),
-            source,
-            face,
-            sourcePadding,
-            sourceWidth,
-            sourceHeight
-          };
-        }).filter(Boolean);
-        if (lines.length !== 2) return;
-        titleCanvasModel = { context, pixelRatio, width, height, lines };
-        titleCanvasReady = true;
-        if (titleCanvasCutKind !== "idle") triggerWorksTitleCut(titleCanvasCutKind);
-      };
-
-      const scheduleWorksTitleMeasure = () => {
-        if (!titleCanvasEnabled || titleCanvasResizeFrame) return;
-        titleCanvasResizeFrame = window.requestAnimationFrame(measureWorksTitleCanvas);
-      };
-
-      if (titleCanvasEnabled) {
-        const prepareCanvasTitle = () => {
-          if (signal.aborted) return;
-          scheduleWorksTitleMeasure();
-        };
-        if (document.fonts?.ready) void document.fonts.ready.then(prepareCanvasTitle).catch(prepareCanvasTitle);
-        else window.requestAnimationFrame(prepareCanvasTitle);
-        titleCanvasObserver = new ResizeObserver(scheduleWorksTitleMeasure);
-        titleCanvasObserver.observe(worksTitle);
-      }
 
       const resetFruitPieces = (state) => {
         state.whole?.style.removeProperty("transform");
@@ -930,7 +704,6 @@ const kitchenCatalog = {
         window.requestAnimationFrame(() => {
           if (signal.aborted) return;
           hero.dataset.introState = "playing";
-          triggerWorksTitleCut("intro");
           startFruitPhysics();
           heroIntroTimer = window.setTimeout(finishHeroIntro, 1580);
         });
@@ -1081,18 +854,6 @@ const kitchenCatalog = {
         if (sliceScore) sliceScore.textContent = String(sliceCount).padStart(2, "0");
         appendSliceTrail(start, end);
 
-        if (hero instanceof HTMLElement) {
-          hero.classList.remove("is-knife-active");
-          void hero.offsetWidth;
-          hero.classList.add("is-knife-active");
-          triggerWorksTitleCut("recut");
-          if (titleCutTimer) window.clearTimeout(titleCutTimer);
-          titleCutTimer = window.setTimeout(() => {
-            titleCutTimer = 0;
-            hero.classList.remove("is-knife-active");
-          }, 520);
-        }
-
       };
 
       const sliceHeroFruits = (event) => {
@@ -1168,7 +929,6 @@ const kitchenCatalog = {
         window.addEventListener("pageshow", (event) => {
           if (!event.persisted) return;
           finishHeroIntro();
-          finishWorksTitleCut();
           startFruitPhysics();
           scheduleHeroScroll();
         }, { signal });
