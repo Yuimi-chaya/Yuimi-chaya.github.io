@@ -292,7 +292,13 @@ const gameMessageBursts = [
     </nav>
 
     <div class="kisara-game-shake-easter" data-game-shake-easter data-state="idle" aria-hidden="true">
-      <video data-game-shake-video preload="none" muted playsinline>
+      <video
+        data-game-shake-video
+        poster="/themes/kisara/assets/game-shake-easter-first.webp"
+        preload="metadata"
+        muted
+        playsinline
+      >
         <source src="/themes/kisara/assets/game-shake-easter.mp4" type="video/mp4" />
       </video>
       <span class="kisara-game-shake-scan" aria-hidden="true"></span>
@@ -353,6 +359,7 @@ const gameMessageBursts = [
       let heroPressureLastFrame = 0;
       let heroPressureStage = 0;
       let shakeEasterPreloaded = false;
+      let shakeEasterWarmupTimer = 0;
       let shakeEasterExitTimer = 0;
       let shakeEasterScrollLocked = false;
       let shakeEasterPreviousOverflow = "";
@@ -455,6 +462,8 @@ const gameMessageBursts = [
         if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
         if (heroPointerFrame) window.cancelAnimationFrame(heroPointerFrame);
         if (heroVideo instanceof HTMLVideoElement) heroVideo.pause();
+        if (shakeEasterWarmupTimer) window.clearTimeout(shakeEasterWarmupTimer);
+        shakeEasterWarmupTimer = 0;
         window.clearTimeout(shakeEasterExitTimer);
         releaseGameShakeEaster(true);
         if (gameFrame instanceof HTMLIFrameElement) {
@@ -714,7 +723,73 @@ const gameMessageBursts = [
       const preloadGameShakeEaster = () => {
         if (shakeEasterPreloaded) return;
         shakeEasterPreloaded = true;
-        if (shakeEasterVideo instanceof HTMLVideoElement) shakeEasterVideo.load();
+        if (shakeEasterVideo instanceof HTMLVideoElement) {
+          shakeEasterVideo.preload = "auto";
+          shakeEasterVideo.load();
+        }
+      };
+
+      const waitForGameShakeFrame = (video) => {
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          let settled = false;
+          let timeout = 0;
+          const finish = (error) => {
+            if (settled) return;
+            settled = true;
+            if (timeout) window.clearTimeout(timeout);
+            video.removeEventListener("loadeddata", ready);
+            video.removeEventListener("canplay", ready);
+            video.removeEventListener("error", failed);
+            signal.removeEventListener("abort", aborted);
+            if (error) reject(error);
+            else resolve();
+          };
+          const ready = () => finish();
+          const failed = () => finish(new Error("Game shake media failed to load"));
+          const aborted = () => finish(new Error("Game shake media aborted"));
+          video.addEventListener("loadeddata", ready, { once: true });
+          video.addEventListener("canplay", ready, { once: true });
+          video.addEventListener("error", failed, { once: true });
+          signal.addEventListener("abort", aborted, { once: true });
+          timeout = window.setTimeout(failed, 7200);
+        });
+      };
+
+      const startGameShakeEasterVideo = async (attempt) => {
+        if (!(shakeEasterVideo instanceof HTMLVideoElement)) return;
+        for (let retry = 0; retry < 2; retry += 1) {
+          try {
+            preloadGameShakeEaster();
+            await waitForGameShakeFrame(shakeEasterVideo);
+            if (signal.aborted || attempt !== gameShakeEasterAttempt || !gameShakeEasterArming) return;
+            try { shakeEasterVideo.currentTime = 0; } catch {}
+            shakeEasterVideo.muted = true;
+            await shakeEasterVideo.play();
+            if (signal.aborted || attempt !== gameShakeEasterAttempt || !gameShakeEasterArming) return;
+            gameShakeEasterArming = false;
+            window.__yuimiKisaraEasterLedger?.mark("game-shake");
+            page.dataset.easterState = "playing";
+            shakeEaster.dataset.state = "playing";
+            window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio", {
+              detail: {
+                trackId: "darekare-scramble",
+                autoplay: true
+              }
+            }));
+            return;
+          } catch {
+            if (signal.aborted || attempt !== gameShakeEasterAttempt || !gameShakeEasterArming) return;
+            if (retry === 0) {
+              try { shakeEasterVideo.currentTime = 0; } catch {}
+              shakeEasterVideo.load();
+              continue;
+            }
+          }
+        }
+        if (attempt !== gameShakeEasterAttempt) return;
+        gameShakeEasterArming = false;
+        releaseGameShakeEaster();
       };
 
       const triggerGameShakeEaster = () => {
@@ -742,27 +817,7 @@ const gameMessageBursts = [
           releaseGameShakeEaster(true);
           return;
         }
-        try { shakeEasterVideo.currentTime = 0; } catch {}
-        shakeEasterVideo.muted = true;
-        Promise.resolve(shakeEasterVideo.play())
-          .then(() => {
-            if (signal.aborted || attempt !== gameShakeEasterAttempt || !gameShakeEasterArming) return;
-            gameShakeEasterArming = false;
-            window.__yuimiKisaraEasterLedger?.mark("game-shake");
-            page.dataset.easterState = "playing";
-            shakeEaster.dataset.state = "playing";
-            window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio", {
-              detail: {
-                trackId: "darekare-scramble",
-                autoplay: true
-              }
-            }));
-          })
-          .catch(() => {
-            if (attempt !== gameShakeEasterAttempt) return;
-            gameShakeEasterArming = false;
-            if (!signal.aborted) releaseGameShakeEaster();
-          });
+        void startGameShakeEasterVideo(attempt);
       };
 
       resetGameShakePressure = () => {
@@ -857,7 +912,9 @@ const gameMessageBursts = [
           shakeEaster.dataset.state = "ending";
           shakeEasterExitTimer = window.setTimeout(() => releaseGameShakeEaster(), 1050);
         }, { signal });
-        shakeEasterVideo.addEventListener("error", () => releaseGameShakeEaster(), { signal });
+        shakeEasterVideo.addEventListener("error", () => {
+          if (!gameShakeEasterArming) releaseGameShakeEaster();
+        }, { signal });
       }
       if (themeAudio instanceof HTMLAudioElement) {
         themeAudio.addEventListener("playing", () => {
@@ -884,6 +941,9 @@ const gameMessageBursts = [
         if (!(hero instanceof HTMLElement)) return;
         hero.dataset.introState = reducedMotion ? "complete" : "playing";
         void playMessageField();
+        if (!reducedMotion && gameShakeEasterViewport.matches) {
+          shakeEasterWarmupTimer = window.setTimeout(preloadGameShakeEaster, 680);
+        }
       };
       if (heroVideo instanceof HTMLVideoElement) {
         heroVideo.muted = true;

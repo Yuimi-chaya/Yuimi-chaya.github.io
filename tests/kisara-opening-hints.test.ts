@@ -43,7 +43,7 @@ test("Each opening hint is marked only from its accepted trigger path", () => {
   assert.match(audioSource, /mark\("memory-return"\)/);
   assert.match(gamesSource, /mark\("game-shake"\)/);
 
-  const gamePlayIndex = gamesSource.indexOf("Promise.resolve(shakeEasterVideo.play())");
+  const gamePlayIndex = gamesSource.indexOf("await shakeEasterVideo.play()");
   const gameHintIndex = gamesSource.indexOf('mark("game-shake")', gamePlayIndex);
   assert.ok(gamePlayIndex >= 0 && gameHintIndex > gamePlayIndex);
 

@@ -10,6 +10,9 @@ const gamesCssSource = readFileSync(gamesCssPath, "utf8");
 const triggerStart = gamesPageSource.indexOf("const triggerGameShakeEaster = () => {");
 const triggerEnd = gamesPageSource.indexOf("resetGameShakePressure = () => {", triggerStart);
 const triggerSource = gamesPageSource.slice(triggerStart, triggerEnd);
+const playbackStart = gamesPageSource.indexOf("const startGameShakeEasterVideo = async (attempt) => {");
+const playbackEnd = gamesPageSource.indexOf("const triggerGameShakeEaster = () => {", playbackStart);
+const playbackSource = gamesPageSource.slice(playbackStart, playbackEnd);
 
 test("Game shake easter eligibility follows live playback instead of a permanent tab lock", () => {
   assert.ok(triggerStart >= 0 && triggerEnd > triggerStart, "trigger implementation must remain discoverable");
@@ -26,16 +29,27 @@ test("Game shake easter eligibility follows live playback instead of a permanent
 });
 
 test("Game shake easter starts video and grants the track without permanently consuming eligibility", () => {
-  const playIndex = triggerSource.indexOf("Promise.resolve(shakeEasterVideo.play())");
-  const audioGrantIndex = triggerSource.indexOf('new CustomEvent("yuimi:kisara-secret-audio"');
-  const hintIndex = triggerSource.indexOf('mark("game-shake")');
+  const readyIndex = playbackSource.indexOf("await waitForGameShakeFrame(shakeEasterVideo)");
+  const playIndex = playbackSource.indexOf("await shakeEasterVideo.play()");
+  const audioGrantIndex = playbackSource.indexOf('new CustomEvent("yuimi:kisara-secret-audio"');
+  const hintIndex = playbackSource.indexOf('mark("game-shake")');
 
-  assert.ok(playIndex >= 0, "video playback must be attempted");
+  assert.ok(playbackStart >= 0 && playbackEnd > playbackStart, "playback recovery implementation must remain discoverable");
+  assert.ok(readyIndex >= 0 && playIndex > readyIndex, "video playback must wait for a decoded frame");
   assert.ok(audioGrantIndex > playIndex, "secret audio must not be consumed before video playback starts");
   assert.ok(hintIndex > playIndex, "opening hint must only be marked after video playback starts");
   assert.match(triggerSource, /gameShakeEasterArming = true;/);
-  assert.match(triggerSource, /gameShakeEasterArming = false;/);
-  assert.doesNotMatch(triggerSource, /grantId:/);
+  assert.match(triggerSource, /void startGameShakeEasterVideo\(attempt\);/);
+  assert.match(playbackSource, /for \(let retry = 0; retry < 2; retry \+= 1\)/);
+  assert.doesNotMatch(playbackSource, /grantId:/);
+});
+
+test("Game shake easter warms a poster-backed video before the input trigger", () => {
+  assert.match(gamesPageSource, /poster="\/themes\/kisara\/assets\/game-shake-easter-first\.webp"/);
+  assert.match(gamesPageSource, /data-game-shake-video[\s\S]*?preload="metadata"/);
+  assert.match(gamesPageSource, /const waitForGameShakeFrame = \(video\) =>/);
+  assert.match(gamesPageSource, /shakeEasterVideo\.preload = "auto"/);
+  assert.match(gamesPageSource, /window\.setTimeout\(preloadGameShakeEaster, 680\)/);
 });
 
 test("Game shake grows through the hold and keeps a page-local afterglow after the video ends", () => {

@@ -25,7 +25,8 @@ import { Icon } from "astro-icon/components";
         data-lovebrain-scrub="orbit"
         data-src="/themes/kisara/assets/lovebrain/stage1-scrub.mp4"
         data-load-at="0"
-        preload="none"
+        poster="/themes/kisara/assets/lovebrain/route.webp"
+        preload="metadata"
         muted
         playsinline
       ></video>
@@ -103,7 +104,8 @@ import { Icon } from "astro-icon/components";
         data-lovebrain-scrub="race"
         data-src="/themes/kisara/assets/lovebrain/race-scrub.mp4"
         data-load-at="0.31"
-        preload="none"
+        poster="/themes/kisara/assets/lovebrain/chase.webp"
+        preload="metadata"
         muted
         playsinline
       ></video>
@@ -116,7 +118,8 @@ import { Icon } from "astro-icon/components";
         data-lovebrain-loop="pinch"
         data-src="/themes/kisara/assets/lovebrain/pinch-pingpong.mp4"
         data-load-at="0.54"
-        preload="none"
+        poster="/themes/kisara/assets/lovebrain/pressure.webp"
+        preload="metadata"
         muted
         playsinline
       ></video>
@@ -124,7 +127,8 @@ import { Icon } from "astro-icon/components";
         data-lovebrain-loop="pinch-buffer"
         data-src="/themes/kisara/assets/lovebrain/pinch-pingpong.mp4"
         data-load-at="0.54"
-        preload="none"
+        poster="/themes/kisara/assets/lovebrain/pressure.webp"
+        preload="metadata"
         muted
         aria-hidden="true"
         playsinline
@@ -140,7 +144,8 @@ import { Icon } from "astro-icon/components";
         data-lovebrain-loop="embrace"
         data-src="/themes/kisara/assets/lovebrain/stage2-loop.mp4"
         data-load-at="0.68"
-        preload="none"
+        poster="/themes/kisara/assets/lovebrain/messages.webp"
+        preload="metadata"
         muted
         loop
         playsinline
@@ -250,8 +255,11 @@ import { Icon } from "astro-icon/components";
     let sceneConsumed = false;
     let touchY = null;
     let touchId = null;
-    let mediaSerial = 0;
     const hydratedMedia = new WeakSet();
+    const queuedMedia = new WeakSet();
+    const mediaRetryCounts = new WeakMap();
+    const mediaWarmupTimers = new Set();
+    const mediaRetryTimers = new Set();
     const scrubStates = new WeakMap();
     const pinchLoopVideos = [pinchVideo, pinchBufferVideo].filter((video) => video instanceof HTMLVideoElement);
     const pinchLoopState = {
@@ -302,14 +310,15 @@ import { Icon } from "astro-icon/components";
         }
       }));
     };
-    const hydrateElement = (element) => {
+    const hydrateElement = (element, force = false) => {
       if (
-        hydratedMedia.has(element)
-        || !(element instanceof HTMLImageElement || element instanceof HTMLVideoElement)
+        !(element instanceof HTMLImageElement || element instanceof HTMLVideoElement)
+        || (!force && hydratedMedia.has(element))
       ) return;
       const source = element.dataset.src;
       if (!source) return;
       hydratedMedia.add(element);
+      if (force) element.removeAttribute("src");
       if (element instanceof HTMLImageElement) {
         element.decoding = "async";
         element.src = source;
@@ -318,16 +327,44 @@ import { Icon } from "astro-icon/components";
         element.src = source;
         element.load();
       }
-      delete element.dataset.src;
     };
     const hydrateMediaTo = (value) => {
-      const serial = ++mediaSerial;
       root.querySelectorAll("[data-src]").forEach((element) => {
         const loadAt = Number.parseFloat(element.dataset.loadAt ?? "0");
         if (value + 0.001 < loadAt) return;
-        if (serial !== mediaSerial) return;
         hydrateElement(element);
       });
+    };
+    const warmMediaTo = (value, interval = 0) => {
+      const pending = Array.from(root.querySelectorAll("[data-src]"))
+        .filter((element) => {
+          const loadAt = Number.parseFloat(element.dataset.loadAt ?? "0");
+          return loadAt <= value + 0.001 && !hydratedMedia.has(element) && !queuedMedia.has(element);
+        })
+        .sort((first, second) => Number.parseFloat(first.dataset.loadAt ?? "0") - Number.parseFloat(second.dataset.loadAt ?? "0"));
+      pending.forEach((element, index) => {
+        queuedMedia.add(element);
+        const hydrate = () => {
+          mediaWarmupTimers.delete(timer);
+          queuedMedia.delete(element);
+          if (!disposed) hydrateElement(element);
+        };
+        const delay = interval * index;
+        const timer = delay > 0 ? window.setTimeout(hydrate, delay) : 0;
+        if (timer) mediaWarmupTimers.add(timer);
+        else hydrate();
+      });
+    };
+    const scheduleMediaRetry = (element) => {
+      if (disposed || !(element instanceof HTMLImageElement || element instanceof HTMLVideoElement)) return;
+      const retries = mediaRetryCounts.get(element) ?? 0;
+      if (retries >= 1) return;
+      mediaRetryCounts.set(element, retries + 1);
+      const timer = window.setTimeout(() => {
+        mediaRetryTimers.delete(timer);
+        if (!disposed) hydrateElement(element, true);
+      }, 360);
+      mediaRetryTimers.add(timer);
     };
     const flushQueuedSeek = (video, state) => {
       if (state.busy || state.pendingTime === null || video.seeking) return;
@@ -592,6 +629,7 @@ import { Icon } from "astro-icon/components";
       progressTimestamp = 0;
       if (progressFrame) window.cancelAnimationFrame(progressFrame);
       progressFrame = 0;
+      warmMediaTo(1, 260);
       hydrateMediaTo(0.16);
       root.classList.add("is-active");
       root.classList.remove("is-transporting", "is-returning");
@@ -660,8 +698,8 @@ import { Icon } from "astro-icon/components";
       updateEligibility();
     };
 
-    entry?.addEventListener("pointerenter", () => hydrateMediaTo(0.02), { passive: true, signal });
-    entry?.addEventListener("focus", () => hydrateMediaTo(0.02), { signal });
+    entry?.addEventListener("pointerenter", () => warmMediaTo(0.32, 120), { passive: true, signal });
+    entry?.addEventListener("focus", () => warmMediaTo(0.32, 120), { signal });
     entry?.addEventListener("click", activate, { signal });
     nextButton?.addEventListener("click", leaveToOpening, { signal });
     root.querySelectorAll("[data-lovebrain-focus]").forEach((button) => {
@@ -734,6 +772,9 @@ import { Icon } from "astro-icon/components";
     [orbitVideo, raceVideo].forEach((video) => {
       video?.addEventListener("loadedmetadata", render, { signal });
     });
+    root.querySelectorAll("[data-src]").forEach((element) => {
+      element.addEventListener("error", () => scheduleMediaRetry(element), { signal });
+    });
 
     const cleanup = () => {
       if (disposed) return;
@@ -741,6 +782,10 @@ import { Icon } from "astro-icon/components";
       lifecycle.abort();
       if (progressFrame) window.cancelAnimationFrame(progressFrame);
       progressFrame = 0;
+      mediaWarmupTimers.forEach((timer) => window.clearTimeout(timer));
+      mediaWarmupTimers.clear();
+      mediaRetryTimers.forEach((timer) => window.clearTimeout(timer));
+      mediaRetryTimers.clear();
       [orbitVideo, raceVideo, pinchVideo, pinchBufferVideo, embraceVideo].forEach((video) => {
         if (video instanceof HTMLVideoElement) video.pause();
       });

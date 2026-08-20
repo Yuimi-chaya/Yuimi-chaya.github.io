@@ -94,6 +94,17 @@ test("Lovebrain component owns its ED assets and interactive input", () => {
   assert.match(componentSource, /busy/);
   assert.match(componentSource, /video\.pause\(\)/);
   assert.match(componentSource, /hydrateMediaTo/);
+  assert.match(componentSource, /const warmMediaTo = \(value, interval = 0\) =>/);
+  assert.match(componentSource, /const scheduleMediaRetry = \(element\) =>/);
+  assert.match(componentSource, /warmMediaTo\(0\.32, 120\)/);
+  assert.match(componentSource, /warmMediaTo\(1, 260\)/);
+  assert.match(componentSource, /mediaWarmupTimers/);
+  assert.match(componentSource, /mediaRetryTimers/);
+  assert.doesNotMatch(componentSource, /delete element\.dataset\.src/);
+  assert.doesNotMatch(componentSource, /preload="none"/);
+  for (const poster of ["route.webp", "chase.webp", "pressure.webp", "messages.webp"]) {
+    assert.match(componentSource, new RegExp(`poster="/themes/kisara/assets/lovebrain/${poster.replace(".", "\\.")}"`));
+  }
   assert.doesNotMatch(componentSource, /<img[^>]*\ssrc="\/themes\/kisara\/assets\/lovebrain\//);
   assert.doesNotMatch(componentSource, /<video[^>]*\ssrc="\/themes\/kisara\/assets\/lovebrain\//);
   assert.match(componentSource, /is-lovebrain-scene-visible/);
