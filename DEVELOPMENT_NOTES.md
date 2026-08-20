@@ -1737,6 +1737,10 @@
 - The README also records practical boundaries: preserve independent theme implementations, centralize replaceable assets/content, limit each viewport to a primary action plus restrained supporting motion, and verify mobile/reduced-motion/theme-switch/page-cleanup behavior after interaction changes. The earlier generic `Kisara 适合什么` card was removed after review, so the precise reuse boundary now lives only in this section. Focused diff checks passed and `npm test` passed `27/27`; user did not request publication in this pass.
 - Published checkpoint: `04fcc24 docs: add theme reuse guidance` was pushed to `origin/main` after remote `f5d5408`; no pre-existing user edits or untracked source materials were included in that push.
 
+### 2026-08-20 Development notes publication
+
+- The accumulated recovery record was deliberately made public at the user's request. `20a55cd docs: publish development notes` added the then-current `95` verified lines to `DEVELOPMENT_NOTES.md` and was pushed to `origin/main`; no unrelated article, image, generated asset, or untracked workshop material was included.
+
 ### 2026-08-20 Blog Kisara direct donor replacement
 
 - The user rejected further local blending and explicitly selected the complete `tmp/kisara-rematte-20260813/candidates/vitmatte-narrow-runtime.webp` donor after reviewing the three-column comparison. Per that instruction, it directly replaced `public/themes/kisara/assets/blog/kisara-front-solo-v1.webp`; no additional alpha merge, image-model run, page capture, build, or visual verification was performed in this replacement step.
