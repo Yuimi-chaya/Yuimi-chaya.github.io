@@ -12897,6 +12897,11 @@ const gateStyle = [
         opening?.classList.add("is-lovebrain-transporting");
         lovebrainExitCommitted = true;
         lovebrainActive = false;
+        resetGateState();
+        startSpaceLens();
+        startTitleLens();
+        gate.classList.remove("is-lovebrain-active");
+        document.body.classList.remove("is-lovebrain-home-active");
         const publishLovebrainOpeningProgress = (progress) => {
           window.dispatchEvent(new CustomEvent("yuimi:kisara-lovebrain-opening-progress", {
             detail: { progress: clamp(progress, 0, 1) }
@@ -12915,6 +12920,9 @@ const gateStyle = [
           lovebrainActive = true;
           lovebrainExitCommitted = false;
           pageMode = "lovebrain";
+          gate.classList.add("is-lovebrain-active");
+          document.body.classList.add("is-lovebrain-home-active");
+          stopLovebrainDefaultResources();
           gate.classList.remove("is-lovebrain-transporting");
           opening?.classList.remove("is-lovebrain-transporting");
         }
