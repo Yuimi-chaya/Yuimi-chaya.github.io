@@ -1,9 +1,13 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import notFoundStylesheet from "../styles/not-found.css?url";
 import { Icon } from "astro-icon/components";
 import { getThemePath } from "@/core/themes/registry";
 
 const from = Astro.url.searchParams.get("from");
+const lostCopy = from
+  ? "这条路线暂时没有留下记录。先回到首页，我们重新找一次。"
+  : "你走到了一个暂时没有记录的角落。先回到首页，我们重新找一次。";
 ---
 
 <KisaraLayout
@@ -11,36 +15,77 @@ const from = Astro.url.searchParams.get("from");
   description="这条契约线路没有响应。"
   honorThemePreference={false}
   redirectThemedNotFound
+  stylesheets={[notFoundStylesheet]}
 >
-  <section class="kisara-not-found">
-    <div class="kisara-error-orbit" aria-hidden="true"><span>4</span><i></i><span>4</span></div>
-    <div>
-      <p class="kisara-section-index">SIGNAL LOST / NO RESPONSE</p>
-      <h1>404</h1>
-      <p>{from ? `未找到：${from}` : "这条契约线路没有返回任何信号。可能是坐标失效，也可能只是被木更切断了。"}</p>
+  <section class="kisara-not-found" data-kisara-not-found aria-labelledby="kisara-not-found-title">
+    <div class="kisara-not-found-visual" aria-hidden="true">
+      <img
+        src="/themes/kisara/assets/not-found/lost-route.jpg"
+        alt=""
+        width="1920"
+        height="1080"
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+      />
+    </div>
+
+    <div class="kisara-not-found-rain" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i>
+    </div>
+
+    <div class="kisara-not-found-content">
+      <p class="kisara-not-found-index"><span></span> LOST ROUTE / 404</p>
+      <h1 id="kisara-not-found-title" class="kisara-not-found-code" aria-label="404">
+        <span aria-hidden="true">4</span><span aria-hidden="true">0</span><span aria-hidden="true">4</span>
+      </h1>
+      <p class="kisara-not-found-title">迷路了吗？</p>
+      <p class="kisara-not-found-copy">{lostCopy}</p>
       <nav aria-label="错误恢复操作">
-        <a href={getThemePath("kisara", "/")}><Icon name="tabler:home" aria-hidden="true" />KISARA HOME</a>
-        <a href={getThemePath("kisara", "/blog/")}><Icon name="tabler:book-2" aria-hidden="true" />READ LOGS</a>
-        <button type="button" data-kisara-back><Icon name="tabler:arrow-back-up" aria-hidden="true" />GO BACK</button>
+        <a href={getThemePath("kisara", "/")}><Icon name="tabler:home" aria-hidden="true" />回到首页</a>
+        <button type="button" data-kisara-back><Icon name="tabler:arrow-left" aria-hidden="true" />返回上一页</button>
       </nav>
     </div>
   </section>
 
   <script is:inline data-astro-rerun>
     window.__yuimiKisaraInnerCleanup?.();
+
     const lifecycle = new AbortController();
+    const root = document.querySelector("[data-kisara-not-found]");
+    let prepareFrame = 0;
+    let enterFrame = 0;
+
+    const startEntrance = () => {
+      if (!(root instanceof HTMLElement)) return;
+
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        root.dataset.entryState = "entered";
+        return;
+      }
+
+      root.dataset.entryState = "prepared";
+      prepareFrame = requestAnimationFrame(() => {
+        enterFrame = requestAnimationFrame(() => {
+          root.dataset.entryState = "entered";
+        });
+      });
+    };
+
     const cleanup = () => {
+      cancelAnimationFrame(prepareFrame);
+      cancelAnimationFrame(enterFrame);
       lifecycle.abort();
       if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
     };
+
     window.__yuimiKisaraInnerCleanup = cleanup;
     document.addEventListener("astro:before-swap", cleanup, { once: true, signal: lifecycle.signal });
     document.querySelector("[data-kisara-back]")?.addEventListener("click", () => {
       if (history.length > 1) history.back();
-      else {
-        const homeLink = document.querySelector("a.kisara-brand[href]");
-        if (homeLink instanceof HTMLAnchorElement) homeLink.click();
-      }
+      else window.location.assign("/");
     }, { signal: lifecycle.signal });
+
+    startEntrance();
   </script>
 </KisaraLayout>
