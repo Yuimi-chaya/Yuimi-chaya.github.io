@@ -295,11 +295,13 @@ const gameMessageBursts = [
       <video
         data-game-shake-video
         poster="/themes/kisara/assets/game-shake-easter-first.webp"
-        preload="metadata"
+        width="1280"
+        height="720"
+        preload="none"
         muted
         playsinline
       >
-        <source src="/themes/kisara/assets/game-shake-easter.mp4" type="video/mp4" />
+        <source data-src="/themes/kisara/assets/game-shake-easter.mp4" type="video/mp4" />
       </video>
       <span class="kisara-game-shake-scan" aria-hidden="true"></span>
       <span class="kisara-game-shake-slices" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
@@ -324,6 +326,12 @@ const gameMessageBursts = [
       const signal = lifecycle.signal;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+      const performanceTier = document.documentElement.dataset.yuimiPerformance ?? "full";
+      const mediaConnection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      const mediaEffectiveType = String(mediaConnection?.effectiveType || "").toLowerCase();
+      const canAutomaticallyWarmMedia = performanceTier === "full"
+        && !mediaConnection?.saveData
+        && !/(^|-)2g$/.test(mediaEffectiveType);
       const scenes = Array.from(page.querySelectorAll("[data-game-scene]"));
       const hero = page.querySelector(".kisara-game-hero");
       const arcade = page.querySelector("[data-kisara-arcade]");
@@ -359,6 +367,7 @@ const gameMessageBursts = [
       let heroPressureLastFrame = 0;
       let heroPressureStage = 0;
       let shakeEasterPreloaded = false;
+      let shakeEasterWarmupIdle = 0;
       let shakeEasterWarmupTimer = 0;
       let shakeEasterExitTimer = 0;
       let shakeEasterScrollLocked = false;
@@ -462,7 +471,9 @@ const gameMessageBursts = [
         if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
         if (heroPointerFrame) window.cancelAnimationFrame(heroPointerFrame);
         if (heroVideo instanceof HTMLVideoElement) heroVideo.pause();
+        if (shakeEasterWarmupIdle && window.cancelIdleCallback) window.cancelIdleCallback(shakeEasterWarmupIdle);
         if (shakeEasterWarmupTimer) window.clearTimeout(shakeEasterWarmupTimer);
+        shakeEasterWarmupIdle = 0;
         shakeEasterWarmupTimer = 0;
         window.clearTimeout(shakeEasterExitTimer);
         releaseGameShakeEaster(true);
@@ -656,6 +667,7 @@ const gameMessageBursts = [
       heroVideo = page.querySelector("[data-game-hero-video]");
       const shakeEaster = page.querySelector("[data-game-shake-easter]");
       const shakeEasterVideo = page.querySelector("[data-game-shake-video]");
+      const shakeEasterSource = shakeEasterVideo?.querySelector("source[data-src]");
       const shakeEasterClose = page.querySelector("[data-game-shake-close]");
       const shakeEasterHint = page.querySelector("[data-game-easter-hint]");
       const shakeEasterProgress = page.querySelector("[data-game-easter-progress]");
@@ -724,8 +736,26 @@ const gameMessageBursts = [
         if (shakeEasterPreloaded) return;
         shakeEasterPreloaded = true;
         if (shakeEasterVideo instanceof HTMLVideoElement) {
+          if (shakeEasterSource instanceof HTMLSourceElement && !shakeEasterSource.hasAttribute("src")) {
+            shakeEasterSource.src = shakeEasterSource.dataset.src || "";
+          }
           shakeEasterVideo.preload = "auto";
           shakeEasterVideo.load();
+        }
+      };
+
+      const scheduleGameShakeWarmup = () => {
+        if (!canAutomaticallyWarmMedia || reducedMotion || !gameShakeEasterViewport.matches) return;
+        const warm = () => {
+          shakeEasterWarmupIdle = 0;
+          shakeEasterWarmupTimer = 0;
+          if (signal.aborted) return;
+          preloadGameShakeEaster();
+        };
+        if (window.requestIdleCallback) {
+          shakeEasterWarmupIdle = window.requestIdleCallback(warm, { timeout: 5200 });
+        } else {
+          shakeEasterWarmupTimer = window.setTimeout(warm, 3200);
         }
       };
 
@@ -941,9 +971,7 @@ const gameMessageBursts = [
         if (!(hero instanceof HTMLElement)) return;
         hero.dataset.introState = reducedMotion ? "complete" : "playing";
         void playMessageField();
-        if (!reducedMotion && gameShakeEasterViewport.matches) {
-          shakeEasterWarmupTimer = window.setTimeout(preloadGameShakeEaster, 680);
-        }
+        scheduleGameShakeWarmup();
       };
       if (heroVideo instanceof HTMLVideoElement) {
         heroVideo.muted = true;

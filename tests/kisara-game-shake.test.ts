@@ -44,12 +44,17 @@ test("Game shake easter starts video and grants the track without permanently co
   assert.doesNotMatch(playbackSource, /grantId:/);
 });
 
-test("Game shake easter warms a poster-backed video before the input trigger", () => {
+test("Game shake easter defers its poster-backed video until idle or input intent", () => {
   assert.match(gamesPageSource, /poster="\/themes\/kisara\/assets\/game-shake-easter-first\.webp"/);
-  assert.match(gamesPageSource, /data-game-shake-video[\s\S]*?preload="metadata"/);
+  assert.match(gamesPageSource, /data-game-shake-video[\s\S]*?preload="none"/);
+  assert.match(gamesPageSource, /data-src="\/themes\/kisara\/assets\/game-shake-easter\.mp4"/);
+  assert.match(gamesPageSource, /canAutomaticallyWarmMedia/);
+  assert.match(gamesPageSource, /performanceTier === "full"/);
   assert.match(gamesPageSource, /const waitForGameShakeFrame = \(video\) =>/);
+  assert.match(gamesPageSource, /shakeEasterSource\.src = shakeEasterSource\.dataset\.src/);
   assert.match(gamesPageSource, /shakeEasterVideo\.preload = "auto"/);
-  assert.match(gamesPageSource, /window\.setTimeout\(preloadGameShakeEaster, 680\)/);
+  assert.match(gamesPageSource, /requestIdleCallback\(warm, \{ timeout: 5200 \}\)/);
+  assert.doesNotMatch(gamesPageSource, /setTimeout\(preloadGameShakeEaster, 680\)/);
 });
 
 test("Game shake grows through the hold and keeps a page-local afterglow after the video ends", () => {
