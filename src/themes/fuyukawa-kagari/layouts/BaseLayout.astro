@@ -359,6 +359,10 @@ const themedNotFoundRedirectScript = `(() => {
       let live2dVisible = true;
       let live2dReady = false;
       let live2dInitStarted = false;
+      let live2dIdleHandle = 0;
+      let live2dFallbackTimer = 0;
+      const live2dConnection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      const live2dResources = new Map();
 
       const setLive2dStatus = (text) => {
         if (live2dStatus) live2dStatus.textContent = text;
@@ -405,19 +409,47 @@ const themedNotFoundRedirectScript = `(() => {
         localStorage.setItem("modelTexturesId", "0");
       };
 
-      const loadExternalResource = (url, type) => new Promise((resolve, reject) => {
-        const tag = type === "css" ? document.createElement("link") : document.createElement("script");
-        if (type === "css") {
-          tag.rel = "stylesheet";
-          tag.href = url;
-        } else {
-          tag.type = "module";
-          tag.src = url;
-        }
-        tag.onload = () => resolve(url);
-        tag.onerror = () => reject(url);
-        document.head.appendChild(tag);
-      });
+      const clearLive2dSchedule = () => {
+        if (live2dIdleHandle && window.cancelIdleCallback) window.cancelIdleCallback(live2dIdleHandle);
+        if (live2dFallbackTimer) window.clearTimeout(live2dFallbackTimer);
+        live2dIdleHandle = 0;
+        live2dFallbackTimer = 0;
+      };
+
+      const canAutoInitLive2d = () => {
+        const profile = document.documentElement.dataset.yuimiPerformance ?? "full";
+        const effectiveType = String(live2dConnection?.effectiveType || "").toLowerCase();
+        return profile === "full"
+          && !live2dConnection?.saveData
+          && !/(^|-)2g$/.test(effectiveType);
+      };
+
+      const loadExternalResource = (url, type) => {
+        if (live2dResources.has(url)) return live2dResources.get(url);
+        const existing = Array.from(document.head.querySelectorAll("link[href], script[src]"))
+          .find((element) => element.href === url || element.src === url);
+        if (existing) return Promise.resolve(url);
+
+        const promise = new Promise((resolve, reject) => {
+          const tag = type === "css" ? document.createElement("link") : document.createElement("script");
+          if (type === "css") {
+            tag.rel = "stylesheet";
+            tag.href = url;
+          } else {
+            tag.type = "module";
+            tag.src = url;
+          }
+          tag.onload = () => resolve(url);
+          tag.onerror = () => reject(url);
+          document.head.appendChild(tag);
+        }).catch((error) => {
+          live2dResources.delete(url);
+          throw error;
+        });
+
+        live2dResources.set(url, promise);
+        return promise;
+      };
 
       const setWaifuVisibility = (visible, options = {}) => {
         const { persist = true } = options;
@@ -514,6 +546,7 @@ const themedNotFoundRedirectScript = `(() => {
 
       const initLive2dWidget = async () => {
         if (!isHomeRoute()) return;
+        clearLive2dSchedule();
         if (hasLive2dWidget()) {
           live2dReady = true;
           live2dInitStarted = false;
@@ -556,6 +589,28 @@ const themedNotFoundRedirectScript = `(() => {
         }
       };
 
+      const scheduleLive2dWidget = () => {
+        clearLive2dSchedule();
+        if (!isHomeRoute() || live2dReady || live2dInitStarted || hasLive2dWidget()) return;
+        if (live2dToggle) live2dToggle.textContent = "显示看板娘";
+        if (!canAutoInitLive2d()) {
+          setLive2dStatus("点击“显示看板娘”后再加载 Live2D。");
+          return;
+        }
+
+        setLive2dStatus("看板娘会在页面空闲后出现。");
+        const start = () => {
+          live2dIdleHandle = 0;
+          live2dFallbackTimer = 0;
+          void initLive2dWidget();
+        };
+        if (window.requestIdleCallback) {
+          live2dIdleHandle = window.requestIdleCallback(start, { timeout: 3200 });
+        } else {
+          live2dFallbackTimer = window.setTimeout(start, 1600);
+        }
+      };
+
       const hardReloadLive2d = () => {
         if (!isHomeRoute()) return;
         removeLive2dWidget();
@@ -564,6 +619,7 @@ const themedNotFoundRedirectScript = `(() => {
       };
 
       const hideLive2dForRoute = () => {
+        clearLive2dSchedule();
         removeLocalWaifuFallback();
         const waifu = document.getElementById("waifu");
         if (waifu) {
@@ -593,13 +649,14 @@ const themedNotFoundRedirectScript = `(() => {
         }
         live2dReady = false;
         live2dInitStarted = false;
-        initLive2dWidget();
+        scheduleLive2dWidget();
       };
 
       syncLive2dRouteState();
       document.addEventListener("astro:page-load", syncLive2dRouteState);
       document.addEventListener("astro:after-swap", syncLive2dRouteState);
       window.addEventListener("pageshow", syncLive2dRouteState);
+      window.addEventListener("pagehide", clearLive2dSchedule);
 
       live2dToggle?.addEventListener("click", () => {
         if (!isHomeRoute()) return;
