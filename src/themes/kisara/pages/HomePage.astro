@@ -158,7 +158,87 @@ const gateStyle = [
   title="Kisara | Yuimi Lab"
   description="Yuimi Lab 的 Kisara 视觉交互主题。"
   stylesheets={[homeStylesheet]}
+  priorityImages={activeBackgroundUrl ? [activeBackgroundUrl] : []}
 >
+  <script is:inline data-astro-rerun define:vars={{ criticalGateImage: activeBackgroundUrl ?? "" }}>
+    (() => {
+      window.__yuimiKisaraGateMediaCleanup?.();
+
+      const root = document.documentElement;
+      const source = criticalGateImage;
+      let disposed = false;
+      let settled = false;
+      let fallbackTimer = 0;
+      let revealFrame = 0;
+      let revealPaintFrame = 0;
+
+      root.dataset.kisaraGateMedia = source ? "pending" : "ready";
+
+      const finish = (state) => {
+        if (disposed || settled) return;
+        settled = true;
+        if (fallbackTimer) window.clearTimeout(fallbackTimer);
+        fallbackTimer = 0;
+        revealFrame = window.requestAnimationFrame(() => {
+          revealFrame = 0;
+          revealPaintFrame = window.requestAnimationFrame(() => {
+            revealPaintFrame = 0;
+            if (disposed) return;
+            root.dataset.kisaraGateMedia = state;
+          });
+        });
+      };
+
+      const cleanup = () => {
+        disposed = true;
+        if (fallbackTimer) window.clearTimeout(fallbackTimer);
+        if (revealFrame) window.cancelAnimationFrame(revealFrame);
+        if (revealPaintFrame) window.cancelAnimationFrame(revealPaintFrame);
+        fallbackTimer = 0;
+        revealFrame = 0;
+        revealPaintFrame = 0;
+        root.removeAttribute("data-kisara-gate-media");
+        if (window.__yuimiKisaraGateMediaCleanup === cleanup) {
+          window.__yuimiKisaraGateMediaCleanup = null;
+        }
+      };
+
+      window.__yuimiKisaraGateMediaCleanup = cleanup;
+      document.addEventListener("astro:before-swap", cleanup, { once: true });
+
+      if (!source) {
+        finish("ready");
+        return;
+      }
+
+      const image = new Image();
+      image.decoding = "async";
+      image.fetchPriority = "high";
+      image.src = source;
+
+      const loaded = image.complete
+        ? Promise.resolve()
+        : new Promise((resolve, reject) => {
+            image.addEventListener("load", resolve, { once: true });
+            image.addEventListener("error", reject, { once: true });
+          });
+
+      loaded.then(async () => {
+        try {
+          if (image.naturalWidth > 0 && typeof image.decode === "function") {
+            await image.decode();
+          }
+        } catch {
+          // A loaded image can still paint when decode() is interrupted by navigation.
+        }
+        finish(image.naturalWidth > 0 ? "ready" : "failed");
+      }).catch(() => finish("failed"));
+
+      fallbackTimer = window.setTimeout(() => {
+        finish(image.complete && image.naturalWidth > 0 ? "ready" : "failed");
+      }, 8000);
+    })();
+  </script>
   <script is:inline data-astro-rerun>
     (() => {
       const ticketKey = "yuimi-kisara-found-self-ticket-v1";

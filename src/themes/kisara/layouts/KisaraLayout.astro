@@ -30,6 +30,7 @@ interface Props {
   redirectThemedNotFound?: boolean;
   isArticlePage?: boolean;
   stylesheets?: string[];
+  priorityImages?: string[];
   article?: BlogPost["data"];
 }
 
@@ -40,8 +41,10 @@ const {
   redirectThemedNotFound = false,
   isArticlePage = false,
   stylesheets = [],
+  priorityImages = [],
   article
 } = Astro.props;
+const priorityImageUrls = [...new Set(priorityImages.filter(Boolean))];
 const canonicalPath = getCanonicalPath(Astro.url.pathname);
 const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
 const isAlternateThemeRoute = Astro.url.pathname.startsWith("/themes/");
@@ -105,6 +108,7 @@ const themedNotFoundRedirectScript = `(() => {
     }
     <link rel="icon" type="image/x-icon" href="/themes/kisara/favicon.ico?v=heart-only" />
     <link rel="canonical" href={canonical} />
+    {priorityImageUrls.map((href) => <link rel="preload" as="image" href={href} fetchpriority="high" />)}
     {stylesheets.map((href) => <link rel="stylesheet" href={href} />)}
     <ThemePreferenceGate currentTheme="kisara" honorPreference={honorThemePreference} />
     <ClientRouter fallback="swap" />

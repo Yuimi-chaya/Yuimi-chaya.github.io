@@ -76,6 +76,15 @@ for (const [label, prefix, limit] of bundleBudgets) {
 }
 
 try {
+  const homeHtml = await readFile(new URL("index.html", distDir), "utf8");
+  if (!/<link\s+rel="preload"\s+as="image"\s+href="\/themes\/kisara\/assets\/gate-background\.webp"\s+fetchpriority="high"\s*\/?>/i.test(homeHtml)) {
+    failures.push("Kisara Home lost its high-priority Gate background preload");
+  }
+} catch {
+  failures.push("Kisara Home HTML is missing for critical-image validation");
+}
+
+try {
   const gamesHtml = await readFile(new URL("games/index.html", distDir), "utf8");
   const shakeVideoPath = "/themes/kisara/assets/game-shake-easter.mp4";
   if (!gamesHtml.includes(`data-src="${shakeVideoPath}"`)) {
