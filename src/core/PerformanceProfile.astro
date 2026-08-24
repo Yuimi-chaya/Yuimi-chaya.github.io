@@ -27,6 +27,10 @@
       root.dataset.yuimiPointer = coarsePointer ? "coarse" : "fine";
     };
 
+    const applyVisibility = () => {
+      root.dataset.yuimiVisibility = document.visibilityState;
+    };
+
     const scheduleProfileRefresh = () => {
       if (resizeTimer) window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
@@ -36,8 +40,10 @@
     };
 
     applyProfile();
+    applyVisibility();
     window.addEventListener("resize", scheduleProfileRefresh, { passive: true, signal: lifecycle.signal });
     window.addEventListener("orientationchange", scheduleProfileRefresh, { passive: true, signal: lifecycle.signal });
+    document.addEventListener("visibilitychange", applyVisibility, { signal: lifecycle.signal });
     connection?.addEventListener?.("change", applyProfile, { signal: lifecycle.signal });
 
     const cleanup = () => {
