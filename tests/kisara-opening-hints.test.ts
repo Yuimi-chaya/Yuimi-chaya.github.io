@@ -117,19 +117,22 @@ test("Opening route labels stay readable instead of truncating the navigation", 
   const routeCss = homeCssSource.slice(routeCssStart, routeCssEnd);
   assert.ok(routeCssStart >= 0 && routeCssEnd > routeCssStart);
   assert.doesNotMatch(routeCss, /text-overflow:\s*ellipsis/);
-  assert.match(routeCss, /\.kisara-opening-route-root[\s\S]*?width: 160px/);
-  assert.match(routeCss, /\.kisara-opening-route-page-hub[\s\S]*?min-height: 44px/);
-  assert.match(routeCss, /\.kisara-opening-route-node[\s\S]*?min-height: 38px/);
+  assert.match(routeCss, /\.kisara-opening-route-root[\s\S]*?width: min\(208px, 100%\)/);
+  assert.match(routeCss, /\.kisara-opening-route-page-hub[\s\S]*?min-height: 38px/);
+  assert.match(routeCss, /\.kisara-opening-route-node[\s\S]*?min-height: 33px/);
+  assert.match(routeCss, /border-radius: 0/);
 });
 
-test("Opening route tree stays compact and avoids a rigid table rhythm", () => {
+test("Opening route tree reads as an asymmetric archive index", () => {
   assert.match(openingSource, /id: "home"[\s\S]*?columns: 4/);
-  assert.match(homeCssSource, /\.kisara-opening-route-map[\s\S]*?min-height: 318px/);
+  assert.match(homeCssSource, /\.kisara-opening-route-map[\s\S]*?min-height: 286px/);
+  assert.match(homeCssSource, /\.kisara-opening-route-root-mark/);
+  assert.match(homeCssSource, /\.kisara-opening-route-node-icon/);
   assert.match(homeCssSource, /--route-drift-x/);
   assert.match(homeCssSource, /--route-drift-y/);
   assert.match(homeCssSource, /--route-tilt/);
   assert.match(homeCssSource, /nth-child\(3n \+ 2\)[\s\S]*?translate3d\(0, 2px, 0\)/);
-  assert.match(homeCssSource, /width: calc\(100% - 12px\)/);
+  assert.match(homeCssSource, /\.kisara-opening-route-root-copy strong[\s\S]*?font: 900 2rem/);
   assert.doesNotMatch(openingSource, /kisara-opening-video-note/);
 });
 
