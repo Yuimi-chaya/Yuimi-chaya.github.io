@@ -5,7 +5,7 @@ const astroDir = new URL("_astro/", distDir);
 const failures = [];
 
 const fileBudgets = [
-  ["Kisara Home HTML", "index.html", 190_000],
+  ["Kisara Home HTML", "index.html", 210_000],
   ["Kisara Blog HTML", "blog/index.html", 155_000],
   ["Kisara Games HTML", "games/index.html", 166_000],
   ["Kisara Works HTML", "projects/index.html", 198_000],

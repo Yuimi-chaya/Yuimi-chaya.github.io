@@ -1,3 +1,111 @@
+---
+import { Icon } from "astro-icon/components";
+import { getThemePath } from "@/core/themes/registry";
+
+const hiddenRoutes = [
+  { id: "chibi-jealousy", code: "A", label: "嫉妒舞台", detail: "后宫总会起火，别让她们看见不该看的东西", icon: "tabler:heart" },
+  { id: "chibi-apple", code: "B", label: "飞来之物", detail: "舞台记住两次争吵，飞来的就不再只是台词", icon: "tabler:hand-finger" },
+  { id: "found-self", code: "C", label: "寻找自我", detail: "契约真正被改写前停下，回到一切的起点", icon: "tabler:arrow-back-up" },
+  { id: "photo-archive", code: "D", label: "照片暗门", detail: "照片不会开口，胶带边缘未必守得住秘密", icon: "tabler:search" },
+  { id: "memory-return", code: "E", label: "记忆归还", detail: "被归还的记忆不会立刻歌唱，先等十一段旧旋律走完", icon: "tabler:player-skip-forward" },
+  { id: "game-shake", code: "F", label: "屏幕回望", detail: "让没发出去的话一直颤抖，屏幕另一侧也会开始注视你", icon: "tabler:activity-heartbeat" }
+] as const;
+
+const routeBranches = [
+  {
+    id: "home",
+    pageId: "home",
+    code: "01",
+    label: "HOME",
+    detail: "首页章节",
+    href: getThemePath("kisara", "/"),
+    icon: "tabler:home-heart",
+    accent: "#bb4778",
+    columns: 4,
+    routes: [
+      { id: "001", kind: "chapter", code: "001", label: "站点档案", detail: "ARCHIVE", href: "#kisara-opening", icon: "tabler:file-text" },
+      { id: "002", kind: "chapter", code: "002", label: "冰箱库存", detail: "FRIDGE", href: "#kisara-fridge-title", icon: "tabler:glass-full" },
+      { id: "003", kind: "chapter", code: "003", label: "照片线索", detail: "PHOTO", href: "#kisara-project-title", icon: "tabler:search" },
+      { id: "004", kind: "chapter", code: "004", label: "最新信号", detail: "LATEST", href: "#kisara-latest-title", icon: "tabler:archive" }
+    ]
+  },
+  {
+    id: "blog",
+    pageId: "blog",
+    code: "02",
+    label: "BLOG",
+    detail: "文章信号",
+    href: getThemePath("kisara", "/blog/"),
+    icon: "tabler:book-2",
+    accent: "#9a4b7e",
+    columns: 3,
+    routes: [
+      { id: "blog-cast", kind: "feature", code: "VIEW", label: "人物视点", detail: "CAST FOCUS", href: `${getThemePath("kisara", "/blog/")}#kisara-blog-hero-title`, icon: "tabler:user-heart" },
+      { id: "blog-archive", kind: "feature", code: "LOG", label: "文章档案", detail: "SIGNAL ARCHIVE", href: `${getThemePath("kisara", "/blog/")}#kisara-blog-archive`, icon: "tabler:archive" }
+    ]
+  },
+  {
+    id: "games",
+    pageId: "games",
+    code: "03",
+    label: "GAME",
+    detail: "互动游乐场",
+    href: getThemePath("kisara", "/games/"),
+    icon: "tabler:device-gamepad-2",
+    accent: "#5573aa",
+    columns: 3,
+    routes: [
+      { id: "game-message", kind: "feature", code: "MSG", label: "私聊信号", detail: "MESSAGE", href: `${getThemePath("kisara", "/games/")}#kisara-game-hero-title`, icon: "tabler:activity-heartbeat" },
+      { id: "game-arcade", kind: "feature", code: "PLAY", label: "夜间街机", detail: "ARCADE", href: `${getThemePath("kisara", "/games/")}#kisara-arcade-title`, icon: "tabler:device-gamepad-2" }
+    ]
+  },
+  {
+    id: "projects",
+    pageId: "projects",
+    code: "04",
+    label: "WORKS",
+    detail: "创作现场",
+    href: getThemePath("kisara", "/projects/"),
+    icon: "tabler:code",
+    accent: "#4f7798",
+    columns: 3,
+    routes: [
+      { id: "works-cut", kind: "feature", code: "CUT", label: "刀切测试", detail: "CUT TEST", href: `${getThemePath("kisara", "/projects/")}#kisara-works-title`, icon: "tabler:blade" },
+      { id: "works-kitchen", kind: "feature", code: "PREP", label: "技术食材", detail: "KITCHEN LAB", href: `${getThemePath("kisara", "/projects/")}#kisara-kitchen-lab`, icon: "tabler:flask-2" },
+      { id: "works-result", kind: "feature", code: "MIX", label: "实验配方", detail: "RESULT LAB", href: `${getThemePath("kisara", "/projects/")}#kisara-drink-title`, icon: "tabler:flask-2" }
+    ]
+  },
+  {
+    id: "about",
+    pageId: "about",
+    code: "05",
+    label: "ME",
+    detail: "个人档案",
+    href: getThemePath("kisara", "/about/"),
+    icon: "tabler:user-heart",
+    accent: "#7c4e89",
+    columns: 3,
+    routes: [
+      { id: "me-profile", kind: "feature", code: "ME", label: "身份档案", detail: "PROFILE", href: getThemePath("kisara", "/about/"), icon: "tabler:user-heart" },
+      { id: "me-memories", kind: "feature", code: "05", label: "五段记忆", detail: "MEMORIES", href: getThemePath("kisara", "/about/"), icon: "tabler:archive" },
+      { id: "me-friends", kind: "feature", code: "LINK", label: "友联坐标", detail: "FRIENDS", href: getThemePath("kisara", "/friends/"), icon: "tabler:link" }
+    ]
+  },
+  {
+    id: "hidden",
+    pageId: null,
+    code: "06",
+    label: "HIDDEN",
+    detail: "隐藏路线",
+    href: null,
+    icon: "tabler:sparkles",
+    accent: "#7f365f",
+    columns: 3,
+    routes: hiddenRoutes.map((route) => ({ ...route, kind: "easter", detail: "SECRET", href: null }))
+  }
+] as const;
+---
+
 <kisara-opening-memory-scene class="kisara-opening-video-scene is-memory-video-armed" data-kisara-opening-memory>
   <div class="kisara-opening-video-media" aria-hidden="true">
     <img
@@ -37,42 +145,90 @@
       <span>A personal archive,</span>
       <em>still growing.</em>
     </h2>
-    <p class="kisara-opening-video-lead">这里是 Yuimi Lab，一份还在继续生长的个人博客。</p>
-    <div class="kisara-opening-video-body" aria-label="隐藏彩蛋提示">
-      <div class="kisara-opening-easter-lede">
-        <span>HIDDEN ROUTES</span><i aria-hidden="true"></i><small>不是正文，留给会回头的人</small>
+    <p class="kisara-opening-video-lead">这里是 Yuimi Lab。先找到一个页面，再沿着它继续向下。</p>
+    <nav class="kisara-opening-video-body kisara-opening-route-map" data-kisara-opening-route-map aria-label="Kisara 全站路线图">
+      <a class="kisara-opening-route-root" href={getThemePath("kisara", "/")} data-kisara-opening-route-root aria-label="返回 Kisara 首页">
+        <Icon name="tabler:heart" aria-hidden="true" />
+        <span><strong>KISARA</strong><small>YUIMI LAB / SITE MAP</small></span>
+      </a>
+
+      <span class="kisara-opening-route-network" aria-hidden="true">
+        <i class="is-root-line"></i>
+        <i class="is-spine"></i>
+      </span>
+
+      <div class="kisara-opening-route-tree">
+        {routeBranches.map((branch, branchIndex) => (
+          <section
+            class:list={["kisara-opening-route-page", `is-${branch.id}`]}
+            style={`--route-branch-order: ${branchIndex}; --route-accent: ${branch.accent}; --route-columns: ${branch.columns};`}
+          >
+            <span class="kisara-opening-route-page-line" aria-hidden="true"><i></i></span>
+            {
+              branch.href ? (
+                <a
+                  class="kisara-opening-route-page-hub"
+                  href={branch.href}
+                  data-kisara-route-kind="page"
+                  data-kisara-route-id={branch.pageId}
+                  data-astro-prefetch="hover"
+                >
+                  <span class="kisara-opening-route-page-icon"><Icon name={branch.icon} aria-hidden="true" /></span>
+                  <span><b>{branch.code}</b><strong>{branch.label}</strong><small>{branch.detail}</small></span>
+                </a>
+              ) : (
+                <span class="kisara-opening-route-page-hub is-static">
+                  <span class="kisara-opening-route-page-icon"><Icon name={branch.icon} aria-hidden="true" /></span>
+                  <span><b>{branch.code}</b><strong>{branch.label}</strong><small>{branch.detail}</small></span>
+                </span>
+              )
+            }
+            <span class="kisara-opening-route-subline" aria-hidden="true"><i></i></span>
+            <ul>
+              {branch.routes.map((route, routeIndex) => (
+                <li style={`--route-order: ${routeIndex};`}>
+                  {
+                    route.href ? (
+                      <a
+                        class="kisara-opening-route-node"
+                        href={route.href}
+                        data-kisara-route-kind={route.kind}
+                        data-kisara-route-id={route.id}
+                        data-astro-prefetch={route.href.startsWith("#") ? undefined : "hover"}
+                      >
+                        <Icon name={route.icon} aria-hidden="true" />
+                        <span><b>{route.code}</b><strong>{route.label}</strong><small>{route.detail}</small></span>
+                      </a>
+                    ) : (
+                      <span
+                        class="kisara-opening-route-node is-hidden-route"
+                        data-kisara-route-kind="easter"
+                        data-kisara-route-id={route.id}
+                        data-kisara-opening-hint={route.id}
+                        data-hint-code={route.code}
+                        aria-label={`${route.label}：${hiddenRoutes.find((hidden) => hidden.id === route.id)?.detail ?? "隐藏路线"}`}
+                        title={hiddenRoutes.find((hidden) => hidden.id === route.id)?.detail}
+                      >
+                        <Icon name={route.icon} aria-hidden="true" />
+                        <span>
+                          <b class="kisara-opening-easter-hint-code">{route.code}</b>
+                          <span class="kisara-opening-easter-hint-copy">
+                            <span class="kisara-opening-easter-hint-fragment"><strong>{route.label}</strong><small>SECRET</small></span>
+                          </span>
+                        </span>
+                      </span>
+                    )
+                  }
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </div>
-      <div class="kisara-opening-easter-hints" role="list">
-        <span class="kisara-opening-easter-hint" data-kisara-opening-hint="chibi-jealousy" data-hint-code="A" role="listitem">
-          <b class="kisara-opening-easter-hint-code">A / STAGE</b>
-          <span class="kisara-opening-easter-hint-copy"><span class="kisara-opening-easter-hint-fragment">后宫总会起火，别让她们看见不该看的东西</span></span>
-        </span>
-        <span class="kisara-opening-easter-hint" data-kisara-opening-hint="chibi-apple" data-hint-code="B" role="listitem">
-          <b class="kisara-opening-easter-hint-code">B / STAGE</b>
-          <span class="kisara-opening-easter-hint-copy"><span class="kisara-opening-easter-hint-fragment">舞台记住两次争吵，飞来的就不再只是台词</span></span>
-        </span>
-        <span class="kisara-opening-easter-hint" data-kisara-opening-hint="found-self" data-hint-code="C" role="listitem">
-          <b class="kisara-opening-easter-hint-code">C / RETURN</b>
-          <span class="kisara-opening-easter-hint-copy"><span class="kisara-opening-easter-hint-fragment">契约真正被改写前停下，回到一切的起点</span></span>
-        </span>
-        <span class="kisara-opening-easter-hint" data-kisara-opening-hint="photo-archive" data-hint-code="D" role="listitem">
-          <b class="kisara-opening-easter-hint-code">D / FRAME</b>
-          <span class="kisara-opening-easter-hint-copy"><span class="kisara-opening-easter-hint-fragment">照片不会开口，胶带边缘未必守得住秘密</span></span>
-        </span>
-        <span class="kisara-opening-easter-hint" data-kisara-opening-hint="memory-return" data-hint-code="E" role="listitem">
-          <b class="kisara-opening-easter-hint-code">E / AUDIO</b>
-          <span class="kisara-opening-easter-hint-copy"><span class="kisara-opening-easter-hint-fragment">被归还的记忆不会立刻歌唱，先等十一段旧旋律走完</span></span>
-        </span>
-        <span class="kisara-opening-easter-hint" data-kisara-opening-hint="game-shake" data-hint-code="F" role="listitem">
-          <b class="kisara-opening-easter-hint-code">F / SIGNAL</b>
-          <span class="kisara-opening-easter-hint-copy"><span class="kisara-opening-easter-hint-fragment">让没发出去的话一直颤抖，屏幕另一侧也会开始注视你</span></span>
-        </span>
-      </div>
-    </div>
-    <p class="kisara-opening-video-note">技术搭起骨架，动画与交互把脑海里的画面一点点落实。</p>
+    </nav>
   </header>
 
-  <p class="kisara-opening-video-clause">BLOG / WORKS / GAME / ME</p>
+  <p class="kisara-opening-video-clause">ROOT / PAGE / ROUTE</p>
 </kisara-opening-memory-scene>
 
 <script>
@@ -80,6 +236,7 @@
     class KisaraOpeningMemoryScene extends HTMLElement {
       controller: AbortController | null = null;
       observer: IntersectionObserver | null = null;
+      chapterObserver: IntersectionObserver | null = null;
       resetScene: (() => void) | null = null;
       refreshScene: (() => void) | null = null;
 
@@ -101,23 +258,44 @@
         const hintNodes = Array.from(
           this.querySelectorAll<HTMLElement>("[data-kisara-opening-hint]")
         );
+        const routeNodes = Array.from(
+          this.querySelectorAll<HTMLElement>("[data-kisara-route-kind][data-kisara-route-id]")
+        );
+        const pageNodes = routeNodes.filter((node) => node.dataset.kisaraRouteKind === "page");
+        const chapterNodes = routeNodes.filter((node) => node.dataset.kisaraRouteKind === "chapter");
+        const routeMap = this.querySelector<HTMLElement>("[data-kisara-opening-route-map]");
+        const routeRoot = this.querySelector<HTMLElement>("[data-kisara-opening-route-root]");
+        let routeRootTravel = 0;
         let sceneVisible = false;
 
-        const animateHint = (node: HTMLElement) => {
+        const measureRouteRootTravel = () => {
+          if (!routeMap || !routeRoot) return;
+          routeRootTravel = Math.max(0, (routeMap.clientWidth - routeRoot.offsetWidth) / 2);
+        };
+        measureRouteRootTravel();
+
+        const animateRouteNode = (node: HTMLElement) => {
           if (reducedMotion) return;
-          node.classList.remove("is-hint-drawing");
+          node.classList.remove("is-route-drawing", "is-hint-drawing");
           void node.offsetWidth;
-          node.classList.add("is-hint-drawing");
-          delete node.dataset.hintPending;
+          node.classList.add("is-route-drawing");
+          if (node.hasAttribute("data-kisara-opening-hint")) node.classList.add("is-hint-drawing");
+          delete node.dataset.routePending;
+        };
+
+        const achieveRouteNode = (node: HTMLElement | undefined, animate = false) => {
+          if (!node || node.classList.contains("is-route-achieved")) return;
+          node.classList.add("is-route-achieved");
+          node.dataset.routeState = "visited";
+          if (node.hasAttribute("data-kisara-opening-hint")) node.classList.add("is-hint-achieved");
+          if (!animate || reducedMotion) return;
+          if (sceneVisible) animateRouteNode(node);
+          else node.dataset.routePending = "true";
         };
 
         const achieveHint = (id: string, animate = false) => {
           const node = hintNodes.find((candidate) => candidate.dataset.kisaraOpeningHint === id);
-          if (!node || node.classList.contains("is-hint-achieved")) return;
-          node.classList.add("is-hint-achieved");
-          if (!animate || reducedMotion) return;
-          if (sceneVisible) animateHint(node);
-          else node.dataset.hintPending = "true";
+          achieveRouteNode(node, animate);
         };
 
         hintNodes.forEach((node) => {
@@ -131,12 +309,79 @@
           if (typeof detail.id === "string") achieveHint(detail.id, true);
         }, { signal });
 
-        const revealPendingHints = () => {
-          if (!sceneVisible || reducedMotion) return;
-          hintNodes.forEach((node) => {
-            if (node.dataset.hintPending === "true") animateHint(node);
+        const syncVisitedPages = (visited: unknown) => {
+          const visitedPages = new Set(Array.isArray(visited) ? visited : []);
+          pageNodes.forEach((node) => {
+            const id = node.dataset.kisaraRouteId;
+            if (id && visitedPages.has(id)) achieveRouteNode(node);
           });
         };
+        syncVisitedPages(window.__yuimiKisaraLovebrainProgress?.snapshot?.().visited);
+        achieveRouteNode(pageNodes.find((node) => node.dataset.kisaraRouteId === "home"));
+        window.addEventListener("yuimi:kisara-lovebrain-progress", (event) => {
+          const visited = event instanceof CustomEvent ? event.detail?.visited : [];
+          syncVisitedPages(visited);
+        }, { signal });
+
+        const chapterStorageKey = "yuimi-kisara-opening-route-chapters-v1";
+        const validChapterIds = new Set(["001", "002", "003", "004"]);
+        const visitedChapters = new Set<string>();
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(chapterStorageKey) ?? "null");
+          const values = Array.isArray(stored)
+            ? stored
+            : stored?.version === 1 && Array.isArray(stored.visited)
+              ? stored.visited
+              : [];
+          values.forEach((id) => {
+            if (validChapterIds.has(id)) visitedChapters.add(id);
+          });
+        } catch {}
+
+        const persistChapters = () => {
+          try {
+            sessionStorage.setItem(chapterStorageKey, JSON.stringify({
+              version: 1,
+              visited: [...visitedChapters]
+            }));
+          } catch {}
+        };
+        const achieveChapter = (id: string, animate = false) => {
+          if (!validChapterIds.has(id)) return;
+          const isNew = !visitedChapters.has(id);
+          if (isNew) {
+            visitedChapters.add(id);
+            persistChapters();
+          }
+          const node = chapterNodes.find((candidate) => candidate.dataset.kisaraRouteId === id);
+          achieveRouteNode(node, animate && isNew);
+        };
+        chapterNodes.forEach((node) => {
+          const id = node.dataset.kisaraRouteId;
+          if (id && visitedChapters.has(id)) achieveRouteNode(node);
+        });
+
+        const revealPendingRoutes = () => {
+          if (!sceneVisible || reducedMotion) return;
+          routeNodes.forEach((node) => {
+            if (node.dataset.routePending === "true") animateRouteNode(node);
+          });
+        };
+
+        this.chapterObserver?.disconnect();
+        const chapterTargets = Array.from(document.querySelectorAll<HTMLElement>("[data-kisara-home-stop]"));
+        if ("IntersectionObserver" in window) {
+          this.chapterObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (!entry.isIntersecting || entry.intersectionRatio < 0.24) return;
+              const id = (entry.target as HTMLElement).dataset.kisaraHomeStop;
+              if (id) achieveChapter(id, true);
+            });
+          }, { threshold: [0, 0.24, 0.5], rootMargin: "-8% 0px -8%" });
+          chapterTargets.forEach((target) => this.chapterObserver?.observe(target));
+        } else {
+          achieveChapter("001");
+        }
 
         if (!video) return;
 
@@ -170,6 +415,10 @@
           const initialScale = compact ? 0.62 : 0.69;
           const initialOffset = compact ? 34 : medium ? 62 : 86;
           const ruleProgress = easePhase(timeline, 0.74, 0.99);
+          const routeRootReveal = easePhase(timeline, 0.48, 0.68);
+          const routeRootDock = easePhase(timeline, 0.7, 0.97);
+          const routeRootPeakScale = 0.5 + routeRootReveal * 0.62;
+          const routeRootScale = routeRootPeakScale + (1 - routeRootPeakScale) * routeRootDock;
 
           this.style.setProperty(
             "--kisara-opening-copy-scale",
@@ -211,6 +460,15 @@
           this.style.setProperty(
             "--kisara-opening-rule-scale",
             (0.18 + 0.82 * ruleProgress).toFixed(4)
+          );
+          this.style.setProperty("--kisara-opening-route-root-opacity", routeRootReveal.toFixed(4));
+          this.style.setProperty(
+            "--kisara-opening-route-root-scale",
+            routeRootScale.toFixed(4)
+          );
+          this.style.setProperty(
+            "--kisara-opening-route-root-shift",
+            `${(routeRootTravel * (1 - routeRootDock)).toFixed(2)}px`
           );
         };
 
@@ -434,7 +692,7 @@
             }
             return;
           }
-          revealPendingHints();
+          revealPendingRoutes();
           if (waitingForFreshEntry) {
             if (!wasVisible) waitingForFreshEntry = false;
             else return;
@@ -483,6 +741,7 @@
           }
         }, { signal });
         window.addEventListener("resize", () => {
+          measureRouteRootTravel();
           setCopyTimeline(video.currentTime, state === "settled");
         }, { passive: true, signal });
         window.addEventListener("pointerdown", () => {
@@ -513,13 +772,13 @@
               if (state === "playing") arm(false);
               return;
             }
-            revealPendingHints();
+            revealPendingRoutes();
             if (!waitingForFreshEntry && state === "armed") void play();
           }, { threshold: [0, 0.16, 0.42], rootMargin: "4% 0px 4%" });
           this.observer.observe(this);
         } else {
           sceneVisible = true;
-          revealPendingHints();
+          revealPendingRoutes();
           void play();
         }
 
@@ -539,6 +798,8 @@
         this.controller = null;
         this.observer?.disconnect();
         this.observer = null;
+        this.chapterObserver?.disconnect();
+        this.chapterObserver = null;
         this.resetScene = null;
         this.refreshScene = null;
       }
