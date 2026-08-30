@@ -91,18 +91,6 @@ const routeBranches = [
       { id: "me-friends", kind: "feature", code: "LINK", label: "友联坐标", detail: "FRIENDS", href: getThemePath("kisara", "/friends/"), icon: "tabler:link" }
     ]
   },
-  {
-    id: "hidden",
-    pageId: null,
-    code: "06",
-    label: "HIDDEN",
-    detail: "隐藏路线",
-    href: null,
-    icon: "tabler:sparkles",
-    accent: "#7f365f",
-    columns: 3,
-    routes: hiddenRoutes.map((route) => ({ ...route, kind: "easter", detail: "SECRET", href: null }))
-  }
 ] as const;
 ---
 
@@ -145,7 +133,7 @@ const routeBranches = [
       <span>A personal archive,</span>
       <em>still growing.</em>
     </h2>
-    <p class="kisara-opening-video-lead">这里是 Yuimi Lab。先找到一个页面，再沿着它继续向下。</p>
+    <p class="kisara-opening-video-lead">沿着一条记忆，去往它留下的地方。</p>
     <nav class="kisara-opening-video-body kisara-opening-route-map" data-kisara-opening-route-map aria-label="Kisara 全站路线图">
       <a class="kisara-opening-route-root" href={getThemePath("kisara", "/")} data-kisara-opening-route-root aria-label="返回 Kisara 首页">
         <span class="kisara-opening-route-root-mark" aria-hidden="true"><Icon name="tabler:heart" /></span>
@@ -156,79 +144,71 @@ const routeBranches = [
         </span>
       </a>
 
-      <span class="kisara-opening-route-network" aria-hidden="true">
-        <i class="is-root-line"></i>
-        <i class="is-spine"></i>
-      </span>
+      <svg class="kisara-opening-route-thread" viewBox="0 0 640 250" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M4 132 C78 132 78 62 155 68 S248 184 324 157 S407 52 484 78 S550 171 632 118"></path>
+      </svg>
 
-      <div class="kisara-opening-route-tree">
+      <ol class="kisara-opening-route-journey">
         {routeBranches.map((branch, branchIndex) => (
-          <section
-            class:list={["kisara-opening-route-page", `is-${branch.id}`]}
+          <li
+            class:list={["kisara-opening-route-page", `is-${branch.id}`, branchIndex === 0 && "is-active"]}
             style={`--route-branch-order: ${branchIndex}; --route-accent: ${branch.accent}; --route-columns: ${branch.columns};`}
+            data-kisara-route-branch={branch.id}
           >
-            <span class="kisara-opening-route-page-line" aria-hidden="true"><i></i></span>
-            {
-              branch.href ? (
-                <a
-                  class="kisara-opening-route-page-hub"
-                  href={branch.href}
-                  data-kisara-route-kind="page"
-                  data-kisara-route-id={branch.pageId}
-                  data-astro-prefetch="hover"
-                >
-                  <span class="kisara-opening-route-page-icon"><Icon name={branch.icon} aria-hidden="true" /></span>
-                  <span><b>{branch.code}</b><strong>{branch.label}</strong><small>{branch.detail}</small></span>
-                </a>
-              ) : (
-                <span class="kisara-opening-route-page-hub is-static">
-                  <span class="kisara-opening-route-page-icon"><Icon name={branch.icon} aria-hidden="true" /></span>
-                  <span><b>{branch.code}</b><strong>{branch.label}</strong><small>{branch.detail}</small></span>
-                </span>
-              )
-            }
-            <span class="kisara-opening-route-subline" aria-hidden="true"><i></i></span>
-            <ul>
+            <span class="kisara-opening-route-knot" aria-hidden="true"></span>
+            <a
+              class="kisara-opening-route-page-hub"
+              href={branch.href}
+              data-kisara-route-kind="page"
+              data-kisara-route-id={branch.pageId}
+              data-astro-prefetch="hover"
+            >
+              <span class="kisara-opening-route-page-icon"><Icon name={branch.icon} aria-hidden="true" /></span>
+              <span><b>{branch.code}</b><strong>{branch.label}</strong><small>{branch.detail}</small></span>
+            </a>
+            <ul class="kisara-opening-route-notes">
               {branch.routes.map((route, routeIndex) => (
                 <li style={`--route-order: ${routeIndex};`}>
-                  {
-                    route.href ? (
-                      <a
-                        class="kisara-opening-route-node"
-                        href={route.href}
-                        data-kisara-route-kind={route.kind}
-                        data-kisara-route-id={route.id}
-                        data-astro-prefetch={route.href.startsWith("#") ? undefined : "hover"}
-                      >
-                        <span class="kisara-opening-route-node-icon"><Icon name={route.icon} aria-hidden="true" /></span>
-                        <span><b>{route.code}</b><strong>{route.label}</strong><small>{route.detail}</small></span>
-                      </a>
-                    ) : (
-                      <span
-                        class="kisara-opening-route-node is-hidden-route"
-                        data-kisara-route-kind="easter"
-                        data-kisara-route-id={route.id}
-                        data-kisara-opening-hint={route.id}
-                        data-hint-code={route.code}
-                        aria-label={`${route.label}：${hiddenRoutes.find((hidden) => hidden.id === route.id)?.detail ?? "隐藏路线"}`}
-                        title={hiddenRoutes.find((hidden) => hidden.id === route.id)?.detail}
-                      >
-                        <span class="kisara-opening-route-node-icon"><Icon name={route.icon} aria-hidden="true" /></span>
-                        <span>
-                          <b class="kisara-opening-easter-hint-code">{route.code}</b>
-                          <span class="kisara-opening-easter-hint-copy">
-                            <span class="kisara-opening-easter-hint-fragment"><strong>{route.label}</strong><small>SECRET</small></span>
-                          </span>
-                        </span>
-                      </span>
-                    )
-                  }
+                  <a
+                    class="kisara-opening-route-node"
+                    href={route.href}
+                    data-kisara-route-kind={route.kind}
+                    data-kisara-route-id={route.id}
+                    data-astro-prefetch={route.href.startsWith("#") ? undefined : "hover"}
+                  >
+                    <span class="kisara-opening-route-node-icon"><Icon name={route.icon} aria-hidden="true" /></span>
+                    <span><b>{route.code}</b><strong>{route.label}</strong><small>{route.detail}</small></span>
+                  </a>
                 </li>
               ))}
             </ul>
-          </section>
+          </li>
         ))}
-      </div>
+      </ol>
+
+      <aside class="kisara-opening-route-secrets" aria-label="隐藏路线">
+        <span class="kisara-opening-route-secret-rule" aria-hidden="true"></span>
+        <ol>
+          {hiddenRoutes.map((route, routeIndex) => (
+            <li style={`--route-order: ${routeIndex};`}>
+              <span
+                class="kisara-opening-route-secret"
+                data-kisara-route-kind="easter"
+                data-kisara-route-id={route.id}
+                data-kisara-opening-hint={route.id}
+                data-hint-code={route.code}
+                aria-label={`${route.label}：${route.detail}`}
+                title={route.detail}
+              >
+                <b class="kisara-opening-easter-hint-code">{route.code}</b>
+                <span class="kisara-opening-easter-hint-copy">
+                  <span class="kisara-opening-easter-hint-fragment"><strong>{route.label}</strong></span>
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </aside>
     </nav>
   </header>
 
@@ -269,6 +249,9 @@ const routeBranches = [
         const chapterNodes = routeNodes.filter((node) => node.dataset.kisaraRouteKind === "chapter");
         const routeMap = this.querySelector<HTMLElement>("[data-kisara-opening-route-map]");
         const routeRoot = this.querySelector<HTMLElement>("[data-kisara-opening-route-root]");
+        const routeBranchNodes = Array.from(
+          this.querySelectorAll<HTMLElement>("[data-kisara-route-branch]")
+        );
         let routeRootTravel = 0;
         let sceneVisible = false;
 
@@ -277,6 +260,28 @@ const routeBranches = [
           routeRootTravel = Math.max(0, (routeMap.clientWidth - routeRoot.offsetWidth) / 2);
         };
         measureRouteRootTravel();
+
+        const activateRouteBranch = (activeBranch: HTMLElement) => {
+          routeBranchNodes.forEach((branch) => {
+            branch.classList.toggle("is-active", branch === activeBranch);
+          });
+        };
+        const fineRoutePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+        routeBranchNodes.forEach((branch) => {
+          const hub = branch.querySelector<HTMLElement>(".kisara-opening-route-page-hub");
+          if (fineRoutePointer) {
+            branch.addEventListener("pointerenter", () => activateRouteBranch(branch), { signal });
+            branch.addEventListener("focusin", () => activateRouteBranch(branch), { signal });
+            return;
+          }
+          hub?.addEventListener("click", (event) => {
+            if (branch.dataset.routeTapReady === "true") return;
+            event.preventDefault();
+            routeBranchNodes.forEach((candidate) => delete candidate.dataset.routeTapReady);
+            branch.dataset.routeTapReady = "true";
+            activateRouteBranch(branch);
+          }, { signal });
+        });
 
         const animateRouteNode = (node: HTMLElement) => {
           if (reducedMotion) return;

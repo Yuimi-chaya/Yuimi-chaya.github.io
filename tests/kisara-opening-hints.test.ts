@@ -61,25 +61,26 @@ test("Opening hint strike keeps the Pulse-style layered motion and reduced-motio
   assert.match(homeCssSource, /prefers-reduced-motion: reduce/);
 });
 
-test("Each achieved opening hint draws one continuous stroke across its full sentence", () => {
-  const hiddenTemplateStart = openingSource.indexOf('class="kisara-opening-route-node is-hidden-route"');
+test("Each achieved opening hint draws one continuous stroke across its marker", () => {
+  const hiddenTemplateStart = openingSource.indexOf('class="kisara-opening-route-secret"');
   const hiddenTemplateEnd = openingSource.indexOf("</span>", openingSource.indexOf("kisara-opening-easter-hint-fragment", hiddenTemplateStart));
   const hiddenTemplate = openingSource.slice(hiddenTemplateStart, hiddenTemplateEnd);
   assert.ok(hiddenTemplateStart >= 0 && hiddenTemplateEnd > hiddenTemplateStart);
   assert.equal((hiddenTemplate.match(/kisara-opening-easter-hint-copy/g) ?? []).length, 1);
   assert.equal((hiddenTemplate.match(/kisara-opening-easter-hint-fragment/g) ?? []).length, 1);
-  assert.equal((hiddenTemplate.match(/kisara-opening-route-node is-hidden-route/g) ?? []).length, 1);
+  assert.equal((hiddenTemplate.match(/kisara-opening-route-secret/g) ?? []).length, 1);
 });
 
-test("Opening 001 grows each site page as its own branch from the KISARA root", () => {
+test("Opening 001 keeps five page stops and separates hidden routes from navigation", () => {
   assert.match(openingSource, /data-kisara-opening-route-map/);
   assert.match(openingSource, />KISARA</);
-  for (const branch of ["home", "blog", "games", "projects", "about", "hidden"]) {
+  for (const branch of ["home", "blog", "games", "projects", "about"]) {
     assert.match(openingSource, new RegExp(`id: "${branch}"`), `${branch} must own a top-level branch`);
   }
-  for (const label of ["HOME", "BLOG", "GAME", "WORKS", "ME", "HIDDEN"]) {
+  for (const label of ["HOME", "BLOG", "GAME", "WORKS", "ME"]) {
     assert.match(openingSource, new RegExp(`label: "${label}"`));
   }
+  assert.doesNotMatch(openingSource, /id: "hidden"/);
   assert.match(openingSource, /routeBranches\.map/);
   assert.match(openingSource, /branch\.routes\.map/);
   assert.equal((openingSource.match(/data-kisara-route-kind="page"/g) ?? []).length, 1, "page hubs are generated from one mapped template");
@@ -93,18 +94,25 @@ test("Opening 001 grows each site page as its own branch from the KISARA root", 
   assert.match(openingSource, /is-route-achieved/);
 });
 
-test("Opening route tree docks, branches, unfolds labels, and strikes completed tags", () => {
+test("Opening memory thread docks, activates one stop, and strikes completed routes", () => {
   assert.match(openingSource, /data-kisara-opening-route-root/);
   assert.match(openingSource, /routeMap\.clientWidth - routeRoot\.offsetWidth/);
   assert.match(openingSource, /routeRootPeakScale/);
   assert.match(openingSource, /--kisara-opening-route-root-scale/);
   assert.match(openingSource, /--kisara-opening-route-root-shift/);
-  assert.match(homeCssSource, /kisara-opening-route-grow-x/);
-  assert.match(homeCssSource, /kisara-opening-route-grow-y/);
-  assert.match(homeCssSource, /kisara-opening-route-label-in/);
+  assert.match(openingSource, /kisara-opening-route-thread/);
+  assert.match(openingSource, /data-kisara-route-branch/);
+  assert.match(openingSource, /activateRouteBranch/);
+  assert.match(openingSource, /\(hover: hover\) and \(pointer: fine\)/);
+  assert.match(openingSource, /pointerenter/);
+  assert.match(openingSource, /focusin/);
+  assert.match(openingSource, /routeTapReady/);
+  assert.match(openingSource, /event\.preventDefault\(\)/);
+  assert.match(homeCssSource, /kisara-opening-route-trace/);
+  assert.match(homeCssSource, /kisara-opening-route-stop-in/);
+  assert.match(homeCssSource, /\.kisara-opening-route-page\.is-active \.kisara-opening-route-notes/);
+  assert.match(homeCssSource, /\.kisara-opening-route-secrets/);
   assert.match(homeCssSource, /kisara-opening-route-strike/);
-  assert.match(homeCssSource, /\.kisara-opening-route-page-line i/);
-  assert.match(homeCssSource, /\.kisara-opening-route-subline i/);
   assert.match(homeCssSource, /\.kisara-opening-route-page-hub::before/);
   assert.match(homeCssSource, /\.kisara-opening-route-node::before/);
   assert.match(homeCssSource, /is-route-achieved:not\(\.is-route-drawing\)/);
@@ -113,25 +121,24 @@ test("Opening route tree docks, branches, unfolds labels, and strikes completed 
 
 test("Opening route labels stay readable instead of truncating the navigation", () => {
   const routeCssStart = homeCssSource.indexOf(".kisara-opening-route-map");
-  const routeCssEnd = homeCssSource.indexOf(".kisara-opening-easter-lede", routeCssStart);
+  const routeCssEnd = homeCssSource.indexOf(".kisara-opening-easter-hint-fragment", routeCssStart);
   const routeCss = homeCssSource.slice(routeCssStart, routeCssEnd);
   assert.ok(routeCssStart >= 0 && routeCssEnd > routeCssStart);
   assert.doesNotMatch(routeCss, /text-overflow:\s*ellipsis/);
   assert.match(routeCss, /\.kisara-opening-route-root[\s\S]*?width: min\(208px, 100%\)/);
-  assert.match(routeCss, /\.kisara-opening-route-page-hub[\s\S]*?min-height: 38px/);
-  assert.match(routeCss, /\.kisara-opening-route-node[\s\S]*?min-height: 33px/);
-  assert.match(routeCss, /border-radius: 0/);
+  assert.match(routeCss, /\.kisara-opening-route-page-hub[\s\S]*?min-height: 42px/);
+  assert.match(routeCss, /\.kisara-opening-route-node[\s\S]*?min-height: 32px/);
 });
 
-test("Opening route tree reads as an asymmetric archive index", () => {
+test("Opening route navigation follows an asymmetric memory path", () => {
   assert.match(openingSource, /id: "home"[\s\S]*?columns: 4/);
-  assert.match(homeCssSource, /\.kisara-opening-route-map[\s\S]*?min-height: 286px/);
+  assert.match(homeCssSource, /\.kisara-opening-route-map[\s\S]*?min-height: 304px/);
   assert.match(homeCssSource, /\.kisara-opening-route-root-mark/);
   assert.match(homeCssSource, /\.kisara-opening-route-node-icon/);
-  assert.match(homeCssSource, /--route-drift-x/);
-  assert.match(homeCssSource, /--route-drift-y/);
-  assert.match(homeCssSource, /--route-tilt/);
-  assert.match(homeCssSource, /nth-child\(3n \+ 2\)[\s\S]*?translate3d\(0, 2px, 0\)/);
+  assert.match(homeCssSource, /--route-x/);
+  assert.match(homeCssSource, /--route-y/);
+  assert.match(homeCssSource, /\.kisara-opening-route-page\.is-blog[\s\S]*?--route-y: 69%/);
+  assert.match(homeCssSource, /\.kisara-opening-route-page\.is-projects[\s\S]*?--route-y: 72%/);
   assert.match(homeCssSource, /\.kisara-opening-route-root-copy strong[\s\S]*?font: 900 2rem/);
   assert.doesNotMatch(openingSource, /kisara-opening-video-note/);
 });
@@ -139,6 +146,7 @@ test("Opening route tree reads as an asymmetric archive index", () => {
 test("Opening 001 keeps the upper edge physically transparent before its media fade begins", () => {
   assert.match(homeCssSource, /\.kisara-opening \{[\s\S]*?rgba\(241, 239, 235, 0\) 0 116px[\s\S]*?rgba\(241, 239, 235, 0\.06\) 146px/);
   assert.match(homeCssSource, /\.kisara-opening-video-media[\s\S]*?transparent 0 72px[\s\S]*?#000 206px/);
+  assert.match(homeCssSource, /\.kisara-opening-video,[\s\S]*?filter: blur\(3\.2px\) saturate\(0\.84\) contrast\(0\.92\)/);
   assert.match(homeCssSource, /\.kisara-opening::after[\s\S]*?transparent 0 72px[\s\S]*?#000 182px/);
   assert.match(homeCssSource, /\.kisara-opening\.is-opening-bridge-live[\s\S]*?rgba\(241, 233, 224, 0\) 0 116px[\s\S]*?rgba\(241, 233, 224, 0\.06\) 146px[\s\S]*?#f1e9e0 218px/);
   assert.doesNotMatch(homeCssSource, /rgba\(241, 233, 224, 0\.025\) 42px/);
