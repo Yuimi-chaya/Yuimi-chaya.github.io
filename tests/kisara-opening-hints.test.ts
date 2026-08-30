@@ -160,3 +160,21 @@ test("Opening 001 keeps the upper edge physically transparent before its media f
   assert.match(homeCssSource, /\.kisara-opening\.is-opening-bridge-live[\s\S]*?rgba\(241, 233, 224, 0\) 0 116px[\s\S]*?rgba\(241, 233, 224, 0\.06\) 146px[\s\S]*?#f1e9e0 218px/);
   assert.doesNotMatch(homeCssSource, /rgba\(241, 233, 224, 0\.025\) 42px/);
 });
+
+test("Opening 001 projects one deferred first-screen memory without embedding live pages", () => {
+  assert.match(openingSource, /const routePreviews = \[/);
+  for (const id of ["home", "blog", "games", "projects", "about"]) {
+    assert.match(openingSource, new RegExp(`data-kisara-route-preview=\{preview\.id\}`));
+    assert.match(openingSource, new RegExp(`id: "${id}"[\\s\\S]*?src: "/themes/kisara/assets/`));
+  }
+  assert.match(openingSource, /data-src=\{preview\.src\}/);
+  assert.match(openingSource, /blog-hero-first\.webp/);
+  assert.match(openingSource, /--preview-blur/);
+  assert.match(openingSource, /image\.src = image\.dataset\.src/);
+  assert.match(openingSource, /removeAttribute\("src"\)/);
+  assert.match(openingSource, /data-preview-active/);
+  assert.doesNotMatch(openingSource, /<iframe/);
+  assert.match(homeCssSource, /\.kisara-opening-route-preview[\s\S]*?visibility: hidden/);
+  assert.match(homeCssSource, /\.kisara-opening-route-preview-figure[\s\S]*?mask-image: linear-gradient/);
+  assert.match(homeCssSource, /\.kisara-opening-route-map\.is-route-focused \.kisara-opening-route-preview/);
+});

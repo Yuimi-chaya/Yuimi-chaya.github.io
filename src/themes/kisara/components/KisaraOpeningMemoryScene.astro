@@ -92,6 +92,50 @@ const routeBranches = [
     ]
   },
 ] as const;
+
+const routePreviews = [
+  {
+    id: "home",
+    label: "HOME",
+    src: "/themes/kisara/assets/opening-memory-001-last.webp?v=85ffa275",
+    width: 1920,
+    height: 1080,
+    position: "center 44%"
+  },
+  {
+    id: "blog",
+    label: "BLOG",
+    src: "/themes/kisara/assets/blog/blog-hero-first.webp",
+    width: 1536,
+    height: 1024,
+    position: "center 48%",
+    blur: "0.8px"
+  },
+  {
+    id: "games",
+    label: "GAME",
+    src: "/themes/kisara/assets/game-message-hero.webp",
+    width: 1280,
+    height: 720,
+    position: "center 48%"
+  },
+  {
+    id: "projects",
+    label: "WORKS",
+    src: "/themes/kisara/assets/work-kitchen-hero.webp",
+    width: 2200,
+    height: 1392,
+    position: "center 48%"
+  },
+  {
+    id: "about",
+    label: "ME",
+    src: "/themes/kisara/assets/me-epilogue.webp",
+    width: 2560,
+    height: 1440,
+    position: "center 42%"
+  }
+] as const;
 ---
 
 <kisara-opening-memory-scene class="kisara-opening-video-scene is-memory-video-armed" data-kisara-opening-memory>
@@ -149,6 +193,26 @@ const routeBranches = [
         <b>THE FOLLOWING CLAUSES REMAIN SUBJECT TO REVISION</b>
         <em>sign, amend, remember.</em>
       </span>
+
+      <div class="kisara-opening-route-preview" data-kisara-opening-route-preview aria-hidden="true">
+        {routePreviews.map((preview, previewIndex) => (
+          <figure
+            class="kisara-opening-route-preview-figure"
+            data-kisara-route-preview={preview.id}
+            style={`--preview-order: ${previewIndex}; --preview-position: ${preview.position}; --preview-blur: ${"blur" in preview ? preview.blur : "2.4px"};`}
+          >
+            <img
+              data-src={preview.src}
+              alt=""
+              width={preview.width}
+              height={preview.height}
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption>{preview.label} / FIRST MEMORY</figcaption>
+          </figure>
+        ))}
+      </div>
 
       <p class="kisara-opening-contract-caption">AMENDMENT / SELECT A CLAUSE</p>
 
@@ -257,11 +321,17 @@ const routeBranches = [
         const chapterNodes = routeNodes.filter((node) => node.dataset.kisaraRouteKind === "chapter");
         const routeMap = this.querySelector<HTMLElement>("[data-kisara-opening-route-map]");
         const routeRoot = this.querySelector<HTMLElement>("[data-kisara-opening-route-root]");
+        const routePreview = this.querySelector<HTMLElement>("[data-kisara-opening-route-preview]");
+        const routePreviewFigures = Array.from(
+          this.querySelectorAll<HTMLElement>("[data-kisara-route-preview]")
+        );
         const routeBranchNodes = Array.from(
           this.querySelectorAll<HTMLElement>("[data-kisara-route-branch]")
         );
         let routeRootTravel = 0;
         let sceneVisible = false;
+        let activePreviewId = "";
+        let previewReleaseTimer = 0;
 
         const measureRouteRootTravel = () => {
           if (!routeMap || !routeRoot) return;
@@ -270,12 +340,45 @@ const routeBranches = [
         measureRouteRootTravel();
 
         const activateRouteBranch = (activeBranch: HTMLElement) => {
+          const previewId = activeBranch.dataset.kisaraRouteBranch ?? "";
+          if (previewReleaseTimer) window.clearTimeout(previewReleaseTimer);
+          previewReleaseTimer = 0;
+          routePreview?.setAttribute("data-preview-active", previewId);
+          routePreviewFigures.forEach((figure) => {
+            const isActive = figure.dataset.kisaraRoutePreview === previewId;
+            figure.classList.toggle("is-preview-active", isActive);
+            if (!isActive) {
+              figure.classList.remove("is-preview-loaded");
+              figure.querySelector<HTMLImageElement>("img[data-src]")?.removeAttribute("src");
+              return;
+            }
+            const image = figure.querySelector<HTMLImageElement>("img[data-src]");
+            if (image && !image.currentSrc) {
+              image.src = image.dataset.src ?? "";
+              figure.classList.add("is-preview-loaded");
+            } else if (image?.complete) {
+              figure.classList.add("is-preview-loaded");
+            }
+          });
+          activePreviewId = previewId;
           routeMap?.classList.add("is-route-focused");
           routeBranchNodes.forEach((branch) => {
             branch.classList.toggle("is-active", branch === activeBranch);
           });
         };
         const clearRouteBranch = () => {
+          routePreview?.removeAttribute("data-preview-active");
+          routePreviewFigures.forEach((figure) => figure.classList.remove("is-preview-active"));
+          if (previewReleaseTimer) window.clearTimeout(previewReleaseTimer);
+          previewReleaseTimer = window.setTimeout(() => {
+            routePreviewFigures.forEach((figure) => {
+              const image = figure.querySelector<HTMLImageElement>("img[data-src]");
+              if (image && figure.dataset.kisaraRoutePreview !== activePreviewId) image.removeAttribute("src");
+              figure.classList.remove("is-preview-loaded");
+            });
+            activePreviewId = "";
+            previewReleaseTimer = 0;
+          }, 760);
           routeMap?.classList.remove("is-route-focused");
           routeBranchNodes.forEach((branch) => {
             branch.classList.remove("is-active");
