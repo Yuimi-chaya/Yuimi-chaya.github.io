@@ -2216,6 +2216,8 @@ const gateStyle = [
       let gateReturnResetFrame = 0;
       let layoutResizeFrame = 0;
       let restoreSyncTimer = 0;
+      let restoredHomeSectionAlignmentFrame = 0;
+      let restoredHomeSectionAlignmentPending = restoredBelowGate;
       let openingBridgeRecoveryFrame = 0;
       let openingBridgeHandoffFrame = 0;
       let openingTitleBridgeHandoffFrame = 0;
@@ -12269,9 +12271,12 @@ const gateStyle = [
       };
 
       const clearReleaseTransientEffects = (timestamp = performance.now()) => {
+        wakeEmissionBudget = 0;
         orbitEmissionBudget = 0;
         rainEmissionBudget = 0;
         burstWaveMask = 0;
+        wakePrimed = false;
+        wakeParticles.length = 0;
         orbitParticles.length = 0;
         burstParticles.length = 0;
         rainParticles.length = 0;
@@ -12700,8 +12705,21 @@ const gateStyle = [
         return clamp(window.scrollY / scrollRange, 0, 1);
       };
 
-      const setScrollPosition = (value) => {
-        window.scrollTo(0, clamp(value, 0, Math.max(0, document.documentElement.scrollHeight - window.innerHeight)));
+      const setScrollPosition = (value, instant = false) => {
+        const destination = clamp(
+          value,
+          0,
+          Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+        );
+        if (!instant) {
+          window.scrollTo(0, destination);
+          return;
+        }
+        const root = document.documentElement;
+        const previousScrollBehavior = root.style.scrollBehavior;
+        root.style.scrollBehavior = "auto";
+        window.scrollTo(0, destination);
+        root.style.scrollBehavior = previousScrollBehavior;
       };
 
       const restoreScrollTransitionState = () => {
@@ -12926,6 +12944,7 @@ const gateStyle = [
         if (lovebrainActive || pageMode === "lovebrain" || scrollTransitionDirection === "forward") return;
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
         clearOpeningTitleBridgeDissolve();
+        clearReleaseTransientEffects();
         pageMode = "snap";
         gateReturnGuardUntil = 0;
         setPostReleaseActive(false);
@@ -13360,14 +13379,77 @@ const gateStyle = [
         return clamp(Math.round(top), 0, maxScroll);
       };
 
+      const getHomeSectionStopRecords = () => homeSectionStops.map((element, index) => ({
+        element,
+        index,
+        top: getHomeSectionTop(element)
+      }));
+
+      const settleHomeSectionStop = (stop) => {
+        const destination = getHomeSectionTop(stop.element);
+        lastObservedScrollY = destination;
+        setScrollPosition(destination, true);
+        lastObservedScrollY = window.scrollY;
+        return destination;
+      };
+
+      const findRestoredHomeSectionStop = () => {
+        const stops = getHomeSectionStopRecords();
+        if (stops.length === 0) return null;
+
+        const rawHash = window.location.hash.slice(1);
+        if (rawHash) {
+          let targetId = rawHash;
+          try {
+            targetId = decodeURIComponent(rawHash);
+          } catch {}
+          const hashTarget = document.getElementById(targetId);
+          const hashStop = hashTarget
+            ? stops.find((stop) => stop.element === hashTarget || stop.element.contains(hashTarget))
+            : null;
+          if (hashStop) return hashStop;
+        }
+
+        const current = window.scrollY;
+        return stops.reduce((nearest, stop) => (
+          Math.abs(stop.top - current) < Math.abs(nearest.top - current) ? stop : nearest
+        ));
+      };
+
+      const alignRestoredHomeSection = () => {
+        restoredHomeSectionAlignmentFrame = 0;
+        if (!restoredHomeSectionAlignmentPending) return false;
+        if (disposed || scrollFrame || scrollTransitionDirection !== "idle") return false;
+        if (window.scrollY <= 2 || !isHomeSectionSnapEnabled()) {
+          restoredHomeSectionAlignmentPending = false;
+          return false;
+        }
+
+        const stop = findRestoredHomeSectionStop();
+        restoredHomeSectionAlignmentPending = false;
+        if (!stop) return false;
+        settleHomeSectionStop(stop);
+        if (stop.element === opening) {
+          openingBridgeRecoveryPending = true;
+          activateFreshOpeningBridge();
+        } else if (openingBridgePortalActive) {
+          if (gateVisualResetPending) finalizeGateResetForNextPage();
+          else deactivateOpeningBridgePortal();
+        }
+        return true;
+      };
+
+      const scheduleRestoredHomeSectionAlignment = () => {
+        if (!restoredHomeSectionAlignmentPending || restoredHomeSectionAlignmentFrame) return;
+        restoredHomeSectionAlignmentFrame = window.requestAnimationFrame(() => {
+          restoredHomeSectionAlignmentFrame = window.requestAnimationFrame(alignRestoredHomeSection);
+        });
+      };
+
       const findHomeSectionTarget = (delta) => {
         const current = window.scrollY;
         const tolerance = clamp(window.innerHeight * 0.08, 44, 88);
-        const stops = homeSectionStops.map((element, index) => ({
-          element,
-          index,
-          top: getHomeSectionTop(element)
-        }));
+        const stops = getHomeSectionStopRecords();
         if (delta > 0) {
           return stops.find((stop) => stop.top > current + tolerance) ?? null;
         }
@@ -13389,7 +13471,7 @@ const gateStyle = [
           activateFreshOpeningBridge();
         }
         const started = smoothScrollTo(destination, () => {
-          lastObservedScrollY = window.scrollY;
+          settleHomeSectionStop(stop);
           if (stop.element === opening && openingBridgeRecoveryPending) {
             activateFreshOpeningBridge();
           }
@@ -13904,6 +13986,9 @@ const gateStyle = [
         cancelSmoothScroll();
         if (gateReturnResetFrame) window.cancelAnimationFrame(gateReturnResetFrame);
         if (layoutResizeFrame) window.cancelAnimationFrame(layoutResizeFrame);
+        if (restoredHomeSectionAlignmentFrame) {
+          window.cancelAnimationFrame(restoredHomeSectionAlignmentFrame);
+        }
         if (energyTimer) window.clearTimeout(energyTimer);
         if (restoreSyncTimer) window.clearTimeout(restoreSyncTimer);
         if (openingBridgeRecoveryFrame) window.cancelAnimationFrame(openingBridgeRecoveryFrame);
@@ -13933,6 +14018,7 @@ const gateStyle = [
         scrollFrame = 0;
         gateReturnResetFrame = 0;
         layoutResizeFrame = 0;
+        restoredHomeSectionAlignmentFrame = 0;
         energyTimer = 0;
         restoreSyncTimer = 0;
         openingBridgeRecoveryFrame = 0;
@@ -13985,11 +14071,15 @@ const gateStyle = [
           restoreSyncTimer = 0;
           restoreWindowOpen = false;
           window.removeEventListener("scroll", syncRestoredPosition);
-          if (pageMode === "next") requestOpeningBridgeRecovery();
+          if (pageMode === "next") {
+            scheduleRestoredHomeSectionAlignment();
+            requestOpeningBridgeRecovery();
+          }
         }, delay);
       };
       const syncRestoredPosition = () => {
         if (!restoreWindowOpen || scrollFrame || window.scrollY <= 2) return;
+        restoredHomeSectionAlignmentPending = true;
         if (pageMode === "gate") {
           pageMode = "next";
           gateVisualResetPending = true;
@@ -14029,6 +14119,16 @@ const gateStyle = [
       };
       window.addEventListener("pageshow", syncRestoredPosition, { signal });
       window.addEventListener("pageshow", requestOpeningBridgeRecovery, { signal });
+      window.addEventListener("pageshow", () => {
+        if (window.scrollY <= 2 || pageMode !== "next") return;
+        restoredHomeSectionAlignmentPending = true;
+        if (!restoreWindowOpen) scheduleRestoredHomeSectionAlignment();
+      }, { signal });
+      window.addEventListener("hashchange", () => {
+        if (window.scrollY <= 2 || pageMode !== "next") return;
+        restoredHomeSectionAlignmentPending = true;
+        scheduleRestoredHomeSectionAlignment();
+      }, { signal });
       window.addEventListener("focus", requestOpeningBridgeRecovery, { signal });
       window.addEventListener("scroll", syncRestoredPosition, { passive: true, signal });
       window.addEventListener("scroll", syncGateModeFromScroll, { passive: true, signal });
