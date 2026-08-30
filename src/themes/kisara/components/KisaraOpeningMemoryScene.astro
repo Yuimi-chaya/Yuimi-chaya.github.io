@@ -133,29 +133,32 @@ const routeBranches = [
       <span>A personal archive,</span>
       <em>still growing.</em>
     </h2>
-    <p class="kisara-opening-video-lead">沿着一条记忆，去往它留下的地方。</p>
+    <p class="kisara-opening-video-lead">这份契约还没有定稿。选择一条，把它重新写进记忆。</p>
     <nav class="kisara-opening-video-body kisara-opening-route-map" data-kisara-opening-route-map aria-label="Kisara 全站路线图">
       <a class="kisara-opening-route-root" href={getThemePath("kisara", "/")} data-kisara-opening-route-root aria-label="返回 Kisara 首页">
         <span class="kisara-opening-route-root-mark" aria-hidden="true"><Icon name="tabler:heart" /></span>
         <span class="kisara-opening-route-root-copy">
-          <small>YUIMI LAB / SITE MAP</small>
+          <small>YUIMI LAB / CONTRACT 001</small>
           <strong>KISARA</strong>
-          <em>memory index / 001</em>
+          <em>authorized revision / memory owner</em>
         </span>
       </a>
 
-      <svg class="kisara-opening-route-thread" viewBox="0 0 640 250" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M4 132 C78 132 78 62 155 68 S248 184 324 157 S407 52 484 78 S550 171 632 118"></path>
-      </svg>
+      <span class="kisara-opening-contract-copy" aria-hidden="true">
+        <i>SUPPLEMENT 263 / MEMORY OWNERSHIP</i>
+        <b>THE FOLLOWING CLAUSES REMAIN SUBJECT TO REVISION</b>
+        <em>sign, amend, remember.</em>
+      </span>
+
+      <p class="kisara-opening-contract-caption">AMENDMENT / SELECT A CLAUSE</p>
 
       <ol class="kisara-opening-route-journey">
         {routeBranches.map((branch, branchIndex) => (
           <li
-            class:list={["kisara-opening-route-page", `is-${branch.id}`, branchIndex === 0 && "is-active"]}
+            class:list={["kisara-opening-route-page", `is-${branch.id}`]}
             style={`--route-branch-order: ${branchIndex}; --route-accent: ${branch.accent}; --route-columns: ${branch.columns};`}
             data-kisara-route-branch={branch.id}
           >
-            <span class="kisara-opening-route-knot" aria-hidden="true"></span>
             <a
               class="kisara-opening-route-page-hub"
               href={branch.href}
@@ -164,7 +167,12 @@ const routeBranches = [
               data-astro-prefetch="hover"
             >
               <span class="kisara-opening-route-page-icon"><Icon name={branch.icon} aria-hidden="true" /></span>
-              <span><b>{branch.code}</b><strong>{branch.label}</strong><small>{branch.detail}</small></span>
+              <span class="kisara-opening-route-page-copy">
+                <b>CLAUSE {branch.code}</b>
+                <strong>{branch.label}</strong>
+                <small>{branch.detail}</small>
+              </span>
+              <span class="kisara-opening-route-revision" aria-hidden="true">REWRITE</span>
             </a>
             <ul class="kisara-opening-route-notes">
               {branch.routes.map((route, routeIndex) => (
@@ -187,7 +195,7 @@ const routeBranches = [
       </ol>
 
       <aside class="kisara-opening-route-secrets" aria-label="隐藏路线">
-        <span class="kisara-opening-route-secret-rule" aria-hidden="true"></span>
+        <p aria-hidden="true"><b>SUPPLEMENT</b><span>REDACTED / A-F</span></p>
         <ol>
           {hiddenRoutes.map((route, routeIndex) => (
             <li style={`--route-order: ${routeIndex};`}>
@@ -262,8 +270,16 @@ const routeBranches = [
         measureRouteRootTravel();
 
         const activateRouteBranch = (activeBranch: HTMLElement) => {
+          routeMap?.classList.add("is-route-focused");
           routeBranchNodes.forEach((branch) => {
             branch.classList.toggle("is-active", branch === activeBranch);
+          });
+        };
+        const clearRouteBranch = () => {
+          routeMap?.classList.remove("is-route-focused");
+          routeBranchNodes.forEach((branch) => {
+            branch.classList.remove("is-active");
+            delete branch.dataset.routeTapReady;
           });
         };
         const fineRoutePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -282,6 +298,18 @@ const routeBranches = [
             activateRouteBranch(branch);
           }, { signal });
         });
+        routeMap?.addEventListener("pointerleave", () => {
+          if (fineRoutePointer && !routeMap.contains(document.activeElement)) clearRouteBranch();
+        }, { signal });
+        routeMap?.addEventListener("focusout", (event) => {
+          if (event.relatedTarget instanceof Node && routeMap.contains(event.relatedTarget)) return;
+          clearRouteBranch();
+        }, { signal });
+        routeMap?.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape") return;
+          clearRouteBranch();
+          routeRoot?.focus();
+        }, { signal });
 
         const animateRouteNode = (node: HTMLElement) => {
           if (reducedMotion) return;
@@ -528,6 +556,7 @@ const routeBranches = [
 
         const setArmedPresentation = () => {
           state = "armed";
+          clearRouteBranch();
           video.pause();
           setVideoTime(0);
           setCopyTimeline(0);
