@@ -96,10 +96,13 @@ test("Opening 001 keeps five page stops and separates hidden routes from navigat
 
 test("Opening contract stage docks, rewrites one clause, and strikes completed routes", () => {
   assert.match(openingSource, /data-kisara-opening-route-root/);
-  assert.match(openingSource, /routeMap\.clientWidth - routeRoot\.offsetWidth/);
-  assert.match(openingSource, /routeRootPeakScale/);
-  assert.match(openingSource, /--kisara-opening-route-root-scale/);
-  assert.match(openingSource, /--kisara-opening-route-root-shift/);
+  assert.match(openingSource, /data-kisara-opening-route-journey inert/);
+  assert.match(openingSource, /routeMap\.clientWidth \* 0\.5/);
+  assert.match(openingSource, /routeMap\.clientHeight \* 0\.5/);
+  assert.match(openingSource, /--kisara-opening-route-root-center-x/);
+  assert.match(openingSource, /--kisara-opening-route-root-center-y/);
+  assert.match(openingSource, /routeJourney\?\.setAttribute\("inert", ""\)/);
+  assert.match(openingSource, /routeJourney\?\.removeAttribute\("inert"\)/);
   assert.match(openingSource, /kisara-opening-contract-copy/);
   assert.match(openingSource, /kisara-opening-contract-caption/);
   assert.match(openingSource, /kisara-opening-route-revision/);
@@ -114,7 +117,15 @@ test("Opening contract stage docks, rewrites one clause, and strikes completed r
   assert.match(openingSource, /routeTapReady/);
   assert.match(openingSource, /event\.preventDefault\(\)/);
   assert.match(homeCssSource, /kisara-opening-contract-copy-in/);
-  assert.match(homeCssSource, /kisara-opening-clause-write/);
+  assert.match(openingSource, /playRootCenterEntrance/);
+  assert.match(openingSource, /playTitleEntrance/);
+  assert.match(openingSource, /playSettledEntrance/);
+  assert.match(openingSource, /target\.animate\(keyframes, options\)/);
+  assert.match(openingSource, /duration: 760/);
+  assert.match(openingSource, /delay: 620 \+ index \* 115/);
+  assert.match(homeCssSource, /is-memory-video-playing \.kisara-opening-route-root[\s\S]*?route-root-center-x/);
+  assert.match(homeCssSource, /is-memory-video-settled \.kisara-opening-route-root[\s\S]*?route-root-dock-y/);
+  assert.match(homeCssSource, /is-memory-route-ready \.kisara-opening-route-journey/);
   assert.match(homeCssSource, /\.kisara-opening-route-page\.is-active \.kisara-opening-route-notes/);
   assert.match(homeCssSource, /\.kisara-opening-route-secrets/);
   assert.match(homeCssSource, /kisara-opening-route-strike/);
@@ -130,7 +141,7 @@ test("Opening route labels stay readable instead of truncating the navigation", 
   const routeCss = homeCssSource.slice(routeCssStart, routeCssEnd);
   assert.ok(routeCssStart >= 0 && routeCssEnd > routeCssStart);
   assert.doesNotMatch(routeCss, /text-overflow:\s*ellipsis/);
-  assert.match(routeCss, /\.kisara-opening-route-root[\s\S]*?width: 270px/);
+  assert.match(routeCss, /\.kisara-opening-route-root[\s\S]*?width: 250px/);
   assert.match(routeCss, /\.kisara-opening-route-page-copy strong[\s\S]*?font: 900 var\(--route-word-size\)/);
   assert.match(routeCss, /\.kisara-opening-route-node[\s\S]*?min-height: 42px/);
   assert.match(routeCss, /\.kisara-opening-route-notes > li:nth-child\(4\)/);
@@ -138,18 +149,23 @@ test("Opening route labels stay readable instead of truncating the navigation", 
 
 test("Opening route navigation fills the paper with asymmetric contract clauses", () => {
   assert.match(openingSource, /id: "home"[\s\S]*?columns: 4/);
-  assert.match(homeCssSource, /\.kisara-opening-video-copy[\s\S]*?width: min\(1420px/);
-  assert.match(homeCssSource, /\.kisara-opening-route-map[\s\S]*?width: min\(1320px, 100%\)[\s\S]*?min-height: 380px/);
+  assert.match(openingSource, /<\/h2>\s*<\/header>\s*<nav class="kisara-opening-video-body kisara-opening-route-map"/);
+  assert.match(homeCssSource, /\.kisara-opening-video-copy[\s\S]*?width: min\(820px/);
+  assert.match(homeCssSource, /\.kisara-opening-route-map[\s\S]*?position: absolute[\s\S]*?top: clamp\(300px, 31vh, 340px\)[\s\S]*?min-height: 380px/);
   assert.match(homeCssSource, /\.kisara-opening-route-root-mark/);
   assert.match(homeCssSource, /\.kisara-opening-route-node-icon/);
   assert.match(homeCssSource, /--route-x/);
   assert.match(homeCssSource, /--route-y/);
-  assert.match(homeCssSource, /\.kisara-opening-route-page\.is-blog[\s\S]*?--route-y: 78%/);
+  assert.match(homeCssSource, /\.kisara-opening-route-page\.is-blog[\s\S]*?--route-y: 64%/);
   assert.match(homeCssSource, /\.kisara-opening-route-page\.is-projects[\s\S]*?--route-y: 21%/);
   assert.match(homeCssSource, /\.kisara-opening-route-page\.is-active[\s\S]*?left: 59%[\s\S]*?width: 380px/);
   assert.match(homeCssSource, /\.kisara-opening-route-map\.is-route-focused[\s\S]*?opacity: 0\.2/);
   assert.match(homeCssSource, /\.kisara-opening-route-root-copy strong[\s\S]*?font: 900 2\.8rem/);
   assert.doesNotMatch(openingSource, /kisara-opening-video-note/);
+  assert.doesNotMatch(openingSource, /kisara-opening-video-lead/);
+  assert.doesNotMatch(openingSource, /这份契约还没有定稿/);
+  assert.match(homeCssSource, /\.kisara-opening-video-copy[\s\S]*?top: clamp\(212px, 22vh, 246px\)/);
+  assert.match(homeCssSource, /\.kisara-opening-video-copy h2[\s\S]*?font-size: clamp\(2\.25rem, 3\.1vw, 3\.45rem\)/);
 });
 
 test("Opening 001 keeps the upper edge physically transparent before its media fade begins", () => {
