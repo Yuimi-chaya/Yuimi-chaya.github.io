@@ -1,0 +1,161 @@
+---
+import { Icon } from "astro-icon/components";
+import { getThemePath } from "@/core/themes/registry";
+---
+
+<section class="kisara-home-projects kisara-home-video-event" data-kisara-home-stop="003" aria-labelledby="kisara-project-title">
+  <div class="kisara-content-shell">
+    <header class="kisara-home-band-heading is-lab-heading">
+      <div>
+        <p class="kisara-section-index">ARCHIVE MOTION / EVENT 003</p>
+        <h2 id="kisara-project-title">One second before the answer.</h2>
+      </div>
+      <div class="kisara-home-video-heading-note">
+        <span>CLASSROOM FRAGMENT / 01.29 SEC</span>
+        <p>一段短得来不及解释的课堂记录。刀尖划过答案，画面替她把那一秒留下。</p>
+      </div>
+      <a class="kisara-section-link" href={`${getThemePath("kisara", "/games/")}#kisara-game-investigation`}>
+        OPEN GAME FILE <span>↗</span>
+      </a>
+    </header>
+
+    <kisara-home-event-video class="kisara-home-video-stage" data-state="idle">
+      <div class="kisara-home-video-media">
+        <video
+          data-home-event-video
+          poster="/themes/kisara/assets/home-event-003-new-last.webp"
+          width="1920"
+          height="1080"
+          preload="none"
+          muted
+          playsinline
+          aria-label="木更在白板前用刀指出答案的短片"
+        >
+          <source data-src="/themes/kisara/assets/home-event-003-new.mp4" type="video/mp4" />
+        </video>
+        <span class="kisara-home-video-grade" aria-hidden="true"></span>
+        <span class="kisara-home-video-scan" aria-hidden="true"></span>
+        <div class="kisara-home-video-time" aria-hidden="true">
+          <span>003 / ARCHIVE MOTION</span>
+          <output data-home-event-time>00.00</output>
+        </div>
+        <button class="kisara-home-video-replay" type="button" data-home-event-replay aria-label="重新播放 003 短片" title="重新播放">
+          <Icon name="tabler:refresh" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div class="kisara-home-video-copy">
+        <p><span>FRAME 003</span><i></i><small data-home-event-status>ARCHIVE READY</small></p>
+        <h3>She points.<br />The room catches up.</h3>
+        <blockquote>答案并没有迟到。只是她先一步，把所有人的视线钉在了同一个位置。</blockquote>
+        <div class="kisara-home-video-progress" aria-hidden="true"><i><b></b></i><span>00:01.293</span></div>
+      </div>
+    </kisara-home-event-video>
+  </div>
+</section>
+
+<script>
+  if (!customElements.get("kisara-home-event-video")) {
+    class KisaraHomeEventVideo extends HTMLElement {
+      controller: AbortController | null = null;
+      observer: IntersectionObserver | null = null;
+
+      connectedCallback() {
+        this.controller?.abort();
+        const controller = new AbortController();
+        this.controller = controller;
+        const { signal } = controller;
+        const video = this.querySelector<HTMLVideoElement>("[data-home-event-video]");
+        const source = video?.querySelector<HTMLSourceElement>("source[data-src]");
+        const replay = this.querySelector<HTMLButtonElement>("[data-home-event-replay]");
+        const status = this.querySelector<HTMLElement>("[data-home-event-status]");
+        const time = this.querySelector<HTMLOutputElement>("[data-home-event-time]");
+        if (!video || !source || !replay) return;
+
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        let hydrated = source.hasAttribute("src");
+        let playedOnce = false;
+        let visible = false;
+        let playAttempt = 0;
+
+        const setState = (state: string, label: string) => {
+          this.dataset.state = state;
+          if (status) status.textContent = label;
+        };
+
+        const hydrate = () => {
+          if (hydrated) return;
+          hydrated = true;
+          source.src = source.dataset.src || "";
+          video.preload = "auto";
+          video.load();
+          setState("loading", "LOADING FRAGMENT");
+        };
+
+        const playFromStart = async () => {
+          const attempt = ++playAttempt;
+          hydrate();
+          try { video.currentTime = 0; } catch {}
+          try {
+            await video.play();
+            if (signal.aborted || attempt !== playAttempt) return;
+            playedOnce = true;
+          } catch {
+            if (!signal.aborted && attempt === playAttempt) setState("ready", "PRESS REPLAY");
+          }
+        };
+
+        const syncTime = () => {
+          const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1.292958;
+          const progress = Math.min(1, Math.max(0, video.currentTime / duration));
+          this.style.setProperty("--home-003-progress", progress.toFixed(4));
+          if (time) time.textContent = video.currentTime.toFixed(2).padStart(5, "0");
+        };
+
+        video.addEventListener("playing", () => setState("playing", "PLAYING FRAGMENT"), { signal });
+        video.addEventListener("timeupdate", syncTime, { signal });
+        video.addEventListener("ended", () => {
+          syncTime();
+          setState("complete", "ARCHIVE HELD");
+        }, { signal });
+        video.addEventListener("error", () => setState("error", "POSTER FALLBACK"), { signal });
+        replay.addEventListener("click", () => void playFromStart(), { signal });
+
+        if ("IntersectionObserver" in window) {
+          this.observer = new IntersectionObserver((entries) => {
+            const nextVisible = entries.some((entry) => entry.isIntersecting);
+            if (nextVisible === visible) return;
+            visible = nextVisible;
+            this.toggleAttribute("data-scene-visible", visible);
+            if (visible) {
+              hydrate();
+              if (!reducedMotion && !playedOnce) void playFromStart();
+            } else {
+              playAttempt += 1;
+              video.pause();
+            }
+          }, { rootMargin: "48% 0px", threshold: 0.01 });
+          this.observer.observe(this);
+        } else {
+          visible = true;
+          this.dataset.sceneVisible = "true";
+          hydrate();
+          if (!reducedMotion) void playFromStart();
+        }
+
+        setState(reducedMotion ? "ready" : "idle", reducedMotion ? "PRESS REPLAY" : "ARCHIVE READY");
+      }
+
+      disconnectedCallback() {
+        this.controller?.abort();
+        this.controller = null;
+        this.observer?.disconnect();
+        this.observer = null;
+        const video = this.querySelector<HTMLVideoElement>("[data-home-event-video]");
+        if (video) video.pause();
+      }
+    }
+
+    customElements.define("kisara-home-event-video", KisaraHomeEventVideo);
+  }
+</script>

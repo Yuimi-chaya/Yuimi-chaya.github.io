@@ -1,6 +1,8 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
+import KisaraGameClueScene from "../components/KisaraGameClueScene.astro";
 import gamesStylesheet from "../styles/games.css?url";
+import gameInvestigationStylesheet from "../styles/game-investigation.css?url";
 import { Icon } from "astro-icon/components";
 import { gamePicks } from "@/core/data/games";
 
@@ -34,99 +36,11 @@ const gamePresentation = {
   }
 } as const;
 
-const gameMessageBursts = [
-  { draft: "綾乃、読んだよね.....ねえ、読んだ???", display: "READ ME???", x: "2%", y: "13%", rotate: "-7deg", scale: "0.94" },
-  { draft: "返事、返事、返事、返事.....", display: "RE: RE: RE:", x: "48%", y: "10%", rotate: "5deg", scale: "0.72" },
-  { draft: "好きxxxxx好きxxxxx.....???", display: "XXXXX...???", x: "19%", y: "33%", rotate: "-2deg", scale: "0.84" },
-  { draft: "離れるほど重くなる。どうして???", display: "HEAVIER.", x: "56%", y: "37%", rotate: "7deg", scale: "0.76" },
-  { draft: "沈む、沈む、まだ沈む.....", display: "DOWN / DOWN", x: "5%", y: "60%", rotate: "2.5deg", scale: "0.82" },
-  { draft: "その隣、空けて。空けて。空けて。", display: "MINE.", x: "50%", y: "64%", rotate: "-5deg", scale: "0.94" },
-  { draft: "既読xxxxxxxxx.............まだいる???", display: "STILL THERE?", x: "21%", y: "78%", rotate: "3deg", scale: "0.68" }
-] as const;
 ---
 
-<KisaraLayout title="Games | Kisara" description="Yuimi Lab 的小游戏收藏。" stylesheets={[gamesStylesheet]}>
-  <div class="kisara-games" data-kisara-games data-active-scene="0" data-media-state="loading">
-    <section
-      id="kisara-game-message"
-      class="kisara-game-scene kisara-game-hero"
-      data-game-scene
-      data-scene-position="active"
-      data-intro-state="idle"
-      data-easter-pressure="0"
-      aria-labelledby="kisara-game-hero-title"
-    >
-      <div class="kisara-game-hero-media" aria-hidden="true">
-        <video
-          class="kisara-game-hero-video"
-          data-game-hero-video
-          poster="/themes/kisara/assets/game-message-hero.webp"
-          width="1280"
-          height="720"
-          preload="auto"
-          autoplay
-          muted
-          playsinline
-        >
-          <source src="/themes/kisara/assets/game-message-hero.mp4" type="video/mp4" />
-        </video>
-        <span class="kisara-game-hero-light"></span>
-      </div>
-
-      <div class="kisara-game-message-echoes" aria-hidden="true">
-        <i></i><i></i><i></i><i></i><i></i>
-      </div>
-
-      <div class="kisara-game-sent-field" data-game-sent-field aria-hidden="true">
-        {gameMessageBursts.map((message, index) => (
-          <p
-            data-game-sent-burst={index}
-            data-game-message-draft={message.draft}
-            style={`--sent-x: ${message.x}; --sent-y: ${message.y}; --sent-rotate: ${message.rotate}; --sent-scale: ${message.scale}; --sent-order: ${index};`}
-          >{message.display}</p>
-        ))}
-      </div>
-
-      <div class="kisara-game-terminal" data-game-terminal data-message-state="idle">
-        <header>
-          <span>private://ayano</span>
-          <i aria-hidden="true"></i>
-          <em>OUTBOX / LIVE</em>
-        </header>
-        <div class="kisara-game-terminal-line">
-          <span aria-hidden="true">&gt;</span>
-          <p id="kisara-game-hero-title" lang="ja" data-game-terminal-copy aria-live="off"></p>
-          <i aria-hidden="true"></i>
-        </div>
-        <footer>
-          <span data-game-terminal-status>QUEUE 01 / {String(gameMessageBursts.length).padStart(2, "0")}</span>
-          <em data-game-terminal-action>COMPOSING</em>
-        </footer>
-      </div>
-
-      <div class="kisara-game-hand-meter" aria-hidden="true">
-        <p><span>HAND VELOCITY</span><output data-game-input-speed>00</output></p>
-        <i><b></b></i>
-        <small>MOVE POINTER / SEE PANIC</small>
-      </div>
-
-      <div class="kisara-game-overdrive" data-game-overdrive aria-hidden="true">
-        <span class="kisara-game-overdrive-frame"><i></i><i></i><i></i><i></i></span>
-        <span class="kisara-game-overdrive-tears"><i></i><i></i><i></i></span>
-        <p>
-          <small data-game-easter-hint>SHAKE THE MESSAGE APART</small>
-          <strong><output data-game-easter-progress>5.0</output><span>SEC</span></strong>
-          <em>KEEP MOVING AFTER THE LIMIT LOCKS</em>
-        </p>
-      </div>
-
-      <div class="kisara-game-transition-cuts" aria-hidden="true"><i></i><i></i><i></i></div>
-
-      <button class="kisara-game-scene-step is-next" type="button" data-game-scene-next aria-label="进入街机厅">
-        <span>INSERT COIN / LEAVE CHAT</span>
-        <Icon name="tabler:chevron-down" aria-hidden="true" />
-      </button>
-    </section>
+<KisaraLayout title="Games | Kisara" description="Yuimi Lab 的小游戏收藏。" stylesheets={[gamesStylesheet, gameInvestigationStylesheet]}>
+  <div class="kisara-games" data-kisara-games data-active-scene="0">
+    <KisaraGameClueScene />
 
     <section
       id="kisara-arcade-console"
@@ -336,9 +250,6 @@ const gameMessageBursts = [
       const hero = page.querySelector(".kisara-game-hero");
       const arcade = page.querySelector("[data-kisara-arcade]");
       let gameFrame = null;
-      let heroVideo = null;
-      const messageTimers = new Map();
-      let messageRun = 0;
       let scrollFrame = 0;
       let pointerFrame = 0;
       let wheelTimer = 0;
@@ -374,7 +285,6 @@ const gameMessageBursts = [
       let shakeEasterPreviousOverflow = "";
       let releaseGameShakeEaster = () => {};
       let resetGameShakePressure = () => {};
-      let heroReady = false;
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
       const GAME_SHAKE_TRAVEL_TARGET = 620;
@@ -383,94 +293,13 @@ const gameMessageBursts = [
       let gameShakeEasterAttempt = 0;
       let gameShakeEasterArming = false;
       let gameShakeAfterglow = false;
-      const terminal = hero?.querySelector("[data-game-terminal]");
-      const terminalCopy = hero?.querySelector("[data-game-terminal-copy]");
-      const terminalStatus = hero?.querySelector("[data-game-terminal-status]");
-      const terminalAction = hero?.querySelector("[data-game-terminal-action]");
-      const sentBursts = Array.from(hero?.querySelectorAll("[data-game-sent-burst]") || []);
-      const terminalMessages = sentBursts.map((burst) => burst.dataset.gameMessageDraft || "");
-
-      const waitForMessageFrame = (delay) => new Promise((resolve) => {
-        if (signal.aborted) {
-          resolve(false);
-          return;
-        }
-        const timer = window.setTimeout(() => {
-          messageTimers.delete(timer);
-          resolve(!signal.aborted);
-        }, delay);
-        messageTimers.set(timer, resolve);
-      });
-
-      const resetMessageField = () => {
-        if (terminalCopy) terminalCopy.textContent = "";
-        if (terminalStatus) terminalStatus.textContent = `QUEUE 01 / ${String(terminalMessages.length).padStart(2, "0")}`;
-        if (terminalAction) terminalAction.textContent = "COMPOSING";
-        if (terminal instanceof HTMLElement) terminal.dataset.messageState = "idle";
-        sentBursts.forEach((burst) => burst.classList.remove("is-sent"));
-      };
-
-      const finishMessageField = () => {
-        if (terminalCopy) terminalCopy.textContent = "";
-        if (terminalStatus) terminalStatus.textContent = `${String(terminalMessages.length).padStart(2, "0")} MESSAGES / DELIVERED`;
-        if (terminalAction) terminalAction.textContent = "NO DRAFT";
-        if (terminal instanceof HTMLElement) terminal.dataset.messageState = "complete";
-        sentBursts.forEach((burst) => burst.classList.add("is-sent"));
-        if (hero instanceof HTMLElement) hero.dataset.introState = "complete";
-      };
-
-      const playMessageField = async () => {
-        const run = ++messageRun;
-        resetMessageField();
-        if (reducedMotion || !terminalMessages.length) {
-          finishMessageField();
-          return;
-        }
-
-        for (let messageIndex = 0; messageIndex < terminalMessages.length; messageIndex += 1) {
-          const message = terminalMessages[messageIndex];
-          if (terminalStatus) terminalStatus.textContent = `QUEUE ${String(messageIndex + 1).padStart(2, "0")} / ${String(terminalMessages.length).padStart(2, "0")}`;
-          if (terminalAction) terminalAction.textContent = "COMPOSING";
-          if (terminal instanceof HTMLElement) terminal.dataset.messageState = "typing";
-
-          for (let characterIndex = 1; characterIndex <= message.length; characterIndex += 1) {
-            if (signal.aborted || run !== messageRun) return;
-            if (terminalCopy) terminalCopy.textContent = message.slice(0, characterIndex);
-            if (!await waitForMessageFrame(characterIndex === 1 ? 42 : 16)) return;
-          }
-
-          if (!await waitForMessageFrame(105)) return;
-          if (terminal instanceof HTMLElement) terminal.dataset.messageState = "sending";
-          if (terminalAction) terminalAction.textContent = "SENT";
-          sentBursts[messageIndex]?.classList.add("is-sent");
-          if (!await waitForMessageFrame(85)) return;
-
-          for (let characterIndex = message.length - 1; characterIndex >= 0; characterIndex -= 1) {
-            if (signal.aborted || run !== messageRun) return;
-            if (terminalCopy) terminalCopy.textContent = message.slice(0, characterIndex);
-            if (!await waitForMessageFrame(7)) return;
-          }
-
-          if (!await waitForMessageFrame(45)) return;
-        }
-
-        if (run === messageRun && !signal.aborted) finishMessageField();
-      };
-
       const cleanup = () => {
         lifecycle.abort();
         gameShakeAfterglow = false;
-        messageRun += 1;
-        messageTimers.forEach((resolve, timer) => {
-          window.clearTimeout(timer);
-          resolve(false);
-        });
-        messageTimers.clear();
         window.clearTimeout(wheelTimer);
         if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
         if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
         if (heroPointerFrame) window.cancelAnimationFrame(heroPointerFrame);
-        if (heroVideo instanceof HTMLVideoElement) heroVideo.pause();
         if (shakeEasterWarmupIdle && window.cancelIdleCallback) window.cancelIdleCallback(shakeEasterWarmupIdle);
         if (shakeEasterWarmupTimer) window.clearTimeout(shakeEasterWarmupTimer);
         shakeEasterWarmupIdle = 0;
@@ -485,21 +314,6 @@ const gameMessageBursts = [
       };
       window.__yuimiKisaraInnerCleanup = cleanup;
       document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
-
-      document.addEventListener("astro:before-preparation", (event) => {
-        if (typeof event.loader !== "function") return;
-        const load = event.loader;
-        event.loader = async () => {
-          const resumeVideoOnFailure = heroVideo instanceof HTMLVideoElement && !heroVideo.paused;
-          if (heroVideo instanceof HTMLVideoElement) heroVideo.pause();
-          try {
-            await load();
-          } catch (error) {
-            if (resumeVideoOnFailure && heroVideo instanceof HTMLVideoElement) void heroVideo.play().catch(() => undefined);
-            throw error;
-          }
-        };
-      }, { signal });
 
       const setActiveScene = (nextScene) => {
         activeScene = clamp(nextScene, 0, scenes.length - 1);
@@ -664,7 +478,6 @@ const gameMessageBursts = [
         button.addEventListener("click", () => smoothScrollToScene(Number(button.dataset.gameSceneJump)), { signal });
       });
 
-      heroVideo = page.querySelector("[data-game-hero-video]");
       const shakeEaster = page.querySelector("[data-game-shake-easter]");
       const shakeEasterVideo = page.querySelector("[data-game-shake-video]");
       const shakeEasterSource = shakeEasterVideo?.querySelector("source[data-src]");
@@ -964,34 +777,7 @@ const gameMessageBursts = [
         }
       }, { signal });
 
-      const markHeroReady = () => {
-        if (heroReady) return;
-        heroReady = true;
-        page.dataset.mediaState = "ready";
-        if (!(hero instanceof HTMLElement)) return;
-        hero.dataset.introState = reducedMotion ? "complete" : "playing";
-        void playMessageField();
-        scheduleGameShakeWarmup();
-      };
-      if (heroVideo instanceof HTMLVideoElement) {
-        heroVideo.muted = true;
-        try { heroVideo.currentTime = 0; } catch {}
-        heroVideo.addEventListener("play", () => {
-          if (hero instanceof HTMLElement) hero.dataset.videoState = "playing";
-        }, { once: true, signal });
-        heroVideo.addEventListener("ended", () => {
-          if (hero instanceof HTMLElement) hero.dataset.videoState = "ended";
-        }, { once: true, signal });
-        if (heroVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) markHeroReady();
-        else {
-          heroVideo.addEventListener("loadeddata", markHeroReady, { once: true, signal });
-          heroVideo.addEventListener("canplay", markHeroReady, { once: true, signal });
-          heroVideo.addEventListener("error", markHeroReady, { once: true, signal });
-        }
-        void heroVideo.play().catch(() => undefined);
-      } else {
-        markHeroReady();
-      }
+      scheduleGameShakeWarmup();
 
       if (arcade instanceof HTMLElement && finePointer && !reducedMotion) {
         const renderPointer = () => {
