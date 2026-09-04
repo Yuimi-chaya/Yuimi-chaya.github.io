@@ -56,6 +56,9 @@ test("Works hero plays its supplied video once and holds an optimized final fram
   assert.match(projectsPageSource, /muted/);
   assert.match(projectsPageSource, /playsinline/);
   assert.doesNotMatch(projectsPageSource, /data-works-hero-video[\s\S]{0,500}\sloop\b/);
+  assert.match(projectsPageSource, /const prepareHeroVideo = \(\) => new Promise/);
+  assert.match(projectsPageSource, /heroVideo\.load\(\)/);
+  assert.match(projectsPageSource, /const videoReady = await prepareHeroVideo\(\)/);
   assert.match(projectsPageSource, /heroVideo\.addEventListener\("ended"/);
   assert.match(projectsPageSource, /hero\.dataset\.videoState = "complete"/);
   assert.match(projectsPageSource, /event\.persisted\) return;[\s\S]{0,160}void playHeroIntro\(\)/);

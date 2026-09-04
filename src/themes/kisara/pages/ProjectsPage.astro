@@ -459,6 +459,7 @@ const kitchenCatalog = {
       let heroPointerTargetY = 0;
       let heroPointerRenderedX = 0;
       let heroPointerRenderedY = 0;
+      let heroVideoLoadGeneration = 0;
       let lastSlicePoint = null;
       let sliceCount = 0;
       const settlingGhosts = new Set();
@@ -708,34 +709,56 @@ const kitchenCatalog = {
         hero.dataset.introState = "complete";
       };
 
+      const prepareHeroVideo = () => new Promise((resolve) => {
+        if (!(heroVideo instanceof HTMLVideoElement)) {
+          resolve(true);
+          return;
+        }
+        const loadGeneration = ++heroVideoLoadGeneration;
+        let settled = false;
+        const settle = (ready) => {
+          if (settled || signal.aborted || loadGeneration !== heroVideoLoadGeneration) return;
+          settled = true;
+          if (ready) {
+            try {
+              heroVideo.currentTime = 0;
+            } catch {
+              // The fresh load begins at its first frame regardless.
+            }
+          }
+          resolve(ready);
+        };
+        heroVideo.pause();
+        heroVideo.addEventListener("loadeddata", () => settle(true), { once: true, signal });
+        heroVideo.addEventListener("error", () => settle(false), { once: true, signal });
+        try {
+          heroVideo.load();
+        } catch {
+          settle(heroVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA);
+        }
+      });
+
       const playHeroIntro = async () => {
         if (!(hero instanceof HTMLElement)) return;
+        if (heroIntroTimer) window.clearTimeout(heroIntroTimer);
+        heroIntroTimer = 0;
         hero.dataset.introState = heroReducedMotion ? "complete" : "idle";
         hero.dataset.videoState = heroReducedMotion ? "complete" : "idle";
         if (heroReducedMotion) return;
-        if (heroVideo instanceof HTMLVideoElement) {
-          heroVideo.pause();
-          try {
-            heroVideo.currentTime = 0;
-          } catch {
-            // Metadata can finish loading between route setup and playback.
-          }
-          heroVideo.addEventListener("ended", () => {
-            if (!signal.aborted) hero.dataset.videoState = "complete";
-          }, { once: true, signal });
-          heroVideo.addEventListener("error", () => {
-            if (!signal.aborted) hero.dataset.videoState = "fallback";
-          }, { once: true, signal });
-        }
+        const videoReady = await prepareHeroVideo();
         if (signal.aborted) return;
+        if (!videoReady) hero.dataset.videoState = "fallback";
         void hero.offsetWidth;
         window.requestAnimationFrame(() => {
           if (signal.aborted) return;
           hero.dataset.introState = "playing";
-          hero.dataset.videoState = "playing";
           startFruitPhysics();
           heroIntroTimer = window.setTimeout(finishHeroIntro, 1580);
-          if (heroVideo instanceof HTMLVideoElement) {
+          if (videoReady && heroVideo instanceof HTMLVideoElement) {
+            hero.dataset.videoState = "playing";
+            heroVideo.addEventListener("ended", () => {
+              if (!signal.aborted) hero.dataset.videoState = "complete";
+            }, { once: true, signal });
             void heroVideo.play().catch(() => {
               if (!signal.aborted) hero.dataset.videoState = "fallback";
             });
