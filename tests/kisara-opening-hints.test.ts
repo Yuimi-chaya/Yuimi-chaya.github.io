@@ -15,14 +15,14 @@ const chibiSource = readSource("src/themes/kisara/components/KisaraChibiStage.as
 const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
 const audioSource = readSource("src/themes/kisara/components/KisaraAudioControl.astro");
 const gamesSource = readSource("src/themes/kisara/pages/GamesPage.astro");
+const gameClueSource = readSource("src/themes/kisara/components/KisaraGameClueScene.astro");
 
 const hintIds = [
   "chibi-jealousy",
   "chibi-apple",
   "found-self",
   "photo-archive",
-  "memory-return",
-  "game-shake"
+  "memory-return"
 ];
 
 test("Kisara opening hints use one versioned tab-session ledger", () => {
@@ -40,17 +40,13 @@ test("Each opening hint is marked only from its accepted trigger path", () => {
   assert.match(chibiSource, /mark\("chibi-jealousy"\)/);
   assert.match(chibiSource, /mark\("chibi-apple"\)/);
   assert.match(homeSource, /mark\("found-self"\)/);
-  assert.match(homeSource, /mark\("photo-archive"\)/);
+  assert.match(gameClueSource, /mark\("photo-archive"\)/);
   assert.match(audioSource, /mark\("memory-return"\)/);
-  assert.match(gamesSource, /mark\("game-shake"\)/);
+  assert.doesNotMatch(gamesSource, /mark\("game-shake"\)/);
 
-  const gamePlayIndex = gamesSource.indexOf("await shakeEasterVideo.play()");
-  const gameHintIndex = gamesSource.indexOf('mark("game-shake")', gamePlayIndex);
-  assert.ok(gamePlayIndex >= 0 && gameHintIndex > gamePlayIndex);
-
-  const rewardIndex = homeSource.indexOf("const completeReward = (autoplay: boolean) => {");
-  const solvedIndex = homeSource.indexOf('setState("solved")', rewardIndex);
-  const photoHintIndex = homeSource.indexOf('mark("photo-archive")', solvedIndex);
+  const rewardIndex = gameClueSource.indexOf("const completeReward = (autoplay: boolean) => {");
+  const solvedIndex = gameClueSource.indexOf('setState("solved")', rewardIndex);
+  const photoHintIndex = gameClueSource.indexOf('mark("photo-archive")', solvedIndex);
   assert.ok(rewardIndex >= 0 && solvedIndex > rewardIndex && photoHintIndex > solvedIndex);
 });
 

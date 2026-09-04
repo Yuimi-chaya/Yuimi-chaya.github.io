@@ -10,6 +10,7 @@ const readSource = (relativePath: string) => readFileSync(
 
 const layoutSource = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
 const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
+const gameClueSource = readSource("src/themes/kisara/components/KisaraGameClueScene.astro");
 const audioSource = readSource("src/themes/kisara/components/KisaraAudioControl.astro");
 const componentSource = readSource("src/themes/kisara/components/KisaraLovebrainEasterEgg.astro");
 
@@ -40,12 +41,14 @@ test("Lovebrain progress is an independent tab-session facade", () => {
   }
 });
 
-test("Home 003 gives the semantic spare-key grant before dispatch", () => {
-  const grantIndex = homeSource.indexOf("const completeReward = (autoplay: boolean) => {");
-  const spareKeyIndex = homeSource.indexOf("markSpareKey", grantIndex);
-  const dispatchIndex = homeSource.indexOf('new CustomEvent("yuimi:kisara-secret-audio"', grantIndex);
+test("Game investigation gives the semantic spare-key grant before dispatch", () => {
+  const grantIndex = gameClueSource.indexOf("const completeReward = (autoplay: boolean) => {");
+  const spareKeyIndex = gameClueSource.indexOf("markSpareKey", grantIndex);
+  const dispatchIndex = gameClueSource.indexOf('new CustomEvent("yuimi:kisara-secret-audio"', grantIndex);
   assert.ok(grantIndex >= 0);
   assert.ok(spareKeyIndex > grantIndex && dispatchIndex > spareKeyIndex);
+  assert.doesNotMatch(homeSource, /markSpareKey/);
+  assert.doesNotMatch(homeSource, /mark\("photo-archive"\)/);
 });
 
 test("Lovebrain component owns its ED assets and interactive input", () => {

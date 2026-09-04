@@ -194,9 +194,9 @@ const gamePresentation = {
         </div>
       </div>
 
-      <button class="kisara-game-scene-step is-previous" type="button" data-game-scene-previous aria-label="返回消息场景">
+      <button class="kisara-game-scene-step is-previous" type="button" data-game-scene-previous aria-label="返回异常影像调查">
         <Icon name="tabler:chevron-down" aria-hidden="true" />
-        <span>TRANSMISSION</span>
+        <span>INVESTIGATION</span>
       </button>
     </section>
 
@@ -205,29 +205,6 @@ const gamePresentation = {
       <button type="button" data-game-scene-jump="1" aria-current="false"><span>02</span><i></i></button>
     </nav>
 
-    <div class="kisara-game-shake-easter" data-game-shake-easter data-state="idle" aria-hidden="true">
-      <video
-        data-game-shake-video
-        poster="/themes/kisara/assets/game-shake-easter-first.webp"
-        width="1280"
-        height="720"
-        preload="none"
-        muted
-        playsinline
-      >
-        <source data-src="/themes/kisara/assets/game-shake-easter.mp4" type="video/mp4" />
-      </video>
-      <span class="kisara-game-shake-scan" aria-hidden="true"></span>
-      <span class="kisara-game-shake-slices" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-      <p class="kisara-game-shake-status" aria-hidden="true">
-        <span>EXTRA SIGNAL / 01</span>
-        <strong>誰彼スクランブル</strong>
-        <small>INPUT LIMIT EXCEEDED</small>
-      </p>
-      <button type="button" data-game-shake-close aria-label="退出彩蛋画面" title="退出彩蛋画面">
-        <Icon name="tabler:x" aria-hidden="true" />
-      </button>
-    </div>
   </div>
 
   <script is:inline data-astro-rerun>
@@ -240,14 +217,7 @@ const gamePresentation = {
       const signal = lifecycle.signal;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-      const performanceTier = document.documentElement.dataset.yuimiPerformance ?? "full";
-      const mediaConnection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-      const mediaEffectiveType = String(mediaConnection?.effectiveType || "").toLowerCase();
-      const canAutomaticallyWarmMedia = performanceTier === "full"
-        && !mediaConnection?.saveData
-        && !/(^|-)2g$/.test(mediaEffectiveType);
       const scenes = Array.from(page.querySelectorAll("[data-game-scene]"));
-      const hero = page.querySelector(".kisara-game-hero");
       const arcade = page.querySelector("[data-kisara-arcade]");
       let gameFrame = null;
       let scrollFrame = 0;
@@ -261,51 +231,13 @@ const gamePresentation = {
       let pointerY = 0;
       let renderedPointerX = 0;
       let renderedPointerY = 0;
-      let heroPointerFrame = 0;
-      let heroPointerX = 0;
-      let heroPointerY = 0;
-      let renderedHeroPointerX = 0;
-      let renderedHeroPointerY = 0;
-      let heroInputEnergy = 0;
-      let heroInputTarget = 0;
-      let heroLastPointerX = 0;
-      let heroLastPointerY = 0;
-      let heroLastPointerAt = 0;
-      let heroLastMotionAt = 0;
-      let heroShakeTravel = 0;
-      let heroShakeLatched = false;
-      let heroPressureMs = 0;
-      let heroPressureLastFrame = 0;
-      let heroPressureStage = 0;
-      let shakeEasterPreloaded = false;
-      let shakeEasterWarmupIdle = 0;
-      let shakeEasterWarmupTimer = 0;
-      let shakeEasterExitTimer = 0;
-      let shakeEasterScrollLocked = false;
-      let shakeEasterPreviousOverflow = "";
-      let releaseGameShakeEaster = () => {};
-      let resetGameShakePressure = () => {};
 
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-      const GAME_SHAKE_TRAVEL_TARGET = 620;
-      const GAME_SHAKE_HOLD_DURATION = 5000;
-      const gameShakeEasterViewport = window.matchMedia("(min-width: 761px)");
-      let gameShakeEasterAttempt = 0;
-      let gameShakeEasterArming = false;
-      let gameShakeAfterglow = false;
       const cleanup = () => {
         lifecycle.abort();
-        gameShakeAfterglow = false;
         window.clearTimeout(wheelTimer);
         if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
         if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
-        if (heroPointerFrame) window.cancelAnimationFrame(heroPointerFrame);
-        if (shakeEasterWarmupIdle && window.cancelIdleCallback) window.cancelIdleCallback(shakeEasterWarmupIdle);
-        if (shakeEasterWarmupTimer) window.clearTimeout(shakeEasterWarmupTimer);
-        shakeEasterWarmupIdle = 0;
-        shakeEasterWarmupTimer = 0;
-        window.clearTimeout(shakeEasterExitTimer);
-        releaseGameShakeEaster(true);
         if (gameFrame instanceof HTMLIFrameElement) {
           gameFrame.src = "about:blank";
           gameFrame.removeAttribute("src");
@@ -318,7 +250,6 @@ const gamePresentation = {
       const setActiveScene = (nextScene) => {
         activeScene = clamp(nextScene, 0, scenes.length - 1);
         page.dataset.activeScene = String(activeScene);
-        if (activeScene !== 0) resetGameShakePressure();
         scenes.forEach((scene, index) => {
           if (!(scene instanceof HTMLElement)) return;
           scene.dataset.scenePosition = index < activeScene ? "before" : index > activeScene ? "after" : "active";
@@ -478,307 +409,6 @@ const gamePresentation = {
         button.addEventListener("click", () => smoothScrollToScene(Number(button.dataset.gameSceneJump)), { signal });
       });
 
-      const shakeEaster = page.querySelector("[data-game-shake-easter]");
-      const shakeEasterVideo = page.querySelector("[data-game-shake-video]");
-      const shakeEasterSource = shakeEasterVideo?.querySelector("source[data-src]");
-      const shakeEasterClose = page.querySelector("[data-game-shake-close]");
-      const shakeEasterHint = page.querySelector("[data-game-easter-hint]");
-      const shakeEasterProgress = page.querySelector("[data-game-easter-progress]");
-      const audioPlayer = document.querySelector("[data-kisara-audio-player]");
-      const themeAudio = audioPlayer?.querySelector("[data-kisara-theme-audio]");
-
-      const isDarekareScramblePlaying = () => (
-        audioPlayer instanceof HTMLElement
-        && audioPlayer.dataset.secretVariant === "scramble"
-        && themeAudio instanceof HTMLAudioElement
-        && !themeAudio.paused
-        && !themeAudio.ended
-      );
-
-      const isGameShakeSequenceActive = () => (
-        gameShakeEasterArming
-        || (shakeEaster instanceof HTMLElement && shakeEaster.dataset.state !== "idle")
-      );
-
-      const canChargeGameShakeEaster = () => (
-        activeScene === 0
-        && gameShakeEasterViewport.matches
-        && !gameShakeAfterglow
-        && !isGameShakeSequenceActive()
-        && !isDarekareScramblePlaying()
-      );
-
-      const setShakeEasterScrollLock = (locked) => {
-        if (locked === shakeEasterScrollLocked) return;
-        shakeEasterScrollLocked = locked;
-        if (locked) {
-          shakeEasterPreviousOverflow = document.documentElement.style.overflow;
-          document.documentElement.style.overflow = "hidden";
-        } else {
-          document.documentElement.style.overflow = shakeEasterPreviousOverflow;
-          shakeEasterPreviousOverflow = "";
-        }
-      };
-
-      releaseGameShakeEaster = (immediate = false) => {
-        gameShakeEasterAttempt += 1;
-        gameShakeEasterArming = false;
-        window.clearTimeout(shakeEasterExitTimer);
-        shakeEasterExitTimer = 0;
-        if (shakeEasterVideo instanceof HTMLVideoElement) shakeEasterVideo.pause();
-        if (!(shakeEaster instanceof HTMLElement)) {
-          setShakeEasterScrollLock(false);
-          return;
-        }
-        const finish = () => {
-          shakeEaster.dataset.state = "idle";
-          shakeEaster.setAttribute("aria-hidden", "true");
-          delete page.dataset.easterState;
-          resetGameShakePressure();
-          setShakeEasterScrollLock(false);
-        };
-        if (immediate || shakeEaster.dataset.state === "idle") {
-          finish();
-          return;
-        }
-        shakeEaster.dataset.state = "leaving";
-        shakeEasterExitTimer = window.setTimeout(finish, 720);
-      };
-
-      const preloadGameShakeEaster = () => {
-        if (shakeEasterPreloaded) return;
-        shakeEasterPreloaded = true;
-        if (shakeEasterVideo instanceof HTMLVideoElement) {
-          if (shakeEasterSource instanceof HTMLSourceElement && !shakeEasterSource.hasAttribute("src")) {
-            shakeEasterSource.src = shakeEasterSource.dataset.src || "";
-          }
-          shakeEasterVideo.preload = "auto";
-          shakeEasterVideo.load();
-        }
-      };
-
-      const scheduleGameShakeWarmup = () => {
-        if (!canAutomaticallyWarmMedia || reducedMotion || !gameShakeEasterViewport.matches) return;
-        const warm = () => {
-          shakeEasterWarmupIdle = 0;
-          shakeEasterWarmupTimer = 0;
-          if (signal.aborted) return;
-          preloadGameShakeEaster();
-        };
-        if (window.requestIdleCallback) {
-          shakeEasterWarmupIdle = window.requestIdleCallback(warm, { timeout: 5200 });
-        } else {
-          shakeEasterWarmupTimer = window.setTimeout(warm, 3200);
-        }
-      };
-
-      const waitForGameShakeFrame = (video) => {
-        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return Promise.resolve();
-        return new Promise((resolve, reject) => {
-          let settled = false;
-          let timeout = 0;
-          const finish = (error) => {
-            if (settled) return;
-            settled = true;
-            if (timeout) window.clearTimeout(timeout);
-            video.removeEventListener("loadeddata", ready);
-            video.removeEventListener("canplay", ready);
-            video.removeEventListener("error", failed);
-            signal.removeEventListener("abort", aborted);
-            if (error) reject(error);
-            else resolve();
-          };
-          const ready = () => finish();
-          const failed = () => finish(new Error("Game shake media failed to load"));
-          const aborted = () => finish(new Error("Game shake media aborted"));
-          video.addEventListener("loadeddata", ready, { once: true });
-          video.addEventListener("canplay", ready, { once: true });
-          video.addEventListener("error", failed, { once: true });
-          signal.addEventListener("abort", aborted, { once: true });
-          timeout = window.setTimeout(failed, 7200);
-        });
-      };
-
-      const startGameShakeEasterVideo = async (attempt) => {
-        if (!(shakeEasterVideo instanceof HTMLVideoElement)) return;
-        for (let retry = 0; retry < 2; retry += 1) {
-          try {
-            preloadGameShakeEaster();
-            await waitForGameShakeFrame(shakeEasterVideo);
-            if (signal.aborted || attempt !== gameShakeEasterAttempt || !gameShakeEasterArming) return;
-            try { shakeEasterVideo.currentTime = 0; } catch {}
-            shakeEasterVideo.muted = true;
-            await shakeEasterVideo.play();
-            if (signal.aborted || attempt !== gameShakeEasterAttempt || !gameShakeEasterArming) return;
-            gameShakeEasterArming = false;
-            window.__yuimiKisaraEasterLedger?.mark("game-shake");
-            page.dataset.easterState = "playing";
-            shakeEaster.dataset.state = "playing";
-            window.dispatchEvent(new CustomEvent("yuimi:kisara-secret-audio", {
-              detail: {
-                trackId: "darekare-scramble",
-                autoplay: true
-              }
-            }));
-            return;
-          } catch {
-            if (signal.aborted || attempt !== gameShakeEasterAttempt || !gameShakeEasterArming) return;
-            if (retry === 0) {
-              try { shakeEasterVideo.currentTime = 0; } catch {}
-              shakeEasterVideo.load();
-              continue;
-            }
-          }
-        }
-        if (attempt !== gameShakeEasterAttempt) return;
-        gameShakeEasterArming = false;
-        releaseGameShakeEaster();
-      };
-
-      const triggerGameShakeEaster = () => {
-        if (
-          !canChargeGameShakeEaster()
-          || !(shakeEaster instanceof HTMLElement)
-        ) return;
-        gameShakeEasterArming = true;
-        const attempt = ++gameShakeEasterAttempt;
-        heroPressureMs = GAME_SHAKE_HOLD_DURATION;
-        heroShakeTravel = GAME_SHAKE_TRAVEL_TARGET;
-        heroShakeLatched = true;
-        heroPressureStage = 4;
-        if (hero instanceof HTMLElement) {
-          hero.dataset.easterPressure = "4";
-          hero.style.setProperty("--game-easter-charge", "1");
-          hero.style.setProperty("--game-easter-shake", "1");
-        }
-        page.dataset.easterState = "arming";
-        shakeEaster.dataset.state = "arming";
-        shakeEaster.setAttribute("aria-hidden", "false");
-        setShakeEasterScrollLock(true);
-        if (!(shakeEasterVideo instanceof HTMLVideoElement)) {
-          gameShakeEasterArming = false;
-          releaseGameShakeEaster(true);
-          return;
-        }
-        void startGameShakeEasterVideo(attempt);
-      };
-
-      resetGameShakePressure = () => {
-        const keepAfterglow = gameShakeAfterglow;
-        heroPressureMs = 0;
-        heroPressureLastFrame = 0;
-        heroPressureStage = 0;
-        heroLastMotionAt = 0;
-        heroShakeTravel = 0;
-        heroShakeLatched = false;
-        if (hero instanceof HTMLElement) {
-          hero.dataset.easterPressure = keepAfterglow ? "afterglow" : "0";
-          hero.style.setProperty("--game-easter-charge", "0");
-          hero.style.setProperty("--game-easter-shake", keepAfterglow ? "1" : "0");
-          if (keepAfterglow) hero.style.setProperty("--game-input-energy", "1");
-        }
-        if (shakeEasterProgress) shakeEasterProgress.textContent = "5.0";
-        if (shakeEasterHint) shakeEasterHint.textContent = "SHAKE THE MESSAGE APART";
-      };
-
-      const updateGameShakePressure = (timestamp) => {
-        if (
-          !canChargeGameShakeEaster()
-          || !(hero instanceof HTMLElement)
-        ) return;
-        const delta = heroPressureLastFrame > 0 ? clamp(timestamp - heroPressureLastFrame, 0, 34) : 0;
-        heroPressureLastFrame = timestamp;
-        const idleFor = heroLastMotionAt > 0 ? timestamp - heroLastMotionAt : Number.POSITIVE_INFINITY;
-
-        if (!heroShakeLatched) {
-          if (idleFor > 150) heroShakeTravel = Math.max(0, heroShakeTravel - delta * 0.68);
-          if (heroShakeTravel >= GAME_SHAKE_TRAVEL_TARGET) {
-            heroShakeTravel = GAME_SHAKE_TRAVEL_TARGET;
-            heroShakeLatched = true;
-            heroPressureMs = 0;
-          }
-        } else if (idleFor <= 260) {
-          heroPressureMs = Math.min(GAME_SHAKE_HOLD_DURATION, heroPressureMs + delta);
-        } else if (idleFor > 680) {
-          heroShakeLatched = false;
-          heroPressureMs = 0;
-          heroShakeTravel = GAME_SHAKE_TRAVEL_TARGET * 0.18;
-        }
-
-        const shakeIntensity = clamp(heroShakeTravel / GAME_SHAKE_TRAVEL_TARGET, 0, 1);
-        const holdProgress = clamp(heroPressureMs / GAME_SHAKE_HOLD_DURATION, 0, 1);
-        const visualCharge = heroShakeLatched
-          ? 0.22 + holdProgress * 0.78
-          : Math.pow(shakeIntensity, 2) * 0.14;
-        const visualShake = heroShakeLatched
-          ? 0.08 + Math.pow(holdProgress, 1.12) * 0.92
-          : Math.pow(shakeIntensity, 2) * 0.06;
-        const stage = !heroShakeLatched
-          ? 0
-          : holdProgress >= 0.72
-            ? 3
-            : holdProgress >= 0.34
-              ? 2
-              : 1;
-        hero.style.setProperty("--game-easter-charge", visualCharge.toFixed(4));
-        hero.style.setProperty("--game-easter-shake", visualShake.toFixed(4));
-        if (stage !== heroPressureStage) {
-          heroPressureStage = stage;
-          hero.dataset.easterPressure = String(stage);
-        }
-        if (shakeEasterProgress) {
-          const remainingSeconds = Math.max(0, (GAME_SHAKE_HOLD_DURATION - heroPressureMs) / 1000);
-          shakeEasterProgress.textContent = remainingSeconds.toFixed(1);
-        }
-        if (shakeEasterHint) {
-          shakeEasterHint.textContent = stage >= 3
-            ? "THE SIGNAL IS LOOKING BACK"
-            : stage === 2
-              ? "DO NOT LET THE MESSAGE SETTLE"
-              : stage === 1
-                ? "LIMIT LOCKED / KEEP MOVING"
-                : shakeIntensity >= 0.58
-                  ? "ALMOST UNSTABLE / SHAKE HARDER"
-                  : "SHAKE THE MESSAGE APART";
-        }
-        if (shakeIntensity >= 0.52) preloadGameShakeEaster();
-        if (heroPressureMs >= GAME_SHAKE_HOLD_DURATION) triggerGameShakeEaster();
-      };
-
-      if (shakeEasterVideo instanceof HTMLVideoElement) {
-        shakeEasterVideo.addEventListener("playing", () => {
-          if (shakeEaster instanceof HTMLElement) shakeEaster.dataset.state = "playing";
-        }, { signal });
-        shakeEasterVideo.addEventListener("ended", () => {
-          if (!(shakeEaster instanceof HTMLElement)) return;
-          gameShakeAfterglow = true;
-          shakeEaster.dataset.state = "ending";
-          shakeEasterExitTimer = window.setTimeout(() => releaseGameShakeEaster(), 1050);
-        }, { signal });
-        shakeEasterVideo.addEventListener("error", () => {
-          if (!gameShakeEasterArming) releaseGameShakeEaster();
-        }, { signal });
-      }
-      if (themeAudio instanceof HTMLAudioElement) {
-        themeAudio.addEventListener("playing", () => {
-          if (isDarekareScramblePlaying() && !isGameShakeSequenceActive()) resetGameShakePressure();
-        }, { signal });
-      }
-      shakeEasterClose?.addEventListener("click", () => releaseGameShakeEaster(), { signal });
-      gameShakeEasterViewport.addEventListener("change", () => {
-        if (gameShakeEasterViewport.matches) return;
-        if (shakeEaster instanceof HTMLElement && shakeEaster.dataset.state !== "idle") releaseGameShakeEaster(true);
-        else resetGameShakePressure();
-      }, { signal });
-      window.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && shakeEaster instanceof HTMLElement && shakeEaster.dataset.state !== "idle") {
-          event.preventDefault();
-          releaseGameShakeEaster();
-        }
-      }, { signal });
-
-      scheduleGameShakeWarmup();
-
       if (arcade instanceof HTMLElement && finePointer && !reducedMotion) {
         const renderPointer = () => {
           pointerFrame = 0;
@@ -803,82 +433,6 @@ const gamePresentation = {
           pointerX = 0;
           pointerY = 0;
           schedulePointer();
-        }, { signal });
-      }
-
-      if (hero instanceof HTMLElement && finePointer && !reducedMotion) {
-        const speedOutput = hero.querySelector("[data-game-input-speed]");
-        const renderHeroPointer = (timestamp) => {
-          heroPointerFrame = 0;
-          renderedHeroPointerX += (heroPointerX - renderedHeroPointerX) * 0.14;
-          renderedHeroPointerY += (heroPointerY - renderedHeroPointerY) * 0.14;
-          heroInputEnergy += (heroInputTarget - heroInputEnergy) * 0.34;
-          heroInputTarget *= 0.95;
-          updateGameShakePressure(timestamp);
-          const travelEnergy = clamp(heroShakeTravel / GAME_SHAKE_TRAVEL_TARGET, 0, 1);
-          const displayedInputEnergy = gameShakeAfterglow
-            ? 1
-            : heroShakeLatched
-              ? 1
-              : Math.max(heroInputEnergy, travelEnergy * 0.76);
-          hero.style.setProperty("--game-hero-pointer-x", `${renderedHeroPointerX.toFixed(2)}px`);
-          hero.style.setProperty("--game-hero-pointer-y", `${renderedHeroPointerY.toFixed(2)}px`);
-          hero.style.setProperty("--game-input-energy", displayedInputEnergy.toFixed(3));
-          if (speedOutput) speedOutput.textContent = String(Math.round(displayedInputEnergy * 99)).padStart(2, "0");
-          if (
-            Math.abs(heroPointerX - renderedHeroPointerX) > 0.04
-            || Math.abs(heroPointerY - renderedHeroPointerY) > 0.04
-            || heroInputEnergy > 0.008
-            || heroInputTarget > 0.008
-            || heroPressureMs > 0
-            || heroShakeTravel > 0
-            || heroShakeLatched
-          ) {
-            heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
-          }
-        };
-        const scheduleHeroPointer = () => {
-          if (!heroPointerFrame) heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
-        };
-        hero.addEventListener("pointermove", (event) => {
-          if (!gameShakeEasterViewport.matches) {
-            heroLastPointerAt = 0;
-            heroInputTarget = 0;
-            resetGameShakePressure();
-            return;
-          }
-          const rect = hero.getBoundingClientRect();
-          const now = event.timeStamp || performance.now();
-          if (heroLastPointerAt > 0) {
-            const elapsed = Math.max(8, now - heroLastPointerAt);
-            const distance = Math.hypot(event.clientX - heroLastPointerX, event.clientY - heroLastPointerY);
-            const velocityEnergy = clamp(distance / elapsed / 0.54, 0, 1);
-            const travelEnergy = clamp(distance / 18, 0, 1);
-            const motionEnergy = Math.max(velocityEnergy, travelEnergy * 0.94);
-            heroInputTarget = Math.max(heroInputTarget, motionEnergy);
-            if (distance >= 1.5) {
-              heroLastMotionAt = performance.now();
-              if (canChargeGameShakeEaster() && !heroShakeLatched) {
-                heroShakeTravel = Math.min(
-                  GAME_SHAKE_TRAVEL_TARGET,
-                  heroShakeTravel + Math.min(distance, 54) * (0.72 + motionEnergy * 0.46)
-                );
-              }
-            }
-          }
-          heroLastPointerX = event.clientX;
-          heroLastPointerY = event.clientY;
-          heroLastPointerAt = now;
-          heroPointerX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 4.4, -2.2, 2.2);
-          heroPointerY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 3.2, -1.6, 1.6);
-          scheduleHeroPointer();
-        }, { signal });
-        hero.addEventListener("pointerleave", () => {
-          heroPointerX = 0;
-          heroPointerY = 0;
-          heroInputTarget = 0;
-          heroLastPointerAt = 0;
-          scheduleHeroPointer();
         }, { signal });
       }
 

@@ -13,6 +13,7 @@ const audioSource = readSource("src/themes/kisara/components/KisaraAudioControl.
 const lovebrainSource = readSource("src/themes/kisara/components/KisaraLovebrainEasterEgg.astro");
 const layoutSource = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
 const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
+const homeEventSource = readSource("src/themes/kisara/components/KisaraHomeEventVideo.astro");
 const homeStyles = readSource("src/themes/kisara/styles/home.css");
 
 test("Kisara keeps offscreen epilogue media out of the initial image queue", () => {
@@ -39,4 +40,16 @@ test("Kisara Home discovers and decodes its first Gate scene before revealing it
   assert.match(homeSource, /revealPaintFrame = window\.requestAnimationFrame/);
   assert.match(homeStyles, /data-kisara-gate-media="pending"[^]*\.kisara-gate-visual-shell::after[^]*opacity: 1/);
   assert.match(homeStyles, /transition: opacity 420ms/);
+});
+
+test("Kisara Home 003 keeps its full-screen fragment deferred and subtitle-free", () => {
+  assert.match(homeEventSource, /data-kisara-home-stop="003"/);
+  assert.match(homeEventSource, /data-home-event-video/);
+  assert.match(homeEventSource, /poster="\/themes\/kisara\/assets\/home-event-003-new-last\.webp"/);
+  assert.match(homeEventSource, /preload="none"/);
+  assert.match(homeEventSource, /muted/);
+  assert.match(homeEventSource, /playsinline/);
+  assert.match(homeEventSource, /data-src="\/themes\/kisara\/assets\/home-event-003-new\.mp4"/);
+  assert.doesNotMatch(homeEventSource, /<track\b/i);
+  assert.doesNotMatch(homeEventSource, /<source\b[^>]*\ssrc=/i);
 });

@@ -24,7 +24,7 @@ const stylesheetBudgets = [
 
 const bundleBudgets = [
   ["Kisara shared layout runtime", "KisaraLayout.astro_astro_type_script_index_1_lang.", 9_000],
-  ["Kisara Home primary module", "HomePage.astro_astro_type_script_index_1_lang.", 225_000]
+  ["Kisara Home primary module", "HomePage.astro_astro_type_script_index_", 225_000]
 ];
 
 const formatBytes = (value) => `${(value / 1024).toFixed(1)} KiB`;
@@ -80,21 +80,15 @@ try {
   if (!/<link\s+rel="preload"\s+as="image"\s+href="\/themes\/kisara\/assets\/gate-background\.webp"\s+fetchpriority="high"\s*\/?>/i.test(homeHtml)) {
     failures.push("Kisara Home lost its high-priority Gate background preload");
   }
+  const homeEventVideoPath = "/themes/kisara/assets/home-event-003-new.mp4";
+  if (!homeHtml.includes(`data-src="${homeEventVideoPath}"`)) {
+    failures.push("Kisara Home 003 video lost its deferred data-src");
+  }
+  if (new RegExp(`<source\\b[^>]*\\ssrc=["']${homeEventVideoPath.replaceAll("/", "\\/")}["']`, "i").test(homeHtml)) {
+    failures.push("Kisara Home 003 video regressed to an eager source request");
+  }
 } catch {
   failures.push("Kisara Home HTML is missing for critical-image validation");
-}
-
-try {
-  const gamesHtml = await readFile(new URL("games/index.html", distDir), "utf8");
-  const shakeVideoPath = "/themes/kisara/assets/game-shake-easter.mp4";
-  if (!gamesHtml.includes(`data-src="${shakeVideoPath}"`)) {
-    failures.push("Game shake video lost its deferred data-src");
-  }
-  if (new RegExp(`<source\\b[^>]*\\ssrc=["']${shakeVideoPath.replaceAll("/", "\\/")}["']`, "i").test(gamesHtml)) {
-    failures.push("Game shake video regressed to an eager source request");
-  }
-} catch {
-  failures.push("Kisara Games HTML is missing for deferred-media validation");
 }
 
 if (failures.length > 0) {
