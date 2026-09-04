@@ -85,6 +85,9 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(abyssSource, /context\.drawImage\(titleAbyssRimCanvas, 0, 0\)/);
   assert.match(homeSource, /reducedMotion \? 0\.0025 : 0\.025/);
   assert.match(abyssSource, /!titleAbyssTideImageData[^]*classList\.remove\("is-title-abyss-ready"\)/);
+  assert.match(homeSource, /const titleAbyssDomHandoffStart = 0\.72/);
+  assert.match(homeSource, /intro - titleAbyssDomHandoffStart/);
+  assert.match(abyssSource, /chargeIntroProgress >= titleAbyssDomHandoffStart[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.match(abyssSource, /burstProgress > glossFadeEnd \+ 0\.002[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.doesNotMatch(abyssSource, /paintSingularityField|eventHorizon|ringRadius|Starfield|voidPockets/);
   assert.match(homeSource, /titleAbyssPointerX \* \(mobilePerformance \? 20 : 76\)/);

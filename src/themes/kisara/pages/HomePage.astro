@@ -962,6 +962,7 @@ const gateStyle = [
       const burstDamping = 0.86;
       const settleDistance = 0.00035;
       const chargeIntroDuration = 2150;
+      const titleAbyssDomHandoffStart = 0.72;
       const chargeHandoffStart = 0.015;
       const chargeHandoffEnd = 0.18;
       const glossFadeEnd = 0.37;
@@ -6637,7 +6638,10 @@ const gateStyle = [
           gate.classList.remove("is-title-abyss-ready");
           return;
         }
-        if (burstProgress > glossFadeEnd + 0.002) {
+        if (
+          chargeIntroProgress >= titleAbyssDomHandoffStart
+          || burstProgress > glossFadeEnd + 0.002
+        ) {
           gate.classList.remove("is-title-abyss-ready");
           return;
         }
@@ -8599,7 +8603,11 @@ const gateStyle = [
         const intro = clamp(chargeIntroProgress, 0, 1);
         const gateWidth = Math.max(1, gate.clientWidth);
         const gateHeight = Math.max(1, gate.clientHeight);
-        const introImpactLinear = clamp((intro - 0.72) / 0.16, 0, 1);
+        const introImpactLinear = clamp(
+          (intro - titleAbyssDomHandoffStart) / 0.16,
+          0,
+          1
+        );
         const introImpactPulse = Math.sin(introImpactLinear * Math.PI);
         const introEnchant = phaseProgress(intro, 0.75, 1);
         const introEnchantHold = introEnchant * (1 - phaseProgress(burst, 0.035, 0.34));
