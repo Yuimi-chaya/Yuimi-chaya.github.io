@@ -6721,39 +6721,130 @@ const gateStyle = [
         context.globalAlpha = 1;
 
         if (fill > 0.0005) {
-          const edgeVisibility = Math.pow(Math.sin(fill * Math.PI), 0.48);
-          const edgeAmplitude = (3.6 + Math.min(9, Math.abs(velocity) * 920)) * edgeVisibility;
+          const edgeVisibility = Math.pow(Math.max(0, Math.sin(fill * Math.PI)), 0.48);
+          const compactEdge = mobilePerformance || litePerformance;
+          const edgeScale = (
+            clamp(
+              height * (compactEdge ? 0.062 : 0.082),
+              compactEdge ? 9 : 16,
+              compactEdge ? 20 : 34
+            )
+            + Math.min(compactEdge ? 4 : 9, Math.abs(velocity) * 760)
+          ) * edgeVisibility;
+          const padding = 26;
           const edgeAt = (y) => {
-            const tongueA = Math.max(
+            const normalizedY = (y + padding) / (height + padding * 2);
+            const cell = titleAbyssValueNoise(
+              normalizedY * 3.4 - time * 0.09 + 9.7,
+              time * 0.055 + 4.2
+            );
+            const broad = Math.sin(
+              normalizedY * Math.PI * 2.44
+              - time * 0.48
+              + (cell - 0.5) * 1.7
+            );
+            const fold = Math.sin(
+              normalizedY * Math.PI * 6.5
+              + time * 0.72
+              + (cell - 0.5) * 2.3
+            );
+            const tongue = Math.max(
               0,
-              Math.sin(y * 0.052 - time * 2.15 + Math.sin(y * 0.016 + time * 0.41) * 0.95)
-            ) ** 4;
-            const tongueB = Math.max(0, Math.sin(y * 0.091 + time * 1.62 + 1.7)) ** 6;
-            const tongue = (tongueA * 0.92 + tongueB * 0.42) * edgeAmplitude;
+              Math.sin(
+                normalizedY * Math.PI * 4.3
+                - time * 0.82
+                + (cell - 0.5) * 2.6
+                + 0.9
+              )
+            ) ** 3;
+            const cove = Math.max(
+              0,
+              Math.sin(
+                normalizedY * Math.PI * 5.5
+                + time * 0.66
+                - (cell - 0.5) * 2.1
+                + 2.4
+              )
+            ) ** 3;
             return fill * (width + height) - (height - y)
-              + Math.sin(y * 0.041 + time * 1.38) * edgeAmplitude
-              + Math.sin(y * 0.019 - time * 0.62) * edgeAmplitude * 0.58
-              + tongue
+              + edgeScale * (
+                (cell - 0.5) * 1.2
+                + broad * 0.45
+                + fold * 0.3
+                + tongue * 1.08
+                - cove * 0.88
+              )
               + titleAbyssPointerX * edgeVisibility * 4.8
               - titleAbyssPointerY * edgeVisibility * 2.2;
           };
-          const padding = 20;
-          const segments = litePerformance ? 14 : mobilePerformance ? 20 : 28;
           const edgePoints = [];
+          const fringePoints = [];
+          const covePoints = [];
+          const segments = litePerformance ? 24 : mobilePerformance ? 34 : 48;
           for (let segment = 0; segment <= segments; segment += 1) {
             const y = -padding + (height + padding * 2) * segment / segments;
-            edgePoints.push({ x: edgeAt(y), y });
+            const x = edgeAt(y);
+            const normalizedY = segment / segments;
+            const mixCell = titleAbyssValueNoise(
+              normalizedY * 4.6 + time * 0.05,
+              time * 0.04 + 21
+            );
+            const spillPulse = Math.max(
+              0,
+              Math.sin(
+                normalizedY * Math.PI * 4.4
+                - time * 0.41
+                + mixCell * 2.8
+              )
+            ) ** 2.4;
+            const covePulse = Math.max(
+              0,
+              Math.sin(
+                normalizedY * Math.PI * 5.1
+                + time * 0.53
+                - mixCell * 2.2
+                + 1.7
+              )
+            ) ** 2.6;
+            const spread = edgeScale * (
+              0.08
+              + mixCell * 0.18
+              + spillPulse * 0.95
+            );
+            edgePoints.push({ x, y });
+            fringePoints.push({ x: x + spread, y });
+            covePoints.push({
+              x: x - edgeScale * covePulse * (0.45 + (1 - mixCell) * 0.72),
+              y
+            });
           }
-          const edgePath = createSmoothCanvasPath(edgePoints);
-          const tidePath = new Path2D(edgePath);
-          tidePath.lineTo(-padding, height + padding);
-          tidePath.lineTo(-padding, -padding);
-          tidePath.closePath();
+          const closeTidePath = (points, side) => {
+            const path = new Path2D(createSmoothCanvasPath(points));
+            path.lineTo(side, height + padding);
+            path.lineTo(side, -padding);
+            path.closePath();
+            return path;
+          };
+          const tidePath = closeTidePath(edgePoints, -padding);
+          const fringePath = closeTidePath(fringePoints, -padding);
+          const covePath = closeTidePath(covePoints, width + padding);
+          const tideDriftX = Math.sin(time * 0.43) * 5 + parallaxX * 0.14;
+          const tideDriftY = Math.cos(time * 0.31) * 3 + parallaxY * 0.12;
+          context.save();
+          context.clip(fringePath);
+          context.globalCompositeOperation = "source-over";
+          context.globalAlpha = 0.24 * edgeVisibility;
+          context.drawImage(
+            titleAbyssTideCanvas,
+            -titleAbyssFluidPaddingX + tideDriftX,
+            -titleAbyssFluidPaddingY + tideDriftY,
+            fluidWidth,
+            fluidHeight
+          );
+          context.restore();
 
           context.save();
           context.clip(tidePath);
-          const tideDriftX = Math.sin(time * 0.43) * 7 + parallaxX * 0.14;
-          const tideDriftY = Math.cos(time * 0.31) * 4 + parallaxY * 0.12;
           context.globalCompositeOperation = "source-over";
           context.globalAlpha = 1;
           context.drawImage(
@@ -6763,41 +6854,21 @@ const gateStyle = [
             fluidWidth,
             fluidHeight
           );
-          context.globalCompositeOperation = "soft-light";
-          context.globalAlpha = 0.24;
-          context.drawImage(
-            titleAbyssFluidCanvas,
-            fluidX - tideDriftX * 0.18,
-            fluidY - tideDriftY * 0.18,
-            fluidWidth,
-            fluidHeight
-          );
           context.restore();
 
-          if (edgeVisibility > 0.002) {
+          if (edgeVisibility > 0.01) {
             context.save();
-            context.lineCap = "round";
-            context.lineJoin = "round";
-            context.globalCompositeOperation = "soft-light";
-            context.globalAlpha = 0.36 * edgeVisibility;
-            context.strokeStyle = "rgba(198,72,151,0.72)";
-            context.lineWidth = 13;
-            context.stroke(edgePath);
+            context.clip(covePath);
+            context.clip(tidePath);
             context.globalCompositeOperation = "source-over";
             context.globalAlpha = 0.52 * edgeVisibility;
-            context.strokeStyle = "rgba(77,16,67,0.86)";
-            context.lineWidth = 7.5;
-            context.stroke(edgePath);
-            context.globalCompositeOperation = "screen";
-            context.globalAlpha = 0.56 * edgeVisibility;
-            context.strokeStyle = "rgba(235,79,157,0.76)";
-            context.lineWidth = 3.2;
-            context.stroke(edgePath);
-            context.globalCompositeOperation = "source-over";
-            context.globalAlpha = 0.42 * edgeVisibility;
-            context.strokeStyle = "rgba(255,158,201,0.68)";
-            context.lineWidth = 1.4;
-            context.stroke(edgePath);
+            context.drawImage(
+              titleAbyssFluidCanvas,
+              fluidX + tideDriftX * 0.12,
+              fluidY + tideDriftY * 0.12,
+              fluidWidth,
+              fluidHeight
+            );
             context.restore();
           }
         }

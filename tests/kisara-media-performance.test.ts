@@ -51,12 +51,17 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
     homeSource.indexOf("const drawTitleAbyss ="),
     homeSource.indexOf("const paintBurstWarmupStep =")
   );
+  const fluidSource = homeSource.slice(
+    homeSource.indexOf("const paintTitleAbyssFluid ="),
+    homeSource.indexOf("const resizeTitleDataCanvas =")
+  );
   assert.match(homeSource, /data-kisara-title-abyss/);
   assert.match(homeSource, /const drawTitleAbyss =/);
   assert.match(homeSource, /const rebuildTitleAbyssFluidBuffer =/);
   assert.match(homeSource, /const paintTitleAbyssFluid =/);
   assert.match(homeSource, /const titleAbyssRimCanvas =/);
   assert.match(homeSource, /const titleAbyssTideCanvas =/);
+  assert.match(homeSource, /titleAbyssTideCanvas\.getContext\("2d", \{ alpha: false \}\)/);
   assert.equal((rimSource.match(/titleAbyssRimContext\.strokeText/g) ?? []).length, 1);
   assert.match(rimSource, /getPropertyValue\("-webkit-text-stroke-color"\)/);
   assert.doesNotMatch(rimSource, /rgba\(1,3,14,0\.98\)|rimGradient|rgba\(126,143,183/);
@@ -66,8 +71,16 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(abyssSource, /context\.imageSmoothingQuality = "high"/);
   assert.match(abyssSource, /paintTitleAbyssFluid\(timestamp, fill, force\)/);
   assert.match(abyssSource, /context\.drawImage\(\s*titleAbyssTideCanvas/);
-  assert.match(abyssSource, /const tongueA =/);
-  assert.match(abyssSource, /createSmoothCanvasPath\(edgePoints\)/);
+  assert.match(fluidSource, /tidePixels\[offset \+ 3\] = 255/);
+  assert.match(abyssSource, /litePerformance \? 24 : mobilePerformance \? 34 : 48/);
+  assert.match(abyssSource, /const spillPulse =/);
+  assert.match(abyssSource, /const covePulse =/);
+  assert.match(abyssSource, /closeTidePath\(covePoints, width \+ padding\)/);
+  assert.match(abyssSource, /context\.clip\(fringePath\)/);
+  assert.match(abyssSource, /context\.clip\(tidePath\)/);
+  assert.match(abyssSource, /context\.clip\(covePath\)[^]*context\.clip\(tidePath\)/);
+  assert.doesNotMatch(abyssSource, /stroke\(edgePath\)|lineWidth = 13|lineWidth = 7\.5|tidePath\.ellipse/);
+  assert.doesNotMatch(fluidSource, /signedDistance|tideAlpha|edgeAmplitude = \(3\.6/);
   assert.doesNotMatch(abyssSource, /const redGradient =/);
   assert.match(abyssSource, /context\.drawImage\(titleAbyssRimCanvas, 0, 0\)/);
   assert.match(homeSource, /reducedMotion \? 0\.0025 : 0\.025/);
