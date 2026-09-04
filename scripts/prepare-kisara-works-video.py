@@ -8,7 +8,7 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "kisara" / "newwork.mp4"
+SOURCE = Path(r"C:\Users\a1234\Videos\01.mp4")
 ASSET_DIR = ROOT / "public" / "themes" / "kisara" / "assets"
 OUTPUT_VIDEO = ASSET_DIR / "works-opening.mp4"
 OUTPUT_FIRST = ASSET_DIR / "works-opening-first.webp"
