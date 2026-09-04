@@ -9410,6 +9410,7 @@ const gateStyle = [
           desktopLinksPerSegment: 8,
           mobileLinksPerSegment: 3,
           linkScale: 0.96,
+          tailInset: 0.036,
           entryOverscan: 0.14,
           entryBend: 0.09
         },
@@ -9429,6 +9430,7 @@ const gateStyle = [
           desktopLinksPerSegment: 7,
           mobileLinksPerSegment: 3,
           linkScale: 0.82,
+          tailInset: 0.032,
           entryOverscan: 0.14,
           entryBend: -0.08
         }
@@ -9489,10 +9491,15 @@ const gateStyle = [
           ? layout.bottom
           : box.top + box.height;
         const xShift = box.width * definition.xShift;
+        const entryInset = box.width * definition.xInset;
+        const tailBurial = Math.max(
+          box.width * definition.tailInset,
+          getChainLinkDimensions(definition).width * 0.72 + box.height * 0.06
+        );
         const anchorXs = [
-          textLeft - box.width * definition.xInset,
+          definition.direction < 0 ? textLeft + tailBurial : textLeft - entryInset,
           ...gaps.map((gap) => gap + xShift),
-          textRight + box.width * definition.xInset
+          definition.direction > 0 ? textRight - tailBurial : textRight + entryInset
         ];
         const anchorBounds = layout.anchorBounds.length === anchorXs.length
           ? layout.anchorBounds

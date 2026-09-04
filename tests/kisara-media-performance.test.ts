@@ -100,6 +100,18 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(homeStyles, /:is\(\.is-bursting, \.is-burst-complete, \.is-post-release\)[^]*transition: none/);
 });
 
+test("Kisara Home buries both opposing weave-chain tails inside the title", () => {
+  const chainPathSource = homeSource.slice(
+    homeSource.indexOf("const chainDefinitions ="),
+    homeSource.indexOf("const sampleTitleChain =")
+  );
+  assert.equal((chainPathSource.match(/tailInset:/g) ?? []).length, 2);
+  assert.match(chainPathSource, /const entryInset = box\.width \* definition\.xInset/);
+  assert.match(chainPathSource, /getChainLinkDimensions\(definition\)\.width \* 0\.72 \+ box\.height \* 0\.06/);
+  assert.match(chainPathSource, /definition\.direction < 0 \? textLeft \+ tailBurial : textLeft - entryInset/);
+  assert.match(chainPathSource, /definition\.direction > 0 \? textRight - tailBurial : textRight \+ entryInset/);
+});
+
 test("Kisara Home 003 keeps its full-screen fragment deferred and subtitle-free", () => {
   assert.match(homeEventSource, /data-kisara-home-stop="003"/);
   assert.match(homeEventSource, /data-home-event-video/);
