@@ -342,6 +342,13 @@ const gateStyle = [
           height="420"
           aria-hidden="true"
         ></canvas>
+        <canvas
+          class="kisara-title-abyss-canvas"
+          data-kisara-title-abyss
+          width="1200"
+          height="320"
+          aria-hidden="true"
+        ></canvas>
         <span class="kisara-title-base" aria-hidden="true">Kisara</span>
         <span class="kisara-title-tide" aria-hidden="true">Kisara</span>
         <canvas
@@ -558,6 +565,8 @@ const gateStyle = [
       const burstContext = burstCanvas?.getContext("2d");
       const spaceLensCanvas = gate.querySelector("[data-kisara-space-lens]");
       const titleLensCanvas = gate.querySelector("[data-kisara-title-lens]");
+      const titleAbyssCanvas = gate.querySelector("[data-kisara-title-abyss]");
+      const titleAbyssContext = titleAbyssCanvas?.getContext("2d", { alpha: true });
       if (mobilePerformance) {
         gate.querySelectorAll(".kisara-title-chain-canvas").forEach((canvas) => canvas.remove());
       }
@@ -1504,6 +1513,12 @@ const gateStyle = [
       let titleDataCanvasWidth = 0;
       let titleDataCanvasHeight = 0;
       let titleDataPixelRatio = 1;
+      let titleAbyssLastPaintTimestamp = 0;
+      let titleAbyssLastFill = -1;
+      let titleAbyssPointerX = 0;
+      let titleAbyssPointerY = 0;
+      let titleAbyssPointerTargetX = 0;
+      let titleAbyssPointerTargetY = 0;
       let chainCanvasWidth = 0;
       let chainCanvasHeight = 0;
       let chainPixelRatio = 1;
@@ -3001,15 +3016,26 @@ const gateStyle = [
           || Math.abs(titleDataCanvasHeight - height) > 0.5
           || Math.abs(titleDataPixelRatio - pixelRatio) > 0.01
           || titleDataCanvas.width !== pixelWidth
-          || titleDataCanvas.height !== pixelHeight;
+          || titleDataCanvas.height !== pixelHeight
+          || (titleAbyssCanvas && (
+            titleAbyssCanvas.width !== pixelWidth
+            || titleAbyssCanvas.height !== pixelHeight
+          ));
         if (!changed) return;
         titleDataCanvas.width = pixelWidth;
         titleDataCanvas.height = pixelHeight;
+        if (titleAbyssCanvas) {
+          titleAbyssCanvas.width = pixelWidth;
+          titleAbyssCanvas.height = pixelHeight;
+        }
         titleDataMaskCanvas.width = pixelWidth;
         titleDataMaskCanvas.height = pixelHeight;
         titleDataCanvasWidth = width;
         titleDataCanvasHeight = height;
         titleDataPixelRatio = pixelRatio;
+        titleAbyssLastPaintTimestamp = 0;
+        titleAbyssLastFill = -1;
+        gate.classList.remove("is-title-abyss-ready");
         clearTitleDataCanvas();
         rebuildTitleEffectMask();
       };
@@ -4168,6 +4194,55 @@ const gateStyle = [
           duration: Math.max(880, 900 + Math.abs(endPosition - startPosition) * 5)
         };
         startPostReleaseAnimation();
+      };
+
+      const resetTitleAbyssPointer = () => {
+        titleAbyssPointerTargetX = 0;
+        titleAbyssPointerTargetY = 0;
+        startEnergyAnimation();
+      };
+
+      const handleTitleAbyssPointer = (event) => {
+        if (
+          !titleAbyssContext
+          || lovebrainActive
+          || pageMode !== "gate"
+          || !precisePointer
+          || reducedMotion
+          || progress >= 0.999
+          || window.scrollY > 2
+        ) {
+          resetTitleAbyssPointer();
+          return;
+        }
+        const gateRect = gate.getBoundingClientRect();
+        if (
+          event.clientX < gateRect.left
+          || event.clientX > gateRect.right
+          || event.clientY < gateRect.top
+          || event.clientY > gateRect.bottom
+        ) {
+          resetTitleAbyssPointer();
+          return;
+        }
+        const titleRect = title?.getBoundingClientRect();
+        const centerX = titleRect
+          ? titleRect.left + titleRect.width * 0.5
+          : gateRect.left + gateRect.width * 0.5;
+        const centerY = titleRect
+          ? titleRect.top + titleRect.height * 0.5
+          : gateRect.top + gateRect.height * 0.5;
+        titleAbyssPointerTargetX = clamp(
+          (event.clientX - centerX) / Math.max(1, gateRect.width * 0.42),
+          -1,
+          1
+        );
+        titleAbyssPointerTargetY = clamp(
+          (event.clientY - centerY) / Math.max(1, gateRect.height * 0.38),
+          -1,
+          1
+        );
+        startEnergyAnimation();
       };
 
       const handlePostReleasePointer = (event) => {
@@ -6310,6 +6385,298 @@ const gateStyle = [
         }
         context.restore();
         return true;
+      };
+
+      const clearTitleAbyssCanvas = (resetPointer = false) => {
+        if (titleAbyssCanvas && titleAbyssContext) {
+          titleAbyssContext.setTransform(1, 0, 0, 1, 0, 0);
+          titleAbyssContext.clearRect(0, 0, titleAbyssCanvas.width, titleAbyssCanvas.height);
+        }
+        titleAbyssLastPaintTimestamp = 0;
+        titleAbyssLastFill = -1;
+        gate.classList.remove("is-title-abyss-ready");
+        if (!resetPointer) return;
+        titleAbyssPointerX = 0;
+        titleAbyssPointerY = 0;
+        titleAbyssPointerTargetX = 0;
+        titleAbyssPointerTargetY = 0;
+      };
+
+      const drawTitleAbyss = (timestamp, force = false) => {
+        if (
+          !titleAbyssCanvas
+          || !titleAbyssContext
+          || !titleDataMaskContext
+          || pageMode !== "gate"
+          || document.visibilityState !== "visible"
+        ) return;
+        if (titleDataCanvasWidth <= 1 || titleDataCanvasHeight <= 1) {
+          resizeTitleDataCanvas();
+        }
+        if (titleDataCanvasWidth <= 1 || titleDataCanvasHeight <= 1) return;
+        if (burstProgress > glossFadeEnd + 0.002 && titleAbyssLastPaintTimestamp > 0) return;
+
+        const fill = clamp(Math.max(progress, energyProgress), 0, 1);
+        const gap = titleAbyssLastPaintTimestamp > 0
+          ? timestamp - titleAbyssLastPaintTimestamp
+          : Number.POSITIVE_INFINITY;
+        const inputMotion = Math.abs(titleAbyssPointerTargetX - titleAbyssPointerX)
+          + Math.abs(titleAbyssPointerTargetY - titleAbyssPointerY)
+          + Math.abs(velocity) * 180;
+        const activeMotion = inputMotion > 0.012 || (fill > 0.001 && fill < 0.999);
+        const frameInterval = reducedMotion
+          ? Number.POSITIVE_INFINITY
+          : litePerformance
+            ? 1000 / (activeMotion ? 20 : 16)
+            : mobilePerformance
+              ? 1000 / (activeMotion ? 28 : 22)
+              : 1000 / (activeMotion ? 45 : 30);
+        if (
+          !force
+          && gap < frameInterval
+          && Math.abs(fill - titleAbyssLastFill) < 0.0025
+        ) return;
+
+        const frameSeconds = Number.isFinite(gap)
+          ? clamp(gap / 1000, 0.008, 0.08)
+          : 1 / 60;
+        const pointerEase = 1 - Math.exp(-frameSeconds * 5.2);
+        titleAbyssPointerX += (titleAbyssPointerTargetX - titleAbyssPointerX) * pointerEase;
+        titleAbyssPointerY += (titleAbyssPointerTargetY - titleAbyssPointerY) * pointerEase;
+        titleAbyssLastPaintTimestamp = timestamp;
+        titleAbyssLastFill = fill;
+
+        const context = titleAbyssContext;
+        const width = titleDataCanvasWidth;
+        const height = titleDataCanvasHeight;
+        const time = timestamp / 1000;
+        const parallaxX = titleAbyssPointerX * (mobilePerformance ? 7 : 17);
+        const parallaxY = titleAbyssPointerY * (mobilePerformance ? 4 : 9);
+        const coreX = width * 0.54 + parallaxX;
+        const coreY = height * 0.52 + parallaxY;
+        const abyssExposure = 1 - smoothstep(clamp((fill - 0.94) / 0.06, 0, 1));
+
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.clearRect(0, 0, titleAbyssCanvas.width, titleAbyssCanvas.height);
+        context.setTransform(titleDataPixelRatio, 0, 0, titleDataPixelRatio, 0, 0);
+        context.globalCompositeOperation = "source-over";
+        context.globalAlpha = 1;
+
+        const baseGradient = context.createLinearGradient(0, 0, width, height);
+        baseGradient.addColorStop(0, "#111934");
+        baseGradient.addColorStop(0.32, "#08091b");
+        baseGradient.addColorStop(0.64, "#02030c");
+        baseGradient.addColorStop(1, "#16091f");
+        context.fillStyle = baseGradient;
+        context.fillRect(0, 0, width, height);
+
+        const fieldGlow = context.createRadialGradient(
+          coreX,
+          coreY,
+          height * 0.035,
+          coreX,
+          coreY,
+          width * 0.56
+        );
+        fieldGlow.addColorStop(0, "rgba(0,0,3,0.98)");
+        fieldGlow.addColorStop(0.13, "rgba(1,1,8,0.98)");
+        fieldGlow.addColorStop(0.28, "rgba(49,23,70,0.72)");
+        fieldGlow.addColorStop(0.5, "rgba(33,39,86,0.34)");
+        fieldGlow.addColorStop(0.74, "rgba(7,8,24,0.18)");
+        fieldGlow.addColorStop(1, "rgba(2,3,12,0)");
+        context.fillStyle = fieldGlow;
+        context.fillRect(0, 0, width, height);
+
+        context.save();
+        context.globalCompositeOperation = "lighter";
+        context.lineCap = "round";
+        for (let stream = 0; stream < (litePerformance ? 3 : 5); stream += 1) {
+          const seed = randomSeed(stream + 27011);
+          const drift = Math.sin(time * (0.18 + seed * 0.12) + seed * 17) * height * 0.08;
+          const path = new Path2D();
+          path.moveTo(-24, height * (0.16 + seed * 0.68) + drift - parallaxY * seed * 0.32);
+          path.bezierCurveTo(
+            width * 0.2,
+            height * (0.88 - seed * 0.52) - drift,
+            width * 0.7,
+            height * (0.1 + seed * 0.58) + drift,
+            width + 24,
+            height * (0.78 - seed * 0.56) - drift
+          );
+          context.globalAlpha = (0.028 + seed * 0.052) * abyssExposure;
+          context.strokeStyle = stream % 2 === 0
+            ? "rgba(137,174,237,0.78)"
+            : "rgba(164,68,145,0.74)";
+          context.lineWidth = 0.55 + seed * 1.15;
+          context.shadowColor = context.strokeStyle;
+          context.shadowBlur = mobilePerformance ? 3 : 5;
+          context.stroke(path);
+        }
+        context.restore();
+
+        if (abyssExposure > 0.01) {
+          context.save();
+          context.translate(coreX, coreY);
+          context.rotate(-0.1 + titleAbyssPointerX * 0.035);
+          context.scale(1.52, 0.82);
+          paintSingularityField(context, timestamp, {
+            mobile: mobilePerformance,
+            quality: renderQuality,
+            activity: 0.92,
+            opacity: 0.68 * abyssExposure,
+            compression: 0.08 + fill * 0.08,
+            gravity: 0.46 + fill * 0.12,
+            radius: height * 0.42,
+            shadowQuality: mobilePerformance ? 0.58 : 0.82
+          });
+          context.restore();
+        }
+
+        context.save();
+        context.globalCompositeOperation = "screen";
+        const dustCount = litePerformance ? 13 : mobilePerformance ? 18 : 27;
+        for (let dust = 0; dust < dustCount; dust += 1) {
+          const seed = randomSeed(dust + 27361);
+          const depth = 0.35 + randomSeed(dust + 27409) * 0.65;
+          const x = ((seed + time * (0.0018 + depth * 0.0021)) % 1) * width
+            + parallaxX * depth * 0.42;
+          const y = randomSeed(dust + 27457) * height + parallaxY * depth * 0.34;
+          const pulse = 0.5 + Math.sin(time * (0.7 + depth) + seed * 21) * 0.5;
+          context.globalAlpha = (0.08 + pulse * 0.28) * abyssExposure;
+          context.fillStyle = dust % 4 === 0 ? "#e6d8ff" : dust % 2 === 0 ? "#9bbcff" : "#d86eae";
+          context.beginPath();
+          context.ellipse(x, y, 0.45 + depth * 0.8, 0.35 + depth * 0.55, seed * 2, 0, fullTurn);
+          context.fill();
+        }
+        context.restore();
+
+        if (fill > 0.0005) {
+          const edgeVisibility = Math.pow(Math.sin(fill * Math.PI), 0.48);
+          const edgeAmplitude = (2.2 + Math.min(6, Math.abs(velocity) * 760)) * edgeVisibility;
+          const edgeAt = (y) => fill * (width + height) - (height - y)
+            + Math.sin(y * 0.057 + time * 1.72) * edgeAmplitude
+            + Math.sin(y * 0.131 - time * 2.34) * edgeAmplitude * 0.34
+            + titleAbyssPointerX * edgeVisibility * 1.8;
+          const padding = 20;
+          const edgePath = new Path2D();
+          const tidePath = new Path2D();
+          const segments = litePerformance ? 10 : mobilePerformance ? 14 : 20;
+          edgePath.moveTo(edgeAt(-padding), -padding);
+          tidePath.moveTo(-padding, -padding);
+          tidePath.lineTo(edgeAt(-padding), -padding);
+          for (let segment = 1; segment <= segments; segment += 1) {
+            const y = -padding + (height + padding * 2) * segment / segments;
+            const x = edgeAt(y);
+            edgePath.lineTo(x, y);
+            tidePath.lineTo(x, y);
+          }
+          tidePath.lineTo(-padding, height + padding);
+          tidePath.closePath();
+
+          if (edgeVisibility > 0.002) {
+            context.save();
+            context.globalCompositeOperation = "screen";
+            context.globalAlpha = 0.16 * edgeVisibility;
+            context.strokeStyle = "rgba(157,55,145,0.82)";
+            context.lineWidth = 18;
+            context.shadowColor = "rgba(189,54,139,0.72)";
+            context.shadowBlur = 15;
+            context.stroke(edgePath);
+            context.restore();
+          }
+
+          context.save();
+          context.clip(tidePath);
+          const redGradient = context.createLinearGradient(0, height, width, 0);
+          redGradient.addColorStop(0, "#310512");
+          redGradient.addColorStop(0.28, "#74142f");
+          redGradient.addColorStop(0.55, "#c53d60");
+          redGradient.addColorStop(0.76, "#8e1e43");
+          redGradient.addColorStop(1, "#3c071a");
+          context.fillStyle = redGradient;
+          context.fillRect(0, 0, width, height);
+
+          context.globalCompositeOperation = "screen";
+          for (let bloom = 0; bloom < 3; bloom += 1) {
+            const seed = randomSeed(bloom + 27617);
+            const x = width * (0.18 + bloom * 0.31)
+              + Math.sin(time * (0.2 + seed * 0.16) + bloom) * width * 0.045
+              + parallaxX * (0.22 + bloom * 0.08);
+            const y = height * (0.26 + seed * 0.48)
+              + Math.cos(time * (0.26 + seed * 0.12) + bloom) * height * 0.09;
+            const glow = context.createRadialGradient(x, y, 0, x, y, height * (0.54 + seed * 0.34));
+            glow.addColorStop(0, bloom === 1 ? "rgba(255,214,226,0.34)" : "rgba(255,91,139,0.3)");
+            glow.addColorStop(0.35, "rgba(229,61,111,0.13)");
+            glow.addColorStop(1, "rgba(87,7,39,0)");
+            context.globalAlpha = 0.55 + fill * 0.25;
+            context.fillStyle = glow;
+            context.fillRect(0, 0, width, height);
+          }
+
+          context.lineCap = "round";
+          for (let vein = 0; vein < (litePerformance ? 3 : 5); vein += 1) {
+            const seed = randomSeed(vein + 27733);
+            const wave = Math.sin(time * (0.34 + seed * 0.22) + vein) * height * 0.08;
+            const path = new Path2D();
+            path.moveTo(-16, height * (0.14 + seed * 0.72) + wave);
+            path.bezierCurveTo(
+              width * 0.3,
+              height * (0.86 - seed * 0.55) - wave,
+              width * 0.68,
+              height * (0.08 + seed * 0.7) + wave,
+              width + 16,
+              height * (0.78 - seed * 0.54) - wave
+            );
+            context.globalAlpha = 0.09 + seed * 0.1;
+            context.strokeStyle = vein % 2 === 0
+              ? "rgba(255,226,232,0.76)"
+              : "rgba(66,4,31,0.88)";
+            context.lineWidth = 0.7 + seed * 1.4;
+            context.stroke(path);
+          }
+          context.restore();
+
+          if (edgeVisibility > 0.002) {
+            context.save();
+            context.lineCap = "round";
+            context.globalCompositeOperation = "source-over";
+            context.globalAlpha = 0.58 * edgeVisibility;
+            context.strokeStyle = "rgba(30,3,22,0.86)";
+            context.lineWidth = 7.5;
+            context.stroke(edgePath);
+            context.globalCompositeOperation = "screen";
+            context.globalAlpha = 0.82 * edgeVisibility;
+            context.strokeStyle = "rgba(255,75,135,0.94)";
+            context.lineWidth = 2.4;
+            context.shadowColor = "rgba(255,61,131,0.88)";
+            context.shadowBlur = 10;
+            context.stroke(edgePath);
+            context.globalAlpha = 0.5 * edgeVisibility;
+            context.strokeStyle = "rgba(255,234,241,0.96)";
+            context.lineWidth = 0.72;
+            context.shadowBlur = 4;
+            context.stroke(edgePath);
+            for (let spark = 0; spark < (litePerformance ? 4 : 7); spark += 1) {
+              const seed = randomSeed(spark + 27901);
+              const y = seed * height;
+              const x = edgeAt(y) + Math.sin(time * (1.2 + seed) + spark * 2.1) * 4.2;
+              const pulse = Math.pow(0.5 + Math.sin(time * (2.2 + seed) + spark) * 0.5, 2);
+              context.globalAlpha = edgeVisibility * (0.14 + pulse * 0.66);
+              context.fillStyle = spark % 3 === 0 ? "#fff3f7" : "#ff78ae";
+              context.beginPath();
+              context.ellipse(x, y, 0.6 + pulse * 1.2, 0.35 + pulse * 0.7, -0.5, 0, fullTurn);
+              context.fill();
+            }
+            context.restore();
+          }
+        }
+
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.globalCompositeOperation = "destination-in";
+        context.globalAlpha = 1;
+        context.drawImage(titleDataMaskCanvas, 0, 0);
+        context.globalCompositeOperation = "source-over";
+        gate.classList.add("is-title-abyss-ready");
       };
 
       const paintBurstWarmupStep = (context, timestamp, width, height, step) => {
@@ -10861,6 +11228,7 @@ const gateStyle = [
         const renderStartedAt = performance.now();
         if (energyCanvasWidth <= 0 || energyCanvasHeight <= 0) resizeEnergyCanvas();
         updateBurstPresentation(timestamp);
+        drawTitleAbyss(timestamp);
         if (!reducedMotion && progress > 0.7 && chargeIntroProgress < 0.999) {
           syncMemorySequence(clamp(progress, 0, 1));
         }
@@ -12238,6 +12606,7 @@ const gateStyle = [
         motionPhases = makeMotionPhases();
         screenParticleTimestamp = 0;
         lastEnergyPaintTimestamp = 0;
+        clearTitleAbyssCanvas(true);
         renderQuality = Math.min(renderQualityCeiling, Math.max(renderQuality, mobilePerformance ? 0.72 : 0.88));
         renderCostEma = 0;
         lastQualityAdjustment = 0;
@@ -13192,11 +13561,13 @@ const gateStyle = [
       }, { passive: true, signal });
 
       window.addEventListener("pointermove", handlePostReleasePointer, { passive: true, signal });
+      window.addEventListener("pointermove", handleTitleAbyssPointer, { passive: true, signal });
       document.addEventListener("pointerleave", () => {
         postReleasePointerX = null;
         postReleasePointerAccumulator = 0;
         postReleaseTargetX = 0;
         postReleaseTargetY = 0;
+        resetTitleAbyssPointer();
       }, { passive: true, signal });
 
       gate.addEventListener("kisara:scene-ready", () => {
@@ -13241,6 +13612,7 @@ const gateStyle = [
         lastEnergyPaintTimestamp = 0;
         lastSpaceLensPaintTimestamp = 0;
         lastTitleLensPaintTimestamp = 0;
+        titleAbyssLastPaintTimestamp = 0;
         resizeEnergyCanvas(true);
         resizeBurstCanvas(true);
         resizePostReleaseCanvas(true);
@@ -13269,6 +13641,7 @@ const gateStyle = [
           gate,
           meterShell,
           title,
+          titleAbyssCanvas,
           chainBackCanvas,
           chainFrontCanvas,
           energyCanvas,
@@ -13297,6 +13670,7 @@ const gateStyle = [
           beamHeadTimestamp = 0;
           lastSpaceLensPaintTimestamp = 0;
           lastTitleLensPaintTimestamp = 0;
+          titleAbyssLastPaintTimestamp = 0;
           stopPostReleaseAnimation();
           resetOrientationCalibration();
           spaceLensRenderer?.clear();
@@ -13420,6 +13794,7 @@ const gateStyle = [
         warningWarmupScheduled = false;
         warningWarmupForceRequested = false;
         energyLoopActive = false;
+        clearTitleAbyssCanvas(true);
         setOrientationEnabled(false);
         stopPostReleaseAnimation();
         layoutResizeObserver?.disconnect();

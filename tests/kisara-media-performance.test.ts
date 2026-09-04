@@ -42,6 +42,18 @@ test("Kisara Home discovers and decodes its first Gate scene before revealing it
   assert.match(homeStyles, /transition: opacity 420ms/);
 });
 
+test("Kisara Home renders its title abyss procedurally and pauses it with the Gate lifecycle", () => {
+  assert.match(homeSource, /data-kisara-title-abyss/);
+  assert.match(homeSource, /const drawTitleAbyss =/);
+  assert.match(homeSource, /paintSingularityField\(context, timestamp/);
+  assert.match(homeSource, /1000 \/ \(activeMotion \? 45 : 30\)/);
+  assert.match(homeSource, /const handleTitleAbyssPointer =/);
+  assert.match(homeSource, /progress >= 0\.999/);
+  assert.match(homeSource, /document\.visibilityState !== "visible"/);
+  assert.match(homeSource, /clearTitleAbyssCanvas\(true\)/);
+  assert.match(homeStyles, /\.kisara-gate\.is-title-abyss-ready \.kisara-title-abyss-canvas/);
+});
+
 test("Kisara Home 003 keeps its full-screen fragment deferred and subtitle-free", () => {
   assert.match(homeEventSource, /data-kisara-home-stop="003"/);
   assert.match(homeEventSource, /data-home-event-video/);
