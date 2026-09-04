@@ -58,6 +58,8 @@ test("Works hero plays its supplied video once and holds an optimized final fram
   assert.doesNotMatch(projectsPageSource, /data-works-hero-video[\s\S]{0,500}\sloop\b/);
   assert.match(projectsPageSource, /heroVideo\.addEventListener\("ended"/);
   assert.match(projectsPageSource, /hero\.dataset\.videoState = "complete"/);
+  assert.match(projectsPageSource, /event\.persisted\) return;[\s\S]{0,160}void playHeroIntro\(\)/);
+  assert.doesNotMatch(projectsPageSource, /event\.persisted\)[\s\S]{0,260}hero\.dataset\.videoState = "complete"/);
   assert.match(projectsCssSource, /data-video-state="complete"[^]*kisara-works-intro-last-frame/);
   assert.match(projectsCssSource, /prefers-reduced-motion: reduce[^]*kisara-works-intro-video/);
 });
