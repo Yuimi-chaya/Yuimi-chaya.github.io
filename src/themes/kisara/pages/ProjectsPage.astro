@@ -163,15 +163,30 @@ const kitchenCatalog = {
 ---
 
 <KisaraLayout title="Works | Kisara" description="Yuimi Lab 的项目与实验记录。" stylesheets={[projectsStylesheet]}>
-  <section class="kisara-works-intro" data-kisara-works-hero data-intro-state="idle" data-prep-focus="idle" aria-labelledby="kisara-works-title">
+  <section class="kisara-works-intro" data-kisara-works-hero data-intro-state="idle" data-video-state="idle" data-prep-focus="idle" aria-labelledby="kisara-works-title">
     <div class="kisara-works-intro-media">
+      <video
+        class="kisara-works-intro-video"
+        data-works-hero-video
+        src="/themes/kisara/assets/works-opening.mp4"
+        poster="/themes/kisara/assets/works-opening-first.webp"
+        width="1920"
+        height="1080"
+        preload="auto"
+        muted
+        playsinline
+        disablepictureinpicture
+        aria-label="木更的 Works 页面入场动画"
+      ></video>
       <img
-        src="/themes/kisara/assets/work-kitchen-hero.webp"
-        alt="木更穿着围裙切洋葱时被熏出眼泪"
-        width="2200"
-        height="1392"
-        fetchpriority="high"
+        class="kisara-works-intro-last-frame"
+        src="/themes/kisara/assets/works-opening-last.webp"
+        alt=""
+        width="1920"
+        height="1080"
+        loading="eager"
         decoding="async"
+        aria-hidden="true"
       />
       <span class="kisara-works-counter-light" aria-hidden="true"></span>
     </div>
@@ -416,7 +431,7 @@ const kitchenCatalog = {
       const lifecycle = new AbortController();
       const signal = lifecycle.signal;
       const hero = document.querySelector("[data-kisara-works-hero]");
-      const heroImage = hero?.querySelector(".kisara-works-intro-media img");
+      const heroVideo = hero?.querySelector("[data-works-hero-video]");
       const sliceField = hero?.querySelector("[data-works-slice-field]");
       const sliceTrails = hero?.querySelector("[data-works-slice-trails]");
       const sliceScore = hero?.querySelector("[data-works-slice-score]");
@@ -450,6 +465,7 @@ const kitchenCatalog = {
 
       const cleanup = () => {
         lifecycle.abort();
+        if (heroVideo instanceof HTMLVideoElement) heroVideo.pause();
         if (pointerFrame) cancelAnimationFrame(pointerFrame);
         if (heroPointerFrame) cancelAnimationFrame(heroPointerFrame);
         if (heroScrollFrame) cancelAnimationFrame(heroScrollFrame);
@@ -695,17 +711,35 @@ const kitchenCatalog = {
       const playHeroIntro = async () => {
         if (!(hero instanceof HTMLElement)) return;
         hero.dataset.introState = heroReducedMotion ? "complete" : "idle";
+        hero.dataset.videoState = heroReducedMotion ? "complete" : "idle";
         if (heroReducedMotion) return;
-        if (heroImage instanceof HTMLImageElement && !heroImage.complete) {
-          await heroImage.decode().catch(() => undefined);
+        if (heroVideo instanceof HTMLVideoElement) {
+          heroVideo.pause();
+          try {
+            heroVideo.currentTime = 0;
+          } catch {
+            // Metadata can finish loading between route setup and playback.
+          }
+          heroVideo.addEventListener("ended", () => {
+            if (!signal.aborted) hero.dataset.videoState = "complete";
+          }, { once: true, signal });
+          heroVideo.addEventListener("error", () => {
+            if (!signal.aborted) hero.dataset.videoState = "fallback";
+          }, { once: true, signal });
         }
         if (signal.aborted) return;
         void hero.offsetWidth;
         window.requestAnimationFrame(() => {
           if (signal.aborted) return;
           hero.dataset.introState = "playing";
+          hero.dataset.videoState = "playing";
           startFruitPhysics();
           heroIntroTimer = window.setTimeout(finishHeroIntro, 1580);
+          if (heroVideo instanceof HTMLVideoElement) {
+            void heroVideo.play().catch(() => {
+              if (!signal.aborted) hero.dataset.videoState = "fallback";
+            });
+          }
         });
       };
 
@@ -928,6 +962,8 @@ const kitchenCatalog = {
         window.addEventListener("pageshow", (event) => {
           if (!event.persisted) return;
           finishHeroIntro();
+          if (heroVideo instanceof HTMLVideoElement) heroVideo.pause();
+          hero.dataset.videoState = "complete";
           startFruitPhysics();
           scheduleHeroScroll();
         }, { signal });

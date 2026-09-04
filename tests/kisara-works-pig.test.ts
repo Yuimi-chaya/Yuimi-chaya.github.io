@@ -47,3 +47,17 @@ test("Works title uses a CSS print-and-registration entrance without cut layers"
   assert.doesNotMatch(projectsPageSource, /data-works-title-canvas|data-works-title-line|triggerWorksTitleCut|finishWorksTitleCut|scheduleWorksTitleMeasure/);
   assert.doesNotMatch(projectsCssSource, /kisara-works-title-canvas|kisara-works-title-cut|kisara-works-blade-pass|is-title-canvas-active/);
 });
+
+test("Works hero plays its supplied video once and holds an optimized final frame", () => {
+  assert.match(projectsPageSource, /data-works-hero-video/);
+  assert.match(projectsPageSource, /works-opening\.mp4/);
+  assert.match(projectsPageSource, /works-opening-first\.webp/);
+  assert.match(projectsPageSource, /works-opening-last\.webp/);
+  assert.match(projectsPageSource, /muted/);
+  assert.match(projectsPageSource, /playsinline/);
+  assert.doesNotMatch(projectsPageSource, /data-works-hero-video[\s\S]{0,500}\sloop\b/);
+  assert.match(projectsPageSource, /heroVideo\.addEventListener\("ended"/);
+  assert.match(projectsPageSource, /hero\.dataset\.videoState = "complete"/);
+  assert.match(projectsCssSource, /data-video-state="complete"[^]*kisara-works-intro-last-frame/);
+  assert.match(projectsCssSource, /prefers-reduced-motion: reduce[^]*kisara-works-intro-video/);
+});
