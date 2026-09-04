@@ -56,14 +56,23 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(homeSource, /const rebuildTitleAbyssFluidBuffer =/);
   assert.match(homeSource, /const paintTitleAbyssFluid =/);
   assert.match(homeSource, /const titleAbyssRimCanvas =/);
+  assert.match(homeSource, /const titleAbyssTideCanvas =/);
   assert.equal((rimSource.match(/titleAbyssRimContext\.strokeText/g) ?? []).length, 1);
-  assert.doesNotMatch(rimSource, /rimGradient|rgba\(126,143,183/);
+  assert.match(rimSource, /getPropertyValue\("-webkit-text-stroke-color"\)/);
+  assert.doesNotMatch(rimSource, /rgba\(1,3,14,0\.98\)|rimGradient|rgba\(126,143,183/);
   assert.match(homeSource, /litePerformance \? 128 : mobilePerformance \? 176 : 320/);
   assert.match(homeSource, /Math\.max\(window\.devicePixelRatio \|\| 1, 1\.6\)/);
   assert.match(homeSource, /Math\.min\(deviceScale, 2304 \/ width, 680 \/ height\)/);
   assert.match(abyssSource, /context\.imageSmoothingQuality = "high"/);
-  assert.match(abyssSource, /paintTitleAbyssFluid\(timestamp, force\)/);
+  assert.match(abyssSource, /paintTitleAbyssFluid\(timestamp, fill, force\)/);
+  assert.match(abyssSource, /context\.drawImage\(\s*titleAbyssTideCanvas/);
+  assert.match(abyssSource, /const tongueA =/);
+  assert.match(abyssSource, /createSmoothCanvasPath\(edgePoints\)/);
+  assert.doesNotMatch(abyssSource, /const redGradient =/);
   assert.match(abyssSource, /context\.drawImage\(titleAbyssRimCanvas, 0, 0\)/);
+  assert.match(homeSource, /reducedMotion \? 0\.0025 : 0\.025/);
+  assert.match(abyssSource, /!titleAbyssTideImageData[^]*classList\.remove\("is-title-abyss-ready"\)/);
+  assert.match(abyssSource, /burstProgress > glossFadeEnd \+ 0\.002[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.doesNotMatch(abyssSource, /paintSingularityField|eventHorizon|ringRadius|Starfield|voidPockets/);
   assert.match(homeSource, /titleAbyssPointerX \* \(mobilePerformance \? 20 : 76\)/);
   assert.match(homeSource, /1000 \/ \(activeMotion \? 45 : 30\)/);
@@ -72,6 +81,7 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(homeSource, /document\.visibilityState !== "visible"/);
   assert.match(homeSource, /clearTitleAbyssCanvas\(true\)/);
   assert.match(homeStyles, /\.kisara-gate\.is-title-abyss-ready \.kisara-title-abyss-canvas/);
+  assert.match(homeStyles, /:is\(\.is-bursting, \.is-burst-complete, \.is-post-release\)[^]*transition: none/);
 });
 
 test("Kisara Home 003 keeps its full-screen fragment deferred and subtitle-free", () => {
