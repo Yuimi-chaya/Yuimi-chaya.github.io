@@ -1571,14 +1571,12 @@ const gateStyle = [
       const titleDataMaskContext = titleDataMaskCanvas.getContext("2d", { alpha: true });
       const titleAbyssRimCanvas = document.createElement("canvas");
       const titleAbyssRimContext = titleAbyssRimCanvas.getContext("2d", { alpha: true });
-      const titleAbyssFarStarsCanvas = document.createElement("canvas");
-      const titleAbyssFarStarsContext = titleAbyssFarStarsCanvas.getContext("2d", { alpha: true });
-      const titleAbyssNearStarsCanvas = document.createElement("canvas");
-      const titleAbyssNearStarsContext = titleAbyssNearStarsCanvas.getContext("2d", { alpha: true });
-      let titleAbyssStarfieldWidth = 0;
-      let titleAbyssStarfieldHeight = 0;
-      let titleAbyssStarPaddingX = 0;
-      let titleAbyssStarPaddingY = 0;
+      const titleAbyssFluidCanvas = document.createElement("canvas");
+      const titleAbyssFluidContext = titleAbyssFluidCanvas.getContext("2d", { alpha: false });
+      let titleAbyssFluidImageData = null;
+      let titleAbyssFluidLastPaintTimestamp = 0;
+      let titleAbyssFluidPaddingX = 0;
+      let titleAbyssFluidPaddingY = 0;
       let spaceLensRenderer = null;
       let spaceLensInitGeneration = 0;
       let lastSpaceLensPaintTimestamp = 0;
@@ -1757,6 +1755,28 @@ const gateStyle = [
         const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
         return value - Math.floor(value);
       };
+      const titleAbyssNoiseHash = (x, y) => {
+        let value = Math.imul(x, 374761393) + Math.imul(y, 668265263);
+        value = Math.imul(value ^ value >>> 13, 1274126177);
+        return ((value ^ value >>> 16) >>> 0) / 4294967295;
+      };
+      const titleAbyssValueNoise = (x, y) => {
+        const ix = Math.floor(x);
+        const iy = Math.floor(y);
+        const fx = x - ix;
+        const fy = y - iy;
+        const sx = fx * fx * (3 - fx * 2);
+        const sy = fy * fy * (3 - fy * 2);
+        const topLeft = titleAbyssNoiseHash(ix, iy);
+        const bottomLeft = titleAbyssNoiseHash(ix, iy + 1);
+        const top = topLeft + (titleAbyssNoiseHash(ix + 1, iy) - topLeft) * sx;
+        const bottom = bottomLeft + (titleAbyssNoiseHash(ix + 1, iy + 1) - bottomLeft) * sx;
+        return top + (bottom - top) * sy;
+      };
+      const titleAbyssFractalNoise = (x, y) => (
+        titleAbyssValueNoise(x, y) * 0.68
+        + titleAbyssValueNoise(x * 2.03 + 7.1, y * 2.03 - 5.7) * 0.32
+      );
       const createSmoothCanvasPath = (points) => {
         const path = new Path2D();
         if (points.length === 0) return path;
@@ -3002,9 +3022,6 @@ const gateStyle = [
           + ((metrics.actualBoundingBoxAscent || fontSize * 0.72)
             - (metrics.actualBoundingBoxDescent || fontSize * 0.16)) * 0.5;
         titleDataMaskContext.fillStyle = "#ffffff";
-        titleDataMaskContext.strokeStyle = "#ffffff";
-        titleDataMaskContext.lineWidth = Math.max(1, 2.4 * titleDataPixelRatio);
-        titleDataMaskContext.strokeText("Kisara", width * 0.5, baseline);
         titleDataMaskContext.fillText("Kisara", width * 0.5, baseline);
         titleDataMaskContext.restore();
 
@@ -3016,89 +3033,108 @@ const gateStyle = [
           titleAbyssRimContext.textAlign = "center";
           titleAbyssRimContext.textBaseline = "alphabetic";
           titleAbyssRimContext.lineJoin = "round";
-          titleAbyssRimContext.shadowColor = "rgba(0, 2, 15, 0.58)";
-          titleAbyssRimContext.shadowBlur = 2 * titleDataPixelRatio;
-          titleAbyssRimContext.strokeStyle = "rgba(0, 2, 16, 0.78)";
-          titleAbyssRimContext.lineWidth = Math.max(1, 4.6 * titleDataPixelRatio);
-          titleAbyssRimContext.strokeText("Kisara", width * 0.5, baseline);
-          titleAbyssRimContext.shadowBlur = 0;
-          const rimGradient = titleAbyssRimContext.createLinearGradient(0, 0, width, height);
-          rimGradient.addColorStop(0, "rgba(137,153,183,0.54)");
-          rimGradient.addColorStop(0.56, "rgba(111,105,145,0.5)");
-          rimGradient.addColorStop(1, "rgba(151,126,147,0.46)");
-          titleAbyssRimContext.strokeStyle = rimGradient;
-          titleAbyssRimContext.lineWidth = Math.max(0.8, 1.25 * titleDataPixelRatio);
+          titleAbyssRimContext.lineCap = "round";
+          titleAbyssRimContext.miterLimit = 2;
+          titleAbyssRimContext.strokeStyle = "rgba(1,3,14,0.98)";
+          titleAbyssRimContext.lineWidth = Math.max(1, 3.6 * titleDataPixelRatio);
           titleAbyssRimContext.strokeText("Kisara", width * 0.5, baseline);
           titleAbyssRimContext.restore();
         }
       };
 
-      const rebuildTitleAbyssStarfields = () => {
+      const rebuildTitleAbyssFluidBuffer = () => {
         if (
-          !titleAbyssFarStarsContext
-          || !titleAbyssNearStarsContext
+          !titleAbyssFluidContext
           || titleDataCanvasWidth <= 1
           || titleDataCanvasHeight <= 1
         ) return;
 
-        titleAbyssStarPaddingX = mobilePerformance ? 34 : 92;
-        titleAbyssStarPaddingY = mobilePerformance ? 24 : 52;
-        titleAbyssStarfieldWidth = titleDataCanvasWidth + titleAbyssStarPaddingX * 2;
-        titleAbyssStarfieldHeight = titleDataCanvasHeight + titleAbyssStarPaddingY * 2;
-        const pixelWidth = Math.max(1, Math.round(titleAbyssStarfieldWidth * titleDataPixelRatio));
-        const pixelHeight = Math.max(1, Math.round(titleAbyssStarfieldHeight * titleDataPixelRatio));
+        titleAbyssFluidPaddingX = mobilePerformance ? 28 : 108;
+        titleAbyssFluidPaddingY = mobilePerformance ? 18 : 58;
+        const logicalWidth = titleDataCanvasWidth + titleAbyssFluidPaddingX * 2;
+        const logicalHeight = titleDataCanvasHeight + titleAbyssFluidPaddingY * 2;
+        const sampleWidth = litePerformance ? 128 : mobilePerformance ? 176 : 320;
+        const sampleHeight = Math.max(
+          litePerformance ? 44 : mobilePerformance ? 50 : 68,
+          Math.round(sampleWidth * logicalHeight / logicalWidth)
+        );
+        if (
+          titleAbyssFluidCanvas.width === sampleWidth
+          && titleAbyssFluidCanvas.height === sampleHeight
+          && titleAbyssFluidImageData
+        ) return;
+        titleAbyssFluidCanvas.width = sampleWidth;
+        titleAbyssFluidCanvas.height = sampleHeight;
+        titleAbyssFluidImageData = titleAbyssFluidContext.createImageData(sampleWidth, sampleHeight);
+        titleAbyssFluidLastPaintTimestamp = 0;
+      };
 
-        const paintLayer = (canvas, context, count, near) => {
-          canvas.width = pixelWidth;
-          canvas.height = pixelHeight;
-          context.setTransform(titleDataPixelRatio, 0, 0, titleDataPixelRatio, 0, 0);
-          context.clearRect(0, 0, titleAbyssStarfieldWidth, titleAbyssStarfieldHeight);
-          context.globalCompositeOperation = "source-over";
-          const palette = near
-            ? ["#d8dfea", "#c7d0de", "#d5c7d7", "#d8c0cb"]
-            : ["#8e9caf", "#8290a5", "#9c899e", "#77889d"];
+      const paintTitleAbyssFluid = (timestamp, force = false) => {
+        if (!titleAbyssFluidContext || !titleAbyssFluidImageData) return;
+        const interval = reducedMotion
+          ? Number.POSITIVE_INFINITY
+          : 1000 / (litePerformance ? 8 : mobilePerformance ? 10 : 15);
+        if (
+          !force
+          && titleAbyssFluidLastPaintTimestamp > 0
+          && timestamp - titleAbyssFluidLastPaintTimestamp < interval
+        ) return;
 
-          for (let star = 0; star < count; star += 1) {
-            const seed = randomSeed(star + (near ? 31277 : 30491));
-            const depth = 0.22 + randomSeed(star + (near ? 31337 : 30557)) * 0.78;
-            const x = randomSeed(star + (near ? 31411 : 30631)) * titleAbyssStarfieldWidth;
-            const y = randomSeed(star + (near ? 31469 : 30689)) * titleAbyssStarfieldHeight;
-            const radius = near
-              ? 0.4 + depth * 0.76
-              : 0.2 + depth * 0.46;
-            context.globalAlpha = near
-              ? 0.24 + seed * 0.42
-              : 0.1 + seed * 0.28;
-            context.fillStyle = palette[star % palette.length];
-            context.beginPath();
-            context.arc(x, y, radius, 0, fullTurn);
-            context.fill();
+        const width = titleAbyssFluidCanvas.width;
+        const height = titleAbyssFluidCanvas.height;
+        const pixels = titleAbyssFluidImageData.data;
+        const time = reducedMotion ? 0 : timestamp / 1000;
+        const logicalWidth = titleDataCanvasWidth + titleAbyssFluidPaddingX * 2;
+        const logicalHeight = titleDataCanvasHeight + titleAbyssFluidPaddingY * 2;
+        const aspect = logicalWidth / Math.max(1, logicalHeight);
+        const driftX = time * 0.035;
+        const driftY = time * -0.022;
+        const xScale = aspect * 3.2 / Math.max(1, width - 1);
+        const yScale = 3.2 / Math.max(1, height - 1);
+        const detailNoise = mobilePerformance ? titleAbyssValueNoise : titleAbyssFractalNoise;
+        let offset = 0;
 
-            if (near && star % 11 === 0) {
-              const glint = 1.2 + depth * 2.2;
-              context.globalAlpha = 0.08 + seed * 0.13;
-              context.fillRect(x - glint, y - 0.2, glint * 2, 0.4);
-              context.fillRect(x - 0.18, y - glint * 0.55, 0.36, glint * 1.1);
-            } else if (!near && star % 3 === 0) {
-              context.globalAlpha *= 0.34;
-              context.fillRect(x - depth * 1.4, y, 1.2 + depth * 2.8, 0.34);
-            }
+        for (let y = 0; y < height; y += 1) {
+          const v = y * yScale - 1.6;
+          for (let x = 0; x < width; x += 1) {
+            const u = x * xScale - aspect * 1.6;
+            const warpX = titleAbyssValueNoise(u * 0.42 + driftX, v * 0.42 + 3.1 + driftY);
+            const warpY = titleAbyssValueNoise(u * 0.42 + 12.7 - driftY, v * 0.42 - 8.4 + driftX);
+            const flowX = u + (warpX - 0.5) * 3.1;
+            const flowY = v + (warpY - 0.5) * 2.4;
+            const eddy = detailNoise(
+              flowX * 0.74 + 22 + time * 0.018,
+              flowY * 0.74 - 11 - time * 0.024
+            );
+            const detail = detailNoise(
+              flowX * 1.82 - 7 - time * 0.03,
+              flowY * 1.82 + 5 + time * 0.025
+            );
+            const phase = flowX * 1.55
+              + flowY * 0.45
+              + (eddy - 0.5) * 8.6
+              + Math.sin(flowY * 1.7 + time * 0.11) * 0.75;
+            const ribbon = 0.5 + Math.sin(phase) * 0.5;
+            const filament = 0.5 + Math.sin(phase * 2.75 + (detail - 0.5) * 5.4) * 0.5;
+            const field = clamp(ribbon * 0.72 + detail * 0.2 + filament * 0.08, 0, 1);
+            const body = field * field * (3 - field * 2);
+            const violet = clamp(0.2 + eddy * 0.95, 0, 1);
+            const film = body * (0.66 + detail * 0.34) * (0.72 + filament * 0.28);
+            const band = Math.pow(Math.max(0, 1 - Math.abs(ribbon - 0.52) * 4.2), 2.1);
+            const pearl = Math.pow(Math.max(0, 1 - Math.abs(ribbon - 0.76) * 7.4), 2.5) * 0.28;
+            const fiber = Math.pow(Math.max(0, 1 - Math.abs(filament - 0.56) * 5.2), 2.4) * 0.1;
+            const sheen = Math.min(1, band * 0.38 + pearl + fiber);
+            const ink = Math.pow(Math.max(0, 0.28 - field) / 0.28, 1.35);
+            const shade = 1 - ink * 0.76;
+            pixels[offset] = 6 + (film * (22 + violet * 38) + sheen * (34 + violet * 38)) * shade;
+            pixels[offset + 1] = 10 + (film * (18 + violet * 6) + sheen * (30 + violet * 13)) * shade;
+            pixels[offset + 2] = 29 + (film * (92 + violet * 52) + sheen * (68 + violet * 32)) * shade;
+            pixels[offset + 3] = 255;
+            offset += 4;
           }
-          context.globalAlpha = 1;
-        };
-
-        paintLayer(
-          titleAbyssFarStarsCanvas,
-          titleAbyssFarStarsContext,
-          litePerformance ? 38 : mobilePerformance ? 62 : 96,
-          false
-        );
-        paintLayer(
-          titleAbyssNearStarsCanvas,
-          titleAbyssNearStarsContext,
-          litePerformance ? 14 : mobilePerformance ? 24 : 38,
-          true
-        );
+        }
+        titleAbyssFluidContext.putImageData(titleAbyssFluidImageData, 0, 0);
+        titleAbyssFluidLastPaintTimestamp = timestamp;
       };
 
       const resizeTitleDataCanvas = (force = false) => {
@@ -3106,11 +3142,10 @@ const gateStyle = [
         const rect = titleDataCanvas.getBoundingClientRect();
         const width = Math.max(1, rect.width);
         const height = Math.max(1, rect.height);
-        const deviceScale = Math.min(
-          window.devicePixelRatio || 1,
-          mobilePerformance ? mobileCanvasRatio : width < 640 ? 1.16 : 1.32
-        );
-        const pixelRatio = Math.min(deviceScale, 1536 / width, 460 / height);
+        const deviceScale = mobilePerformance
+          ? Math.min(window.devicePixelRatio || 1, mobileCanvasRatio)
+          : Math.min(Math.max(window.devicePixelRatio || 1, 1.6), width < 640 ? 1.5 : 1.82);
+        const pixelRatio = Math.min(deviceScale, 2304 / width, 680 / height);
         const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
         const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
         const changed = force
@@ -3144,7 +3179,7 @@ const gateStyle = [
         gate.classList.remove("is-title-abyss-ready");
         clearTitleDataCanvas();
         rebuildTitleEffectMask();
-        rebuildTitleAbyssStarfields();
+        rebuildTitleAbyssFluidBuffer();
       };
 
       const refreshPostReleaseLayout = () => {
@@ -6557,184 +6592,49 @@ const gateStyle = [
         const width = titleDataCanvasWidth;
         const height = titleDataCanvasHeight;
         const time = timestamp / 1000;
-        const parallaxX = titleAbyssPointerX * (mobilePerformance ? 16 : 58);
-        const parallaxY = titleAbyssPointerY * (mobilePerformance ? 10 : 30);
-        const abyssExposure = 1 - smoothstep(clamp((fill - 0.86) / 0.14, 0, 1)) * 0.22;
+        const parallaxX = titleAbyssPointerX * (mobilePerformance ? 20 : 76);
+        const parallaxY = titleAbyssPointerY * (mobilePerformance ? 12 : 40);
+        const abyssExposure = 1 - smoothstep(clamp((fill - 0.9) / 0.1, 0, 1)) * 0.18;
 
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, titleAbyssCanvas.width, titleAbyssCanvas.height);
         context.setTransform(titleDataPixelRatio, 0, 0, titleDataPixelRatio, 0, 0);
         context.globalCompositeOperation = "source-over";
         context.globalAlpha = 1;
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = "high";
 
         const baseGradient = context.createLinearGradient(
-          -parallaxX * 0.08,
-          -parallaxY * 0.05,
-          width + parallaxX * 0.08,
-          height + parallaxY * 0.05
+          -parallaxX * 0.1,
+          height + parallaxY * 0.08,
+          width + parallaxX * 0.1,
+          -parallaxY * 0.08
         );
-        baseGradient.addColorStop(0, "#0c1428");
-        baseGradient.addColorStop(0.22, "#080d1d");
-        baseGradient.addColorStop(0.49, "#040711");
-        baseGradient.addColorStop(0.72, "#100a18");
-        baseGradient.addColorStop(1, "#08101e");
+        baseGradient.addColorStop(0, "#111d47");
+        baseGradient.addColorStop(0.36, "#080d29");
+        baseGradient.addColorStop(0.68, "#160a32");
+        baseGradient.addColorStop(1, "#070c24");
         context.fillStyle = baseGradient;
         context.fillRect(0, 0, width, height);
 
-        context.save();
+        paintTitleAbyssFluid(timestamp, force);
+        const fluidWidth = width + titleAbyssFluidPaddingX * 2;
+        const fluidHeight = height + titleAbyssFluidPaddingY * 2;
+        const fluidX = -titleAbyssFluidPaddingX - parallaxX;
+        const fluidY = -titleAbyssFluidPaddingY - parallaxY;
+        context.globalAlpha = 0.98 * abyssExposure;
+        context.drawImage(titleAbyssFluidCanvas, fluidX, fluidY, fluidWidth, fluidHeight);
         context.globalCompositeOperation = "screen";
-        const nebulaLayers = [
-          [width * 0.2 - parallaxX * 0.22, height * 0.3 - parallaxY * 0.16, height * 1.22, "rgba(78,104,160,0.24)", "rgba(67,62,112,0.13)"],
-          [width * 0.78 + parallaxX * 0.18, height * 0.67 + parallaxY * 0.12, height * 1.08, "rgba(128,70,118,0.18)", "rgba(82,48,91,0.11)"],
-          [width * 0.5 - parallaxX * 0.08, height * 0.06 + parallaxY * 0.08, height * 0.82, "rgba(74,119,130,0.12)", "rgba(55,75,112,0.07)"]
-        ];
-        for (const [x, y, radius, core, body] of nebulaLayers) {
-          const glow = context.createRadialGradient(
-            x,
-            y,
-            0,
-            x,
-            y,
-            radius
-          );
-          glow.addColorStop(0, core);
-          glow.addColorStop(0.38, body);
-          glow.addColorStop(1, "rgba(2,4,18,0)");
-          context.globalAlpha = abyssExposure;
-          context.fillStyle = glow;
-          context.fillRect(0, 0, width, height);
-        }
-
-        context.translate(
-          width * 0.5 - parallaxX * 0.16,
-          height * 0.5 - parallaxY * 0.12
+        context.globalAlpha = 0.12 * abyssExposure;
+        context.drawImage(
+          titleAbyssFluidCanvas,
+          -titleAbyssFluidPaddingX + parallaxX * 0.24,
+          -titleAbyssFluidPaddingY + parallaxY * 0.18,
+          fluidWidth,
+          fluidHeight
         );
-        context.rotate(-0.16 + Math.sin(time * 0.08) * 0.012);
-        const galaxyBand = context.createLinearGradient(0, -height * 0.58, 0, height * 0.58);
-        galaxyBand.addColorStop(0, "rgba(10,15,48,0)");
-        galaxyBand.addColorStop(0.31, "rgba(73,82,126,0.03)");
-        galaxyBand.addColorStop(0.45, "rgba(101,87,132,0.11)");
-        galaxyBand.addColorStop(0.5, "rgba(151,145,171,0.055)");
-        galaxyBand.addColorStop(0.57, "rgba(113,72,112,0.1)");
-        galaxyBand.addColorStop(0.72, "rgba(37,48,82,0.022)");
-        galaxyBand.addColorStop(1, "rgba(7,10,38,0)");
-        context.globalAlpha = 0.88 * abyssExposure;
-        context.fillStyle = galaxyBand;
-        context.fillRect(-width * 0.76, -height * 0.66, width * 1.52, height * 1.32);
-        context.restore();
-
-        if (titleAbyssStarfieldWidth > 1 && titleAbyssStarfieldHeight > 1) {
-          context.save();
-          context.globalCompositeOperation = "screen";
-          context.globalAlpha = 0.82 * abyssExposure;
-          context.drawImage(
-            titleAbyssFarStarsCanvas,
-            -titleAbyssStarPaddingX + parallaxX * 0.24,
-            -titleAbyssStarPaddingY + parallaxY * 0.2,
-            titleAbyssStarfieldWidth,
-            titleAbyssStarfieldHeight
-          );
-          context.globalAlpha = 0.96 * abyssExposure;
-          context.drawImage(
-            titleAbyssNearStarsCanvas,
-            -titleAbyssStarPaddingX - parallaxX * 1.16,
-            -titleAbyssStarPaddingY - parallaxY * 1.08,
-            titleAbyssStarfieldWidth,
-            titleAbyssStarfieldHeight
-          );
-          context.restore();
-        }
-
-        context.save();
-        context.globalCompositeOperation = "multiply";
-        const voidPockets = [
-          [0.06, 0.24, 0.48, 1.34, 0.5, 0.16],
-          [0.28, 0.72, 0.58, 1.62, 0.42, -0.2],
-          [0.53, 0.36, 0.5, 1.42, 0.48, 0.24],
-          [0.76, 0.68, 0.55, 1.7, 0.44, -0.18],
-          [0.98, 0.2, 0.46, 1.3, 0.46, 0.14]
-        ];
-        for (const [unitX, unitY, radiusScale, aspect, alpha, drift] of voidPockets) {
-          const x = width * unitX + parallaxX * drift;
-          const y = height * unitY - parallaxY * drift * 0.72;
-          const radius = height * radiusScale;
-          context.save();
-          context.translate(x, y);
-          context.scale(aspect, 0.82);
-          const shade = context.createRadialGradient(0, 0, 0, 0, 0, radius);
-          shade.addColorStop(0, `rgba(0,3,17,${alpha})`);
-          shade.addColorStop(0.46, `rgba(5,6,28,${alpha * 0.58})`);
-          shade.addColorStop(0.76, `rgba(16,9,39,${alpha * 0.2})`);
-          shade.addColorStop(1, "rgba(10,8,34,0)");
-          context.globalAlpha = abyssExposure;
-          context.fillStyle = shade;
-          context.beginPath();
-          context.arc(0, 0, radius, 0, fullTurn);
-          context.fill();
-          context.restore();
-        }
-        context.restore();
-
-        context.save();
-        context.globalCompositeOperation = "soft-light";
-        context.lineCap = "round";
-        for (let stream = 0; stream < (litePerformance ? 2 : mobilePerformance ? 3 : 4); stream += 1) {
-          const seed = randomSeed(stream + 27011);
-          const drift = Math.sin(time * (0.18 + seed * 0.12) + seed * 17) * height * 0.08;
-          const path = new Path2D();
-          path.moveTo(
-            -24 - parallaxX * (0.18 + seed * 0.24),
-            height * (0.16 + seed * 0.68) + drift - parallaxY * (0.25 + seed * 0.38)
-          );
-          path.bezierCurveTo(
-            width * 0.2 - parallaxX * 0.12,
-            height * (0.88 - seed * 0.52) - drift,
-            width * 0.7 + parallaxX * 0.16,
-            height * (0.1 + seed * 0.58) + drift,
-            width + 24 + parallaxX * (0.16 + seed * 0.18),
-            height * (0.78 - seed * 0.56) - drift
-          );
-          context.globalAlpha = (0.12 + seed * 0.1) * abyssExposure;
-          context.strokeStyle = stream % 2 === 0
-            ? "rgba(111,132,168,0.64)"
-            : "rgba(133,83,124,0.58)";
-          context.lineWidth = 1.1 + seed * 2;
-          context.stroke(path);
-        }
-        context.restore();
-
-        context.save();
-        context.globalCompositeOperation = "screen";
-        const beaconCount = litePerformance ? 3 : mobilePerformance ? 5 : 8;
-        for (let beacon = 0; beacon < beaconCount; beacon += 1) {
-          const seed = randomSeed(beacon + 27361);
-          const depth = 0.42 + randomSeed(beacon + 27409) * 0.58;
-          const x = (
-            seed * width
-            - parallaxX * (0.78 + depth * 0.68)
-            + width * 2
-          ) % width;
-          const y = (
-            randomSeed(beacon + 27457) * height
-            - parallaxY * (0.7 + depth * 0.54)
-            + height * 2
-          ) % height;
-          const pulse = Math.pow(
-            0.5 + Math.sin(time * (0.82 + depth * 0.76) + seed * 31) * 0.5,
-            3
-          );
-          const radius = 0.38 + depth * 0.58 + pulse * 0.34;
-          context.globalAlpha = (0.07 + pulse * 0.42) * abyssExposure;
-          context.fillStyle = beacon % 4 === 0
-            ? "#e3e4e8"
-            : beacon % 2 === 0
-              ? "#aebbd0"
-              : "#c3aabd";
-          context.beginPath();
-          context.arc(x, y, radius, 0, fullTurn);
-          context.fill();
-        }
-        context.restore();
+        context.globalCompositeOperation = "source-over";
+        context.globalAlpha = 1;
 
         if (fill > 0.0005) {
           const edgeVisibility = Math.pow(Math.sin(fill * Math.PI), 0.48);
@@ -6776,61 +6676,33 @@ const gateStyle = [
           context.save();
           context.clip(tidePath);
           const redGradient = context.createLinearGradient(0, height, width, 0);
-          redGradient.addColorStop(0, "#26030f");
-          redGradient.addColorStop(0.2, "#6a0e2c");
-          redGradient.addColorStop(0.46, "#b72d54");
-          redGradient.addColorStop(0.62, "#d85272");
-          redGradient.addColorStop(0.78, "#86163c");
-          redGradient.addColorStop(1, "#320318");
+          redGradient.addColorStop(0, "#2a0414");
+          redGradient.addColorStop(0.2, "#70123a");
+          redGradient.addColorStop(0.46, "#c33b68");
+          redGradient.addColorStop(0.62, "#e05b7d");
+          redGradient.addColorStop(0.78, "#951d4b");
+          redGradient.addColorStop(1, "#35051d");
           context.fillStyle = redGradient;
           context.fillRect(0, 0, width, height);
 
-          context.globalCompositeOperation = "screen";
-          for (let bloom = 0; bloom < 3; bloom += 1) {
-            const seed = randomSeed(bloom + 27617);
-            const x = width * (0.16 + bloom * 0.34)
-              + Math.sin(time * (0.2 + seed * 0.16) + bloom) * width * 0.045
-              + parallaxX * (0.16 + bloom * 0.06);
-            const y = height * (0.26 + seed * 0.48)
-              + Math.cos(time * (0.26 + seed * 0.12) + bloom) * height * 0.09;
-            const glow = context.createRadialGradient(x, y, 0, x, y, height * (0.5 + seed * 0.32));
-            glow.addColorStop(0, bloom === 1
-              ? "rgba(210,159,171,0.22)"
-              : "rgba(182,72,108,0.2)");
-            glow.addColorStop(0.32, "rgba(151,51,88,0.09)");
-            glow.addColorStop(1, "rgba(87,7,39,0)");
-            context.globalAlpha = 0.5 + fill * 0.18;
-            context.fillStyle = glow;
-            context.fillRect(0, 0, width, height);
-          }
-
           context.globalCompositeOperation = "soft-light";
-          context.lineCap = "round";
-          for (let vein = 0; vein < (litePerformance ? 3 : mobilePerformance ? 4 : 6); vein += 1) {
-            const seed = randomSeed(vein + 27733);
-            const wave = Math.sin(time * (0.34 + seed * 0.22) + vein) * height * 0.08;
-            const path = new Path2D();
-            path.moveTo(-16, height * (0.14 + seed * 0.72) + wave);
-            path.bezierCurveTo(
-              width * 0.3,
-              height * (0.86 - seed * 0.55) - wave,
-              width * 0.68,
-              height * (0.08 + seed * 0.7) + wave,
-              width + 16,
-              height * (0.78 - seed * 0.54) - wave
-            );
-            context.globalAlpha = 0.12 + seed * 0.1;
-            context.strokeStyle = vein % 2 === 0
-              ? "rgba(186,152,164,0.64)"
-              : "rgba(66,24,43,0.72)";
-            context.lineWidth = 0.9 + seed * 1.5;
-            context.stroke(path);
-          }
+          context.globalAlpha = 0.88;
+          context.drawImage(titleAbyssFluidCanvas, fluidX, fluidY, fluidWidth, fluidHeight);
+          context.globalCompositeOperation = "screen";
+          context.globalAlpha = 0.1 + fill * 0.06;
+          context.drawImage(
+            titleAbyssFluidCanvas,
+            -titleAbyssFluidPaddingX + parallaxX * 0.18,
+            -titleAbyssFluidPaddingY + parallaxY * 0.14,
+            fluidWidth,
+            fluidHeight
+          );
           context.restore();
 
           if (edgeVisibility > 0.002) {
             context.save();
             context.lineCap = "round";
+            context.lineJoin = "round";
             context.globalCompositeOperation = "source-over";
             context.globalAlpha = 0.62 * edgeVisibility;
             context.strokeStyle = "rgba(19,5,18,0.9)";
@@ -6844,21 +6716,10 @@ const gateStyle = [
             context.shadowBlur = 6;
             context.stroke(edgePath);
             context.globalAlpha = 0.34 * edgeVisibility;
-            context.strokeStyle = "rgba(225,207,212,0.82)";
+            context.strokeStyle = "rgba(210,194,224,0.78)";
             context.lineWidth = 0.58;
             context.shadowBlur = 0;
             context.stroke(edgePath);
-            for (let spark = 0; spark < (litePerformance ? 4 : mobilePerformance ? 7 : 10); spark += 1) {
-              const seed = randomSeed(spark + 27901);
-              const y = seed * height;
-              const x = edgeAt(y) + Math.sin(time * (1.2 + seed) + spark * 2.1) * 4.2;
-              const pulse = Math.pow(0.5 + Math.sin(time * (2.2 + seed) + spark) * 0.5, 2);
-              context.globalAlpha = edgeVisibility * (0.14 + pulse * 0.66);
-              context.fillStyle = spark % 3 === 0 ? "#fff3f7" : "#ff78ae";
-              context.beginPath();
-              context.ellipse(x, y, 0.6 + pulse * 1.2, 0.35 + pulse * 0.7, -0.5, 0, fullTurn);
-              context.fill();
-            }
             context.restore();
           }
         }

@@ -43,19 +43,29 @@ test("Kisara Home discovers and decodes its first Gate scene before revealing it
 });
 
 test("Kisara Home renders its title abyss procedurally and pauses it with the Gate lifecycle", () => {
+  const rimSource = homeSource.slice(
+    homeSource.indexOf("const rebuildTitleEffectMask ="),
+    homeSource.indexOf("const rebuildTitleAbyssFluidBuffer =")
+  );
   const abyssSource = homeSource.slice(
     homeSource.indexOf("const drawTitleAbyss ="),
     homeSource.indexOf("const paintBurstWarmupStep =")
   );
   assert.match(homeSource, /data-kisara-title-abyss/);
   assert.match(homeSource, /const drawTitleAbyss =/);
-  assert.match(homeSource, /const rebuildTitleAbyssStarfields =/);
+  assert.match(homeSource, /const rebuildTitleAbyssFluidBuffer =/);
+  assert.match(homeSource, /const paintTitleAbyssFluid =/);
   assert.match(homeSource, /const titleAbyssRimCanvas =/);
-  assert.match(homeSource, /litePerformance \? 38 : mobilePerformance \? 62 : 96/);
-  assert.match(abyssSource, /const voidPockets =/);
+  assert.equal((rimSource.match(/titleAbyssRimContext\.strokeText/g) ?? []).length, 1);
+  assert.doesNotMatch(rimSource, /rimGradient|rgba\(126,143,183/);
+  assert.match(homeSource, /litePerformance \? 128 : mobilePerformance \? 176 : 320/);
+  assert.match(homeSource, /Math\.max\(window\.devicePixelRatio \|\| 1, 1\.6\)/);
+  assert.match(homeSource, /Math\.min\(deviceScale, 2304 \/ width, 680 \/ height\)/);
+  assert.match(abyssSource, /context\.imageSmoothingQuality = "high"/);
+  assert.match(abyssSource, /paintTitleAbyssFluid\(timestamp, force\)/);
   assert.match(abyssSource, /context\.drawImage\(titleAbyssRimCanvas, 0, 0\)/);
-  assert.doesNotMatch(abyssSource, /paintSingularityField|eventHorizon|ringRadius/);
-  assert.match(homeSource, /titleAbyssPointerX \* \(mobilePerformance \? 16 : 58\)/);
+  assert.doesNotMatch(abyssSource, /paintSingularityField|eventHorizon|ringRadius|Starfield|voidPockets/);
+  assert.match(homeSource, /titleAbyssPointerX \* \(mobilePerformance \? 20 : 76\)/);
   assert.match(homeSource, /1000 \/ \(activeMotion \? 45 : 30\)/);
   assert.match(homeSource, /const handleTitleAbyssPointer =/);
   assert.match(homeSource, /progress >= 0\.999/);
