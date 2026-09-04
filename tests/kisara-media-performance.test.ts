@@ -43,9 +43,19 @@ test("Kisara Home discovers and decodes its first Gate scene before revealing it
 });
 
 test("Kisara Home renders its title abyss procedurally and pauses it with the Gate lifecycle", () => {
+  const abyssSource = homeSource.slice(
+    homeSource.indexOf("const drawTitleAbyss ="),
+    homeSource.indexOf("const paintBurstWarmupStep =")
+  );
   assert.match(homeSource, /data-kisara-title-abyss/);
   assert.match(homeSource, /const drawTitleAbyss =/);
-  assert.match(homeSource, /paintSingularityField\(context, timestamp/);
+  assert.match(homeSource, /const rebuildTitleAbyssStarfields =/);
+  assert.match(homeSource, /const titleAbyssRimCanvas =/);
+  assert.match(homeSource, /litePerformance \? 38 : mobilePerformance \? 62 : 96/);
+  assert.match(abyssSource, /const voidPockets =/);
+  assert.match(abyssSource, /context\.drawImage\(titleAbyssRimCanvas, 0, 0\)/);
+  assert.doesNotMatch(abyssSource, /paintSingularityField|eventHorizon|ringRadius/);
+  assert.match(homeSource, /titleAbyssPointerX \* \(mobilePerformance \? 16 : 58\)/);
   assert.match(homeSource, /1000 \/ \(activeMotion \? 45 : 30\)/);
   assert.match(homeSource, /const handleTitleAbyssPointer =/);
   assert.match(homeSource, /progress >= 0\.999/);
