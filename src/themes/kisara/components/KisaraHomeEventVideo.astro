@@ -19,7 +19,27 @@ import { getThemePath } from "@/core/themes/registry";
         <source data-src="/themes/kisara/assets/home-event-003-new.mp4" type="video/mp4" />
       </video>
       <span class="kisara-home-video-grade" aria-hidden="true"></span>
-      <span class="kisara-home-video-scan" aria-hidden="true"></span>
+      <span class="kisara-home-video-scan" data-home-event-cue="scan" aria-hidden="true"></span>
+
+      <div class="kisara-home-video-board-cues" aria-hidden="true">
+        <div class="kisara-home-video-target-track" data-home-event-cue="target-track">
+          <span class="kisara-home-video-target-reticle" data-home-event-cue="reticle"><i></i></span>
+          <span class="kisara-home-video-target-leader" data-home-event-cue="leader"></span>
+          <span class="kisara-home-video-target-copy" data-home-event-cue="target-copy">
+            <span>
+              <small>POINT OF INTEREST / 003</small>
+              <strong>ANSWER <em>LOCKED</em></strong>
+              <b>THE FRAME KNOWS FIRST.</b>
+            </span>
+          </span>
+        </div>
+
+        <ol class="kisara-home-video-board-tags">
+          <li data-home-event-cue="tag-question"><span>01</span><b>QUESTION</b></li>
+          <li data-home-event-cue="tag-gesture"><span>02</span><b>GESTURE</b></li>
+          <li class="is-active" data-home-event-cue="tag-answer"><span>03</span><b>ANSWER</b></li>
+        </ol>
+      </div>
 
       <header class="kisara-home-video-heading">
         <p><span>003</span> CLASSROOM FRAGMENT / 01.293 SEC</p>
@@ -49,6 +69,8 @@ import { getThemePath } from "@/core/themes/registry";
       controller: AbortController | null = null;
       observer: IntersectionObserver | null = null;
       visibilityObserver: IntersectionObserver | null = null;
+      cueAnimations: Animation[] = [];
+      cueFrame = 0;
       resetScene: (() => void) | null = null;
       refreshScene: (() => void) | null = null;
 
@@ -64,6 +86,10 @@ import { getThemePath } from "@/core/themes/registry";
         this.controller?.abort();
         this.observer?.disconnect();
         this.visibilityObserver?.disconnect();
+        this.cueAnimations.forEach((animation) => animation.cancel());
+        this.cueAnimations = [];
+        if (this.cueFrame) cancelAnimationFrame(this.cueFrame);
+        this.cueFrame = 0;
         const controller = new AbortController();
         this.controller = controller;
         const { signal } = controller;
@@ -80,6 +106,73 @@ import { getThemePath } from "@/core/themes/registry";
         let completed = false;
         let visible = false;
         let playAttempt = 0;
+        const cueDuration = 1292.958;
+        const cueEaseOut = "cubic-bezier(0.23, 1, 0.32, 1)";
+
+        const addCue = (name: string, keyframes: Keyframe[]) => {
+          const element = this.querySelector<HTMLElement>(`[data-home-event-cue="${name}"]`);
+          if (!element) return;
+          const frames = reducedMotion
+            ? keyframes.map((keyframe) => ({ ...keyframe, transform: "none" }))
+            : keyframes;
+          const animation = element.animate(frames, {
+            duration: cueDuration,
+            fill: "both",
+            easing: "linear",
+          });
+          animation.pause();
+          animation.currentTime = 0;
+          this.cueAnimations.push(animation);
+        };
+
+        addCue("scan", [
+          { opacity: 0, transform: "translate3d(0, 0, 0) skewX(-12deg)", offset: 0 },
+          { opacity: 0.58, transform: "translate3d(190%, 0, 0) skewX(-12deg)", offset: 0.16, easing: cueEaseOut },
+          { opacity: 0, transform: "translate3d(690%, 0, 0) skewX(-12deg)", offset: 0.57 },
+          { opacity: 0, transform: "translate3d(690%, 0, 0) skewX(-12deg)", offset: 1 },
+        ]);
+        addCue("target-track", [
+          { opacity: 0, transform: "translate3d(2.2vw, 9.5vh, 0) scale(2.08)", offset: 0, easing: cueEaseOut },
+          { opacity: 1, transform: "translate3d(1.2vw, 5.2vh, 0) scale(1.58)", offset: 0.08, easing: cueEaseOut },
+          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: 0.31 },
+          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: 1 },
+        ]);
+        addCue("reticle", [
+          { opacity: 0, transform: "scale(0.94)", offset: 0 },
+          { opacity: 0, transform: "scale(0.94)", offset: 0.035, easing: cueEaseOut },
+          { opacity: 1, transform: "scale(1)", offset: 0.13 },
+          { opacity: 1, transform: "scale(1)", offset: 1 },
+        ]);
+        addCue("leader", [
+          { opacity: 0, transform: "rotate(-11deg) scaleX(0)", offset: 0 },
+          { opacity: 0, transform: "rotate(-11deg) scaleX(0)", offset: 0.17, easing: cueEaseOut },
+          { opacity: 1, transform: "rotate(-11deg) scaleX(1)", offset: 0.38 },
+          { opacity: 1, transform: "rotate(-11deg) scaleX(1)", offset: 1 },
+        ]);
+        addCue("target-copy", [
+          { opacity: 0, transform: "translate3d(24px, 10px, 0)", offset: 0 },
+          { opacity: 0, transform: "translate3d(24px, 10px, 0)", offset: 0.22, easing: cueEaseOut },
+          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 0.45 },
+          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 1 },
+        ]);
+        addCue("tag-question", [
+          { opacity: 0, transform: "translate3d(28px, 16px, 0)", offset: 0 },
+          { opacity: 0, transform: "translate3d(28px, 16px, 0)", offset: 0.34, easing: cueEaseOut },
+          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 0.57 },
+          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 1 },
+        ]);
+        addCue("tag-gesture", [
+          { opacity: 0, transform: "translate3d(28px, 16px, 0)", offset: 0 },
+          { opacity: 0, transform: "translate3d(28px, 16px, 0)", offset: 0.41, easing: cueEaseOut },
+          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 0.64 },
+          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 1 },
+        ]);
+        addCue("tag-answer", [
+          { opacity: 0, transform: "translate3d(28px, 16px, 0) scale(0.96)", offset: 0 },
+          { opacity: 0, transform: "translate3d(28px, 16px, 0) scale(0.96)", offset: 0.48, easing: cueEaseOut },
+          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: 0.72 },
+          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: 1 },
+        ]);
 
         const setState = (state: string, label: string) => {
           this.dataset.state = state;
@@ -119,17 +212,49 @@ import { getThemePath } from "@/core/themes/registry";
           const progress = Math.min(1, Math.max(0, video.currentTime / duration));
           this.style.setProperty("--home-003-progress", progress.toFixed(4));
           if (time) time.textContent = video.currentTime.toFixed(2).padStart(5, "0");
+          const cueTime = Math.min(cueDuration, Math.max(0, video.currentTime * 1000));
+          this.cueAnimations.forEach((animation) => { animation.currentTime = cueTime; });
         };
 
-        video.addEventListener("playing", () => setState("playing", "PLAYING FRAGMENT"), { signal });
+        const stopCueClock = () => {
+          if (this.cueFrame) cancelAnimationFrame(this.cueFrame);
+          this.cueFrame = 0;
+        };
+
+        const startCueClock = () => {
+          stopCueClock();
+          const tick = () => {
+            syncTime();
+            if (!video.paused && !video.ended && visible) {
+              this.cueFrame = requestAnimationFrame(tick);
+            } else {
+              this.cueFrame = 0;
+            }
+          };
+          this.cueFrame = requestAnimationFrame(tick);
+        };
+
+        video.addEventListener("playing", () => {
+          setState("playing", "PLAYING FRAGMENT");
+          startCueClock();
+        }, { signal });
         video.addEventListener("loadedmetadata", syncTime, { signal });
         video.addEventListener("timeupdate", syncTime, { signal });
+        video.addEventListener("pause", () => {
+          stopCueClock();
+          syncTime();
+          if (!completed && video.currentTime > 0) setState("paused", "FRAGMENT HELD");
+        }, { signal });
         video.addEventListener("ended", () => {
+          stopCueClock();
           completed = true;
           syncTime();
           setState("complete", "ARCHIVE HELD");
         }, { signal });
-        video.addEventListener("error", () => setState("error", "POSTER FALLBACK"), { signal });
+        video.addEventListener("error", () => {
+          stopCueClock();
+          setState("error", "POSTER FALLBACK");
+        }, { signal });
         replay.addEventListener("click", () => {
           visible = true;
           void playVideo(true);
@@ -154,11 +279,12 @@ import { getThemePath } from "@/core/themes/registry";
 
         const resetVideo = () => {
           playAttempt += 1;
+          stopCueClock();
           video.pause();
           hasStarted = false;
           completed = false;
           try { video.currentTime = 0; } catch {}
-          this.style.setProperty("--home-003-progress", "0");
+          syncTime();
           if (time) time.textContent = "00.00";
           setState(reducedMotion ? "ready" : "idle", reducedMotion ? "PRESS REPLAY" : "ARCHIVE READY");
         };
@@ -200,6 +326,10 @@ import { getThemePath } from "@/core/themes/registry";
       disconnectedCallback() {
         this.controller?.abort();
         this.controller = null;
+        if (this.cueFrame) cancelAnimationFrame(this.cueFrame);
+        this.cueFrame = 0;
+        this.cueAnimations.forEach((animation) => animation.cancel());
+        this.cueAnimations = [];
         this.observer?.disconnect();
         this.observer = null;
         this.visibilityObserver?.disconnect();

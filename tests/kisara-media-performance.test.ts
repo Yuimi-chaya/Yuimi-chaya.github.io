@@ -53,3 +53,13 @@ test("Kisara Home 003 keeps its full-screen fragment deferred and subtitle-free"
   assert.doesNotMatch(homeEventSource, /<track\b/i);
   assert.doesNotMatch(homeEventSource, /<source\b[^>]*\ssrc=/i);
 });
+
+test("Kisara Home 003 cues its board labels from the real video clock", () => {
+  assert.match(homeEventSource, /data-home-event-cue="target-track"/);
+  assert.match(homeEventSource, /POINT OF INTEREST \/ 003/);
+  assert.match(homeEventSource, /QUESTION[^]*GESTURE[^]*ANSWER/);
+  assert.match(homeEventSource, /video\.currentTime \* 1000/);
+  assert.match(homeEventSource, /animation\.currentTime = cueTime/);
+  assert.match(homeEventSource, /requestAnimationFrame\(tick\)/);
+  assert.match(homeEventSource, /prefers-reduced-motion: reduce/);
+});
