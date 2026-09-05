@@ -90,6 +90,10 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(homeSource, /const aftermathQuality = burst > shockwaveStart \? 0\.76 : 1/);
   assert.match(homeSource, /postReleaseParticles\.length >= \(postReleaseCanvasWidth < 640 \? 104 : 172\)/);
   assert.match(homeSource, /postReleaseCanvasWidth < 640 \? 18 : 28/);
+  assert.match(homeSource, /const burstDistance = 1950/);
+  assert.match(homeSource, /const bladeWheelGain = 1\.5/);
+  assert.match(homeSource, /silhouetteBladeScale: 1 \+ silhouetteFocus \* 0\.16/);
+  assert.match(homeSource, /if \(pageMode === "gate"\) drawTitleAbyss\(performance\.now\(\), true\)/);
   assert.match(abyssSource, /!titleAbyssTideImageData[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.match(homeSource, /const titleAbyssDomHandoffStart = 0\.72/);
   assert.match(homeSource, /intro - titleAbyssDomHandoffStart/);
