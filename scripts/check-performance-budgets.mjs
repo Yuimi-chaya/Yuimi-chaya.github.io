@@ -10,7 +10,8 @@ const fileBudgets = [
   ["Kisara Games HTML", "games/index.html", 166_000],
   ["Kisara Works HTML", "projects/index.html", 198_000],
   ["Kisara About HTML", "about/index.html", 149_000],
-  ["Fuyukawa Home HTML", "themes/fuyukawa-kagari/index.html", 100_000]
+  ["Fuyukawa Home HTML", "themes/fuyukawa-kagari/index.html", 100_000],
+  ["Kisara chain material atlas", "themes/kisara/assets/title-chain-steel.webp", 110_000]
 ];
 
 const stylesheetBudgets = [
