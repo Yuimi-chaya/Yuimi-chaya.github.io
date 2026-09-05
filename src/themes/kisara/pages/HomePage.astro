@@ -9389,12 +9389,12 @@ const gateStyle = [
           buildStart: 0.025,
           buildEnd: 0.62,
           direction: 1,
-          verticalPhase: 0,
+          verticalPhase: 1,
           planePhase: 0,
-          topInset: 0.04,
-          bottomInset: 0.04,
-          xInset: 0.11,
-          xShift: -0.012,
+          topInset: 0.19,
+          bottomInset: 0.18,
+          xInset: 0.13,
+          xShift: 0.018,
           breakT: 0.3,
           desktopLinksPerSegment: 5,
           mobileLinksPerSegment: 2,
@@ -9411,8 +9411,8 @@ const gateStyle = [
           direction: 1,
           verticalPhase: 0,
           planePhase: 0,
-          topInset: 0.02,
-          bottomInset: 0.02,
+          topInset: 0.035,
+          bottomInset: 0.035,
           xInset: 0.075,
           xShift: -0.006,
           breakT: 0.5,
@@ -9539,8 +9539,8 @@ const gateStyle = [
           );
           const breakDistance = Math.abs(pointUnit - definition.breakT);
           const breakCinch = smoothstep(clamp(1 - breakDistance / 0.52, 0, 1));
-          const localPull = pull * (0.62 + windingWave * 0.54)
-            + cinch * breakCinch * (0.038 + definition.id * 0.006);
+          const localPull = pull * (0.14 + windingWave * 0.12)
+            + cinch * breakCinch * 0.014;
           const localTwist = definition.direction
             * (takeUp * 0.105 + lock * 0.044 + lockKick * 0.012)
             * (0.42 + windingWave * 0.58);
@@ -9550,9 +9550,19 @@ const gateStyle = [
           const tightenedY = offsetY * (1 - localPull);
           const twistCosine = Math.cos(localTwist);
           const twistSine = Math.sin(localTwist);
+          const twistedX = centerX + tightenedX * twistCosine - tightenedY * twistSine;
+          const twistedY = centerY + tightenedX * twistSine + tightenedY * twistCosine;
+          const side = pointUnit < definition.breakT ? -1 : 1;
+          const boundaryDistance = side < 0
+            ? Math.max(0, x - textLeft)
+            : Math.max(0, textRight - x);
+          const extension = Math.min(
+            boundaryDistance * 0.72,
+            box.width * (0.018 + cinch * 0.062) * breakCinch
+          );
           return {
-            x: centerX + tightenedX * twistCosine - tightenedY * twistSine,
-            y: centerY + tightenedX * twistSine + tightenedY * twistCosine
+            x: twistedX + side * extension,
+            y: twistedY
           };
         });
         return {
@@ -11186,6 +11196,15 @@ const gateStyle = [
           const bottom = smootherstep(clamp((chainCanvasHeight - sample.y) / edgeMarginY, 0, 1));
           return left * right * top * bottom;
         };
+        const resolveTitleBoundaryFade = (sample) => {
+          const textLeft = chainGlyphLayout.textLeft;
+          const textRight = chainGlyphLayout.textRight;
+          if (!(textRight > textLeft)) return 1;
+          const fadeWidth = Math.max(10, (textRight - textLeft) * 0.075);
+          const left = smootherstep(clamp((sample.x - (textLeft - fadeWidth)) / fadeWidth, 0, 1));
+          const right = smootherstep(clamp(((textRight + fadeWidth) - sample.x) / fadeWidth, 0, 1));
+          return left * right;
+        };
 
         for (const definition of chainDefinitions) {
           const buildStart = isMobile && definition.type === "weave"
@@ -11313,7 +11332,8 @@ const gateStyle = [
             * phaseProgress(build, 0.06, 0.13)
             * (1 - phaseProgress(build, 0.82, 0.99))
             * (1 - releaseFade)
-            * resolveCanvasEdgeFade(leaderSample);
+            * resolveCanvasEdgeFade(leaderSample)
+            * resolveTitleBoundaryFade(leaderSample);
           if (leaderAlpha > 0.002) {
             leaders.push({
               definition,
@@ -11344,7 +11364,10 @@ const gateStyle = [
             );
             const outside = Math.max(0, -travelUnit, travelUnit - 1);
             const ingressFade = 1 - smootherstep(clamp((outside - 0.02) / 0.11, 0, 1));
-            let alpha = visibility * phaseProgress(build, 0.02, 0.07) * ingressFade;
+            let alpha = visibility
+              * phaseProgress(build, 0.02, 0.07)
+              * ingressFade
+              * resolveTitleBoundaryFade(sample);
             const order = clamp(
               definition.direction > 0 ? distanceUnit : 1 - distanceUnit,
               0,
@@ -11382,7 +11405,8 @@ const gateStyle = [
                   * phaseProgress(build, 0.02, 0.07)
                   * ingressFade
                   * (1 - releaseFade * 0.34)
-                  * resolveCanvasEdgeFade(sample);
+                  * resolveCanvasEdgeFade(sample)
+                  * resolveTitleBoundaryFade(sample);
                 if (particleAlpha > 0.002) {
                   shatterRecords.push({
                     sample: { ...sample },
@@ -11397,7 +11421,9 @@ const gateStyle = [
                 alpha *= 1 - smootherstep(clamp(shatterAge / 0.035, 0, 1));
               }
             }
-            alpha *= (1 - releaseFade * 0.96) * resolveCanvasEdgeFade(sample);
+            alpha *= (1 - releaseFade * 0.96)
+              * resolveCanvasEdgeFade(sample)
+              * resolveTitleBoundaryFade(sample);
             const record = {
               sample,
               linkIndex,
