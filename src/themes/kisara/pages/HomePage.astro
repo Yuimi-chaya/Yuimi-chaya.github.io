@@ -3717,7 +3717,7 @@ const gateStyle = [
       };
 
       const spawnPostReleaseParticle = (source, point, speed, ambient = false, time = 0) => {
-        if (postReleaseParticles.length >= (postReleaseCanvasWidth < 640 ? 136 : 224)) return;
+        if (postReleaseParticles.length >= (postReleaseCanvasWidth < 640 ? 104 : 172)) return;
         const randomA = nextPostReleaseRandom();
         const randomB = nextPostReleaseRandom();
         const randomC = nextPostReleaseRandom();
@@ -3771,12 +3771,14 @@ const gateStyle = [
         const time = timestamp / 1000;
         if (precisePointer && (speed > 0.7 || postReleaseFlowWhip > 0.025)) {
           postReleaseEmissionBudget += frameSeconds * (
-            34
-            + Math.min(70, speed * 0.52)
-            + postReleaseFlowWhip * 48
+            24
+            + Math.min(54, speed * 0.4)
+            + postReleaseFlowWhip * 36
           );
         }
-        postReleaseAmbientBudget += frameSeconds * (postReleaseCanvasWidth < 640 ? 26 : 42) * intro;
+        postReleaseAmbientBudget += frameSeconds
+          * (postReleaseCanvasWidth < 640 ? 18 : 28)
+          * intro;
         while (postReleaseEmissionBudget >= 1) {
           postReleaseEmissionBudget -= 1;
           const source = postReleaseSources[
@@ -4281,8 +4283,8 @@ const gateStyle = [
               ? 1000 / 16
               : 1000 / 20
           : motionPending
-            ? 1000 / 60
-            : 1000 / 30;
+            ? 1000 / 48
+            : 1000 / 26;
         if (
           postReleaseLastTimestamp
           && timestamp - postReleaseLastTimestamp < minimumFrameInterval * 0.9
@@ -7103,8 +7105,11 @@ const gateStyle = [
         const fill = Math.max(energyProgress, 0.012);
         const burst = clamp(burstProgress, 0, 1);
         const intensity = 0.12 + fill * 0.88;
-        const densityScale = (width < 640 ? 0.62 : width < 960 ? 0.82 : 1) * renderQuality;
-        const shadowQuality = renderQuality;
+        const aftermathQuality = burst > shockwaveStart ? 0.76 : 1;
+        const densityScale = (width < 640 ? 0.62 : width < 960 ? 0.82 : 1)
+          * renderQuality
+          * aftermathQuality;
+        const shadowQuality = renderQuality * (burst > detonationStart ? 0.72 : 1);
         const meterWidth = meterLayout.width || Math.min(620, width * 0.78);
         const meterHeight = meterLayout.height || 68;
         const meterLeft = meterLayout.left || (width - meterWidth) / 2;
@@ -8206,7 +8211,7 @@ const gateStyle = [
             flash.addColorStop(0.24, "rgba(255, 91, 139, 0.34)");
             flash.addColorStop(0.54, "rgba(160, 101, 255, 0.09)");
             flash.addColorStop(1, "rgba(255, 72, 112, 0)");
-            context.globalAlpha = flashStrength * 0.92;
+            context.globalAlpha = flashStrength * 0.7;
             context.fillStyle = flash;
             context.fillRect(0, 0, width, height);
           }
@@ -8629,7 +8634,7 @@ const gateStyle = [
           glow.addColorStop(0.24, "rgba(255,114,148,0.12)");
           glow.addColorStop(0.66, "rgba(143,178,255,0.055)");
           glow.addColorStop(1, "rgba(143,178,255,0)");
-          context.globalAlpha = afterglow * 0.72;
+          context.globalAlpha = afterglow * 0.52;
           context.fillStyle = glow;
           context.fillRect(0, 0, width, height);
         }

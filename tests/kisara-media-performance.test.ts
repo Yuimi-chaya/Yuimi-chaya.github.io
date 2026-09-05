@@ -87,6 +87,9 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(homeSource, /const titleLiquidLastPaintTimestamp =|let titleLiquidLastPaintTimestamp/);
   assert.match(homeSource, /const liquidInterval =/);
   assert.match(homeSource, /liquidDelta < \(reducedMotion \? 0\.002 : 0\.012\)/);
+  assert.match(homeSource, /const aftermathQuality = burst > shockwaveStart \? 0\.76 : 1/);
+  assert.match(homeSource, /postReleaseParticles\.length >= \(postReleaseCanvasWidth < 640 \? 104 : 172\)/);
+  assert.match(homeSource, /postReleaseCanvasWidth < 640 \? 18 : 28/);
   assert.match(abyssSource, /!titleAbyssTideImageData[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.match(homeSource, /const titleAbyssDomHandoffStart = 0\.72/);
   assert.match(homeSource, /intro - titleAbyssDomHandoffStart/);
@@ -100,6 +103,8 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(homeSource, /document\.visibilityState !== "visible"/);
   assert.match(homeSource, /clearTitleAbyssCanvas\(true\)/);
   assert.match(homeStyles, /\.kisara-gate\.is-title-abyss-ready \.kisara-title-abyss-canvas/);
+  assert.match(homeStyles, /\.kisara-post-release-canvas[^]*contain: strict/);
+  assert.match(homeStyles, /\.kisara-burst-canvas[^]*contain: strict/);
   assert.match(homeStyles, /:is\(\.is-bursting, \.is-burst-complete, \.is-post-release\)[^]*transition: none/);
 });
 
