@@ -9400,7 +9400,7 @@ const gateStyle = [
           mobileLinksPerSegment: 2,
           linkScale: 0.92,
           tailInset: 0.052,
-          entryOverscan: 0.28,
+          entryOverscan: 0.42,
           entryBend: -0.12
         },
         {
@@ -9420,7 +9420,7 @@ const gateStyle = [
           mobileLinksPerSegment: 3,
           linkScale: 0.9,
           tailInset: 0.036,
-          entryOverscan: 0.25,
+          entryOverscan: 0.38,
           entryBend: 0.09
         },
         {
@@ -9440,7 +9440,7 @@ const gateStyle = [
           mobileLinksPerSegment: 3,
           linkScale: 0.88,
           tailInset: 0.032,
-          entryOverscan: 0.26,
+          entryOverscan: 0.4,
           entryBend: -0.08
         }
       ];
@@ -9535,18 +9535,13 @@ const gateStyle = [
               - takeUp * fullTurn * 0.42
           );
           const localPull = 0;
-          const localTwist = definition.direction
-            * (takeUp * 0.105 + lock * 0.044 + lockKick * 0.012)
-            * (0.42 + windingWave * 0.58);
           const offsetX = x - centerX;
           const offsetY = y - centerY;
           const positionedX = offsetX * (1 - localPull);
           const positionedY = offsetY * (1 - localPull);
-          const twistCosine = Math.cos(localTwist);
-          const twistSine = Math.sin(localTwist);
           return {
-            x: centerX + positionedX * twistCosine - positionedY * twistSine,
-            y: centerY + positionedX * twistSine + positionedY * twistCosine
+            x: centerX + positionedX,
+            y: centerY + positionedY
           };
         });
         return {
@@ -9652,19 +9647,7 @@ const gateStyle = [
           );
           crossing = Math.abs(depth) <= frameJoinDepth;
         } else {
-          const reelStrength = takeUp * 0.1
-            + lock * 0.042
-            + lockKick * 0.014;
-          const reelWave = 0.64 + 0.36 * Math.cos(
-            (unit - definition.breakT) * fullTurn * 1.38
-              - takeUp * Math.PI * 1.55
-              + definition.id * 0.73
-          );
-          const reeledUnit = clamp(
-            unit + (definition.breakT - unit) * reelStrength * reelWave,
-            0,
-            1
-          );
+          const reeledUnit = unit;
           const segmentPosition = reeledUnit * path.segmentCount;
           const segmentIndex = Math.min(
             path.segmentCount - 1,
@@ -11181,15 +11164,6 @@ const gateStyle = [
           const bottom = smootherstep(clamp((chainCanvasHeight - sample.y) / edgeMarginY, 0, 1));
           return left * right * top * bottom;
         };
-        const resolveTitleBoundaryFade = (sample) => {
-          const textLeft = chainGlyphLayout.textLeft;
-          const textRight = chainGlyphLayout.textRight;
-          if (!(textRight > textLeft)) return 1;
-          const fadeWidth = Math.max(10, (textRight - textLeft) * 0.075);
-          const left = smootherstep(clamp((sample.x - (textLeft - fadeWidth)) / fadeWidth, 0, 1));
-          const right = smootherstep(clamp(((textRight + fadeWidth) - sample.x) / fadeWidth, 0, 1));
-          return left * right;
-        };
         const resolveCenterDissolve = (sample) => {
           if (centerDissolve <= 0.001) return 1;
           const centerX = chainGlyphLayout.centerX || chainTitleBox.left + chainTitleBox.width * 0.5;
@@ -11328,7 +11302,6 @@ const gateStyle = [
             * (1 - phaseProgress(build, 0.82, 0.99))
             * (1 - releaseFade)
             * resolveCanvasEdgeFade(leaderSample)
-            * resolveTitleBoundaryFade(leaderSample)
             * resolveCenterDissolve(leaderSample);
           if (leaderAlpha > 0.002) {
             leaders.push({
@@ -11348,7 +11321,7 @@ const gateStyle = [
                 travelUnit = normalizeFrameDistance(travelUnit);
               }
             }
-            if (travelUnit < -0.72 || travelUnit > 1.72) continue;
+            if (travelUnit < -1.05 || travelUnit > 2.05) continue;
             const sample = sampleTitleChainTravel(
               definition,
               path,
@@ -11359,11 +11332,10 @@ const gateStyle = [
               timestamp
             );
             const outside = Math.max(0, -travelUnit, travelUnit - 1);
-            const ingressFade = 1 - smootherstep(clamp((outside - 0.05) / 0.22, 0, 1));
+            const ingressFade = 1 - smootherstep(clamp((outside - 0.04) / 0.36, 0, 1));
             let alpha = visibility
               * phaseProgress(build, 0.02, 0.07)
               * ingressFade
-              * resolveTitleBoundaryFade(sample)
               * resolveCenterDissolve(sample);
             const order = clamp(
               definition.direction > 0 ? distanceUnit : 1 - distanceUnit,
@@ -11403,7 +11375,6 @@ const gateStyle = [
                   * ingressFade
                   * (1 - releaseFade * 0.34)
                   * resolveCanvasEdgeFade(sample)
-                  * resolveTitleBoundaryFade(sample)
                   * resolveCenterDissolve(sample);
                 if (particleAlpha > 0.002) {
                   shatterRecords.push({
@@ -11421,7 +11392,6 @@ const gateStyle = [
             }
             alpha *= (1 - releaseFade * 0.96)
               * resolveCanvasEdgeFade(sample)
-              * resolveTitleBoundaryFade(sample)
               * resolveCenterDissolve(sample);
             const record = {
               sample,
