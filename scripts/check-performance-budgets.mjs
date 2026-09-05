@@ -81,6 +81,12 @@ try {
   if (/kisara-title-gloss|transformation-silhouette/.test(homeHtml)) {
     failures.push("Kisara Home restored the retired blade stage or its image");
   }
+  if (/kisara-title-cross|kisara-screen-impact|kisara-burst-canvas/.test(homeHtml)) {
+    failures.push("Kisara Home restored a retired black-hole or warning pass");
+  }
+  if (!homeHtml.includes("kisara-gate-background-fight-wash")) {
+    failures.push("Kisara Home lost its original clear reconstruction wash");
+  }
   const gateAssets = await readdir(new URL("themes/kisara/assets/", distDir));
   if (gateAssets.includes("transformation-silhouette.webp")) {
     failures.push("Kisara Home still publishes the retired blade image");

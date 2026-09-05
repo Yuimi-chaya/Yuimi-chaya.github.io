@@ -193,9 +193,9 @@ test("Default Home runtime loops and renderers are stopped while Lovebrain owns 
   assert.match(homeSource, /if \(!energyContext \|\| lovebrainActive \|\| pageMode !== "gate"/);
   assert.match(homeSource, /spaceLensRenderer\?\.destroy\(\)/);
   assert.match(homeSource, /titleLensRenderer\?\.destroy\(\)/);
-  assert.match(homeSource, /cancelBurstWarmup\(\)/);
-  assert.match(homeSource, /cancelWarningWarmupSchedule\(\)/);
-  assert.match(homeSource, /finishWarningPresentationWarmup\(false, true\)/);
+  assert.match(homeSource, /cancelReleaseWarmupSchedule\(\)/);
+  assert.match(homeSource, /spaceLensInitController\?\.abort\(\)/);
+  assert.doesNotMatch(homeSource, /cancelBurstWarmup|finishWarningPresentationWarmup/);
 });
 
 test("Audio suspension releases only the final owner", () => {

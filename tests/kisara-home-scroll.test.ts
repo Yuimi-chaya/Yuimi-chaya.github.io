@@ -15,7 +15,9 @@ test("Home clears release particles before the opaque comic handoff leaves the G
   for (const collection of ["wakeParticles", "orbitParticles", "burstParticles", "rainParticles"]) {
     assert.match(clearSource, new RegExp(`${collection}\\.length = 0`));
   }
-  assert.match(clearSource, /burstContext\?\.clearRect/);
+  assert.match(clearSource, /spaceLensRenderer\?\.clear/);
+  assert.match(clearSource, /titleLensRenderer\?\.clear/);
+  assert.doesNotMatch(homeSource, /data-kisara-burst-canvas/);
 
   const enterStart = homeSource.indexOf("const enterNextPage =");
   const enterEnd = homeSource.indexOf("const finalizeLovebrainExit =", enterStart);

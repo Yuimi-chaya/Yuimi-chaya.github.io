@@ -49,7 +49,7 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   );
   const abyssSource = homeSource.slice(
     homeSource.indexOf("const drawTitleAbyss ="),
-    homeSource.indexOf("const paintBurstWarmupStep =")
+    homeSource.indexOf("const updateGatePresentation =")
   );
   const fluidSource = homeSource.slice(
     homeSource.indexOf("const paintTitleAbyssFluid ="),
@@ -87,14 +87,14 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(homeSource, /const titleLiquidLastPaintTimestamp =|let titleLiquidLastPaintTimestamp/);
   assert.match(homeSource, /const liquidInterval =/);
   assert.match(homeSource, /liquidDelta < \(reducedMotion \? 0\.002 : 0\.012\)/);
-  assert.match(homeSource, /const aftermathQuality = burst > shockwaveStart \? 0\.76 : 1/);
+  assert.doesNotMatch(homeSource, /const aftermathQuality =|drawScreenEnergy/);
   assert.match(homeSource, /postReleaseParticles\.length >= \(postReleaseCanvasWidth < 640 \? 104 : 172\)/);
   assert.match(homeSource, /postReleaseCanvasWidth < 640 \? 18 : 28/);
   assert.doesNotMatch(homeSource, /burstDistance|bladeWheelGain|silhouetteBladeScale/);
   assert.match(homeSource, /if \(pageMode === "gate"\) drawTitleAbyss\(performance\.now\(\), true\)/);
   assert.match(abyssSource, /!titleAbyssTideImageData[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.match(homeSource, /const titleAbyssDomHandoffStart = 0\.72/);
-  assert.match(homeSource, /intro - titleAbyssDomHandoffStart/);
+  assert.match(homeSource, /phaseProgress\(intro, titleAbyssDomHandoffStart, 0\.88\)/);
   assert.match(abyssSource, /chargeIntroProgress >= titleAbyssDomHandoffStart[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.match(abyssSource, /burstProgress >= releaseStart[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.doesNotMatch(abyssSource, /paintSingularityField|eventHorizon|ringRadius|Starfield|voidPockets/);
@@ -106,7 +106,7 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(homeSource, /clearTitleAbyssCanvas\(true\)/);
   assert.match(homeStyles, /\.kisara-gate\.is-title-abyss-ready \.kisara-title-abyss-canvas/);
   assert.match(homeStyles, /\.kisara-post-release-canvas[^]*contain: strict/);
-  assert.match(homeStyles, /\.kisara-burst-canvas[^]*contain: strict/);
+  assert.match(homeStyles, /\.kisara-space-lens-canvas[^]*contain: strict/);
   assert.match(homeStyles, /:is\(\.is-bursting, \.is-burst-complete, \.is-post-release\)[^]*transition: none/);
 });
 
