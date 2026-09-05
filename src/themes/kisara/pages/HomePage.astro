@@ -7,6 +7,7 @@ import KisaraHomeEventVideo from "../components/KisaraHomeEventVideo.astro";
 import KisaraOpeningMemoryScene from "../components/KisaraOpeningMemoryScene.astro";
 import homeStylesheet from "../styles/home.css?url";
 import homeEventVideoStylesheet from "../styles/home-event-video.css?url";
+import homeComicStylesheet from "../styles/home-comic.css?url";
 import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
 import { getThemePath } from "@/core/themes/registry";
@@ -109,29 +110,6 @@ const gateSceneManifest = [
     order: memoryScenes.length + index
   }))
 ] as const;
-const openingEdgeScenes = [
-  {
-    id: "base",
-    kind: "base",
-    index: -1,
-    image: activeBackgroundUrl ?? "",
-    position: "center 50%"
-  },
-  ...gateSceneManifest.map((scene) => ({
-    id: scene.id,
-    kind: scene.kind,
-    index: scene.index,
-    image: scene.image,
-    position: scene.position
-  })),
-  {
-    id: "fight",
-    kind: "fight",
-    index: -1,
-    image: activeFightUrl ?? "",
-    position: "center 50%"
-  }
-].filter((scene) => scene.image);
 const ambientParticles = [
   { x: 7, y: 21, driftX: 88, driftY: -54, size: 3.2, duration: 18.4, delay: -4.8, opacity: 0.46, hue: 338 },
   { x: 15, y: 73, driftX: 64, driftY: -92, size: 2.1, duration: 21.7, delay: -13.2, opacity: 0.34, hue: 346 },
@@ -159,7 +137,7 @@ const gateStyle = [
 <KisaraLayout
   title="Kisara | Yuimi Lab"
   description="Yuimi Lab 的 Kisara 视觉交互主题。"
-  stylesheets={[homeStylesheet, homeEventVideoStylesheet]}
+  stylesheets={[homeStylesheet, homeEventVideoStylesheet, homeComicStylesheet]}
   priorityImages={activeBackgroundUrl ? [activeBackgroundUrl] : []}
 >
   <script is:inline data-astro-rerun define:vars={{ criticalGateImage: activeBackgroundUrl ?? "" }}>
@@ -400,38 +378,12 @@ const gateStyle = [
 
   <section
     id="kisara-opening"
-    class="kisara-opening"
+    class="kisara-opening kisara-comic-section"
     data-kisara-home-stop="001"
     aria-labelledby="kisara-opening-title"
   >
-    <div class="kisara-opening-edge" aria-hidden="true">
-      <span class="kisara-opening-edge-backdrop"></span>
-      {openingEdgeScenes.map((scene) => (
-        <span
-          class="kisara-opening-edge-scene"
-          data-kisara-opening-edge-scene={scene.id}
-          data-edge-kind={scene.kind}
-          data-edge-index={scene.index}
-          data-edge-source={scene.image}
-          data-edge-position={scene.position}
-        >
-          <i class="kisara-opening-edge-continuation"></i>
-          <i class="kisara-opening-edge-live-clip">
-            <b class="kisara-opening-edge-live-surface"></b>
-          </i>
-        </span>
-      ))}
-      <span class="kisara-opening-edge-atmosphere"></span>
-      <span class="kisara-opening-edge-flare">
-        <i class="kisara-opening-edge-flare-surface"></i>
-      </span>
-    </div>
-    <div class="kisara-opening-inner">
-      <KisaraOpeningMemoryScene />
-    </div>
+    <KisaraOpeningMemoryScene />
   </section>
-
-  <div class="kisara-home-transition is-memory-to-fridge" aria-hidden="true"><span></span><i></i><i></i></div>
 
   <KisaraFridgeScene />
 
@@ -472,6 +424,7 @@ const gateStyle = [
   <div class="kisara-home-transition is-latest-to-footer" aria-hidden="true"><span></span><i></i><i></i></div>
 
   <script>
+    import { createComicTransition } from "../lib/comicTransition";
     const releaseStaleKisaraHomeRuntime = (candidate) => {
       if (!(candidate instanceof HTMLElement) || candidate.dataset.bound !== "true") return false;
       const candidateAutoControl = candidate.querySelector("[data-kisara-auto]");
@@ -740,6 +693,7 @@ const gateStyle = [
       const fridgeScene = document.querySelector("kisara-fridge-scene");
       const eventScene = document.querySelector("kisara-home-event-video");
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const comicTransition = createComicTransition(signal, reducedMotion);
       const openingMemoryScene = document.querySelector("kisara-opening-memory-scene");
       const resetOpeningMemoryPresentation = () => {
         const resettableScene = openingMemoryScene as (
@@ -804,6 +758,7 @@ const gateStyle = [
       const openingEdgeRenderQueue = [];
       const openingEdgeSamplingEnabled = false;
       const activateOpeningBridgePortal = () => {
+        if (opening?.classList.contains("kisara-comic-section")) return false;
         if (
           !(gateVisualShell instanceof HTMLElement)
           || !(opening instanceof HTMLElement)
@@ -12646,6 +12601,40 @@ const gateStyle = [
         return Math.max(1, Math.round((openingRect?.top ?? gate.getBoundingClientRect().height) + window.scrollY));
       };
 
+      const runComicHandoff = (target, commit) => {
+        if (comicTransition.active) return true;
+        pageMode = "snap";
+        scrollTransitionDirection = target === "gate" ? "comic-return" : "comic-forward";
+        const comic = openingMemoryScene as (HTMLElement & {
+          preparePresentation?: () => Promise<void>;
+          playEntrance?: () => void;
+        }) | null;
+        void comicTransition.run({
+          prepare: target === "opening" ? () => comic?.preparePresentation?.() : undefined,
+          commit: () => {
+            commit();
+            if (target === "opening") {
+              resetOpeningMemoryPresentation();
+              comic?.playEntrance?.();
+            }
+            if (target === "fridge") {
+              return (fridgeScene as (HTMLElement & { playCoveredEntry?: () => Promise<void> }) | null)?.playCoveredEntry?.();
+            }
+          },
+          reveal: target === "fridge" || target === "document" ? "fade" : "split",
+        }).catch((error) => {
+          console.warn("Kisara comic handoff failed", error);
+        }).finally(() => {
+          if (disposed) return;
+          if (pageMode === "snap") pageMode = window.scrollY > 2 ? "next" : "gate";
+          scrollTransitionDirection = "idle";
+          lastObservedScrollY = window.scrollY;
+          homeSectionInputGuardUntil = performance.now() + 220;
+          render();
+        });
+        return true;
+      };
+
       const isOpeningStopCurrent = () => {
         if (!(opening instanceof HTMLElement) || pageMode !== "next") return false;
         const tolerance = clamp(window.innerHeight * 0.08, 24, 88);
@@ -12676,6 +12665,10 @@ const gateStyle = [
       };
 
       const restoreOpeningBridgePresentation = () => {
+        if (opening?.classList.contains("kisara-comic-section")) {
+          openingBridgeRecoveryPending = false;
+          return false;
+        }
         if (
           !openingBridgeRecoveryPending
           || document.visibilityState === "hidden"
@@ -12729,6 +12722,7 @@ const gateStyle = [
       };
 
       const getReturnToGateThreshold = () => {
+        if (opening?.classList.contains("kisara-comic-section")) return getNextPageTop() + 24;
         const edgeHeight = openingEdge instanceof HTMLElement
           ? openingEdge.offsetHeight
           : 180;
@@ -12979,34 +12973,20 @@ const gateStyle = [
       };
 
       const enterNextPage = () => {
-        if (lovebrainActive || pageMode === "lovebrain" || scrollTransitionDirection === "forward") return;
+        if (lovebrainActive || pageMode === "lovebrain" || comicTransition.active) return;
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
         clearOpeningTitleBridgeDissolve();
         clearReleaseTransientEffects();
-        pageMode = "snap";
         gateReturnGuardUntil = 0;
         setPostReleaseActive(false);
-        releaseOpeningEdgeState();
-        syncOpeningEdgeLiveGeometry(true);
-        primeCurrentOpeningEdgeTextures();
-        activateOpeningBridgePortal();
-        startOpeningBridgeDissolve();
-        const started = smoothScrollTo(getNextPageTop(), () => {
+        runComicHandoff("opening", () => {
+          setScrollPosition(getNextPageTop(), true);
           pageMode = "next";
           lastObservedScrollY = window.scrollY;
-          render();
-          syncOpeningEdgeLiveGeometry(true);
-          lockOpeningEdgeState();
           gateVisualResetPending = true;
+          finalizeGateResetForNextPage();
           if (foundSelfState === "leaving") finalizeFoundSelfExit();
-        }, () => {
-          syncOpeningEdgeLiveGeometry(true);
-        }, "forward");
-        if (!started) {
-          pageMode = "gate";
-          deactivateOpeningBridgePortal();
-          settleOpeningBridgeDissolve();
-        }
+        });
       };
 
       const finalizeLovebrainExit = () => {
@@ -13027,43 +13007,28 @@ const gateStyle = [
       };
 
       const enterLovebrainNextPage = () => {
-        if (!lovebrainActive || pageMode !== "lovebrain" || scrollTransitionDirection === "forward") return false;
+        if (!lovebrainActive || pageMode !== "lovebrain" || comicTransition.active) return false;
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
-        pageMode = "snap";
-        gate.classList.add("is-lovebrain-transporting");
-        opening?.classList.add("is-lovebrain-transporting");
-        lovebrainExitCommitted = true;
-        lovebrainActive = false;
-        resetGateState();
-        startSpaceLens();
-        startTitleLens();
-        gate.classList.remove("is-lovebrain-active");
-        document.body.classList.remove("is-lovebrain-home-active");
         const publishLovebrainOpeningProgress = (progress) => {
           window.dispatchEvent(new CustomEvent("yuimi:kisara-lovebrain-opening-progress", {
             detail: { progress: clamp(progress, 0, 1) }
           }));
         };
         publishLovebrainOpeningProgress(0);
-        const started = smoothScrollTo(getNextPageTop(), () => {
+        return runComicHandoff("opening", () => {
+          lovebrainExitCommitted = true;
+          lovebrainActive = false;
+          resetGateState();
+          startSpaceLens();
+          startTitleLens();
+          gate.classList.remove("is-lovebrain-active");
+          document.body.classList.remove("is-lovebrain-home-active");
+          setScrollPosition(getNextPageTop(), true);
           pageMode = "next";
           lastObservedScrollY = window.scrollY;
           publishLovebrainOpeningProgress(1);
           finalizeLovebrainExit();
-        }, (journeyProgress) => {
-          publishLovebrainOpeningProgress(journeyProgress);
-        }, "forward", "lovebrain");
-        if (!started) {
-          lovebrainActive = true;
-          lovebrainExitCommitted = false;
-          pageMode = "lovebrain";
-          gate.classList.add("is-lovebrain-active");
-          document.body.classList.add("is-lovebrain-home-active");
-          stopLovebrainDefaultResources();
-          gate.classList.remove("is-lovebrain-transporting");
-          opening?.classList.remove("is-lovebrain-transporting");
-        }
-        return started;
+        });
       };
 
       const completeGateReturn = () => {
@@ -13330,6 +13295,7 @@ const gateStyle = [
       };
 
       const returnToGate = () => {
+        if (comicTransition.active) return;
         if (lovebrainActive) {
           returnLovebrainToGate();
           return;
@@ -13338,35 +13304,11 @@ const gateStyle = [
         if (scrollTransitionDirection === "return") return;
         clearHomeGateReturnArm();
         if (scrollFrame || scrollTransitionDirection !== "idle") cancelSmoothScroll();
-        pageMode = "snap";
-        const returnRailStart = getDocumentScrollProgress();
-        const shouldDissolveTitleReset = hasGateTitleVisualState();
-        gateVisualResetPending = false;
-        if (shouldDissolveTitleReset) startOpeningTitleBridgeDissolve();
-        else clearOpeningTitleBridgeDissolve();
-        activateOpeningBridgePortal();
-        requestHomeSectionReplayReset();
-        publishGateRailState({
-          active: true,
-          progress: returnRailStart,
-          stage: "returning",
-          guided: false,
-          transitioning: true
-        });
-        const started = smoothScrollTo(0, () => {
+        runComicHandoff("gate", () => {
+          setScrollPosition(0, true);
+          requestHomeSectionReplayReset();
           completeGateReturn();
-        }, (journeyProgress) => {
-          updateOpeningTitleBridgeDissolve(journeyProgress);
-          resetOpeningMemoryWhenCovered();
-          publishGateRailState({
-            active: true,
-            progress: returnRailStart * (1 - journeyProgress),
-            stage: "returning",
-            guided: false,
-            transitioning: true
-          });
-        }, "return");
-        if (!started) completeGateReturn();
+        });
       };
 
       const clearHomeGateReturnArm = () => {
@@ -13500,6 +13442,15 @@ const gateStyle = [
       const smoothScrollToHomeSection = (stop) => {
         clearHomeGateReturnArm();
         homeSectionWheelAccumulator = 0;
+        if (stop.element === opening || isOpeningStopCurrent()) {
+          const target = stop.element === opening ? "opening"
+            : stop.element.dataset.kisaraHomeStop === "002" ? "fridge" : "document";
+          return runComicHandoff(target, () => {
+            settleHomeSectionStop(stop);
+            pageMode = "next";
+            if (gateVisualResetPending) finalizeGateResetForNextPage();
+          });
+        }
         const destination = getHomeSectionTop(stop.element);
         const direction = destination >= window.scrollY ? "section-forward" : "section-return";
         const restoresOpeningBridge = stop.element === opening
@@ -13724,6 +13675,7 @@ const gateStyle = [
 
       const handleDirectionalInput = (delta, event, inputType = "wheel") => {
         if (delta === 0) return;
+        if (comicTransition.active) { event.preventDefault(); return; }
         if (lovebrainActive && pageMode === "lovebrain") {
           event.preventDefault();
           return;
@@ -13789,6 +13741,11 @@ const gateStyle = [
           addProgress(gateDelta);
           return;
         }
+        if (pageMode === "next" && isOpeningStopCurrent() && delta > 0
+          && (inputType === "touch" || !homeSectionSnapMedia.matches)) {
+          const target = getHomeSectionStopRecords()[1];
+          if (target) { event.preventDefault(); smoothScrollToHomeSection(target); return; }
+        }
         if (pageMode === "next" && handleHomeSectionInput(delta, event, inputType)) return;
         if (
           pageMode === "next"
@@ -13805,6 +13762,19 @@ const gateStyle = [
         const delta = normalizeWheel(event);
         handleDirectionalInput(delta, event, "wheel");
       }, { passive: false, signal });
+
+      opening?.addEventListener("click", (event) => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
+        const link = event.target instanceof Element
+          ? event.target.closest('a[data-kisara-route-kind="chapter"], a[data-comic-next]')
+          : null;
+        if (!(link instanceof HTMLAnchorElement)) return;
+        const id = link.hasAttribute("data-comic-next") ? "002" : link.dataset.kisaraRouteId;
+        const stop = getHomeSectionStopRecords().find(record => record.element.dataset.kisaraHomeStop === id);
+        if (!stop) return;
+        event.preventDefault();
+        if (!comicTransition.active) smoothScrollToHomeSection(stop);
+      }, { signal });
 
       window.addEventListener("keydown", (event) => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;

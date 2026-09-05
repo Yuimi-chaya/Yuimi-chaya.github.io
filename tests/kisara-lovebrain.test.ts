@@ -162,7 +162,8 @@ test("Lovebrain uses a dedicated page mode and bridge transport", () => {
   assert.match(forwardSource, /lovebrainActive = false/);
   assert.match(forwardSource, /publishLovebrainOpeningProgress/);
   assert.match(forwardSource, /new CustomEvent\("yuimi:kisara-lovebrain-opening-progress"/);
-  assert.match(forwardSource, /const started = smoothScrollTo\(/);
+  assert.match(forwardSource, /return runComicHandoff\("opening"/);
+  assert.doesNotMatch(forwardSource, /smoothScrollTo\(/);
   const resetIndex = forwardSource.indexOf("resetGateState()");
   const startSpaceLensIndex = forwardSource.indexOf("startSpaceLens()", resetIndex);
   const startTitleLensIndex = forwardSource.indexOf("startTitleLens()", startSpaceLensIndex);

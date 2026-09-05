@@ -157,7 +157,8 @@ test("Kisara Home 003 cues its board labels from the real video clock", () => {
 });
 
 test("Kisara Home masks chapter seams with motion-paper transitions", () => {
-  assert.match(homeSource, /is-memory-to-fridge[^]*is-fridge-to-event[^]*is-event-to-latest/);
+  assert.match(homeSource, /is-fridge-to-event[^]*is-event-to-latest/);
+  assert.doesNotMatch(homeSource, /class="kisara-home-transition is-memory-to-fridge"/);
   assert.match(homeStyles, /\.kisara-home-transition \{[^]*--transition-paper:[^]*radial-gradient\(circle, var\(--transition-dot\)/);
   assert.match(homeStyles, /\.kisara-home-transition:not\(\.is-latest-to-footer\)::before,[^]*border: 2px dashed var\(--transition-pink\)/);
   assert.match(homeStyles, /\.kisara-home-transition\.is-event-to-latest \{[^]*--transition-from: #080a12;[^]*--transition-to: #dbe2ec;/);

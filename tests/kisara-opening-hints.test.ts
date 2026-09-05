@@ -1,192 +1,148 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { readFileSync, statSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const readSource = (relativePath: string) => readFileSync(
-  fileURLToPath(new URL(`../${relativePath}`, import.meta.url)),
-  "utf8"
+  fileURLToPath(new URL(`../${relativePath}`, import.meta.url)), "utf8"
 );
+const opening = readSource("src/themes/kisara/components/KisaraOpeningMemoryScene.astro");
+const routes = readSource("src/themes/kisara/data/openingRoutes.ts");
+const runtime = readSource("src/themes/kisara/lib/comicOpening.ts");
+const css = readSource("src/themes/kisara/styles/home-comic.css");
+const home = readSource("src/themes/kisara/pages/HomePage.astro");
+const layout = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
+const fridge = readSource("src/themes/kisara/components/KisaraFridgeScene.astro");
+const hintIds = ["chibi-jealousy", "chibi-apple", "found-self", "photo-archive", "memory-return"];
 
-const layoutSource = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
-const openingSource = readSource("src/themes/kisara/components/KisaraOpeningMemoryScene.astro");
-const homeCssSource = readSource("src/themes/kisara/styles/home.css");
-const chibiSource = readSource("src/themes/kisara/components/KisaraChibiStage.astro");
-const homeSource = readSource("src/themes/kisara/pages/HomePage.astro");
-const audioSource = readSource("src/themes/kisara/components/KisaraAudioControl.astro");
-const gamesSource = readSource("src/themes/kisara/pages/GamesPage.astro");
-const gameClueSource = readSource("src/themes/kisara/components/KisaraGameClueScene.astro");
-
-const hintIds = [
-  "chibi-jealousy",
-  "chibi-apple",
-  "found-self",
-  "photo-archive",
-  "memory-return"
-];
-
-test("Kisara opening hints use one versioned tab-session ledger", () => {
-  assert.match(layoutSource, /yuimi-kisara-opening-hints-v1/);
-  assert.match(layoutSource, /yuimi:kisara-opening-hint-achieved/);
+test("Comic 001 preserves the five hidden-route definitions and versioned ledger", () => {
+  assert.match(layout, /yuimi-kisara-opening-hints-v1/);
   for (const id of hintIds) {
-    assert.match(layoutSource, new RegExp(`"${id}"`), `${id} must be allowlisted`);
-    const routeDefinition = openingSource.match(new RegExp(`\{ id: "${id}"[^\n]+\}`, "g")) ?? [];
-    assert.equal(routeDefinition.length, 1, `${id} must own exactly one hidden-route definition`);
+    assert.match(layout, new RegExp(`"${id}"`));
+    assert.equal((routes.match(new RegExp(`id: "${id}"`, "g")) ?? []).length, 1);
   }
-  assert.match(openingSource, /data-kisara-opening-hint=\{route\.id\}/);
+  assert.match(runtime, /yuimi:kisara-opening-hint-achieved/);
+  assert.match(runtime, /__yuimiKisaraEasterLedger\?\.has/);
+  assert.match(opening, /data-kisara-opening-hint=\{route\.id\}/);
 });
 
-test("Each opening hint is marked only from its accepted trigger path", () => {
-  assert.match(chibiSource, /mark\("chibi-jealousy"\)/);
-  assert.match(chibiSource, /mark\("chibi-apple"\)/);
-  assert.match(homeSource, /mark\("found-self"\)/);
-  assert.match(gameClueSource, /mark\("photo-archive"\)/);
-  assert.match(audioSource, /mark\("memory-return"\)/);
-  assert.doesNotMatch(gamesSource, /mark\("game-shake"\)/);
-
-  const rewardIndex = gameClueSource.indexOf("const completeReward = (autoplay: boolean) => {");
-  const solvedIndex = gameClueSource.indexOf('setState("solved")', rewardIndex);
-  const photoHintIndex = gameClueSource.indexOf('mark("photo-archive")', solvedIndex);
-  assert.ok(rewardIndex >= 0 && solvedIndex > rewardIndex && photoHintIndex > solvedIndex);
+test("Each opening hint is still granted only by its accepted scene", () => {
+  const chibi = readSource("src/themes/kisara/components/KisaraChibiStage.astro");
+  const clue = readSource("src/themes/kisara/components/KisaraGameClueScene.astro");
+  const audio = readSource("src/themes/kisara/components/KisaraAudioControl.astro");
+  assert.match(chibi, /mark\("chibi-jealousy"\)/);
+  assert.match(chibi, /mark\("chibi-apple"\)/);
+  assert.match(home, /mark\("found-self"\)/);
+  assert.match(clue, /mark\("photo-archive"\)/);
+  assert.match(audio, /mark\("memory-return"\)/);
+  assert.doesNotMatch(runtime, /EasterLedger\?\.mark/);
 });
 
-test("Opening hint strike keeps the Pulse-style layered motion and reduced-motion fallback", () => {
-  assert.match(homeCssSource, /kisara-opening-hint-strike/);
-  assert.match(homeCssSource, /clip-path: polygon/);
-  assert.match(homeCssSource, /is-hint-achieved/);
-  assert.match(homeCssSource, /prefers-reduced-motion: reduce/);
+test("Completed hints keep one whole-label strike and keyboard-readable clues", () => {
+  assert.equal((opening.match(/class="kisara-opening-easter-hint-copy"/g) ?? []).length, 1);
+  assert.equal((opening.match(/class="kisara-opening-easter-hint-fragment"/g) ?? []).length, 1);
+  assert.match(opening, /tabindex="0" title=\{route\.detail\}/);
+  assert.match(css, /kisara-opening-hint-strike/);
+  assert.match(css, /is-hint-achieved/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
 });
 
-test("Each achieved opening hint draws one continuous stroke across its marker", () => {
-  const hiddenTemplateStart = openingSource.indexOf('class="kisara-opening-route-secret"');
-  const hiddenTemplateEnd = openingSource.indexOf("</span>", openingSource.indexOf("kisara-opening-easter-hint-fragment", hiddenTemplateStart));
-  const hiddenTemplate = openingSource.slice(hiddenTemplateStart, hiddenTemplateEnd);
-  assert.ok(hiddenTemplateStart >= 0 && hiddenTemplateEnd > hiddenTemplateStart);
-  assert.equal((hiddenTemplate.match(/kisara-opening-easter-hint-copy/g) ?? []).length, 1);
-  assert.equal((hiddenTemplate.match(/kisara-opening-easter-hint-fragment/g) ?? []).length, 1);
-  assert.equal((hiddenTemplate.match(/kisara-opening-route-secret/g) ?? []).length, 1);
-});
-
-test("Opening 001 keeps five page stops and separates hidden routes from navigation", () => {
-  assert.match(openingSource, /data-kisara-opening-route-map/);
-  assert.match(openingSource, />KISARA</);
-  for (const branch of ["home", "blog", "games", "projects", "about"]) {
-    assert.match(openingSource, new RegExp(`id: "${branch}"`), `${branch} must own a top-level branch`);
-  }
-  for (const label of ["HOME", "BLOG", "GAME", "WORKS", "ME"]) {
-    assert.match(openingSource, new RegExp(`label: "${label}"`));
-  }
-  assert.doesNotMatch(openingSource, /id: "hidden"/);
-  assert.match(openingSource, /routeBranches\.map/);
-  assert.match(openingSource, /branch\.routes\.map/);
-  assert.equal((openingSource.match(/data-kisara-route-kind="page"/g) ?? []).length, 1, "page hubs are generated from one mapped template");
-  assert.equal((openingSource.match(/kind: "chapter"/g) ?? []).length, 4, "HOME owns four independently tracked chapters");
-  assert.equal((openingSource.match(/data-kisara-route-kind="easter"/g) ?? []).length, 1, "easter nodes are generated from one mapped template");
-  assert.match(openingSource, /hiddenRoutes\.map/);
-  assert.match(openingSource, /yuimi-kisara-opening-route-chapters-v1/);
-  assert.match(openingSource, /__yuimiKisaraLovebrainProgress\?\.snapshot/);
-  assert.match(openingSource, /yuimi:kisara-lovebrain-progress/);
-  assert.match(openingSource, /data-kisara-home-stop/);
-  assert.match(openingSource, /is-route-achieved/);
-});
-
-test("Opening contract stage docks, rewrites one clause, and strikes completed routes", () => {
-  assert.match(openingSource, /data-kisara-opening-route-root/);
-  assert.match(openingSource, /data-kisara-opening-route-journey inert/);
-  assert.match(openingSource, /routeMap\.clientWidth \* 0\.5/);
-  assert.match(openingSource, /routeMap\.clientHeight \* 0\.5/);
-  assert.match(openingSource, /--kisara-opening-route-root-center-x/);
-  assert.match(openingSource, /--kisara-opening-route-root-center-y/);
-  assert.match(openingSource, /routeJourney\?\.setAttribute\("inert", ""\)/);
-  assert.match(openingSource, /routeJourney\?\.removeAttribute\("inert"\)/);
-  assert.match(openingSource, /kisara-opening-contract-copy/);
-  assert.match(openingSource, /kisara-opening-contract-caption/);
-  assert.match(openingSource, /kisara-opening-route-revision/);
-  assert.doesNotMatch(openingSource, /kisara-opening-route-thread/);
-  assert.match(openingSource, /data-kisara-route-branch/);
-  assert.match(openingSource, /activateRouteBranch/);
-  assert.match(openingSource, /clearRouteBranch/);
-  assert.match(openingSource, /is-route-focused/);
-  assert.match(openingSource, /\(hover: hover\) and \(pointer: fine\)/);
-  assert.match(openingSource, /pointerenter/);
-  assert.match(openingSource, /focusin/);
-  assert.match(openingSource, /routeTapReady/);
-  assert.match(openingSource, /event\.preventDefault\(\)/);
-  assert.match(homeCssSource, /kisara-opening-contract-copy-in/);
-  assert.match(openingSource, /playRootCenterEntrance/);
-  assert.match(openingSource, /playTitleEntrance/);
-  assert.match(openingSource, /playSettledEntrance/);
-  assert.match(openingSource, /target\.animate\(keyframes, options\)/);
-  assert.match(openingSource, /duration: 760/);
-  assert.match(openingSource, /delay: 620 \+ index \* 115/);
-  assert.match(homeCssSource, /is-memory-video-playing \.kisara-opening-route-root[\s\S]*?route-root-center-x/);
-  assert.match(homeCssSource, /is-memory-video-settled \.kisara-opening-route-root[\s\S]*?route-root-dock-y/);
-  assert.match(homeCssSource, /is-memory-route-ready \.kisara-opening-route-journey/);
-  assert.match(homeCssSource, /\.kisara-opening-route-page\.is-active \.kisara-opening-route-notes/);
-  assert.match(homeCssSource, /\.kisara-opening-route-secrets/);
-  assert.match(homeCssSource, /kisara-opening-route-strike/);
-  assert.match(homeCssSource, /\.kisara-opening-route-page-hub::before/);
-  assert.match(homeCssSource, /\.kisara-opening-route-node::before/);
-  assert.match(homeCssSource, /is-route-achieved:not\(\.is-route-drawing\)/);
-  assert.match(homeCssSource, /prefers-reduced-motion: reduce[\s\S]*?\.kisara-opening-route-node/);
-});
-
-test("Opening route labels stay readable instead of truncating the navigation", () => {
-  const routeCssStart = homeCssSource.indexOf(".kisara-opening-route-map");
-  const routeCssEnd = homeCssSource.indexOf(".kisara-opening-easter-hint-fragment", routeCssStart);
-  const routeCss = homeCssSource.slice(routeCssStart, routeCssEnd);
-  assert.ok(routeCssStart >= 0 && routeCssEnd > routeCssStart);
-  assert.doesNotMatch(routeCss, /text-overflow:\s*ellipsis/);
-  assert.match(routeCss, /\.kisara-opening-route-root[\s\S]*?width: 250px/);
-  assert.match(routeCss, /\.kisara-opening-route-page-copy strong[\s\S]*?font: 900 var\(--route-word-size\)/);
-  assert.match(routeCss, /\.kisara-opening-route-node[\s\S]*?min-height: 42px/);
-  assert.match(routeCss, /\.kisara-opening-route-notes > li:nth-child\(4\)/);
-});
-
-test("Opening route navigation fills the paper with asymmetric contract clauses", () => {
-  assert.match(openingSource, /id: "home"[\s\S]*?columns: 4/);
-  assert.match(openingSource, /<\/h2>\s*<\/header>\s*<nav class="kisara-opening-video-body kisara-opening-route-map"/);
-  assert.match(homeCssSource, /\.kisara-opening-video-copy[\s\S]*?width: min\(820px/);
-  assert.match(homeCssSource, /\.kisara-opening-route-map[\s\S]*?position: absolute[\s\S]*?top: clamp\(300px, 31vh, 340px\)[\s\S]*?min-height: 380px/);
-  assert.match(homeCssSource, /\.kisara-opening-route-root-mark/);
-  assert.match(homeCssSource, /\.kisara-opening-route-node-icon/);
-  assert.match(homeCssSource, /--route-x/);
-  assert.match(homeCssSource, /--route-y/);
-  assert.match(homeCssSource, /\.kisara-opening-route-page\.is-blog[\s\S]*?--route-y: 64%/);
-  assert.match(homeCssSource, /\.kisara-opening-route-page\.is-projects[\s\S]*?--route-y: 21%/);
-  assert.match(homeCssSource, /\.kisara-opening-route-page\.is-active[\s\S]*?left: 59%[\s\S]*?width: 380px/);
-  assert.match(homeCssSource, /\.kisara-opening-route-map\.is-route-focused[\s\S]*?opacity: 0\.2/);
-  assert.match(homeCssSource, /\.kisara-opening-route-root-copy strong[\s\S]*?font: 900 2\.8rem/);
-  assert.doesNotMatch(openingSource, /kisara-opening-video-note/);
-  assert.doesNotMatch(openingSource, /kisara-opening-video-lead/);
-  assert.doesNotMatch(openingSource, /这份契约还没有定稿/);
-  assert.match(homeCssSource, /\.kisara-opening-video-copy[\s\S]*?top: clamp\(212px, 22vh, 246px\)/);
-  assert.match(homeCssSource, /\.kisara-opening-video-copy h2[\s\S]*?font-size: clamp\(2\.25rem, 3\.1vw, 3\.45rem\)/);
-});
-
-test("Opening 001 keeps the upper edge physically transparent before its media fade begins", () => {
-  assert.match(homeCssSource, /\.kisara-opening \{[\s\S]*?rgba\(241, 239, 235, 0\) 0 116px[\s\S]*?rgba\(241, 239, 235, 0\.06\) 146px/);
-  assert.match(homeCssSource, /\.kisara-opening-video-media[\s\S]*?transparent 0 72px[\s\S]*?#000 206px/);
-  assert.match(homeCssSource, /\.kisara-opening-video,[\s\S]*?filter: blur\(3\.2px\) saturate\(0\.84\) contrast\(0\.92\)/);
-  assert.match(homeCssSource, /\.kisara-opening::after[\s\S]*?transparent 0 72px[\s\S]*?#000 182px/);
-  assert.match(homeCssSource, /\.kisara-opening\.is-opening-bridge-live[\s\S]*?rgba\(241, 233, 224, 0\) 0 116px[\s\S]*?rgba\(241, 233, 224, 0\.06\) 146px[\s\S]*?#f1e9e0 218px/);
-  assert.doesNotMatch(homeCssSource, /rgba\(241, 233, 224, 0\.025\) 42px/);
-});
-
-test("Opening 001 projects one deferred first-screen memory without embedding live pages", () => {
-  assert.match(openingSource, /const routePreviews = \[/);
+test("Five page branches, four chapters, and page/chapter visit state survive replacement", () => {
   for (const id of ["home", "blog", "games", "projects", "about"]) {
-    assert.match(openingSource, new RegExp(`data-kisara-route-preview=\{preview\.id\}`));
-    assert.match(openingSource, new RegExp(`id: "${id}"[\\s\\S]*?src: "/themes/kisara/assets/`));
+    assert.match(routes, new RegExp(`id: "${id}"`));
   }
-  assert.match(openingSource, /data-src=\{preview\.src\}/);
-  assert.match(openingSource, /blog-hero-first\.webp/);
-  assert.match(openingSource, /--preview-blur/);
-  assert.match(openingSource, /image\.src = image\.dataset\.src/);
-  assert.match(openingSource, /removeAttribute\("src"\)/);
-  assert.match(openingSource, /data-preview-active/);
-  assert.doesNotMatch(openingSource, /<iframe/);
-  assert.match(homeCssSource, /\.kisara-opening-route-preview[\s\S]*?visibility: hidden/);
-  assert.match(homeCssSource, /\.kisara-opening-route-preview-figure[\s\S]*?mask-image: linear-gradient/);
-  assert.match(homeCssSource, /\.kisara-opening-route-map\.is-route-focused \.kisara-opening-route-preview/);
+  assert.equal((routes.match(/kind: "chapter"/g) ?? []).length, 4);
+  assert.match(opening, /routeBranches\.map/);
+  assert.match(opening, /branch\.routes\.map/);
+  assert.match(runtime, /yuimi-kisara-opening-route-chapters-v1/);
+  assert.match(runtime, /__yuimiKisaraLovebrainProgress\?\.snapshot/);
+  assert.match(runtime, /yuimi:kisara-lovebrain-progress/);
+  assert.match(runtime, /data-kisara-home-stop/);
+  assert.match(runtime, /routeTapReady/);
+  assert.match(runtime, /focusin/);
+  assert.match(runtime, /event\.metaKey \|\| event\.ctrlKey/);
+});
+
+test("001 is opaque and viewport-filling with no old transparent bridge markup", () => {
+  assert.match(home, /class="kisara-opening kisara-comic-section"/);
+  assert.match(css, /\.kisara-opening\.kisara-comic-section\s*\{[^}]*height: 100svh;[^}]*background: #fff;/);
+  assert.match(css, /\.kisara-comic-section::before, \.kisara-comic-section::after \{ content: none; \}/);
+  assert.doesNotMatch(home, /class="kisara-opening-edge"|class="kisara-opening-inner"/);
+  assert.doesNotMatch(readSource("src/themes/kisara/styles/home.css"), /\.kisara-opening/);
+  assert.doesNotMatch(readSource("src/themes/kisara/styles/theme.css"), /\.kisara-opening/);
+});
+
+test("Comic assets are deferred; 001 no longer downloads or drives its former footage", () => {
+  for (const id of ["quiet", "action", "smile", "candle"]) assert.match(opening, new RegExp(`id: "${id}"`));
+  assert.match(opening, /hero-hybrid\.webp/);
+  assert.match(opening, /hero-structure\.svg/);
+  assert.match(opening, /data-comic-src/);
+  assert.match(runtime, /await image\.decode\(\)/);
+  assert.match(runtime, /Promise\.allSettled/);
+  assert.doesNotMatch(opening, /<video|<iframe|opening-memory-001/);
+  assert.doesNotMatch(runtime, /requestAnimationFrame|setInterval/);
+  assert.match(runtime, /observer\.disconnect\(\)/);
+  assert.match(runtime, /serial !== generation/);
+});
+
+test("Comic entrance and return commit behind the curtain instead of scrolling the page up", () => {
+  const entry = home.slice(home.indexOf("const enterNextPage ="), home.indexOf("const finalizeLovebrainExit ="));
+  const back = home.slice(home.indexOf("const returnToGate ="), home.indexOf("const clearHomeGateReturnArm ="));
+  assert.match(entry, /runComicHandoff\("opening"/);
+  assert.match(back, /runComicHandoff\("gate"/);
+  assert.match(back, /setScrollPosition\(0, true\);\s*requestHomeSectionReplayReset\(\);\s*completeGateReturn\(\)/);
+  assert.doesNotMatch(entry + back, /smoothScrollTo\(/);
+  assert.match(home, /if \(comicTransition\.active\) \{ event\.preventDefault\(\); return; \}/);
+  assert.match(home, /a\[data-comic-next\]/);
+  assert.match(css, /kisara-comic-character-in/);
+});
+
+test("Fridge handoff checks a fresh decoded frame and has bounded failure cleanup", () => {
+  assert.match(fridge, /playCoveredEntry\(\)/);
+  assert.match(fridge, /armOpening\(false\)/);
+  assert.match(fridge, /!video\.seeking && metadata\.mediaTime < \.3/);
+  assert.match(fridge, /cancelVideoFrameCallback/);
+  assert.match(fridge, /signal\.removeEventListener\("abort", finish\)/);
+  assert.match(fridge, /1800/);
+});
+
+test("All five supplied images have hybrid derivatives and real vector masters", () => {
+  const manifest = JSON.parse(readSource("design/kisara-comic-001/collection/manifest.json"));
+  assert.equal(manifest.assets.length, 5);
+  assert.ok(manifest.runtimeBytes < 400_000);
+  for (const asset of manifest.assets) {
+    const vector = readSource(`design/kisara-comic-001/collection/${asset.id}.svg`);
+    assert.match(vector, /<path/);
+    assert.doesNotMatch(vector, /<(?:image|foreignObject|script)\b/);
+    const sourcePath = new URL(`../kisara/comic/${asset.source}`, import.meta.url);
+    // Original source materials intentionally stay outside Git.
+    try {
+      const original = readFileSync(sourcePath);
+      assert.equal(createHash("sha256").update(original).digest("hex"), asset.sourceSha256);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    const filename = asset.id === "hero" ? "hero-hybrid.webp" : `${asset.id}.webp`;
+    assert.equal(statSync(new URL(`../public/themes/kisara/assets/home-comic/${filename}`, import.meta.url)).size, asset.runtimeBytes);
+  }
+});
+
+test("Comic vector masters and published derivatives rasterize with visible linework", async () => {
+  const { default: sharp } = await import("sharp");
+  sharp.concurrency(2);
+  const manifest = JSON.parse(readSource("design/kisara-comic-001/collection/manifest.json"));
+  for (const asset of manifest.assets) {
+    const filename = asset.id === "hero" ? "hero-hybrid.webp" : `${asset.id}.webp`;
+    for (const relative of [
+      `design/kisara-comic-001/collection/${asset.id}.svg`,
+      `public/themes/kisara/assets/home-comic/${filename}`,
+    ]) {
+      const image = sharp(readFileSync(new URL(`../${relative}`, import.meta.url)));
+      const metadata = await image.metadata();
+      assert.deepEqual([metadata.width, metadata.height], asset.runtimeSize);
+      const pixels = await image.resize({ width: 256 }).flatten({ background: "#fff" }).stats();
+      assert.ok(pixels.channels[0].stdev > 20, `${relative} must retain visible linework`);
+    }
+  }
 });

@@ -188,6 +188,11 @@ import { Icon } from "astro-icon/components";
       resizeObserver: ResizeObserver | null = null;
       resetScene: (() => void) | null = null;
       refreshScene: (() => void) | null = null;
+      coveredEntry: (() => Promise<void>) | null = null;
+
+      playCoveredEntry() {
+        return this.coveredEntry?.() ?? Promise.resolve();
+      }
 
       resetPresentation() {
         this.resetScene?.();
@@ -854,6 +859,45 @@ import { Icon } from "astro-icon/components";
 
         this.resetScene = () => armOpening(true);
         this.refreshScene = scheduleVisibilitySync;
+        this.coveredEntry = () => new Promise<void>((resolve) => {
+          let frame = 0;
+          let timer = 0;
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timer);
+            if (frame) video.cancelVideoFrameCallback?.(frame);
+            video.removeEventListener("playing", fallbackReady);
+            signal.removeEventListener("abort", finish);
+            resolve();
+          };
+          const fallbackReady = () => {
+            if (!video.seeking && video.currentTime < .3) finish();
+          };
+          sceneVisible = measureSceneVisibility();
+          armOpening(false);
+          if (reducedMotion || !sceneVisible || signal.aborted) {
+            startOpening();
+            finish();
+            return;
+          }
+          if (video.requestVideoFrameCallback) {
+            const inspect: VideoFrameRequestCallback = (_, metadata) => {
+              frame = 0;
+              if (settled || signal.aborted) return;
+              if (!video.seeking && metadata.mediaTime < .3) finish();
+              else frame = video.requestVideoFrameCallback(inspect);
+            };
+            frame = video.requestVideoFrameCallback(inspect);
+          } else video.addEventListener("playing", fallbackReady);
+          signal.addEventListener("abort", finish, { once: true });
+          timer = window.setTimeout(() => {
+            if (!signal.aborted && sceneVisible) finishOpening();
+            finish();
+          }, 1800);
+          startOpening();
+        });
         signal.addEventListener("abort", () => {
           playbackGeneration += 1;
           clearPlaybackTimers();
@@ -876,6 +920,7 @@ import { Icon } from "astro-icon/components";
         this.resizeObserver = null;
         this.resetScene = null;
         this.refreshScene = null;
+        this.coveredEntry = null;
       }
     }
 

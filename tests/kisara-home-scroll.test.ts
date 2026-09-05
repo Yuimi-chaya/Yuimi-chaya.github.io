@@ -8,7 +8,7 @@ const homeSource = readFileSync(
   "utf8"
 );
 
-test("Home clears release particles before the live bridge leaves the Gate", () => {
+test("Home clears release particles before the opaque comic handoff leaves the Gate", () => {
   const clearStart = homeSource.indexOf("const clearReleaseTransientEffects =");
   const clearEnd = homeSource.indexOf("const startReleaseAutoplay =", clearStart);
   const clearSource = homeSource.slice(clearStart, clearEnd);
@@ -21,9 +21,11 @@ test("Home clears release particles before the live bridge leaves the Gate", () 
   const enterEnd = homeSource.indexOf("const finalizeLovebrainExit =", enterStart);
   const enterSource = homeSource.slice(enterStart, enterEnd);
   const clearIndex = enterSource.indexOf("clearReleaseTransientEffects()");
-  const snapIndex = enterSource.indexOf('pageMode = "snap"');
-  const bridgeIndex = enterSource.indexOf("activateOpeningBridgePortal()");
-  assert.ok(clearIndex >= 0 && snapIndex > clearIndex && bridgeIndex > snapIndex);
+  const bridgeIndex = enterSource.indexOf('runComicHandoff("opening"');
+  assert.ok(clearIndex >= 0 && bridgeIndex > clearIndex);
+  assert.doesNotMatch(enterSource, /smoothScrollTo\(/);
+  assert.doesNotMatch(enterSource, /activateOpeningBridgePortal\(/);
+  assert.match(enterSource, /finalizeGateResetForNextPage\(\)/);
 });
 
 test("Restored and damped Home navigation settles on a current section anchor", () => {
