@@ -9492,10 +9492,11 @@ const gateStyle = [
           : box.top + box.height;
         const xShift = box.width * definition.xShift;
         const entryInset = box.width * definition.xInset;
+        const tailLinkWidth = getChainLinkDimensions(definition).width;
         const tailBurial = Math.max(
           box.width * definition.tailInset,
-          getChainLinkDimensions(definition).width * 0.72 + box.height * 0.06
-        );
+          tailLinkWidth * 0.72 + box.height * 0.06
+        ) + tailLinkWidth;
         const anchorXs = [
           definition.direction < 0 ? textLeft + tailBurial : textLeft - entryInset,
           ...gaps.map((gap) => gap + xShift),
@@ -9873,6 +9874,20 @@ const gateStyle = [
               distanceUnit: boundaryDistanceUnit,
               unit: boundaryUnit
             };
+          }
+          const sourceTailStep = 1 / Math.max(1, linkCount - 1);
+          const sourceTailLinkCount = Math.max(
+            2,
+            Math.ceil(definition.entryOverscan / sourceTailStep / 2) * 2
+          );
+          for (let index = 1; index <= sourceTailLinkCount; index += 1) {
+            const sourceDistance = sourceTailStep * index;
+            records.push({
+              distanceUnit: definition.direction > 0
+                ? -sourceDistance
+                : 1 + sourceDistance,
+              unit: definition.direction > 0 ? 0 : 1
+            });
           }
           records.sort((left, right) => left.distanceUnit - right.distanceUnit);
         }
@@ -11200,7 +11215,7 @@ const gateStyle = [
               breakLinkIndex = index;
             }
           }
-          const travel = easeOutCubic(build);
+          const travel = definition.type === "weave" ? build : easeOutCubic(build);
           const travelSpan = 1 + definition.entryOverscan;
           const travelOffset = definition.direction > 0
             ? travel * travelSpan - travelSpan
@@ -11302,7 +11317,11 @@ const gateStyle = [
             const outside = Math.max(0, -travelUnit, travelUnit - 1);
             const ingressFade = 1 - smootherstep(clamp((outside - 0.02) / 0.11, 0, 1));
             let alpha = visibility * phaseProgress(build, 0.02, 0.07) * ingressFade;
-            const order = definition.direction > 0 ? distanceUnit : 1 - distanceUnit;
+            const order = clamp(
+              definition.direction > 0 ? distanceUnit : 1 - distanceUnit,
+              0,
+              1
+            );
             const heatSeed = randomSeed(
               39019 + definition.id * 191.7 + linkIndex * 29.13
             );
