@@ -121,6 +121,14 @@ test("The comic index has editorial columns and synchronized accessible route gr
   assert.match(css, /kisara-comic-route-details \[hidden\] \{ display: none; \}/);
 });
 
+test("The persistent Home header stays above the comic flight without a visibility animation", () => {
+  const flight = css.match(/\.kisara-comic-flight\s*\{([^}]+)\}/)?.[1] ?? "";
+  const header = css.match(/body\.kisara-home-page:not\(\.is-lovebrain-home-active\):has\(> \.kisara-comic-flight\) > \.kisara-header\s*\{([^}]+)\}/)?.[1] ?? "";
+  const zIndex = (rule: string) => Number(rule.match(/z-index:\s*(\d+)/)?.[1]);
+  assert.ok(zIndex(header) > zIndex(flight));
+  assert.doesNotMatch(header, /opacity|visibility|transform|animation|transition/);
+});
+
 test("Fridge handoff checks a fresh decoded frame and has bounded failure cleanup", () => {
   assert.match(fridge, /playCoveredEntry\(\)/);
   assert.match(fridge, /armOpening\(false\)/);

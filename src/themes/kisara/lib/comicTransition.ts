@@ -61,7 +61,7 @@ export function createComicTransition(signal: AbortSignal, reducedMotion: boolea
             // Enter commits behind the completed paper; leave commits after it dissolves to black.
             await settleWithin(Promise.resolve(commit()), 2200, signal);
             if (!signal.aborted && mode === "leave") {
-              await motion.animate(overlay, [{ opacity: 1 }, { opacity: 0 }], 160);
+              await motion.animate(overlay, [{ opacity: 1 }, { opacity: 0 }], 100);
             }
           }
         }

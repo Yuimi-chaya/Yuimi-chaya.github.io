@@ -114,6 +114,7 @@ function fixture() {
     return group;
   });
   scene.append(caption);
+  for (let i = 0; i < 5; i++) scene.append(make("comic-caption", { comicCaption: "" }));
   const doc = Object.assign(new EventTarget(), {
     hidden: false, createElement: (tag: string) => new FakeNode(tag),
     querySelectorAll: () => [], body: { append(node: FakeNode) { nodes.push(node); } },
@@ -159,6 +160,8 @@ test("Entry grows the actual comic from its subject before committing the scroll
     const paper = f.animations.find(animation => animation.node.className === "kisara-comic-paper")!;
     assert.equal(subject.options.delay, 0);
     assert.ok(Number(paper.options.delay) > Number(subject.options.delay));
+    assert.equal(paper.options.easing, "cubic-bezier(.23,1,.32,1)");
+    assert.ok(Math.max(...f.animations.map(animation => Number(animation.options.delay) + Number(animation.options.duration))) <= 650);
     assert.match(String(paper.frames[0].clipPath), /^polygon\(/);
     f.finish();
     assert.equal(await run, true);
@@ -181,6 +184,8 @@ test("Exit removes paper before the subject, then holds black for the fridge's f
     const subject = f.animations.find(animation => animation.node.className === "kisara-comic-portrait")!;
     const paper = f.animations.find(animation => animation.node.className === "kisara-comic-paper")!;
     assert.ok(Number(subject.options.delay) > Number(paper.options.delay));
+    const exitDuration = Math.max(...f.animations.map(animation => Number(animation.options.delay) + Number(animation.options.duration)));
+    assert.ok(exitDuration <= 580);
     f.finish();
     await flush();
     assert.equal(commits, 1);
@@ -192,7 +197,8 @@ test("Exit removes paper before the subject, then holds black for the fridge's f
     firstFrame.resolve();
     await flush();
     assert.equal(f.animations.length, count + 1);
-    assert.equal(f.animations.at(-1)?.options.duration, 160);
+    assert.equal(f.animations.at(-1)?.options.duration, 100);
+    assert.ok(exitDuration + Number(f.animations.at(-1)?.options.duration) <= 680);
     f.finish();
     await run;
     assert.equal(f.nodes.length, 0);

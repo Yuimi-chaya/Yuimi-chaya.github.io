@@ -82,14 +82,14 @@ export function createComicMotion(signal: AbortSignal, reducedMotion: boolean) {
       const fade = [{ opacity: 0 }, { opacity: 1 }];
       const ordered = (frames: Keyframe[]) => reverse ? [...frames].reverse() : frames;
       const jobs = [
-        animate(portrait, ordered(reveal), reverse ? 460 : 600, reverse ? 780 : 0),
-        animate(paper, ordered(spread), reverse ? 920 : 1020, reverse ? 160 : 260, "cubic-bezier(.77,0,.175,1)"),
+        animate(portrait, ordered(reveal), reverse ? 260 : 360, reverse ? 320 : 0),
+        animate(paper, ordered(spread), reverse ? 480 : 520, reverse ? 40 : 100, reverse ? "cubic-bezier(.77,0,.175,1)" : undefined),
       ];
       scene.querySelectorAll<HTMLElement>(".kisara-comic-panel").forEach((panel, index) => {
-        jobs.push(animate(panel, ordered(fade), reverse ? 320 : 540, reverse ? index * 40 : 400 + index * 65));
+        jobs.push(animate(panel, ordered(fade), reverse ? 180 : 280, reverse ? index * 25 : 160 + index * 35));
       });
       scene.querySelectorAll<HTMLElement>("[data-comic-caption]").forEach((caption, index) => {
-        jobs.push(animate(caption, ordered(fade), reverse ? 240 : 420, reverse ? 0 : 640 + index * 40));
+        jobs.push(animate(caption, ordered(fade), reverse ? 160 : 220, reverse ? 0 : 280 + index * 30));
       });
       await Promise.all(jobs);
       if (!reverse && paper && serial === generation && !signal.aborted) paper.style.clipPath = "none";
