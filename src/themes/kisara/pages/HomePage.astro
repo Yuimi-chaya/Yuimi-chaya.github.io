@@ -1523,6 +1523,9 @@ const gateStyle = [
       let chainCanvasWidth = 0;
       let chainCanvasHeight = 0;
       let chainPixelRatio = 1;
+      let chainLastPaintTimestamp = 0;
+      let chainLastPaintFill = -1;
+      let chainLastPaintIntro = -1;
       let chainTitleBox = { left: 0, top: 0, width: 0, height: 0 };
       const chainLinkUnitCache = new Map();
       const chainLinkSpriteCache = new Map();
@@ -2867,6 +2870,9 @@ const gateStyle = [
           context.setTransform(chainPixelRatio, 0, 0, chainPixelRatio, 0, 0);
           canvas.style.opacity = "0";
         }
+        chainLastPaintTimestamp = 0;
+        chainLastPaintFill = -1;
+        chainLastPaintIntro = -1;
       };
 
       const rebuildTitleChainLayout = () => {
@@ -9379,20 +9385,23 @@ const gateStyle = [
       const chainDefinitions = [
         {
           id: 0,
-          type: "frame",
+          type: "weave",
           buildStart: 0.025,
-          buildEnd: 0.54,
+          buildEnd: 0.62,
           direction: 1,
-          phase: -1.92,
-          radiusX: 0.445,
-          radiusY: 0.13,
-          rotation: -0.02,
-          breakT: 0.18,
-          desktopLinks: 52,
-          mobileLinks: 20,
-          linkScale: 0.98,
+          verticalPhase: 0,
+          planePhase: 0,
+          topInset: 0.04,
+          bottomInset: 0.04,
+          xInset: 0.11,
+          xShift: -0.012,
+          breakT: 0.3,
+          desktopLinksPerSegment: 5,
+          mobileLinksPerSegment: 2,
+          linkScale: 0.92,
+          tailInset: 0.052,
           entryOverscan: 0.16,
-          entryBend: -0.06
+          entryBend: -0.12
         },
         {
           id: 1,
@@ -9407,9 +9416,9 @@ const gateStyle = [
           xInset: 0.075,
           xShift: -0.006,
           breakT: 0.5,
-          desktopLinksPerSegment: 8,
+          desktopLinksPerSegment: 6,
           mobileLinksPerSegment: 3,
-          linkScale: 0.96,
+          linkScale: 0.9,
           tailInset: 0.036,
           entryOverscan: 0.14,
           entryBend: 0.09
@@ -9426,10 +9435,10 @@ const gateStyle = [
           bottomInset: 0.18,
           xInset: 0.055,
           xShift: 0.008,
-          breakT: 0.44,
-          desktopLinksPerSegment: 7,
+          breakT: 0.68,
+          desktopLinksPerSegment: 6,
           mobileLinksPerSegment: 3,
-          linkScale: 0.82,
+          linkScale: 0.88,
           tailInset: 0.032,
           entryOverscan: 0.14,
           entryBend: -0.08
@@ -9464,11 +9473,12 @@ const gateStyle = [
         const lock = easeOutCubic(lockUnit);
         const lockKick = Math.sin(lockUnit * Math.PI) * Math.exp(-lockUnit * 1.2);
         const strain = Math.sin(phaseProgress(intro, 0.012, 0.15) * Math.PI);
-        const weavePull = scrollTension * 0.009
-          + takeUp * 0.038
-          + lock * 0.018
-          + lockKick * 0.006;
-        return { scrollTension, settle, takeUp, lock, lockKick, strain, weavePull };
+        const weavePull = scrollTension * 0.014
+          + takeUp * 0.074
+          + lock * 0.064
+          + lockKick * 0.018;
+        const cinch = smoothstep(clamp((intro - 0.052) / 0.15, 0, 1));
+        return { scrollTension, settle, takeUp, lock, lockKick, strain, weavePull, cinch };
       };
 
       const resolveTitleChainPath = (definition, fill, intro) => {
@@ -9506,7 +9516,7 @@ const gateStyle = [
           ? layout.anchorBounds
           : anchorXs.map(() => ({ top: fallbackTop, bottom: fallbackBottom }));
         const sealMotion = resolveSealMotion(fill, intro);
-        const { takeUp, lock, lockKick } = sealMotion;
+        const { takeUp, lock, lockKick, cinch } = sealMotion;
         const pull = sealMotion.weavePull;
         const pointSpan = Math.max(1, anchorXs.length - 1);
         const points = anchorXs.map((x, index) => {
@@ -9527,7 +9537,10 @@ const gateStyle = [
               + definition.verticalPhase * Math.PI
               - takeUp * fullTurn * 0.42
           );
-          const localPull = pull * (0.58 + windingWave * 0.62);
+          const breakDistance = Math.abs(pointUnit - definition.breakT);
+          const breakCinch = smoothstep(clamp(1 - breakDistance / 0.52, 0, 1));
+          const localPull = pull * (0.62 + windingWave * 0.54)
+            + cinch * breakCinch * (0.038 + definition.id * 0.006);
           const localTwist = definition.direction
             * (takeUp * 0.105 + lock * 0.044 + lockKick * 0.012)
             * (0.42 + windingWave * 0.58);
@@ -11119,6 +11132,16 @@ const gateStyle = [
         const introFade = 1 - phaseProgress(intro, 0.955, 1);
         const burstFade = 1 - phaseProgress(burstProgress, 0.004, 0.045);
         const visibility = activation * introFade * burstFade;
+        const chainFrameInterval = intro < 0.045 || intro > 0.3 ? 26 : 0;
+        if (
+          chainFrameInterval > 0
+          && chainLastPaintTimestamp > 0
+          && timestamp - chainLastPaintTimestamp < chainFrameInterval
+          && Math.abs(fill - chainLastPaintFill) < 0.003
+          && Math.abs(intro - chainLastPaintIntro) < 0.003
+        ) {
+          return;
+        }
         if (visibility <= 0.001) {
           if (chainFrontCanvas.style.opacity !== "0" || chainBackCanvas.style.opacity !== "0") {
             clearTitleChains();
@@ -11138,7 +11161,12 @@ const gateStyle = [
 
         const isMobile = mobilePerformance || chainTitleBox.width < 420;
         const releaseFade = phaseProgress(intro, 0.84, 0.985);
-        const layerRecords = { back: [], front: [] };
+        const layerRecords = {
+          backFrame: [],
+          backWeave: [],
+          frontFrame: [],
+          frontWeave: []
+        };
         const shatterRecords = [];
         const ruptureEvents = [];
         const leaders = [];
@@ -11186,8 +11214,8 @@ const gateStyle = [
                 0.82
               )
             : 1;
-          const breakDelay = definition.id * 0.016;
-          const breakStart = 0.105 + breakDelay * 0.58;
+          const breakDelay = definition.id * 0.055;
+          const breakStart = 0.105 + breakDelay;
           const definitionBreakLinear = clamp((intro - breakStart) / 0.05, 0, 1);
           const definitionBreakOpen = easeOutCubic(definitionBreakLinear);
           const definitionSnapLinear = clamp((intro - breakStart) / 0.09, 0, 1);
@@ -11386,42 +11414,31 @@ const gateStyle = [
               arcMode: "full"
             };
             if (sample.crossing) {
-              layerRecords.back.push({ ...record, arcMode: "far" });
-              layerRecords.front.push({ ...record, arcMode: "near" });
+              const crossingKind = definition.type === "frame" ? "Frame" : "Weave";
+              layerRecords[`back${crossingKind}`].push({ ...record, arcMode: "far" });
+              layerRecords[`front${crossingKind}`].push({ ...record, arcMode: "near" });
             } else {
-              layerRecords[sample.plane].push(record);
+              const layer = sample.plane === "front" ? "front" : "back";
+              const kind = record.definition.type === "frame" ? "Frame" : "Weave";
+              layerRecords[`${layer}${kind}`].push(record);
             }
           }
         }
 
-        const backFrameRecords = layerRecords.back.filter(
-          (record) => record.definition.type === "frame"
-        );
-        const backWeaveRecords = layerRecords.back.filter(
-          (record) => record.definition.type !== "frame"
-        );
-        const frontFrameRecords = layerRecords.front.filter(
-          (record) => record.definition.type === "frame"
-        );
-        const frontWeaveRecords = layerRecords.front.filter(
-          (record) => record.definition.type !== "frame"
-        );
-        drawChainLayer(chainBackContext, backFrameRecords, false);
-        drawChainLayer(chainBackContext, backWeaveRecords, false);
-        drawChainLayer(chainFrontContext, frontWeaveRecords, true);
-        drawChainLayer(chainFrontContext, frontFrameRecords, true);
-        for (const leader of leaders.filter((leader) => leader.definition.type !== "frame")) {
-          drawChainLeader(chainFrontContext, leader);
-        }
-        for (const leader of leaders.filter((leader) => leader.definition.type === "frame")) {
-          drawChainLeader(chainFrontContext, leader);
-        }
+        drawChainLayer(chainBackContext, layerRecords.backFrame, false);
+        drawChainLayer(chainBackContext, layerRecords.backWeave, false);
+        drawChainLayer(chainFrontContext, layerRecords.frontWeave, true);
+        drawChainLayer(chainFrontContext, layerRecords.frontFrame, true);
+        for (const leader of leaders) drawChainLeader(chainFrontContext, leader);
         drawChainShatterParticles(chainFrontContext, shatterRecords, isMobile);
         drawChainRupture(timestamp, intro, ruptureEvents, visibility, isMobile);
         drawContractHeartImprint(timestamp, intro, ruptureEvents, visibility, isMobile);
 
         chainBackCanvas.style.opacity = Math.min(1, visibility * 0.88).toFixed(3);
         chainFrontCanvas.style.opacity = Math.min(1, visibility).toFixed(3);
+        chainLastPaintTimestamp = timestamp;
+        chainLastPaintFill = fill;
+        chainLastPaintIntro = intro;
       };
 
       const drawEnergy = (timestamp) => {

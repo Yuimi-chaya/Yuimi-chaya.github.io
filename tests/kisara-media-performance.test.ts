@@ -109,7 +109,7 @@ test("Kisara Home contains opposing weave tails and keeps their sources unbounde
     homeSource.indexOf("const buildTitleChainLinkUnits ="),
     homeSource.indexOf("const getChainLinkSprite =")
   );
-  assert.equal((chainPathSource.match(/tailInset:/g) ?? []).length, 2);
+  assert.equal((chainPathSource.match(/tailInset:/g) ?? []).length, 3);
   assert.match(chainPathSource, /const entryInset = box\.width \* definition\.xInset/);
   assert.match(chainPathSource, /const tailLinkWidth = getChainLinkDimensions\(definition\)\.width/);
   assert.match(chainPathSource, /tailLinkWidth \* 0\.72 \+ box\.height \* 0\.06[^]*\) \+ tailLinkWidth/);
