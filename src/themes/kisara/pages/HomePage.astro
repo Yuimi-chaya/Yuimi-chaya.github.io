@@ -22,7 +22,7 @@ const findThemeAsset = (baseName: string) => {
 };
 const activeBackgroundUrl = findThemeAsset("gate-background");
 const activeFightUrl = findThemeAsset("fight");
-const activeTransformationUrl = findThemeAsset("transformation-silhouette");
+const activeTransformationUrl = findThemeAsset("transformation-detail");
 const memoryScenes = [
   {
     id: "rescue",
@@ -74,13 +74,6 @@ const transformationScenes = [
     position: "center 48%",
     saturation: 1.02,
     brightness: 0.98
-  },
-  {
-    id: "silhouette",
-    image: "/themes/kisara/assets/transformation-silhouette.webp",
-    position: "center 50%",
-    saturation: 1.04,
-    brightness: 0.96
   }
 ] as const;
 const gateSceneManifest = [
@@ -326,7 +319,6 @@ const gateStyle = [
           aria-hidden="true"
         ></canvas>
         <span class="kisara-title-enchant" aria-hidden="true">Kisara</span>
-        <span class="kisara-title-gloss" aria-hidden="true">Kisara</span>
         <canvas
           class="kisara-title-data-canvas"
           data-kisara-title-data
@@ -389,6 +381,7 @@ const gateStyle = [
   <script>
     import { createComicTransition } from "../lib/comicTransition";
     import { chainLinkPitch, createTitleChainMaterial } from "../lib/titleChainMaterial";
+    import { gateRelease, mapReleaseAutoplayProgress } from "../lib/gateRelease";
     const releaseStaleKisaraHomeRuntime = (candidate) => {
       if (!(candidate instanceof HTMLElement) || candidate.dataset.bound !== "true") return false;
       const candidateAutoControl = candidate.querySelector("[data-kisara-auto]");
@@ -581,7 +574,6 @@ const gateStyle = [
         if (fill >= 0.42) warmSceneImage(memorySceneRecords[4]);
         if (fill >= 0.55 || intro > 0.001) warmSceneImage(transformationSceneRecords[0]);
         if (fill >= 0.7 || intro >= 0.18) warmSceneImage(transformationSceneRecords[1]);
-        if (fill >= 0.84 || intro >= 0.46) warmSceneImage(transformationSceneRecords[2]);
       };
       if (!foundSelfEntryRequested) memorySceneRecords.slice(0, 2).forEach(warmSceneImage);
       let sceneSlotOverflowWarned = false;
@@ -781,48 +773,31 @@ const gateStyle = [
       const renderLegacyChargeBeam = false;
       const restoredBelowGate = window.scrollY > 2;
       const fillDistance = 2100;
-      const burstDistance = 1950;
       const gateWheelGestureWindow = 190;
       const gateWheelBaseGain = 1.08;
       const gateWheelSustainedGain = 0.92;
-      const bladeWheelGain = 1.5;
       const springStrength = 0.06;
-      const burstSpringStrength = 0.038;
       const damping = 0.76;
-      const burstDamping = 0.86;
       const settleDistance = 0.00035;
       const chargeIntroDuration = 2150;
       const titleAbyssDomHandoffStart = 0.72;
       const chargeHandoffStart = 0.015;
       const chargeHandoffEnd = 0.18;
-      const glossFadeEnd = 0.37;
-      const crossStart = 0.46;
-      const crossBuildEnd = 0.58;
-      const crossFlashEnd = 0.72;
-      const crossEnd = 0.82;
+      const {
+        start: releaseStart, crossStart, crossBuildEnd, crossFlashEnd, crossEnd,
+        collapseStart, collapseEnd, shockwaveStart, detonationStart, detonationEnd
+      } = gateRelease.phases;
       const reformEnd = 0.9;
-      const collapseStart = 0.842;
-      const collapseEnd = 0.884;
-      const shockwaveStart = 0.904;
-      const detonationStart = 0.928;
-      const detonationEnd = 0.972;
       const rainStart = 0.948;
       const rainPeak = 0.989;
-      const releaseAutoplayDuration = 1850;
+      const releaseAutoplayDuration = gateRelease.duration;
       const heroAutoplayFillDuration = 4600;
-      const heroAutoplayBladeDuration = 850;
-      const releaseCrossStartAt = 0.012;
-      const releaseCrossBuildEndAt = 0.033;
-      const releaseCrossFlashEndAt = 0.05;
-      const releaseCrossEndAt = 0.076;
-      const releaseCrossSpinEndAt = 0.036;
-      const releaseCrossHoldEndAt = 0.044;
-      const releaseCrossRetractEndAt = 0.067;
-      const releaseCollapseStartAt = 0.11;
-      const releaseCollapseEndAt = 0.31;
-      const releaseShockwaveStartAt = 0.38;
-      const releaseDetonationStartAt = 0.45;
-      const releaseDetonationEndAt = 0.67;
+      const releaseCrossStartAt = gateRelease.beats.crossStart / releaseAutoplayDuration;
+      const releaseCrossEndAt = gateRelease.beats.crossEnd / releaseAutoplayDuration;
+      const releaseCrossSpinEndAt = gateRelease.beats.crossSpinEnd / releaseAutoplayDuration;
+      const releaseCrossHoldEndAt = gateRelease.beats.crossHoldEnd / releaseAutoplayDuration;
+      const releaseCrossRetractEndAt = gateRelease.beats.crossRetractEnd / releaseAutoplayDuration;
+      const releaseDetonationStartAt = gateRelease.beats.detonationStart / releaseAutoplayDuration;
       const blackHoleIngressStart = crossFlashEnd + (crossEnd - crossFlashEnd) * 0.08;
       const blackHoleCoreEnd = crossEnd + 0.014;
       const blackHoleDiskStart = crossEnd - 0.025;
@@ -1129,35 +1104,6 @@ const gateStyle = [
       const phaseProgress = (value, start, end) => smoothstep(clamp((value - start) / (end - start), 0, 1));
       const easeOutCubic = (value) => 1 - (1 - clamp(value, 0, 1)) ** 3;
       const easeInQuint = (value) => clamp(value, 0, 1) ** 5;
-      const releaseAutoplayKeyframes = [
-        [0, glossFadeEnd],
-        [releaseCrossStartAt, crossStart],
-        [releaseCrossBuildEndAt, crossBuildEnd],
-        [releaseCrossFlashEndAt, crossFlashEnd],
-        [releaseCrossEndAt, crossEnd],
-        [releaseCollapseStartAt, collapseStart],
-        [releaseCollapseEndAt, collapseEnd],
-        [releaseShockwaveStartAt, shockwaveStart],
-        [releaseDetonationStartAt, detonationStart],
-        [releaseDetonationEndAt, detonationEnd],
-        [1, 1]
-      ];
-      const mapReleaseAutoplayProgress = (value) => {
-        const timeline = clamp(value, 0, 1);
-        for (let index = 0; index < releaseAutoplayKeyframes.length - 1; index += 1) {
-          const [timeStart, progressStart] = releaseAutoplayKeyframes[index];
-          const [timeEnd, progressEnd] = releaseAutoplayKeyframes[index + 1];
-          if (timeline > timeEnd && index < releaseAutoplayKeyframes.length - 2) continue;
-          const local = clamp((timeline - timeStart) / Math.max(0.0001, timeEnd - timeStart), 0, 1);
-          const eased = index === 8
-            ? 1 - Math.pow(1 - local, 2.45)
-            : index === 6
-              ? Math.pow(smoothstep(local), 1.35)
-              : smoothstep(local);
-          return progressStart + (progressEnd - progressStart) * eased;
-        }
-        return 1;
-      };
       const randomSeed = (index) => {
         const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
         return value - Math.floor(value);
@@ -1263,8 +1209,7 @@ const gateStyle = [
       ];
       const transformationTimeline = [
         { start: 0.025, enterEnd: 0.18, leaveStart: 0.34, end: 0.52, drift: -15, lift: -3 },
-        { start: 0.35, enterEnd: 0.51, leaveStart: 0.63, end: 0.79, drift: 18, lift: -2 },
-        { start: 0.66, enterEnd: 0.83, leaveStart: 1, end: 1, drift: -8, lift: -1, persistent: true }
+        { start: 0.35, enterEnd: 0.51, leaveStart: 1, end: 1, drift: 18, lift: -2, persistent: true }
       ];
       const memoryTransitionCenters = [0.205, 0.375, 0.545, 0.715, 0.885];
       const setSceneSlotStyle = (slot, property, value) => {
@@ -1332,28 +1277,23 @@ const gateStyle = [
             setSceneSlotStyle(slot, "opacity", "0");
             return;
           }
-          const bladeBlur = presentation.bladeBlur ?? 0;
-          const bladeBrightness = presentation.bladeBrightness ?? 1;
-          const bladeScale = presentation.bladeScale ?? 1;
           const renderedBlur = presentation.kind === "memory" && mobilePerformance
             ? (litePerformance ? 0.8 : 1.25)
             : quantizeRuntimeValue(
-                presentation.blur + (presentation.kind === "memory" ? 0 : bladeBlur),
+                presentation.blur,
                 0.5,
                 0.75
               );
-          const renderedBrightness = quantizeRuntimeValue(bladeBrightness, 0.01, 0.02);
           const renderedShiftX = quantizeRuntimeValue(presentation.shiftX, 0.35, 0.5);
           const renderedShiftY = quantizeRuntimeValue(presentation.shiftY, 0.35, 0.5);
           const renderedScale = quantizeRuntimeValue(presentation.scale, 0.0015, 0.002);
-          const renderedBladeScale = quantizeRuntimeValue(bladeScale, 0.0015, 0.002);
           const renderedOpacity = quantizeRuntimeValue(presentation.opacity, 0.008, 0.012);
           const filter = presentation.kind === "memory"
             ? `blur(calc(${renderedBlur.toFixed(3)}px + var(--kisara-performance-blur))) saturate(${presentation.saturation}) brightness(${presentation.brightness}) contrast(1.035)`
-            : `blur(calc(${renderedBlur.toFixed(3)}px + var(--kisara-performance-blur))) saturate(${presentation.saturation}) brightness(${presentation.brightness}) brightness(${renderedBrightness.toFixed(4)}) contrast(1.025)`;
+            : `blur(calc(${renderedBlur.toFixed(3)}px + var(--kisara-performance-blur))) saturate(${presentation.saturation}) brightness(${presentation.brightness}) contrast(1.025)`;
           const transform = presentation.kind === "memory"
             ? `translate3d(${renderedShiftX.toFixed(3)}px, ${renderedShiftY.toFixed(3)}px, 0) scale(${renderedScale.toFixed(5)}) scale(var(--kisara-gravity-scale))`
-            : `translate3d(calc(${renderedShiftX.toFixed(3)}px + var(--kisara-base-shift-x)), calc(${renderedShiftY.toFixed(3)}px + var(--kisara-base-shift-y)), 0) scale(${renderedScale.toFixed(5)}) scale(${renderedBladeScale.toFixed(5)}) scale(var(--kisara-gravity-scale))`;
+            : `translate3d(calc(${renderedShiftX.toFixed(3)}px + var(--kisara-base-shift-x)), calc(${renderedShiftY.toFixed(3)}px + var(--kisara-base-shift-y)), 0) scale(${renderedScale.toFixed(5)}) scale(var(--kisara-gravity-scale))`;
           setSceneSlotStyle(slot, "z-index", String(presentation.order + 1));
           setSceneSlotStyle(slot, "opacity", renderedOpacity.toFixed(4));
           setSceneSlotStyle(slot, "filter", filter);
@@ -1361,9 +1301,6 @@ const gateStyle = [
         });
       };
       const computeSceneHandoff = () => {
-        const silhouetteFocus = smootherstep(
-          clamp((burstProgress - 0.015) / 0.285, 0, 1)
-        );
         const reconstructionProgress = clamp(
           (burstProgress - detonationEnd) / Math.max(0.0001, 1 - detonationEnd),
           0,
@@ -1380,13 +1317,9 @@ const gateStyle = [
           clamp((reconstructionProgress - 0.18) / 0.82, 0, 1)
         );
         return {
-          silhouetteFocus,
           reconstructionProgress,
           reconstructionReveal,
           transformationReleaseOpacity: 1 - transformationExit,
-          silhouetteBladeBlur: (1 - silhouetteFocus) * 10.5,
-          silhouetteBladeBrightness: 0.92 + silhouetteFocus * 0.08,
-          silhouetteBladeScale: 1 + silhouetteFocus * 0.16,
           fightVisible,
           fightSettle,
           fightBlur: 0.3 + 2.8 * Math.pow(1 - fightSettle, 1.35),
@@ -1542,13 +1475,9 @@ const gateStyle = [
         const handoff = computeSceneHandoff();
         const finalScenePresentations = scenePresentations.map((presentation) => {
           if (presentation.kind !== "transformation") return presentation;
-          const isSilhouette = presentation.index === transformationSceneRecords.length - 1;
           return {
             ...presentation,
-            opacity: presentation.opacity * handoff.transformationReleaseOpacity,
-            bladeBlur: isSilhouette ? handoff.silhouetteBladeBlur : 0,
-            bladeBrightness: isSilhouette ? handoff.silhouetteBladeBrightness : 1,
-            bladeScale: isSilhouette ? handoff.silhouetteBladeScale : 1
+            opacity: presentation.opacity * handoff.transformationReleaseOpacity
           };
         });
         syncSceneSlots(finalScenePresentations);
@@ -6076,7 +6005,7 @@ const gateStyle = [
         }
         if (
           chargeIntroProgress >= titleAbyssDomHandoffStart
-          || burstProgress > glossFadeEnd + 0.002
+          || burstProgress >= releaseStart
         ) {
           gate.classList.remove("is-title-abyss-ready");
           return;
@@ -8049,7 +7978,7 @@ const gateStyle = [
         );
         const introImpactPulse = Math.sin(introImpactLinear * Math.PI);
         const introEnchant = phaseProgress(intro, 0.75, 1);
-        const introEnchantHold = introEnchant * (1 - phaseProgress(burst, 0.035, 0.34));
+        const introEnchantHold = introEnchant * (1 - phaseProgress(intro, 0.86, 1));
         const titleVivid = smootherstep(clamp((intro - 0.11) / 0.34, 0, 1));
         const tideCharge = smootherstep(fill);
         const tideEnergyOpacity = clamp(0.025 + tideCharge * 0.34 + titleVivid * 0.42, 0, 0.8);
@@ -8180,7 +8109,7 @@ const gateStyle = [
         let warpOriginX = gateWidth * 0.5;
         let warpOriginY = gateHeight * 0.5;
         let gateRect = null;
-        if (title && burst >= glossFadeEnd - 0.03) {
+        if (title && burst >= releaseStart) {
           gateRect = gate.getBoundingClientRect();
           const titleRect = title.getBoundingClientRect();
           warpOriginX = titleRect.left + titleRect.width * 0.5 - gateRect.left;
@@ -8204,7 +8133,7 @@ const gateStyle = [
         const fadeOut = phaseProgress(burst, 0.015, 0.13);
         const beamOpacity = (burst <= 0.001 ? 1 : clamp(1 - fadeOut, 0, 1))
           * (1 - introDetach);
-        const preBlastBlur = phaseProgress(burst, glossFadeEnd, crossStart + 0.04)
+        const preBlastBlur = phaseProgress(burst, releaseStart, crossStart + 0.04)
           * (1 - phaseProgress(burst, crossEnd, reformEnd)) * 4.8;
         const gravityBlur = phaseProgress(burst, gravityIngressStart, collapseStart + 0.005)
           * (1 - phaseProgress(burst, detonationEnd, 1)) * 1.9;
@@ -8265,18 +8194,14 @@ const gateStyle = [
           + Math.sin(sceneClock * 0.28 + 0.2) * 0.0065
           + Math.sin(sceneClock * 0.1 + 1.8) * 0.0032
         ) * sceneBreathFade;
-        const bladeHandoffPush = phaseProgress(burst, 0.255, glossFadeEnd)
-          * (1 - phaseProgress(burst, crossBuildEnd, crossEnd));
         const sceneCameraX = cameraBeatOne * -6.5 + cameraBeatTwo * 8.5 + sceneBreathX;
         const sceneCameraY = cameraBeatOne * -3.2
           + cameraBeatTwo * 2.4
-          + sceneBreathY
-          - bladeHandoffPush * 2.8;
+          + sceneBreathY;
         const rawSceneCameraScale = (1
           + cameraBeatOne * 0.008
           + cameraBeatTwo * 0.013
-          + releaseVisualPressure * 0.003
-          + bladeHandoffPush * 0.055)
+          + releaseVisualPressure * 0.003)
           * sceneBreathScale;
         const sceneMotionMagnitude = Math.abs(sceneCameraX) + Math.abs(sceneCameraY);
         const sceneOverscanGuard = sceneMotionMagnitude > 0.01 ? 3 : 0;
@@ -8547,7 +8472,7 @@ const gateStyle = [
         const crossShakeStrength = crossRetractImpact * (0.34 + crossPulse * 0.24);
         const crossShakeX = Math.sin(motionPhases.crossShakeX) * crossShakeStrength;
         const crossShakeY = Math.cos(motionPhases.crossShakeY) * crossShakeStrength * 0.68;
-        const warningPrelude = phaseProgress(burst, glossFadeEnd, crossStart);
+        const warningPrelude = phaseProgress(burst, releaseStart, crossStart);
         const warningTail = 1 - phaseProgress(burst, crossEnd, warningTailEnd);
         const warningExposure = clamp(
           crossExposurePulse * 0.92
@@ -11133,16 +11058,15 @@ const gateStyle = [
         const releaseAutomatic = ["forward", "rewinding"].includes(releaseMode);
         const releaseTimelineActive = ["forward", "rewinding", "paused", "complete"].includes(releaseMode);
         const automatic = chargeIntroActive || releaseAutomatic;
-        const manualReleaseProgress = clamp(burstProgress / glossFadeEnd, 0, 1);
         const overallProgress = !chargeIntroComplete
           ? chargeIntroActive
-            ? 0.45 + chargeIntroProgress * 0.1
-            : fill * 0.45
+            ? 0.55 + chargeIntroProgress * 0.15
+            : fill * 0.55
           : releaseMode === "complete"
             ? 1
             : releaseTimelineActive
-              ? 0.65 + releaseTimeline * 0.35
-              : 0.55 + manualReleaseProgress * 0.1;
+              ? 0.7 + releaseTimeline * 0.3
+              : 0.7;
         const railProgress = clamp(overallProgress, 0, 1);
         const railStage = burstComplete
           ? "complete"
@@ -11150,19 +11074,15 @@ const gateStyle = [
             ? chargeIntroProgress < 0.62 ? "rupture" : "enchant"
             : !chargeIntroComplete
               ? chainStage
-              : releaseMode === "paused"
-                ? "blade"
-              : burstProgress < glossFadeEnd
-                ? "blade"
-                : burstProgress < blackHoleIngressStart
-                  ? "warning"
-                  : burstProgress < collapseStart
-                    ? "singularity"
-                    : burstProgress < shockwaveStart
-                      ? "collapse"
-                      : burstProgress < detonationEnd
-                        ? "detonation"
-                        : "reconstruction";
+              : burstProgress < blackHoleIngressStart
+                ? "warning"
+                : burstProgress < collapseStart
+                  ? "singularity"
+                  : burstProgress < shockwaveStart
+                    ? "collapse"
+                    : burstProgress < detonationEnd
+                      ? "detonation"
+                      : "reconstruction";
         publishGateRailState({
           active,
           progress: railProgress,
@@ -11200,7 +11120,6 @@ const gateStyle = [
         warmSceneImagesForProgress(Math.max(fill, targetProgress), chargeIntroProgress);
         const memoryState = syncMemorySequence(fill);
         const {
-          silhouetteFocus,
           reconstructionProgress,
           reconstructionReveal,
           fightVisible,
@@ -11209,13 +11128,10 @@ const gateStyle = [
           fightSaturation,
           fightBrightness
         } = memoryState.handoff;
-        const glossSweep = phaseProgress(burstProgress, 0.01, 0.3);
         const baseSceneOpacity = 0.98 - memoryState.baseExit * 0.78;
         const baseSceneBlur = memoryState.baseExit * 10;
         const baseSceneSaturation = 1 - memoryState.baseExit * 0.2;
         const baseSceneBrightness = 1 - memoryState.baseExit * 0.12;
-        const glossPosition = 118 - glossSweep * 136;
-        const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
         const boundaryOpacity = fill <= 0.002 || fill >= 0.998
           ? 0
           : Math.min(0.74, 0.38 + Math.sin(fill * Math.PI) * 0.1 + Math.abs(velocity) * 24);
@@ -11223,8 +11139,6 @@ const gateStyle = [
 
         setRuntimeStyle(gate, "--kisara-fill", `${(fill * 100).toFixed(3)}%`);
         setRuntimeStyle(gate, "--kisara-burst-progress", `${(burstProgress * 100).toFixed(3)}%`);
-        setRuntimeStyle(gate, "--kisara-gloss-position", `${quantizeRuntimeValue(glossPosition, 0.12, 0.18).toFixed(3)}%`);
-        setRuntimeStyle(gate, "--kisara-gloss-opacity", quantizeRuntimeValue(glossOpacity, 0.01, 0.015).toFixed(3));
         setRuntimeStyle(gate, "--kisara-tide-opacity", tideVisible ? "1" : "0");
         setRuntimeStyle(gate, "--kisara-boundary-opacity", quantizeRuntimeValue(boundaryOpacity, 0.01, 0.015).toFixed(3));
         setRuntimeStyle(gate, "--kisara-boundary-offset", `${quantizeRuntimeValue(boundaryOffset, 0.05, 0.08).toFixed(3)}%`);
@@ -11380,7 +11294,7 @@ const gateStyle = [
         releaseRewindDuration = 0;
         if (!resume) {
           releaseTimeline = 0;
-          burstProgress = clamp(burstProgress, glossFadeEnd, crossStart);
+          burstProgress = mapReleaseAutoplayProgress(0);
         }
         targetBurstProgress = 1;
         burstVelocity = 0;
@@ -11415,6 +11329,9 @@ const gateStyle = [
           releaseMode = "manual";
           releaseTimeline = 0;
           releaseRewindVeil = 0;
+          burstProgress = 0;
+          targetBurstProgress = 0;
+          burstVelocity = 0;
           return false;
         }
         if (releaseMode !== "forward") return false;
@@ -11500,12 +11417,7 @@ const gateStyle = [
           );
           return;
         }
-        targetBurstProgress = clamp(
-          targetBurstProgress
-            + deltaTime / heroAutoplayBladeDuration * glossFadeEnd,
-          0,
-          glossFadeEnd
-        );
+        startReleaseAutoplay(timestamp);
       };
 
       const startHeroAutoplay = (timestamp = performance.now()) => {
@@ -11631,16 +11543,14 @@ const gateStyle = [
             burstProgress = 1;
             stopHeroAutoplay();
           }
-        } else {
-          const burstSpring = (targetBurstProgress - burstProgress) * burstSpringStrength * frameRatio;
-          burstVelocity = (burstVelocity + burstSpring) * Math.pow(burstDamping, frameRatio);
-          burstProgress = clamp(burstProgress + burstVelocity * frameRatio, 0, 1);
+        } else if (releaseMode === "manual") {
+          burstProgress = 0;
+          targetBurstProgress = 0;
+          burstVelocity = 0;
           if (
-            releaseMode === "manual"
-            && chargeIntroComplete
+            chargeIntroComplete
             && targetProgress >= 0.9995
             && progress >= 0.999
-            && burstProgress >= glossFadeEnd - 0.0007
           ) {
             startReleaseAutoplay(timestamp);
           }
@@ -12603,10 +12513,7 @@ const gateStyle = [
         gateWheelLastTimestamp = timestamp;
 
         const sustainedGain = smoothstep(gateWheelMomentum) * gateWheelSustainedGain;
-        const phaseGain = chargeIntroComplete && releaseMode === "manual"
-          ? bladeWheelGain
-          : 1;
-        return delta * (gateWheelBaseGain + sustainedGain) * phaseGain;
+        return delta * (gateWheelBaseGain + sustainedGain);
       };
 
       const addProgress = (delta) => {
@@ -12614,7 +12521,6 @@ const gateStyle = [
         const boundedDelta = clamp(delta, -280, 280);
         if (boundedDelta > 0) scheduleWarningWarmup(true);
         const fillComplete = targetProgress >= 0.9995 && progress >= 0.995;
-        const burstInProgress = targetBurstProgress > 0.0005 || burstProgress > 0.0005;
         const timestamp = performance.now();
         if (chargeIntroActive) {
           if (delta < 0) {
@@ -12632,7 +12538,7 @@ const gateStyle = [
           startAnimation();
           return;
         }
-        if (delta < 0 && chargeIntroComplete && !burstInProgress) {
+        if (delta < 0 && chargeIntroComplete) {
           targetProgress = Math.min(targetProgress, 0.988);
           velocity += boundedDelta / fillDistance * 0.012;
           transitionChargeIntro(0, timestamp);
@@ -12644,9 +12550,8 @@ const gateStyle = [
           startAnimation();
           return;
         }
-        if ((delta > 0 && fillComplete) || (delta < 0 && burstInProgress)) {
-          targetBurstProgress = clamp(targetBurstProgress + boundedDelta / burstDistance, 0, crossEnd);
-          burstVelocity += boundedDelta / burstDistance * 0.045;
+        if (delta > 0 && fillComplete && chargeIntroComplete) {
+          startReleaseAutoplay(timestamp);
         } else {
           targetProgress = clamp(targetProgress + boundedDelta / fillDistance, 0, 1);
           velocity += boundedDelta / fillDistance * 0.03;

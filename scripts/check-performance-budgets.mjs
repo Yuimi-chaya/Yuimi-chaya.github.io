@@ -78,6 +78,13 @@ for (const [label, prefix, limit] of bundleBudgets) {
 
 try {
   const homeHtml = await readFile(new URL("index.html", distDir), "utf8");
+  if (/kisara-title-gloss|transformation-silhouette/.test(homeHtml)) {
+    failures.push("Kisara Home restored the retired blade stage or its image");
+  }
+  const gateAssets = await readdir(new URL("themes/kisara/assets/", distDir));
+  if (gateAssets.includes("transformation-silhouette.webp")) {
+    failures.push("Kisara Home still publishes the retired blade image");
+  }
   if (!/<link\s+rel="preload"\s+as="image"\s+href="\/themes\/kisara\/assets\/gate-background\.webp"\s+fetchpriority="high"\s*\/?>/i.test(homeHtml)) {
     failures.push("Kisara Home lost its high-priority Gate background preload");
   }

@@ -90,15 +90,13 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(homeSource, /const aftermathQuality = burst > shockwaveStart \? 0\.76 : 1/);
   assert.match(homeSource, /postReleaseParticles\.length >= \(postReleaseCanvasWidth < 640 \? 104 : 172\)/);
   assert.match(homeSource, /postReleaseCanvasWidth < 640 \? 18 : 28/);
-  assert.match(homeSource, /const burstDistance = 1950/);
-  assert.match(homeSource, /const bladeWheelGain = 1\.5/);
-  assert.match(homeSource, /silhouetteBladeScale: 1 \+ silhouetteFocus \* 0\.16/);
+  assert.doesNotMatch(homeSource, /burstDistance|bladeWheelGain|silhouetteBladeScale/);
   assert.match(homeSource, /if \(pageMode === "gate"\) drawTitleAbyss\(performance\.now\(\), true\)/);
   assert.match(abyssSource, /!titleAbyssTideImageData[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.match(homeSource, /const titleAbyssDomHandoffStart = 0\.72/);
   assert.match(homeSource, /intro - titleAbyssDomHandoffStart/);
   assert.match(abyssSource, /chargeIntroProgress >= titleAbyssDomHandoffStart[^]*classList\.remove\("is-title-abyss-ready"\)/);
-  assert.match(abyssSource, /burstProgress > glossFadeEnd \+ 0\.002[^]*classList\.remove\("is-title-abyss-ready"\)/);
+  assert.match(abyssSource, /burstProgress >= releaseStart[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.doesNotMatch(abyssSource, /paintSingularityField|eventHorizon|ringRadius|Starfield|voidPockets/);
   assert.match(homeSource, /titleAbyssPointerX \* \(mobilePerformance \? 20 : 76\)/);
   assert.match(homeSource, /1000 \/ \(activeMotion \? 45 : 30\)/);

@@ -6,7 +6,6 @@ const gateStageLabels = {
   glitch: "封印过载",
   rupture: "锁链崩断",
   enchant: "契约附魔",
-  blade: "刀光蓄势",
   warning: "爆发预警",
   singularity: "黑洞成形",
   collapse: "引力塌缩",
