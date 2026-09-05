@@ -1585,6 +1585,11 @@ const gateStyle = [
       let titleAbyssFluidLastPalette = -1;
       let titleAbyssFluidPaddingX = 0;
       let titleAbyssFluidPaddingY = 0;
+      let titleLiquidLastPaintTimestamp = 0;
+      let titleLiquidLastPosition = Number.NaN;
+      let titleLiquidLastPhase = Number.NaN;
+      let titleLiquidLastPressure = Number.NaN;
+      let titleLiquidLastOpacity = Number.NaN;
       let spaceLensRenderer = null;
       let spaceLensInitGeneration = 0;
       let lastSpaceLensPaintTimestamp = 0;
@@ -3935,10 +3940,35 @@ const gateStyle = [
         const position = postReleaseDataPosition;
         const phase = postReleaseDataPhase;
         const pressure = clamp(postReleaseDataPressure, 0, 1);
+        const liquidOpacity = postReleaseDataOpacity * intro;
+        const liquidInterval = reducedMotion
+          ? Number.POSITIVE_INFINITY
+          : litePerformance
+            ? 1000 / 24
+            : mobilePerformance
+              ? 1000 / 32
+              : 1000 / 45;
+        const liquidGap = titleLiquidLastPaintTimestamp > 0
+          ? timestamp - titleLiquidLastPaintTimestamp
+          : Number.POSITIVE_INFINITY;
+        const liquidDelta = Math.abs(position - titleLiquidLastPosition)
+          + Math.abs(phase - titleLiquidLastPhase) * 0.06
+          + Math.abs(pressure - titleLiquidLastPressure) * 0.8
+          + Math.abs(liquidOpacity - titleLiquidLastOpacity);
+        if (
+          liquidGap < liquidInterval
+          && liquidDelta < (reducedMotion ? 0.002 : 0.012)
+        ) {
+          return;
+        }
+        titleLiquidLastPaintTimestamp = timestamp;
+        titleLiquidLastPosition = position;
+        titleLiquidLastPhase = phase;
+        titleLiquidLastPressure = pressure;
+        titleLiquidLastOpacity = liquidOpacity;
         const time = timestamp / 1000;
         const frontX = width * position / 100;
         const bandWidth = width * (0.105 + pressure * 0.065);
-        const liquidOpacity = postReleaseDataOpacity * intro;
         const titleRect = titleDataCanvas.getBoundingClientRect();
         const gateRect = gate.getBoundingClientRect();
         const canvasLeftInGate = titleRect.left - gateRect.left;
@@ -6614,6 +6644,11 @@ const gateStyle = [
         titleAbyssLastFill = -1;
         titleAbyssFluidLastPaintTimestamp = 0;
         titleAbyssFluidLastPalette = -1;
+        titleLiquidLastPaintTimestamp = 0;
+        titleLiquidLastPosition = Number.NaN;
+        titleLiquidLastPhase = Number.NaN;
+        titleLiquidLastPressure = Number.NaN;
+        titleLiquidLastOpacity = Number.NaN;
         gate.classList.remove("is-title-abyss-ready");
         if (!resetPointer) return;
         titleAbyssPointerX = 0;
