@@ -146,14 +146,14 @@ test("Kisara Home 003 keeps its full-screen fragment deferred and subtitle-free"
   assert.doesNotMatch(homeEventSource, /<source\b[^>]*\ssrc=/i);
 });
 
-test("Kisara Home 003 cues its board labels from the real video clock", () => {
-  assert.match(homeEventSource, /data-home-event-cue="target-track"/);
-  assert.match(homeEventSource, /POINT OF INTEREST \/ 003/);
-  assert.match(homeEventSource, /QUESTION[^]*GESTURE[^]*ANSWER/);
-  assert.match(homeEventSource, /video\.currentTime \* 1000/);
-  assert.match(homeEventSource, /animation\.currentTime = cueTime/);
-  assert.match(homeEventSource, /requestAnimationFrame\(tick\)/);
-  assert.match(homeEventSource, /prefers-reduced-motion: reduce/);
+test("Kisara Home 003 replaces decorative tracking with real, keyboard-readable notes", () => {
+  const runtime = readSource("src/themes/kisara/lib/homeEvent.ts");
+  assert.match(homeEventSource, /data-notebook-tab/);
+  assert.match(homeEventSource, /data-notebook-panel/);
+  assert.doesNotMatch(homeEventSource, /data-home-event-cue|ANSWER.*LOCKED/);
+  assert.match(runtime, /requestVideoFrameCallback\(clock\)/);
+  assert.doesNotMatch(runtime, /requestAnimationFrame|animation\.currentTime/);
+  assert.match(runtime, /prefers-reduced-motion: reduce/);
 });
 
 test("Kisara Home masks chapter seams with motion-paper transitions", () => {
@@ -161,7 +161,7 @@ test("Kisara Home masks chapter seams with motion-paper transitions", () => {
   assert.doesNotMatch(homeSource, /class="kisara-home-transition is-memory-to-fridge"/);
   assert.match(homeStyles, /\.kisara-home-transition \{[^]*--transition-paper:[^]*radial-gradient\(circle, var\(--transition-dot\)/);
   assert.match(homeStyles, /\.kisara-home-transition:not\(\.is-latest-to-footer\)::before,[^]*border: 2px dashed var\(--transition-pink\)/);
-  assert.match(homeStyles, /\.kisara-home-transition\.is-event-to-latest \{[^]*--transition-from: #080a12;[^]*--transition-to: #dbe2ec;/);
+  assert.match(homeStyles, /\.kisara-home-transition\.is-event-to-latest \{[^]*--transition-from: #f5f6f4;[^]*--transition-to: #edf1f0;/);
   assert.match(homeStyles, /animation-timeline: view\(block\)/);
   assert.match(homeStyles, /prefers-reduced-motion: reduce[^]*\.kisara-home-transition::before[^]*animation: none !important/);
   assert.match(homeStyles, /data-yuimi-performance="lite"[^]*\.kisara-home-transition::before[^]*animation: none !important/);

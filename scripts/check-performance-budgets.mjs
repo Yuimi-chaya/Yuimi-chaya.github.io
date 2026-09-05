@@ -87,6 +87,11 @@ try {
   if (new RegExp(`<source\\b[^>]*\\ssrc=["']${homeEventVideoPath.replaceAll("/", "\\/")}["']`, "i").test(homeHtml)) {
     failures.push("Kisara Home 003 video regressed to an eager source request");
   }
+  const fridgeVideo = homeHtml.match(/<video\b[^>]*data-fridge-video[^>]*>/i)?.[0];
+  if (!fridgeVideo || !/\sdata-src=["'][^"']*fridge-opening-002\.mp4/i.test(fridgeVideo)
+    || /\ssrc=/i.test(fridgeVideo) || !/\spreload=["']none["']/i.test(fridgeVideo)) {
+    failures.push("Kisara Home 002 video lost its deferred loading contract");
+  }
 } catch {
   failures.push("Kisara Home HTML is missing for critical-image validation");
 }

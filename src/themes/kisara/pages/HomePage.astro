@@ -4,25 +4,14 @@ import KisaraFoundSelfEasterEgg from "../components/KisaraFoundSelfEasterEgg.ast
 import KisaraLovebrainEasterEgg from "../components/KisaraLovebrainEasterEgg.astro";
 import KisaraFridgeScene from "../components/KisaraFridgeScene.astro";
 import KisaraHomeEventVideo from "../components/KisaraHomeEventVideo.astro";
+import KisaraLatestNotes from "../components/KisaraLatestNotes.astro";
 import KisaraOpeningMemoryScene from "../components/KisaraOpeningMemoryScene.astro";
 import homeStylesheet from "../styles/home.css?url";
 import homeEventVideoStylesheet from "../styles/home-event-video.css?url";
 import homeComicStylesheet from "../styles/home-comic.css?url";
 import { Icon } from "astro-icon/components";
-import { getPublishedPosts } from "@/core/content/blog";
-import { getThemePath } from "@/core/themes/registry";
-import { categoryLabel } from "@/lib/site";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { getKisaraCoverPresentation } from "../lib/coverPresentation";
-
-const posts = (await getPublishedPosts()).slice(0, 3);
-const coverPresentation = await getKisaraCoverPresentation(posts);
-const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit"
-});
 
 const backgroundExtensions = ["webp", "png", "jpg", "jpeg"];
 const findThemeAsset = (baseName: string) => {
@@ -393,33 +382,7 @@ const gateStyle = [
 
   <div class="kisara-home-transition is-event-to-latest" aria-hidden="true"><span></span><i></i><i></i></div>
 
-  <section class="kisara-latest" data-kisara-home-stop="004" aria-labelledby="kisara-latest-title">
-    <header class="kisara-home-band-heading is-transmission-heading">
-      <div>
-        <p class="kisara-section-index">RECENT TRANSMISSIONS / 004</p>
-        <h2 id="kisara-latest-title">Latest notes.</h2>
-      </div>
-      <a class="kisara-section-link" href={getThemePath("kisara", "/blog/")}>OPEN ARCHIVE <span>↗</span></a>
-    </header>
-    <div class="kisara-transmission-shelf">
-      {posts.map((post, index) => {
-        const cover = coverPresentation.get(post.id);
-        return (
-        <a href={getThemePath("kisara", `/blog/${post.id}/`)} style={`--transmission-order: ${index}; --transmission-cover: ${post.data.cover ? `url("${post.data.cover}")` : "none"}; --transmission-cover-position: ${cover?.position ?? "50% 32%"};`}>
-          <figure data-cover-fit={cover?.fit ?? "portrait"}>
-            {post.data.cover ? <img src={post.data.cover} alt="" width={cover?.width ?? 700} height={cover?.height ?? 990} loading="lazy" decoding="async" /> : <span>{String(index + 1).padStart(2, "0")}</span>}
-          </figure>
-          <div class="kisara-transmission-copy">
-            <small>{categoryLabel[post.data.category]} / <time datetime={post.data.pubDate.toISOString()}>{dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}</time></small>
-            <h3>{post.data.title}</h3>
-            <p>{post.data.description}</p>
-            <span>READ SIGNAL <i aria-hidden="true">↗</i></span>
-          </div>
-        </a>
-        );
-      })}
-    </div>
-  </section>
+  <KisaraLatestNotes />
 
   <div class="kisara-home-transition is-latest-to-footer" aria-hidden="true"><span></span><i></i><i></i></div>
 
@@ -625,60 +588,6 @@ const gateStyle = [
       const title = gate.querySelector(".kisara-title");
       const cross = gate.querySelector(".kisara-title-cross");
       const opening = document.querySelector("#kisara-opening");
-      const openingEdge = opening instanceof HTMLElement
-        ? opening.querySelector(".kisara-opening-edge")
-        : null;
-      const openingEdgeElements = opening instanceof HTMLElement
-        ? Array.from(opening.querySelectorAll("[data-kisara-opening-edge-scene]"))
-        : [];
-      const openingEdgeFlare = opening instanceof HTMLElement
-        ? opening.querySelector(".kisara-opening-edge-flare")
-        : null;
-      const openingEdgeFlareSurface = openingEdgeFlare instanceof HTMLElement
-        ? openingEdgeFlare.querySelector(".kisara-opening-edge-flare-surface")
-        : null;
-      const openingEdgeRecords = openingEdgeElements.map((element) => {
-        const kind = element instanceof HTMLElement ? element.dataset.edgeKind ?? "" : "";
-        const index = element instanceof HTMLElement
-          ? Number.parseInt(element.dataset.edgeIndex ?? "-1", 10)
-          : -1;
-        const layer = kind === "base"
-          ? baseBackground
-          : kind === "fight"
-            ? fightBackground
-            : null;
-        return {
-          id: element instanceof HTMLElement ? element.dataset.kisaraOpeningEdgeScene ?? "" : "",
-          kind,
-          index,
-          source: element instanceof HTMLElement ? element.dataset.edgeSource ?? "" : "",
-          position: element instanceof HTMLElement ? element.dataset.edgePosition ?? "center 50%" : "center 50%",
-          element,
-          layer,
-          continuationSurface: element instanceof HTMLElement
-            ? element.querySelector(".kisara-opening-edge-continuation")
-            : null,
-          liveSurface: element instanceof HTMLElement
-            ? element.querySelector(".kisara-opening-edge-live-surface")
-            : null,
-          sampler: null,
-          samplerPromise: null,
-          samplerFailed: false,
-          textureReady: false,
-          textureQueued: false,
-          renderedOpacity: -1,
-          renderedFilter: "",
-          renderedLiveBackground: "",
-          renderedLiveGeometry: ""
-        };
-      });
-      const openingEdgeRecordById = new Map(openingEdgeRecords.map((record) => [record.id, record]));
-      const resolveOpeningEdgeLayer = (record) => {
-        if (record.kind === "memory" || record.kind === "transformation") {
-          return sceneSlotRecords.find((slot) => slot.sceneId === record.id)?.element ?? null;
-        }
-        return record.layer;
-      };
       const state = gate.querySelector("[data-kisara-state]");
       const cue = gate.querySelector("[data-kisara-cue]");
       const motionToggle = gate.querySelector("[data-kisara-motion-toggle]");
@@ -742,35 +651,12 @@ const gateStyle = [
       const finishHomeSectionReplayReset = () => {
         resetOpeningMemoryWhenCovered(true);
       };
-      let openingEdgeState = {};
-      let openingEdgeFlareState = { opacity: 0, filter: "none", shift: 0 };
-      let lockedOpeningEdgeState = null;
       let openingBridgePortalActive = false;
-      let renderedOpeningEdgeFlareOpacity = -1;
-      let renderedOpeningEdgeFlareFilter = "";
-      let renderedOpeningEdgeFlareShift = Number.NaN;
-      let renderedOpeningEdgeFlareBackground = "";
-      let renderedOpeningEdgeFlareGeometry = "";
-      let openingEdgeLiveSyncTimestamp = 0;
-      let openingEdgeResizeFrame = 0;
-      let openingEdgeRenderHandle = 0;
-      let openingEdgeRenderUsesIdleCallback = false;
-      const openingEdgeRenderQueue = [];
-      const openingEdgeSamplingEnabled = false;
       const deactivateOpeningBridgePortal = () => {
         if (!(gateVisualShell instanceof HTMLElement)) return;
         gate.classList.remove("is-opening-bridge-live");
         opening?.classList.remove("is-opening-bridge-live");
         openingBridgePortalActive = false;
-        openingEdgeLiveSyncTimestamp = 0;
-      };
-      const invalidateOpeningEdgeLiveSurfaces = () => {
-        openingEdgeRecords.forEach((record) => {
-          record.renderedLiveBackground = "";
-          record.renderedLiveGeometry = "";
-        });
-        renderedOpeningEdgeFlareBackground = "";
-        renderedOpeningEdgeFlareGeometry = "";
       };
       const startOpeningBridgeDissolve = () => {
         if (openingBridgeHandoffFrame) window.cancelAnimationFrame(openingBridgeHandoffFrame);
@@ -947,444 +833,6 @@ const gateStyle = [
       const gravityIngressStart = crossEnd - 0.032;
       const warningTailEnd = blackHoleFieldEnd;
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
-      const readOpeningEdgePixel = (sampler, u, v) => {
-        if (!sampler) return null;
-        const sampleX = clamp(u, 0, 1) * (sampler.width - 1);
-        const sampleY = clamp(v, 0, 1) * (sampler.height - 1);
-        const x0 = Math.floor(sampleX);
-        const y0 = Math.floor(sampleY);
-        const x1 = Math.min(sampler.width - 1, x0 + 1);
-        const y1 = Math.min(sampler.height - 1, y0 + 1);
-        const mixX = sampleX - x0;
-        const mixY = sampleY - y0;
-        const pixel = (x, y, channel) => sampler.data[(y * sampler.width + x) * 4 + channel];
-        return [0, 1, 2].map((channel) => {
-          const top = pixel(x0, y0, channel) + (pixel(x1, y0, channel) - pixel(x0, y0, channel)) * mixX;
-          const bottom = pixel(x0, y1, channel) + (pixel(x1, y1, channel) - pixel(x0, y1, channel)) * mixX;
-          return top + (bottom - top) * mixY;
-        });
-      };
-      const createOpeningEdgeProjection = (element, sampler, positionOverride = "") => {
-        if (!(element instanceof HTMLElement) || !sampler) return null;
-        const rect = element.getBoundingClientRect();
-        const layoutWidth = element.offsetWidth;
-        const layoutHeight = element.offsetHeight;
-        if (rect.width <= 0 || rect.height <= 0 || layoutWidth <= 0 || layoutHeight <= 0) return null;
-        const coverScale = Math.max(layoutWidth / sampler.sourceWidth, layoutHeight / sampler.sourceHeight);
-        const renderedWidth = sampler.sourceWidth * coverScale;
-        const renderedHeight = sampler.sourceHeight * coverScale;
-        const positionTokens = (positionOverride || getComputedStyle(element).backgroundPosition).trim().split(/\s+/);
-        const readPosition = (token, fallback) => {
-          if (token === "left" || token === "top") return 0;
-          if (token === "right" || token === "bottom") return 1;
-          if (token === "center") return 0.5;
-          if (!token?.endsWith("%")) return fallback;
-          const value = Number.parseFloat(token);
-          return Number.isFinite(value) ? value / 100 : fallback;
-        };
-        const positionX = readPosition(positionTokens[0], 0.5);
-        const positionY = readPosition(positionTokens[1], 0.5);
-        const renderedLeft = (layoutWidth - renderedWidth) * positionX;
-        const renderedTop = (layoutHeight - renderedHeight) * positionY;
-        return { rect, layoutWidth, layoutHeight, renderedWidth, renderedHeight, renderedLeft, renderedTop, sampler };
-      };
-      const sampleOpeningEdgeProjection = (projection, viewportX, viewportY) => {
-        if (!projection) return null;
-        const localX = (viewportX - projection.rect.left) * projection.layoutWidth / projection.rect.width;
-        const localY = (viewportY - projection.rect.top) * projection.layoutHeight / projection.rect.height;
-        const { renderedLeft, renderedTop, renderedWidth, renderedHeight, sampler } = projection;
-        const u = (localX - renderedLeft) / renderedWidth;
-        const v = (localY - renderedTop) / renderedHeight;
-        if (u < 0 || u > 1 || v < 0 || v > 1) return null;
-        return readOpeningEdgePixel(sampler, u, v);
-      };
-      const blendOpeningEdgeChannel = (backdrop, source, alpha, mode) => {
-        const backdropUnit = clamp(backdrop / 255, 0, 1);
-        const sourceUnit = clamp(source / 255, 0, 1);
-        let blended = sourceUnit;
-        if (mode === "multiply") {
-          blended = backdropUnit * sourceUnit;
-        } else if (mode === "soft-light") {
-          const curve = backdropUnit <= 0.25
-            ? ((16 * backdropUnit - 12) * backdropUnit + 4) * backdropUnit
-            : Math.sqrt(backdropUnit);
-          blended = sourceUnit <= 0.5
-            ? backdropUnit - (1 - 2 * sourceUnit) * backdropUnit * (1 - backdropUnit)
-            : backdropUnit + (2 * sourceUnit - 1) * (curve - backdropUnit);
-        }
-        return (backdropUnit + (blended - backdropUnit) * alpha) * 255;
-      };
-      const applyMemoryOpeningEdgeTreatment = (color, projection, viewportX, viewportY) => {
-        if (!color || !projection) return color;
-        const localX = (viewportX - projection.rect.left) * projection.layoutWidth / projection.rect.width;
-        const localY = (viewportY - projection.rect.top) * projection.layoutHeight / projection.rect.height;
-        const width = Math.max(1, projection.layoutWidth);
-        const height = Math.max(1, projection.layoutHeight);
-        const radialX = (localX - width * 0.5) / (width * 0.5);
-        const radialY = (localY - height * 0.48) / (height * 0.5);
-        const radialCorner = Math.hypot(1, 1.04);
-        const radialDistance = Math.hypot(radialX, radialY) / radialCorner;
-        const radialAlpha = smootherstep(clamp((radialDistance - 0.48) / 0.52, 0, 1)) * 0.3;
-        const vignetted = color.map((channel, index) => (
-          blendOpeningEdgeChannel(channel, [8, 10, 31][index], radialAlpha, "multiply")
-        ));
-
-        const gradientAngle = 112 * Math.PI / 180;
-        const directionX = Math.sin(gradientAngle);
-        const directionY = -Math.cos(gradientAngle);
-        const gradientLength = Math.max(
-          1,
-          Math.abs(width * directionX) + Math.abs(height * directionY)
-        );
-        const gradientProgress = clamp(
-          0.5 + (
-            (localX - width * 0.5) * directionX
-            + (localY - height * 0.5) * directionY
-          ) / gradientLength,
-          0,
-          1
-        );
-        const isCoolSide = gradientProgress <= 0.42;
-        const overlayColor = isCoolSide ? [20, 25, 55] : [255, 190, 210];
-        const overlayAlpha = isCoolSide
-          ? 0.16 * (1 - gradientProgress / 0.42)
-          : 0.12 * ((gradientProgress - 0.42) / 0.58);
-        return vignetted.map((channel, index) => (
-          blendOpeningEdgeChannel(channel, overlayColor[index], overlayAlpha, "soft-light")
-        ));
-      };
-      const loadOpeningEdgeSampler = (source) => new Promise((resolveSampler) => {
-        if (!source) {
-          resolveSampler(null);
-          return;
-        }
-        const image = new Image();
-        image.decoding = "async";
-        image.addEventListener("load", () => {
-          try {
-            const sampleWidth = Math.min(960, image.naturalWidth);
-            const sampleHeight = Math.max(1, Math.round(sampleWidth * image.naturalHeight / image.naturalWidth));
-            const canvas = document.createElement("canvas");
-            const context = canvas.getContext("2d", { willReadFrequently: true });
-            if (!context) {
-              resolveSampler(null);
-              return;
-            }
-            canvas.width = sampleWidth;
-            canvas.height = sampleHeight;
-            context.drawImage(image, 0, 0, sampleWidth, sampleHeight);
-            resolveSampler({
-              sourceWidth: image.naturalWidth,
-              sourceHeight: image.naturalHeight,
-              width: sampleWidth,
-              height: sampleHeight,
-              data: context.getImageData(0, 0, sampleWidth, sampleHeight).data
-            });
-          } catch {
-            resolveSampler(null);
-          }
-        }, { once: true, signal });
-        image.addEventListener("error", () => resolveSampler(null), { once: true, signal });
-        image.src = new URL(source, document.baseURI).href;
-      });
-      const renderOpeningEdgeTexture = (record) => {
-        if (!openingEdgeSamplingEnabled) return false;
-        if (!(opening instanceof HTMLElement) || !record) return false;
-        const { sampler, layer, continuationSurface, kind, position } = record;
-        if (
-          !sampler
-          || !(layer instanceof HTMLElement)
-          || !(continuationSurface instanceof HTMLElement)
-        ) return false;
-        const gateRect = gate.getBoundingClientRect();
-        const openingRect = opening.getBoundingClientRect();
-        const alignmentTolerance = clamp(window.innerHeight * 0.08, 32, 96);
-        if (Math.abs(openingRect.top) > alignmentTolerance) return false;
-        const projection = createOpeningEdgeProjection(layer, sampler, position);
-        if (!projection) return false;
-        const textureWidth = Math.max(96, Math.min(720, Math.round(gateRect.width)));
-        const textureVisibleHeight = 180;
-        const textureOverscan = 24;
-        const textureHeight = textureVisibleHeight + textureOverscan;
-        const textureCanvas = document.createElement("canvas");
-        const textureContext = textureCanvas.getContext("2d");
-        if (!textureContext) return false;
-        textureCanvas.width = textureWidth;
-        textureCanvas.height = textureHeight;
-        const imageData = textureContext.createImageData(textureWidth, textureHeight);
-        const edgeY = gateRect.bottom - 0.5;
-        const availableSourceDepth = Math.max(0, projection.rect.bottom - edgeY - 1);
-        const edgeSmoothstep = (value) => value * value * (3 - 2 * value);
-        for (let row = 0; row < textureHeight; row += 1) {
-          const visibleRow = Math.max(0, row - textureOverscan);
-          const rowProgress = visibleRow / Math.max(1, textureVisibleHeight - 1);
-          const sourceDepth = availableSourceDepth > 0
-            ? availableSourceDepth * (
-                1 - Math.exp(
-                  -visibleRow / Math.max(18, availableSourceDepth * 1.6)
-                )
-              )
-            : 0;
-          const sourceY = edgeY + sourceDepth;
-          const horizontalDrift = Math.sin(rowProgress * Math.PI * 1.35) * rowProgress * gateRect.width * 0.012;
-          const rowColors = [];
-          for (let index = 0; index < textureWidth; index += 1) {
-            const viewportX = gateRect.left + (index + 0.5) * gateRect.width / textureWidth + horizontalDrift;
-            const sampled = sampleOpeningEdgeProjection(projection, viewportX, sourceY);
-            rowColors.push(
-              kind === "memory"
-                ? applyMemoryOpeningEdgeTreatment(sampled, projection, viewportX, sourceY) ?? [17, 22, 54]
-                : sampled ?? [17, 22, 54]
-            );
-          }
-          const blurProgress = clamp((rowProgress - 0.18) / 0.82, 0, 1);
-          const blurRadius = Math.round(Math.pow(blurProgress, 2.3) * 42);
-          const prefixes = [new Float64Array(textureWidth + 1), new Float64Array(textureWidth + 1), new Float64Array(textureWidth + 1)];
-          const rowAverage = [0, 0, 0];
-          rowColors.forEach((color, index) => {
-            for (let channel = 0; channel < 3; channel += 1) {
-              prefixes[channel][index + 1] = prefixes[channel][index] + color[channel];
-              rowAverage[channel] += color[channel] / textureWidth;
-            }
-          });
-          const flattenMix = edgeSmoothstep(clamp((rowProgress - 0.34) / 0.66, 0, 1)) * 0.46;
-          for (let index = 0; index < textureWidth; index += 1) {
-            const start = Math.max(0, index - blurRadius);
-            const end = Math.min(textureWidth, index + blurRadius + 1);
-            const count = Math.max(1, end - start);
-            const color = prefixes.map((prefix, channel) => {
-              const blurred = (prefix[end] - prefix[start]) / count;
-              return blurred + (rowAverage[channel] - blurred) * flattenMix;
-            });
-            const offset = (row * textureWidth + index) * 4;
-            imageData.data[offset] = Math.round(clamp(color[0], 0, 255));
-            imageData.data[offset + 1] = Math.round(clamp(color[1], 0, 255));
-            imageData.data[offset + 2] = Math.round(clamp(color[2], 0, 255));
-            imageData.data[offset + 3] = 255;
-          }
-        }
-        textureContext.putImageData(imageData, 0, 0);
-        const textureImage = `url("${textureCanvas.toDataURL("image/png")}")`;
-        continuationSurface.style.backgroundImage = textureImage;
-        record.textureReady = true;
-        record.textureQueued = false;
-        return true;
-      };
-      const runOpeningEdgeRenderQueue = (deadline = null) => {
-        openingEdgeRenderHandle = 0;
-        if (disposed) return;
-        const record = openingEdgeRenderQueue.shift();
-        if (record) {
-          record.textureQueued = false;
-          renderOpeningEdgeTexture(record);
-        }
-        if (openingEdgeRenderQueue.length > 0) scheduleOpeningEdgeRenderQueue();
-      };
-      const scheduleOpeningEdgeRenderQueue = () => {
-        if (disposed || openingEdgeRenderHandle || openingEdgeRenderQueue.length === 0) return;
-        if ("requestIdleCallback" in window) {
-          openingEdgeRenderUsesIdleCallback = true;
-          openingEdgeRenderHandle = window.requestIdleCallback(runOpeningEdgeRenderQueue, { timeout: 420 });
-        } else {
-          openingEdgeRenderUsesIdleCallback = false;
-          openingEdgeRenderHandle = window.setTimeout(() => runOpeningEdgeRenderQueue(), 32);
-        }
-      };
-      const queueOpeningEdgeTexture = (record, priority = false) => {
-        if (!record || record.textureQueued || !record.sampler) return;
-        record.textureQueued = true;
-        if (priority) openingEdgeRenderQueue.unshift(record);
-        else openingEdgeRenderQueue.push(record);
-        scheduleOpeningEdgeRenderQueue();
-      };
-      const ensureOpeningEdgeSampler = (record, priority = false) => {
-        if (!openingEdgeSamplingEnabled) return Promise.resolve(null);
-        if (!record || !record.source || record.samplerFailed) return Promise.resolve(null);
-        if (record.sampler) {
-          if (!record.textureReady) queueOpeningEdgeTexture(record, priority);
-          return Promise.resolve(record.sampler);
-        }
-        if (record.samplerPromise) return record.samplerPromise;
-
-        record.samplerPromise = loadOpeningEdgeSampler(record.source).then((sampler) => {
-          record.samplerPromise = null;
-          if (disposed) return null;
-          if (!sampler) {
-            record.samplerFailed = true;
-            return null;
-          }
-          record.sampler = sampler;
-          queueOpeningEdgeTexture(record, priority);
-          return sampler;
-        });
-        return record.samplerPromise;
-      };
-      const primeCurrentOpeningEdgeTextures = () => {
-        if (!openingEdgeSamplingEnabled) return;
-        openingEdgeRecords.forEach((record) => {
-          if ((openingEdgeState[record.id]?.opacity ?? 0) > 0.015) {
-            ensureOpeningEdgeSampler(record, true);
-          }
-        });
-      };
-      const refreshOpeningEdgeTextures = () => {
-        if (!openingEdgeSamplingEnabled) return;
-        openingEdgeRecords.forEach((record) => {
-          record.textureReady = false;
-          queueOpeningEdgeTexture(record, (openingEdgeState[record.id]?.opacity ?? 0) > 0.02);
-        });
-      };
-      const scheduleOpeningEdgeTextureRefresh = () => {
-        if (openingEdgeResizeFrame) window.cancelAnimationFrame(openingEdgeResizeFrame);
-        openingEdgeResizeFrame = window.requestAnimationFrame(() => {
-          openingEdgeResizeFrame = 0;
-          refreshOpeningEdgeTextures();
-          openingEdgeLiveSyncTimestamp = 0;
-        });
-      };
-      const syncOpeningEdgeLiveSurface = (source, surface, record, backgroundKey, geometryKey, containerRect) => {
-        if (
-          !(source instanceof HTMLElement)
-          || !(surface instanceof HTMLElement)
-          || !record
-        ) return;
-        if (!record[backgroundKey]) {
-          const sourceStyle = getComputedStyle(source);
-          surface.style.backgroundImage = sourceStyle.backgroundImage;
-          surface.style.backgroundPosition = sourceStyle.backgroundPosition;
-          surface.style.backgroundSize = sourceStyle.backgroundSize;
-          surface.style.backgroundRepeat = sourceStyle.backgroundRepeat;
-          surface.style.backgroundBlendMode = sourceStyle.backgroundBlendMode;
-          surface.style.backgroundOrigin = sourceStyle.backgroundOrigin;
-          surface.style.backgroundClip = sourceStyle.backgroundClip;
-          surface.style.backgroundColor = sourceStyle.backgroundColor;
-          record[backgroundKey] = "ready";
-        }
-
-        const sourceRect = source.getBoundingClientRect();
-        const offsetX = sourceRect.left - containerRect.left;
-        const offsetY = sourceRect.top - containerRect.top;
-        const geometrySignature = [offsetX, offsetY, sourceRect.width, sourceRect.height]
-          .map((value) => value.toFixed(2))
-          .join("|");
-        if (record[geometryKey] !== geometrySignature) {
-          surface.style.width = `${sourceRect.width.toFixed(3)}px`;
-          surface.style.height = `${sourceRect.height.toFixed(3)}px`;
-          surface.style.transform = `translate3d(${offsetX.toFixed(3)}px, ${offsetY.toFixed(3)}px, 0)`;
-          record[geometryKey] = geometrySignature;
-        }
-      };
-      const syncOpeningEdgeLiveGeometry = (force = false) => {
-        if (!openingEdgeSamplingEnabled) return;
-        if (!(openingEdge instanceof HTMLElement)) return;
-        if (openingBridgePortalActive) return;
-        if (!force && lockedOpeningEdgeState !== null) return;
-        const timestamp = performance.now();
-        if (!force && timestamp - openingEdgeLiveSyncTimestamp < 28) return;
-        openingEdgeLiveSyncTimestamp = timestamp;
-        openingEdgeRecords.forEach((record) => {
-          const opacity = openingEdgeState[record.id]?.opacity ?? 0;
-          const liveLayer = resolveOpeningEdgeLayer(record);
-          if (
-            (!force && opacity <= 0.001)
-            || !(liveLayer instanceof HTMLElement)
-            || !(record.element instanceof HTMLElement)
-          ) return;
-          syncOpeningEdgeLiveSurface(
-            liveLayer,
-            record.liveSurface,
-            record,
-            "renderedLiveBackground",
-            "renderedLiveGeometry",
-            record.element.getBoundingClientRect()
-          );
-        });
-        if (
-          force
-          || (openingEdgeFlareState.opacity ?? 0) > 0.001
-        ) {
-          const flareRecord = {
-            renderedOpeningEdgeFlareBackground,
-            renderedOpeningEdgeFlareGeometry
-          };
-          syncOpeningEdgeLiveSurface(
-            memoryFlare,
-            openingEdgeFlareSurface,
-            flareRecord,
-            "renderedOpeningEdgeFlareBackground",
-            "renderedOpeningEdgeFlareGeometry",
-            openingEdgeFlare instanceof HTMLElement
-              ? openingEdgeFlare.getBoundingClientRect()
-              : openingEdge.getBoundingClientRect()
-          );
-          renderedOpeningEdgeFlareBackground = flareRecord.renderedOpeningEdgeFlareBackground;
-          renderedOpeningEdgeFlareGeometry = flareRecord.renderedOpeningEdgeFlareGeometry;
-        }
-      };
-      const applyOpeningEdgeState = (nextState, nextFlareState = openingEdgeFlareState) => {
-        openingEdgeState = { ...nextState };
-        openingEdgeFlareState = { ...nextFlareState };
-        openingEdgeRecords.forEach((record) => {
-          const sceneState = nextState[record.id] ?? { opacity: 0, filter: "none" };
-          const opacity = clamp(sceneState.opacity ?? 0, 0, 1);
-          const filter = sceneState.filter || "none";
-          if (
-            record.element instanceof HTMLElement
-            && Math.abs(record.renderedOpacity - opacity) > 0.0005
-          ) {
-            record.element.style.opacity = opacity.toFixed(4);
-            record.renderedOpacity = opacity;
-          }
-          if (
-            opacity > 0.001
-            && record.element instanceof HTMLElement
-            && record.renderedFilter !== filter
-          ) {
-            record.element.style.filter = filter;
-            record.renderedFilter = filter;
-          }
-          if (opacity > 0.015 && !record.textureReady) {
-            queueOpeningEdgeTexture(record, true);
-          }
-        });
-        if (openingEdgeFlare instanceof HTMLElement) {
-          const flareOpacity = clamp(nextFlareState.opacity ?? 0, 0, 0.44);
-          const flareFilter = nextFlareState.filter || "none";
-          const flareShift = Number.isFinite(nextFlareState.shift) ? nextFlareState.shift : 0;
-          if (Math.abs(renderedOpeningEdgeFlareOpacity - flareOpacity) > 0.0005) {
-            openingEdgeFlare.style.opacity = flareOpacity.toFixed(4);
-            renderedOpeningEdgeFlareOpacity = flareOpacity;
-          }
-          if (flareOpacity > 0.001 && renderedOpeningEdgeFlareFilter !== flareFilter) {
-            openingEdgeFlare.style.filter = flareFilter;
-            renderedOpeningEdgeFlareFilter = flareFilter;
-          }
-          if (Math.abs(renderedOpeningEdgeFlareShift - flareShift) > 0.02) {
-            openingEdgeFlare.style.setProperty("--kisara-opening-flare-shift", `${flareShift.toFixed(3)}px`);
-            renderedOpeningEdgeFlareShift = flareShift;
-          }
-        }
-      };
-      const syncOpeningEdgeState = (nextState, nextFlareState) => {
-        if (lockedOpeningEdgeState !== null) return;
-        openingEdgeState = nextState;
-        openingEdgeFlareState = nextFlareState;
-      };
-      const lockOpeningEdgeState = () => {
-        syncOpeningEdgeLiveGeometry(true);
-        lockedOpeningEdgeState = {
-          scenes: { ...openingEdgeState },
-          flare: { ...openingEdgeFlareState }
-        };
-        applyOpeningEdgeState(lockedOpeningEdgeState.scenes, lockedOpeningEdgeState.flare);
-        primeCurrentOpeningEdgeTextures();
-      };
-      const releaseOpeningEdgeState = () => {
-        lockedOpeningEdgeState = null;
-        openingEdgeLiveSyncTimestamp = 0;
-      };
-      ensureOpeningEdgeSampler(openingEdgeRecordById.get("base"), true);
-      window.addEventListener("resize", scheduleOpeningEdgeTextureRefresh, { passive: true, signal });
       const startsComplete = reducedMotion && !restoredBelowGate && !foundSelfEntryRequested;
       let progress = startsComplete ? 1 : 0;
       let targetProgress = progress;
@@ -12072,9 +11520,6 @@ const gateStyle = [
           silhouetteFocus,
           reconstructionProgress,
           reconstructionReveal,
-          transformationReleaseOpacity,
-          silhouetteBladeBlur,
-          silhouetteBladeBrightness,
           fightVisible,
           fightSettle,
           fightBlur,
@@ -12086,41 +11531,6 @@ const gateStyle = [
         const baseSceneBlur = memoryState.baseExit * 10;
         const baseSceneSaturation = 1 - memoryState.baseExit * 0.2;
         const baseSceneBrightness = 1 - memoryState.baseExit * 0.12;
-        const nextOpeningEdgeState = {};
-        openingEdgeRecords.forEach((record) => {
-          if (record.kind === "base") {
-            nextOpeningEdgeState[record.id] = {
-              opacity: baseSceneOpacity,
-              filter: `blur(${baseSceneBlur.toFixed(3)}px) saturate(${baseSceneSaturation.toFixed(3)}) brightness(${baseSceneBrightness.toFixed(3)})`
-            };
-            return;
-          }
-          if (record.kind === "memory") {
-            nextOpeningEdgeState[record.id] = {
-              opacity: memoryState.memoryOpacities[record.index] ?? 0,
-              filter: memoryState.memoryFilters[record.index] ?? "none"
-            };
-            return;
-          }
-          if (record.kind === "transformation") {
-            const presentation = memoryState.transformationFilters[record.index];
-            const isSilhouette = record.index === transformationSceneRecords.length - 1;
-            const blur = (presentation?.blur ?? 0) + (isSilhouette ? silhouetteBladeBlur : 0);
-            const bladeBrightness = isSilhouette ? silhouetteBladeBrightness : 1;
-            nextOpeningEdgeState[record.id] = {
-              opacity: (memoryState.transformationOpacities[record.index] ?? 0) * transformationReleaseOpacity,
-              filter: `blur(${blur.toFixed(3)}px) saturate(${presentation?.saturation ?? 1}) brightness(${presentation?.brightness ?? 1}) brightness(${bladeBrightness.toFixed(4)}) contrast(1.025)`
-            };
-            return;
-          }
-          nextOpeningEdgeState[record.id] = record.kind === "fight"
-            ? {
-                opacity: reconstructionReveal,
-                filter: `blur(${fightBlur.toFixed(3)}px) saturate(${fightSaturation.toFixed(3)}) brightness(${fightBrightness.toFixed(3)})`
-              }
-            : { opacity: 0, filter: "none" };
-        });
-        syncOpeningEdgeState(nextOpeningEdgeState, memoryState.flare);
         const glossPosition = 118 - glossSweep * 136;
         const glossOpacity = Math.sin(glossSweep * Math.PI) * (1 - phaseProgress(burstProgress, 0.3, glossFadeEnd)) * 0.98;
         const boundaryOpacity = fill <= 0.002 || fill >= 0.998
@@ -12890,9 +12300,7 @@ const gateStyle = [
         gateVisualResetPending = false;
         deactivateOpeningBridgePortal();
         clearOpeningTitleBridgeDissolve();
-        releaseOpeningEdgeState();
         resetGateState();
-        lockOpeningEdgeState();
         settleOpeningBridgeDissolve();
       };
 
@@ -12984,14 +12392,11 @@ const gateStyle = [
         if (openingTitleBridgeActive) setOpeningTitleBridgeProgress(1);
         gateVisualResetPending = false;
         deactivateOpeningBridgePortal();
-        releaseOpeningEdgeState();
         pageMode = "gate";
         lastObservedScrollY = 0;
         setScrollPosition(0);
         resetGateState();
         // Paint the blue bridge state once, then keep it live for the next run.
-        lockOpeningEdgeState();
-        releaseOpeningEdgeState();
         settleOpeningBridgeDissolve();
         settleOpeningTitleBridgeDissolve();
         gateReturnGuardUntil = performance.now() + (reducedMotion ? 120 : 480);
@@ -13911,14 +13316,6 @@ const gateStyle = [
         sceneImageWarmers.clear();
         spaceLensInitGeneration += 1;
         titleLensInitGeneration += 1;
-        if (openingEdgeResizeFrame) window.cancelAnimationFrame(openingEdgeResizeFrame);
-        if (openingEdgeRenderHandle) {
-          if (openingEdgeRenderUsesIdleCallback && "cancelIdleCallback" in window) {
-            window.cancelIdleCallback(openingEdgeRenderHandle);
-          } else {
-            window.clearTimeout(openingEdgeRenderHandle);
-          }
-        }
         if (animationFrame) window.cancelAnimationFrame(animationFrame);
         if (energyFrame) window.cancelAnimationFrame(energyFrame);
         cancelSmoothScroll();
@@ -13943,14 +13340,6 @@ const gateStyle = [
             window.clearTimeout(warningWarmupHandle);
           }
         }
-        openingEdgeResizeFrame = 0;
-        openingEdgeRenderHandle = 0;
-        openingEdgeRenderQueue.length = 0;
-        openingEdgeRecords.forEach((record) => {
-          record.sampler = null;
-          record.samplerPromise = null;
-          record.textureQueued = false;
-        });
         animationFrame = 0;
         energyFrame = 0;
         scrollFrame = 0;
@@ -14033,10 +13422,6 @@ const gateStyle = [
       };
       const syncDeferredGateReset = () => {
         if (!gateVisualResetPending || pageMode !== "next" || scrollFrame) return;
-        const edgeRect = openingEdge instanceof HTMLElement
-          ? openingEdge.getBoundingClientRect()
-          : null;
-        if (edgeRect && edgeRect.bottom >= -24) return;
         finalizeGateResetForNextPage();
       };
       const syncGateModeFromScroll = () => {

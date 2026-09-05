@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import { getThemePath } from "@/core/themes/registry";
 ---
 
 <section class="kisara-fridge-deck" data-kisara-home-stop="002" aria-labelledby="kisara-fridge-title">
@@ -8,9 +9,11 @@ import { Icon } from "astro-icon/components";
       <video
         class="kisara-fridge-video"
         data-fridge-video
-        src="/themes/kisara/assets/fridge-opening-002.mp4?v=ad1cc7d0"
+        data-src="/themes/kisara/assets/fridge-opening-002.mp4?v=ad1cc7d0"
         poster="/themes/kisara/assets/fridge-opening-002-first.webp?v=7d47ede4"
-        preload="auto"
+        width="1920"
+        height="1080"
+        preload="none"
         muted
         playsinline
         aria-label="木更打开冰箱并向冰箱内张望"
@@ -21,7 +24,7 @@ import { Icon } from "astro-icon/components";
         alt=""
         width="1920"
         height="1080"
-        loading="eager"
+        loading="lazy"
         decoding="async"
         aria-hidden="true"
       />
@@ -37,17 +40,21 @@ import { Icon } from "astro-icon/components";
         </div>
       </header>
 
-      <div class="kisara-fridge-copy">
+      <div class="kisara-fridge-copy" inert>
         <p class="kisara-fridge-copy-kicker">WHEN THE LIGHT COMES IN</p>
         <h2 id="kisara-fridge-title" class="kisara-fridge-copy-title">
           <span>门刚打开，</span>
           <strong>今天在做的东西先掉了下来。</strong>
         </h2>
         <p class="kisara-fridge-copy-body">UE 还没喝完，AstrBot 仍在发酵，Blog 倒是已经膨成了一整袋。没有库存表，最近惦记什么，就先把什么塞进来。</p>
+        <nav class="kisara-fridge-notes" aria-label="存货相关记录">
+          <a href={getThemePath("kisara", "/projects/")}>实验台<Icon name="tabler:arrow-right" aria-hidden="true" /></a>
+          <a href={getThemePath("kisara", "/blog/astrbot-plugin-dev-experience/")}>Bot 笔记<Icon name="tabler:arrow-right" aria-hidden="true" /></a>
+        </nav>
       </div>
     </div>
 
-    <div class="kisara-fridge-physics" data-fridge-physics aria-label="可拖拽的冰箱存货">
+    <div class="kisara-fridge-physics" data-fridge-physics aria-label="可拖拽的冰箱存货" inert>
       <button class="kisara-fridge-body is-milk" type="button" data-fridge-body data-fridge-kind="milk" aria-label="按住拖拽 UE 牛奶盒">
         <svg viewBox="0 0 180 260" role="img" aria-hidden="true">
           <defs>
@@ -145,7 +152,7 @@ import { Icon } from "astro-icon/components";
             alt=""
             width="1899"
             height="1625"
-            loading="eager"
+            loading="lazy"
             decoding="async"
           />
         </span>
@@ -185,6 +192,7 @@ import { Icon } from "astro-icon/components";
     class KisaraFridgeScene extends HTMLElement {
       controller: AbortController | null = null;
       observer: IntersectionObserver | null = null;
+      preloadObserver: IntersectionObserver | null = null;
       resizeObserver: ResizeObserver | null = null;
       resetScene: (() => void) | null = null;
       refreshScene: (() => void) | null = null;
@@ -204,6 +212,9 @@ import { Icon } from "astro-icon/components";
 
       connectedCallback() {
         this.controller?.abort();
+        this.observer?.disconnect();
+        this.preloadObserver?.disconnect();
+        this.resizeObserver?.disconnect();
         const controller = new AbortController();
         this.controller = controller;
         const { signal } = controller;
@@ -212,6 +223,7 @@ import { Icon } from "astro-icon/components";
         const bodyElements = Array.from(this.querySelectorAll<HTMLButtonElement>("[data-fridge-body]"));
         const status = this.querySelector<HTMLElement>("[data-fridge-status]");
         const replay = this.querySelector<HTMLButtonElement>("[data-fridge-replay]");
+        const copy = this.querySelector<HTMLElement>(".kisara-fridge-copy");
         const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (!video || !stage || bodyElements.length !== 4) return;
 
@@ -220,6 +232,8 @@ import { Icon } from "astro-icon/components";
         let opened = false;
         let waitingForFreshEntry = false;
         let recoveryFrame = 0;
+        let entryFrame = 0;
+        let resizeFrame = 0;
         let playbackGeneration = 0;
         let playbackWatchdog = 0;
         let playbackRetryTimer = 0;
@@ -238,6 +252,15 @@ import { Icon } from "astro-icon/components";
         const bodyDropStartTime = 0.88;
         const spawnRatios = [0.57, 0.69, 0.82, 0.94];
         const settledAngles = [-0.09, 0.06, -0.045, 0.08];
+        const hydrateMedia = () => {
+          this.querySelectorAll<HTMLImageElement>("img[loading]").forEach((image) => {
+            image.loading = "eager";
+          });
+          if (reducedMotion || video.hasAttribute("src")) return;
+          video.src = video.dataset.src!;
+          video.preload = "auto";
+          video.load();
+        };
 
         const bodies: FridgeBody[] = bodyElements.map((element, index) => ({
           element,
@@ -380,7 +403,7 @@ import { Icon } from "astro-icon/components";
 
         const tick = (now: number) => {
           animationFrame = 0;
-          if (!sceneVisible || !bodiesLaunched) return;
+          if (document.hidden || !sceneVisible || !bodiesLaunched) return;
           if (!lastFrameAt) lastFrameAt = now;
           const deltaTime = Math.min(0.032, Math.max(0.001, (now - lastFrameAt) / 1000));
           lastFrameAt = now;
@@ -444,7 +467,7 @@ import { Icon } from "astro-icon/components";
         };
 
         const ensureLoop = () => {
-          if (!animationFrame && sceneVisible && bodiesLaunched && !reducedMotion) {
+          if (!animationFrame && !document.hidden && sceneVisible && bodiesLaunched && !reducedMotion) {
             lastFrameAt = 0;
             animationFrame = requestAnimationFrame(tick);
           }
@@ -493,6 +516,8 @@ import { Icon } from "astro-icon/components";
           video.pause();
           this.classList.remove("is-fridge-resetting", "is-fridge-playing");
           this.classList.add("is-fridge-open");
+          stage.inert = false;
+          if (copy) copy.inert = false;
           if (status) status.textContent = "OPEN / 04°C";
           if (reducedMotion) placeBodiesForReducedMotion();
           else launchBodies();
@@ -518,12 +543,15 @@ import { Icon } from "astro-icon/components";
           }
           this.classList.add("is-fridge-resetting");
           this.classList.remove("is-fridge-playing", "is-fridge-open");
+          stage.inert = true;
+          if (copy) copy.inert = true;
           if (status) status.textContent = "SEALED";
         };
 
         const resetActiveOpening = (reloadPipeline = false) => {
           playbackGeneration += 1;
           clearPlaybackTimers();
+          if (bodiesLaunched) resetBodies();
           setSealedPresentation();
           if (reloadPipeline) {
             try {
@@ -595,7 +623,8 @@ import { Icon } from "astro-icon/components";
         };
 
         const startOpening = (isRecoveryRetry = false) => {
-          if (!sceneVisible || waitingForFreshEntry || openingStarted || opened) return;
+          if (document.hidden || !sceneVisible || waitingForFreshEntry || openingStarted || opened) return;
+          hydrateMedia();
           if (!isRecoveryRetry) stallRecoveries = 0;
           const playGeneration = ++playbackGeneration;
           openingStarted = true;
@@ -646,7 +675,9 @@ import { Icon } from "astro-icon/components";
           waitingForFreshEntry = waitForExit && sceneVisible;
           setSealedPresentation();
           resetBodies();
-          requestAnimationFrame(() => {
+          if (entryFrame) cancelAnimationFrame(entryFrame);
+          entryFrame = requestAnimationFrame(() => {
+            entryFrame = 0;
             if (!signal.aborted && sceneVisible && !waitingForFreshEntry) startOpening();
           });
         };
@@ -660,7 +691,7 @@ import { Icon } from "astro-icon/components";
 
         const syncSceneAfterVisibility = () => {
           const wasVisible = sceneVisible;
-          sceneVisible = measureSceneVisibility();
+          sceneVisible = !document.hidden && measureSceneVisibility();
           if (!sceneVisible) {
             waitingForFreshEntry = false;
             stopLoop();
@@ -694,7 +725,13 @@ import { Icon } from "astro-icon/components";
         };
 
         const interruptForLifecycle = () => {
+          sceneVisible = false;
           cancelActiveDrag();
+          stopLoop();
+          if (recoveryFrame) cancelAnimationFrame(recoveryFrame);
+          if (entryFrame) cancelAnimationFrame(entryFrame);
+          recoveryFrame = 0;
+          entryFrame = 0;
           if (!openingStarted || opened) return;
           resetActiveOpening();
           stallRecoveries = 0;
@@ -715,7 +752,7 @@ import { Icon } from "astro-icon/components";
         };
 
         const beginDrag = (body: FridgeBody, event: PointerEvent) => {
-          if (!body.active || !opened) return;
+          if (!body.active || !opened || event.button !== 0) return;
           event.preventDefault();
           if (activeDrag && activeDrag !== body) {
             activeDrag.dragging = false;
@@ -796,6 +833,13 @@ import { Icon } from "astro-icon/components";
           body.element.addEventListener("keydown", (event) => {
             if (!body.active || !opened || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(event.key)) return;
             event.preventDefault();
+            event.stopPropagation();
+            if (reducedMotion) {
+              body.x = clamp(body.x + (event.key === "ArrowLeft" ? -24 : event.key === "ArrowRight" ? 24 : 0), body.width * .34, boundsWidth - body.width * .34);
+              body.y = clamp(body.y + (event.key === "ArrowDown" ? 24 : event.key === "ArrowUp" || event.key === " " ? -24 : 0), body.height * .28, floorY - body.height * .41);
+              renderBody(body);
+              return;
+            }
             if (event.key === "ArrowLeft") body.vx -= 240;
             if (event.key === "ArrowRight") body.vx += 240;
             if (event.key === "ArrowUp" || event.key === " ") body.vy -= 520;
@@ -831,23 +875,39 @@ import { Icon } from "astro-icon/components";
         window.addEventListener("focus", recoverAfterLifecycle, { signal });
         document.addEventListener("freeze", interruptForLifecycle, { signal });
         document.addEventListener("resume", recoverAfterLifecycle, { signal });
-        window.addEventListener("resize", measureBodies, { passive: true, signal });
+        const scheduleMeasure = () => {
+          if (resizeFrame) return;
+          resizeFrame = requestAnimationFrame(() => {
+            resizeFrame = 0;
+            if (signal.aborted) return;
+            measureBodies();
+            ensureLoop();
+          });
+        };
+        window.addEventListener("resize", scheduleMeasure, { passive: true, signal });
 
         if (typeof ResizeObserver === "function") {
-          this.resizeObserver = new ResizeObserver(measureBodies);
+          this.resizeObserver = new ResizeObserver(scheduleMeasure);
           this.resizeObserver.observe(stage);
         }
 
         if ("IntersectionObserver" in window) {
+          this.preloadObserver = new IntersectionObserver((entries) => {
+            if (!entries.some(entry => entry.isIntersecting) || document.hidden) return;
+            hydrateMedia();
+            this.preloadObserver?.disconnect();
+          }, { rootMargin: "65% 0px" });
+          this.preloadObserver.observe(this);
           this.observer = new IntersectionObserver((entries) => {
             const entry = entries[entries.length - 1];
-            sceneVisible = Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.12);
+            sceneVisible = !document.hidden && Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.12);
             if (sceneVisible) {
               if (waitingForFreshEntry) return;
               if (opened) ensureLoop();
               else startOpening();
             } else {
               waitingForFreshEntry = false;
+              cancelActiveDrag();
               stopLoop();
               if (openingStarted && !opened) resetActiveOpening();
             }
@@ -905,6 +965,10 @@ import { Icon } from "astro-icon/components";
           stopLoop();
           video.pause();
           if (recoveryFrame) window.cancelAnimationFrame(recoveryFrame);
+          if (entryFrame) cancelAnimationFrame(entryFrame);
+          if (resizeFrame) cancelAnimationFrame(resizeFrame);
+          entryFrame = 0;
+          resizeFrame = 0;
           recoveryFrame = 0;
         }, { once: true });
         resetBodies();
@@ -916,6 +980,8 @@ import { Icon } from "astro-icon/components";
         this.controller = null;
         this.observer?.disconnect();
         this.observer = null;
+        this.preloadObserver?.disconnect();
+        this.preloadObserver = null;
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
         this.resetScene = null;

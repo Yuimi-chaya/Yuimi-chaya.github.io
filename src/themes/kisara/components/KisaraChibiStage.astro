@@ -2,10 +2,10 @@
 import { Icon } from "astro-icon/components";
 
 const characters = [
-  { id: "kisara", src: "/themes/kisara/assets/chibi/kisara.webp", label: "木更" },
-  { id: "ayano", src: "/themes/kisara/assets/chibi/ayano.webp", label: "绫乃" },
-  { id: "shu", src: "/themes/kisara/assets/chibi/shu.webp", label: "修" },
-  { id: "sharon", src: "/themes/kisara/assets/chibi/sharon.webp", label: "莎朗" },
+  { id: "kisara", src: "/themes/kisara/assets/chibi/kisara.webp", label: "木更", width: 360, height: 458 },
+  { id: "ayano", src: "/themes/kisara/assets/chibi/ayano.webp", label: "绫乃", width: 298, height: 472 },
+  { id: "shu", src: "/themes/kisara/assets/chibi/shu.webp", label: "修", width: 354, height: 532 },
+  { id: "sharon", src: "/themes/kisara/assets/chibi/sharon.webp", label: "莎朗", width: 392, height: 482 },
 ];
 ---
 
@@ -66,9 +66,10 @@ const characters = [
     >
       <span class="kisara-chibi-bubble" data-chibi-bubble aria-hidden="true"></span>
       <span class="kisara-chibi-figure">
-        <img src={character.src} alt="" draggable="false" loading="lazy" decoding="async" />
+        <img src={character.src} width={character.width} height={character.height} alt="" draggable="false" loading="lazy" decoding="async" />
       </span>
       <span class="kisara-chibi-shadow" aria-hidden="true"></span>
+      <span class="kisara-chibi-name" aria-hidden="true">{character.label}</span>
     </button>
   ))}
 
@@ -636,7 +637,6 @@ const characters = [
     touch-action: none;
     cursor: grab;
     opacity: 0;
-    will-change: transform;
   }
 
   .kisara-chibi::before,
@@ -710,13 +710,13 @@ const characters = [
   .kisara-chibi.is-dragging {
     z-index: 7;
     cursor: grabbing;
+    will-change: transform;
   }
 
   .kisara-chibi:focus-visible {
     outline: none;
   }
 
-  .kisara-chibi:focus-visible::before,
   .kisara-chibi:focus-visible::before {
     opacity: 1;
     transform: scale(1);
@@ -751,7 +751,6 @@ const characters = [
       transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
       filter 240ms ease,
       opacity 220ms ease;
-    will-change: transform, filter;
   }
 
   .kisara-chibi-figure img {
@@ -761,9 +760,33 @@ const characters = [
     width: 100%;
     height: 100%;
     object-fit: contain;
-    filter: blur(0.12px) saturate(0.99) contrast(1.015);
     pointer-events: none;
     -webkit-user-drag: none;
+  }
+
+  .kisara-chibi-name {
+    position: absolute;
+    right: 0;
+    bottom: -18px;
+    left: 0;
+    color: #e3e7ee;
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+    text-shadow: 0 1px 4px #080912;
+    opacity: .7;
+    pointer-events: none;
+  }
+
+  .kisara-chibi:is(:focus-visible, .is-dragging) .kisara-chibi-name {
+    color: #ffb7ca;
+    opacity: 1;
+  }
+
+  .kisara-chibi-stage:not([data-stage-visible]) *,
+  .kisara-chibi-stage:not([data-stage-visible]) *::before,
+  .kisara-chibi-stage:not([data-stage-visible]) *::after {
+    animation-play-state: paused !important;
   }
 
   .kisara-chibi.is-dragging .kisara-chibi-figure {
@@ -1025,6 +1048,7 @@ const characters = [
 </style>
 
 <script>
+  import { createFrameQueue } from "../lib/frameQueue";
   const initKisaraChibiStage = () => {
     const root = document.querySelector("[data-kisara-chibi-stage]");
     if (!(root instanceof HTMLElement)) return;
@@ -1116,7 +1140,10 @@ const characters = [
     const bubbleTimers = new Map();
     let drag = null;
     let sceneToken = 0;
-    let frame = 0;
+    let layoutFrame = 0;
+    let stageVisible = false;
+    let stageRect = null;
+    const characterSizes = new Map();
     let lastStageSize = { width: 0, height: 0 };
     let lastCompactLayout = null;
     let applePairHits = 0;
@@ -1132,7 +1159,7 @@ const characters = [
     const schedule = (callback, delay) => {
       const timer = window.setTimeout(() => {
         timers.delete(timer);
-        callback();
+        if (!cleaned && stageVisible && !document.hidden) callback();
       }, delay);
       timers.add(timer);
       return timer;
@@ -1149,15 +1176,21 @@ const characters = [
     const sceneKey = (ids) => [...ids].sort().join("|");
 
     const dimensions = (id) => {
-      const node = nodes.get(id);
-      return { width: node?.offsetWidth || 120, height: node?.offsetHeight || 180 };
+      return characterSizes.get(id) || { width: 120, height: 180 };
+    };
+
+    const measureCharacters = () => {
+      nodes.forEach((node, id) => {
+        characterSizes.set(id, { width: node.offsetWidth || 120, height: node.offsetHeight || 180 });
+      });
+      stageRect = null;
     };
 
     const clampPosition = (id, x, y) => {
       const { width, height } = dimensions(id);
       return {
-        x: Math.min(Math.max(8, x), Math.max(8, root.clientWidth - width - 8)),
-        y: Math.min(Math.max(38, y), Math.max(38, root.clientHeight - height - 24)),
+        x: Math.min(Math.max(8, x), Math.max(8, lastStageSize.width - width - 8)),
+        y: Math.min(Math.max(38, y), Math.max(38, lastStageSize.height - height - 24)),
       };
     };
 
@@ -1294,6 +1327,7 @@ const characters = [
 
     const startAppleMedia = async () => {
       if (!(appleCutscene instanceof HTMLElement)) return false;
+      const token = sceneToken;
 
       if (loadAppleVideo() && appleVideo instanceof HTMLVideoElement) {
         try {
@@ -1302,8 +1336,13 @@ const characters = [
           appleVideo.playbackRate = 0.82;
           appleCutscene.dataset.renderer = "video";
           await appleVideo.play();
+          if (cleaned || token !== sceneToken || !stageVisible || document.hidden) {
+            if (!appleActive) appleVideo.pause();
+            return false;
+          }
           return true;
         } catch {
+          if (cleaned || token !== sceneToken || !stageVisible || document.hidden) return false;
           appleVideo.pause();
         }
       }
@@ -1317,7 +1356,7 @@ const characters = [
       } catch {
         // The first animated frame can still render even when decode() is unavailable.
       }
-      return true;
+      return !cleaned && token === sceneToken && stageVisible && !document.hidden;
     };
 
     const configureAppleScene = () => {
@@ -1372,6 +1411,7 @@ const characters = [
         appleVideo.pause();
         if (appleVideo.readyState > 0) appleVideo.currentTime = 0;
       }
+      appleFallback?.removeAttribute("src");
     };
 
     const cancelScene = (hideBubbles = true) => {
@@ -1549,6 +1589,8 @@ const characters = [
       groups.splice(0, groups.length);
       const width = root.clientWidth;
       const height = root.clientHeight;
+      lastStageSize = { width, height };
+      measureCharacters();
       const compact = width < 620;
       lastCompactLayout = compact;
 
@@ -1702,12 +1744,14 @@ const characters = [
 
     const beginDrag = (event, id) => {
       if (event.button !== 0 && event.pointerType !== "touch") return;
+      if (drag || document.hidden) return;
       const node = nodes.get(id);
       if (!node) return;
       event.preventDefault();
       cancelScene();
       removeFromGroups(id);
       const rect = node.getBoundingClientRect();
+      stageRect = root.getBoundingClientRect();
       drag = {
         id,
         pointerId: event.pointerId,
@@ -1722,30 +1766,32 @@ const characters = [
       root.dataset.dragging = "true";
     };
 
+    const dragFrame = createFrameQueue<{ id: string; x: number; y: number; tilt: number }>(({ id, x, y, tilt }) => {
+      if (!drag || drag.id !== id) return;
+      nodes.get(id)?.style.setProperty("--drag-tilt", `${tilt}deg`);
+      setPosition(id, x, y);
+    });
+
     const moveDrag = (event) => {
       if (!drag || event.pointerId !== drag.pointerId) return;
       event.preventDefault();
-      const stageRect = root.getBoundingClientRect();
+      stageRect ??= root.getBoundingClientRect();
       const nextX = event.clientX - stageRect.left - drag.offsetX;
       const nextY = event.clientY - stageRect.top - drag.offsetY;
       const deltaX = event.clientX - drag.lastX;
       drag.lastX = event.clientX;
       drag.moved ||= Math.abs(deltaX) > 2 || Math.abs(event.movementY || 0) > 2;
-      const node = nodes.get(drag.id);
-      node?.style.setProperty("--drag-tilt", `${Math.max(-7, Math.min(7, deltaX * 0.55))}deg`);
-      if (frame) cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        if (drag) setPosition(drag.id, nextX, nextY);
-      });
+      dragFrame.push({ id: drag.id, x: nextX, y: nextY, tilt: Math.max(-7, Math.min(7, deltaX * 0.55)) });
     };
 
     const endDrag = (event, cancelled = false) => {
       if (!drag || event.pointerId !== drag.pointerId) return;
+      if (cancelled) dragFrame.cancel();
+      else dragFrame.flush();
       const current = drag;
       drag = null;
       const node = nodes.get(current.id);
-      node?.releasePointerCapture?.(event.pointerId);
+      if (node?.hasPointerCapture?.(event.pointerId)) node.releasePointerCapture(event.pointerId);
       node?.classList.remove("is-dragging");
       node?.style.setProperty("--drag-tilt", "0deg");
       root.removeAttribute("data-dragging");
@@ -1757,15 +1803,29 @@ const characters = [
       node.addEventListener("pointermove", moveDrag, { signal: lifecycle.signal });
       node.addEventListener("pointerup", (event) => endDrag(event), { signal: lifecycle.signal });
       node.addEventListener("pointercancel", (event) => endDrag(event, true), { signal: lifecycle.signal });
+      node.addEventListener("lostpointercapture", (event) => endDrag(event, true), { signal: lifecycle.signal });
       node.addEventListener("keydown", (event) => {
+        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+          event.preventDefault();
+          event.stopPropagation();
+          cancelScene();
+          removeFromGroups(id);
+          const point = state.get(id);
+          if (!point) return;
+          const step = event.shiftKey ? 48 : 20;
+          setPosition(id, point.x + (event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0), point.y + (event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0));
+          return;
+        }
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          playSolo(id);
+          event.stopPropagation();
+          settleCharacter(id);
         }
       }, { signal: lifecycle.signal });
     });
 
     resetButton?.addEventListener("click", () => {
+      if (drag) endDrag({ pointerId: drag.pointerId }, true);
       applePairHits = 0;
       lastApplePairAt = 0;
       appleCooldownUntil = 0;
@@ -1773,10 +1833,12 @@ const characters = [
       initialLayout(true);
     }, { signal: lifecycle.signal });
 
-    const resizeObserver = new ResizeObserver(() => {
+    const resizeStage = () => {
       const width = root.clientWidth;
       const height = root.clientHeight;
       if (!width || !height) return;
+      if (drag) endDrag({ pointerId: drag.pointerId }, true);
+      measureCharacters();
       const compact = width < 620;
       if (!lastStageSize.width || !lastStageSize.height) {
         initialLayout(false);
@@ -1788,10 +1850,45 @@ const characters = [
       }
       const scaleX = width / lastStageSize.width;
       const scaleY = height / lastStageSize.height;
-      state.forEach((point, id) => setPosition(id, point.x * scaleX, point.y * scaleY));
       lastStageSize = { width, height };
-    });
-    resizeObserver.observe(root);
+      state.forEach((point, id) => setPosition(id, point.x * scaleX, point.y * scaleY));
+    };
+    const scheduleLayout = () => {
+      if (layoutFrame) return;
+      layoutFrame = requestAnimationFrame(() => {
+        layoutFrame = 0;
+        if (!cleaned) resizeStage();
+      });
+    };
+    const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(scheduleLayout) : null;
+    resizeObserver?.observe(root);
+    window.addEventListener("resize", scheduleLayout, { passive: true, signal: lifecycle.signal });
+    window.addEventListener("scroll", () => {
+      stageRect = null;
+      if (!visibilityObserver) refreshVisibility();
+    }, { passive: true, signal: lifecycle.signal });
+
+    const suspendStage = () => {
+      stageVisible = false;
+      root.removeAttribute("data-stage-visible");
+      if (drag) endDrag({ pointerId: drag.pointerId }, true);
+      dragFrame.cancel();
+      cancelScene();
+    };
+    const refreshVisibility = () => {
+      const rect = root.getBoundingClientRect();
+      stageVisible = !document.hidden && rect.bottom > 0 && rect.top < window.innerHeight;
+      root.toggleAttribute("data-stage-visible", stageVisible);
+      if (!stageVisible) suspendStage();
+    };
+    const visibilityObserver = typeof IntersectionObserver === "function" ? new IntersectionObserver(refreshVisibility) : null;
+    visibilityObserver?.observe(root);
+    document.addEventListener("visibilitychange", refreshVisibility, { signal: lifecycle.signal });
+    window.addEventListener("pagehide", suspendStage, { signal: lifecycle.signal });
+    window.addEventListener("pageshow", refreshVisibility, { signal: lifecycle.signal });
+    window.addEventListener("blur", () => { if (drag) endDrag({ pointerId: drag.pointerId }, true); }, { signal: lifecycle.signal });
+    document.addEventListener("freeze", suspendStage, { signal: lifecycle.signal });
+    document.addEventListener("resume", refreshVisibility, { signal: lifecycle.signal });
 
     if (preloadAppleMedia && appleVideo instanceof HTMLVideoElement && "IntersectionObserver" in window) {
       applePreloadObserver = new IntersectionObserver((entries) => {
@@ -1806,12 +1903,15 @@ const characters = [
     const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
-      if (frame) cancelAnimationFrame(frame);
+      dragFrame.cancel();
+      if (layoutFrame) cancelAnimationFrame(layoutFrame);
+      if (drag) endDrag({ pointerId: drag.pointerId }, true);
       clearTimerSet();
       clearAppleScene();
       applePreloadObserver?.disconnect();
       applePreloadObserver = null;
-      resizeObserver.disconnect();
+      resizeObserver?.disconnect();
+      visibilityObserver?.disconnect();
       lifecycle.abort();
       if (appleVideo instanceof HTMLVideoElement) {
         appleVideo.removeAttribute("src");
@@ -1824,7 +1924,8 @@ const characters = [
 
     window.__yuimiKisaraChibiCleanup = cleanup;
     document.addEventListener("astro:before-swap", cleanup, { once: true, signal: lifecycle.signal });
-    requestAnimationFrame(() => initialLayout(false));
+    refreshVisibility();
+    scheduleLayout();
   };
 
   document.addEventListener("astro:page-load", initKisaraChibiStage);

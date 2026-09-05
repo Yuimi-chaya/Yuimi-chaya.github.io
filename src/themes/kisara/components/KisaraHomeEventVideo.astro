@@ -1,6 +1,43 @@
 ---
 import { Icon } from "astro-icon/components";
 import { getThemePath } from "@/core/themes/registry";
+import { getPublishedPosts } from "@/core/content/blog";
+
+const topicDrafts = [
+  {
+    id: "connection",
+    label: "关于相处",
+    subject: "AI / CONNECTION",
+    question: "明知道是 AI，为什么还是会在意？",
+    answer: "被持续回应、被记住，以及那些不能简单复制的相处痕迹，并不会因为知道模型的原理就失去分量。比起急着判定真假，我更想认真看看这种感受从哪里来。",
+    article: "is-it-strange-to-feel-for-ai",
+    link: "对 AI 产生感情真的很奇怪吗？",
+  },
+  {
+    id: "making",
+    label: "关于创作",
+    subject: "IDEA / ITERATION",
+    question: "一个博客，真的是一句提示词做出来的吗？",
+    answer: "想法、反例、截图、素材，还有一遍遍返工，才慢慢拼出眼前这个地方。工具能加速实现，但你喜欢什么、不满意什么，仍然要由自己说清楚。",
+    article: "vibe-coding-blog-notes",
+    link: "用 Vibe Coding 写博客后，我最想说的",
+  },
+  {
+    id: "character",
+    label: "关于角色",
+    subject: "CHARACTER / PRESENCE",
+    question: "设定写得越完整，角色就越像一个人吗？",
+    answer: "把设定填满，有时反而只会得到一个忙着展示设定的角色。从人设提示词到模型与宿主，我还在摸索怎样让回应少一点表演，多一点自然。",
+    article: "llm-rp-role-prompt-authoring-researchzh-cn",
+    link: "从角色卡到扮演层的一次研究",
+  },
+];
+const posts = await getPublishedPosts();
+const topics = topicDrafts.map((topic) => {
+  const post = posts.find((post) => post.id === topic.article);
+  if (!post) throw new Error(`Home notebook article is not published: ${topic.article}`);
+  return { ...topic, href: getThemePath("kisara", `/blog/${post.id}/`) };
+});
 ---
 
 <section class="kisara-home-video-event" data-kisara-home-stop="003" aria-labelledby="kisara-project-title">
@@ -18,329 +55,82 @@ import { getThemePath } from "@/core/themes/registry";
       >
         <source data-src="/themes/kisara/assets/home-event-003-new.mp4" type="video/mp4" />
       </video>
-      <span class="kisara-home-video-grade" aria-hidden="true"></span>
-      <span class="kisara-home-video-scan" data-home-event-cue="scan" aria-hidden="true"></span>
-
-      <div class="kisara-home-video-board-cues" aria-hidden="true">
-        <div class="kisara-home-video-target-track" data-home-event-cue="target-track">
-          <span class="kisara-home-video-target-reticle" data-home-event-cue="reticle"><i></i></span>
-          <span class="kisara-home-video-target-leader" data-home-event-cue="leader"></span>
-          <span class="kisara-home-video-target-copy" data-home-event-cue="target-copy">
-            <span>
-              <small>POINT OF INTEREST / 003</small>
-              <strong>ANSWER <em>LOCKED</em></strong>
-              <b>THE FRAME KNOWS FIRST.</b>
-            </span>
-          </span>
-        </div>
-
-        <ol class="kisara-home-video-board-tags">
-          <li data-home-event-cue="tag-question"><span>01</span><b>QUESTION</b></li>
-          <li data-home-event-cue="tag-gesture"><span>02</span><b>GESTURE</b></li>
-          <li class="is-active" data-home-event-cue="tag-answer"><span>03</span><b>ANSWER</b></li>
-        </ol>
+      <div class="kisara-home-video-running-head" aria-hidden="true"><b>003</b><span>AFTER CLASS<br />YUIMI LAB / FIELD NOTES</span></div>
+      <div class="kisara-home-video-transport">
+        <span data-home-event-status>AFTER CLASS</span>
+        <output data-home-event-time aria-label="短片播放时间" aria-live="off">00.0</output>
+        <button type="button" data-home-event-replay aria-label="重新播放 003 短片" title="重新播放">
+          <Icon name="tabler:refresh" aria-hidden="true" />
+        </button>
       </div>
+      <div class="kisara-home-video-progress" aria-hidden="true"><i data-home-event-progress></i></div>
+    </div>
 
-      <header class="kisara-home-video-heading">
-        <p><span>003</span> CLASSROOM FRAGMENT / 01.293 SEC</p>
-        <h2 id="kisara-project-title">One second before the answer.</h2>
+    <div class="kisara-notebook">
+      <header class="kisara-notebook-heading">
+        <p>课后笔记 / OPEN QUESTIONS</p>
+        <h2 id="kisara-project-title">这里没有<br /><em>标准答案。</em></h2>
+        <span>把还没想明白的，也留在这里。</span>
       </header>
-
-      <a class="kisara-home-video-game-link" href={`${getThemePath("kisara", "/games/")}#kisara-game-investigation`}>
-        <span>OPEN GAME FILE</span><Icon name="tabler:external-link" aria-hidden="true" />
-      </a>
-
-      <div class="kisara-home-video-caption">
-        <div><span data-home-event-status>ARCHIVE READY</span><output data-home-event-time>00.00</output></div>
+      <div class="kisara-notebook-tabs" role="tablist" aria-label="课后笔记主题">
+        {topics.map((topic, index) => (
+          <button
+            id={`notebook-tab-${topic.id}`}
+            type="button"
+            role="tab"
+            data-notebook-tab
+            aria-selected={index === 0 ? "true" : "false"}
+            aria-controls={`notebook-panel-${topic.id}`}
+            tabindex={index === 0 ? 0 : -1}
+          >
+            <small>{String(index + 1).padStart(2, "0")}</small>
+            <span>{topic.label}</span>
+            <Icon name="tabler:arrow-right" aria-hidden="true" />
+          </button>
+        ))}
       </div>
-
-      <button class="kisara-home-video-replay" type="button" data-home-event-replay aria-label="重新播放 003 短片" title="重新播放">
-        <Icon name="tabler:refresh" aria-hidden="true" />
-      </button>
-
-      <div class="kisara-home-video-progress" aria-hidden="true"><i><b></b></i></div>
+      <div class="kisara-notebook-pages">
+        {topics.map((topic) => (
+          <article
+            id={`notebook-panel-${topic.id}`}
+            role="tabpanel"
+            data-notebook-panel
+            aria-labelledby={`notebook-tab-${topic.id}`}
+            tabindex="0"
+          >
+            <small>{topic.subject}</small>
+            <h3>{topic.question}</h3>
+            <p>{topic.answer}</p>
+            <a href={topic.href}>
+              <span>{topic.link}</span><Icon name="tabler:arrow-right" aria-hidden="true" />
+            </a>
+          </article>
+        ))}
+      </div>
+      <footer class="kisara-notebook-folio">
+        <span>NOT A CONCLUSION. A CONVERSATION.</span>
+        <a href={`${getThemePath("kisara", "/games/")}#kisara-game-investigation`}>另一份未解档案<Icon name="tabler:external-link" aria-hidden="true" /></a>
+      </footer>
     </div>
   </kisara-home-event-video>
 </section>
 
 <script>
+  import { bindHomeEvent } from "../lib/homeEvent";
   if (!customElements.get("kisara-home-event-video")) {
     class KisaraHomeEventVideo extends HTMLElement {
-      controller: AbortController | null = null;
-      observer: IntersectionObserver | null = null;
-      visibilityObserver: IntersectionObserver | null = null;
-      cueAnimations: Animation[] = [];
-      cueFrame = 0;
-      resetScene: (() => void) | null = null;
-      refreshScene: (() => void) | null = null;
-
-      resetPresentation() {
-        this.resetScene?.();
-      }
-
-      refreshPresentationAfterVisibility() {
-        this.refreshScene?.();
-      }
-
+      runtime: ReturnType<typeof bindHomeEvent> | null = null;
+      resetPresentation() { this.runtime?.reset(); }
+      refreshPresentationAfterVisibility() { this.runtime?.refresh(); }
       connectedCallback() {
-        this.controller?.abort();
-        this.observer?.disconnect();
-        this.visibilityObserver?.disconnect();
-        this.cueAnimations.forEach((animation) => animation.cancel());
-        this.cueAnimations = [];
-        if (this.cueFrame) cancelAnimationFrame(this.cueFrame);
-        this.cueFrame = 0;
-        const controller = new AbortController();
-        this.controller = controller;
-        const { signal } = controller;
-        const video = this.querySelector<HTMLVideoElement>("[data-home-event-video]");
-        const source = video?.querySelector<HTMLSourceElement>("source[data-src]");
-        const replay = this.querySelector<HTMLButtonElement>("[data-home-event-replay]");
-        const status = this.querySelector<HTMLElement>("[data-home-event-status]");
-        const time = this.querySelector<HTMLOutputElement>("[data-home-event-time]");
-        if (!video || !source || !replay) return;
-
-        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        let hydrated = source.hasAttribute("src");
-        let hasStarted = false;
-        let completed = false;
-        let visible = false;
-        let playAttempt = 0;
-        const cueDuration = 1292.958;
-        const cueEaseOut = "cubic-bezier(0.23, 1, 0.32, 1)";
-
-        const addCue = (name: string, keyframes: Keyframe[]) => {
-          const element = this.querySelector<HTMLElement>(`[data-home-event-cue="${name}"]`);
-          if (!element) return;
-          const frames = reducedMotion
-            ? keyframes.map((keyframe) => ({ ...keyframe, transform: "none" }))
-            : keyframes;
-          const animation = element.animate(frames, {
-            duration: cueDuration,
-            fill: "both",
-            easing: "linear",
-          });
-          animation.pause();
-          animation.currentTime = 0;
-          this.cueAnimations.push(animation);
-        };
-
-        addCue("scan", [
-          { opacity: 0, transform: "translate3d(0, 0, 0) skewX(-12deg)", offset: 0 },
-          { opacity: 0.58, transform: "translate3d(190%, 0, 0) skewX(-12deg)", offset: 0.16, easing: cueEaseOut },
-          { opacity: 0, transform: "translate3d(690%, 0, 0) skewX(-12deg)", offset: 0.57 },
-          { opacity: 0, transform: "translate3d(690%, 0, 0) skewX(-12deg)", offset: 1 },
-        ]);
-        addCue("target-track", [
-          { opacity: 0, transform: "translate3d(2.2vw, 9.5vh, 0) scale(2.08)", offset: 0, easing: cueEaseOut },
-          { opacity: 1, transform: "translate3d(1.2vw, 5.2vh, 0) scale(1.58)", offset: 0.08, easing: cueEaseOut },
-          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: 0.31 },
-          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: 1 },
-        ]);
-        addCue("reticle", [
-          { opacity: 0, transform: "scale(0.94)", offset: 0 },
-          { opacity: 0, transform: "scale(0.94)", offset: 0.035, easing: cueEaseOut },
-          { opacity: 1, transform: "scale(1)", offset: 0.13 },
-          { opacity: 1, transform: "scale(1)", offset: 1 },
-        ]);
-        addCue("leader", [
-          { opacity: 0, transform: "rotate(-11deg) scaleX(0)", offset: 0 },
-          { opacity: 0, transform: "rotate(-11deg) scaleX(0)", offset: 0.17, easing: cueEaseOut },
-          { opacity: 1, transform: "rotate(-11deg) scaleX(1)", offset: 0.38 },
-          { opacity: 1, transform: "rotate(-11deg) scaleX(1)", offset: 1 },
-        ]);
-        addCue("target-copy", [
-          { opacity: 0, transform: "translate3d(24px, 10px, 0)", offset: 0 },
-          { opacity: 0, transform: "translate3d(24px, 10px, 0)", offset: 0.22, easing: cueEaseOut },
-          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 0.45 },
-          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 1 },
-        ]);
-        addCue("tag-question", [
-          { opacity: 0, transform: "translate3d(28px, 16px, 0)", offset: 0 },
-          { opacity: 0, transform: "translate3d(28px, 16px, 0)", offset: 0.34, easing: cueEaseOut },
-          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 0.57 },
-          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 1 },
-        ]);
-        addCue("tag-gesture", [
-          { opacity: 0, transform: "translate3d(28px, 16px, 0)", offset: 0 },
-          { opacity: 0, transform: "translate3d(28px, 16px, 0)", offset: 0.41, easing: cueEaseOut },
-          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 0.64 },
-          { opacity: 1, transform: "translate3d(0, 0, 0)", offset: 1 },
-        ]);
-        addCue("tag-answer", [
-          { opacity: 0, transform: "translate3d(28px, 16px, 0) scale(0.96)", offset: 0 },
-          { opacity: 0, transform: "translate3d(28px, 16px, 0) scale(0.96)", offset: 0.48, easing: cueEaseOut },
-          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: 0.72 },
-          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: 1 },
-        ]);
-
-        const setState = (state: string, label: string) => {
-          this.dataset.state = state;
-          if (status) status.textContent = label;
-        };
-
-        const hydrate = () => {
-          if (hydrated) return;
-          hydrated = true;
-          source.src = source.dataset.src || "";
-          video.preload = "auto";
-          video.load();
-          setState("loading", "LOADING FRAGMENT");
-        };
-
-        const playVideo = async (restart: boolean) => {
-          const attempt = ++playAttempt;
-          hydrate();
-          if (restart) {
-            completed = false;
-            try { video.currentTime = 0; } catch {}
-          }
-          try {
-            await video.play();
-            if (signal.aborted || attempt !== playAttempt || !visible) {
-              video.pause();
-              return;
-            }
-            hasStarted = true;
-          } catch {
-            if (!signal.aborted && attempt === playAttempt) setState("ready", "PRESS REPLAY");
-          }
-        };
-
-        const syncTime = () => {
-          const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1.292958;
-          const progress = Math.min(1, Math.max(0, video.currentTime / duration));
-          this.style.setProperty("--home-003-progress", progress.toFixed(4));
-          if (time) time.textContent = video.currentTime.toFixed(2).padStart(5, "0");
-          const cueTime = Math.min(cueDuration, Math.max(0, video.currentTime * 1000));
-          this.cueAnimations.forEach((animation) => { animation.currentTime = cueTime; });
-        };
-
-        const stopCueClock = () => {
-          if (this.cueFrame) cancelAnimationFrame(this.cueFrame);
-          this.cueFrame = 0;
-        };
-
-        const startCueClock = () => {
-          stopCueClock();
-          const tick = () => {
-            syncTime();
-            if (!video.paused && !video.ended && visible) {
-              this.cueFrame = requestAnimationFrame(tick);
-            } else {
-              this.cueFrame = 0;
-            }
-          };
-          this.cueFrame = requestAnimationFrame(tick);
-        };
-
-        video.addEventListener("playing", () => {
-          setState("playing", "PLAYING FRAGMENT");
-          startCueClock();
-        }, { signal });
-        video.addEventListener("loadedmetadata", syncTime, { signal });
-        video.addEventListener("timeupdate", syncTime, { signal });
-        video.addEventListener("pause", () => {
-          stopCueClock();
-          syncTime();
-          if (!completed && video.currentTime > 0) setState("paused", "FRAGMENT HELD");
-        }, { signal });
-        video.addEventListener("ended", () => {
-          stopCueClock();
-          completed = true;
-          syncTime();
-          setState("complete", "ARCHIVE HELD");
-        }, { signal });
-        video.addEventListener("error", () => {
-          stopCueClock();
-          setState("error", "POSTER FALLBACK");
-        }, { signal });
-        replay.addEventListener("click", () => {
-          visible = true;
-          void playVideo(true);
-        }, { signal });
-
-        const refreshVisibility = () => {
-          const rect = this.getBoundingClientRect();
-          const viewportHeight = Math.max(1, window.innerHeight);
-          const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
-          const active = visibleHeight / Math.min(Math.max(1, rect.height), viewportHeight) >= 0.42;
-          this.toggleAttribute("data-scene-visible", visibleHeight > 0);
-          if (active === visible) return;
-          visible = active;
-          if (visible) {
-            hydrate();
-            if (!reducedMotion && !completed) void playVideo(!hasStarted);
-          } else {
-            playAttempt += 1;
-            video.pause();
-          }
-        };
-
-        const resetVideo = () => {
-          playAttempt += 1;
-          stopCueClock();
-          video.pause();
-          hasStarted = false;
-          completed = false;
-          try { video.currentTime = 0; } catch {}
-          syncTime();
-          if (time) time.textContent = "00.00";
-          setState(reducedMotion ? "ready" : "idle", reducedMotion ? "PRESS REPLAY" : "ARCHIVE READY");
-        };
-
-        this.resetScene = resetVideo;
-        this.refreshScene = refreshVisibility;
-        setState(reducedMotion ? "ready" : "idle", reducedMotion ? "PRESS REPLAY" : "ARCHIVE READY");
-
-        if ("IntersectionObserver" in window) {
-          this.observer = new IntersectionObserver((entries) => {
-            if (entries.some((entry) => entry.isIntersecting)) hydrate();
-          }, { rootMargin: "48% 0px", threshold: 0.01 });
-          this.observer.observe(this);
-
-          this.visibilityObserver = new IntersectionObserver((entries) => {
-            const entry = entries[entries.length - 1];
-            if (!entry) return;
-            this.toggleAttribute("data-scene-visible", entry.isIntersecting);
-            const nextVisible = entry.isIntersecting && entry.intersectionRatio >= 0.42;
-            if (nextVisible === visible) return;
-            visible = nextVisible;
-            if (visible) {
-              hydrate();
-              if (!reducedMotion && !completed) void playVideo(!hasStarted);
-            } else {
-              playAttempt += 1;
-              video.pause();
-            }
-          }, { threshold: [0, 0.42, 0.72] });
-          this.visibilityObserver.observe(this);
-        } else {
-          visible = true;
-          this.toggleAttribute("data-scene-visible", true);
-          hydrate();
-          if (!reducedMotion) void playVideo(true);
-        }
+        this.runtime?.destroy();
+        this.runtime = bindHomeEvent(this);
       }
-
       disconnectedCallback() {
-        this.controller?.abort();
-        this.controller = null;
-        if (this.cueFrame) cancelAnimationFrame(this.cueFrame);
-        this.cueFrame = 0;
-        this.cueAnimations.forEach((animation) => animation.cancel());
-        this.cueAnimations = [];
-        this.observer?.disconnect();
-        this.observer = null;
-        this.visibilityObserver?.disconnect();
-        this.visibilityObserver = null;
-        this.resetScene = null;
-        this.refreshScene = null;
-        const video = this.querySelector<HTMLVideoElement>("[data-home-event-video]");
-        if (video) video.pause();
+        this.runtime?.destroy();
+        this.runtime = null;
       }
     }
-
     customElements.define("kisara-home-event-video", KisaraHomeEventVideo);
   }
 </script>
