@@ -9400,7 +9400,7 @@ const gateStyle = [
           mobileLinksPerSegment: 2,
           linkScale: 0.92,
           tailInset: 0.052,
-          entryOverscan: 0.16,
+          entryOverscan: 0.28,
           entryBend: -0.12
         },
         {
@@ -9420,7 +9420,7 @@ const gateStyle = [
           mobileLinksPerSegment: 3,
           linkScale: 0.9,
           tailInset: 0.036,
-          entryOverscan: 0.14,
+          entryOverscan: 0.25,
           entryBend: 0.09
         },
         {
@@ -9440,7 +9440,7 @@ const gateStyle = [
           mobileLinksPerSegment: 3,
           linkScale: 0.88,
           tailInset: 0.032,
-          entryOverscan: 0.14,
+          entryOverscan: 0.26,
           entryBend: -0.08
         }
       ];
@@ -9473,11 +9473,8 @@ const gateStyle = [
         const lock = easeOutCubic(lockUnit);
         const lockKick = Math.sin(lockUnit * Math.PI) * Math.exp(-lockUnit * 1.2);
         const strain = Math.sin(phaseProgress(intro, 0.012, 0.15) * Math.PI);
-        const weavePull = scrollTension * 0.014
-          + takeUp * 0.074
-          + lock * 0.064
-          + lockKick * 0.018;
-        const cinch = smoothstep(clamp((intro - 0.052) / 0.15, 0, 1));
+        const weavePull = 0;
+        const cinch = 0;
         return { scrollTension, settle, takeUp, lock, lockKick, strain, weavePull, cinch };
       };
 
@@ -9537,32 +9534,19 @@ const gateStyle = [
               + definition.verticalPhase * Math.PI
               - takeUp * fullTurn * 0.42
           );
-          const breakDistance = Math.abs(pointUnit - definition.breakT);
-          const breakCinch = smoothstep(clamp(1 - breakDistance / 0.52, 0, 1));
-          const localPull = pull * (0.14 + windingWave * 0.12)
-            + cinch * breakCinch * 0.014;
+          const localPull = 0;
           const localTwist = definition.direction
             * (takeUp * 0.105 + lock * 0.044 + lockKick * 0.012)
             * (0.42 + windingWave * 0.58);
           const offsetX = x - centerX;
           const offsetY = y - centerY;
-          const tightenedX = offsetX * (1 - localPull);
-          const tightenedY = offsetY * (1 - localPull);
+          const positionedX = offsetX * (1 - localPull);
+          const positionedY = offsetY * (1 - localPull);
           const twistCosine = Math.cos(localTwist);
           const twistSine = Math.sin(localTwist);
-          const twistedX = centerX + tightenedX * twistCosine - tightenedY * twistSine;
-          const twistedY = centerY + tightenedX * twistSine + tightenedY * twistCosine;
-          const side = pointUnit < definition.breakT ? -1 : 1;
-          const boundaryDistance = side < 0
-            ? Math.max(0, x - textLeft)
-            : Math.max(0, textRight - x);
-          const extension = Math.min(
-            boundaryDistance * 0.72,
-            box.width * (0.018 + cinch * 0.062) * breakCinch
-          );
           return {
-            x: twistedX + side * extension,
-            y: twistedY
+            x: centerX + positionedX * twistCosine - positionedY * twistSine,
+            y: centerY + positionedX * twistSine + positionedY * twistCosine
           };
         });
         return {
@@ -11171,6 +11155,7 @@ const gateStyle = [
 
         const isMobile = mobilePerformance || chainTitleBox.width < 420;
         const releaseFade = phaseProgress(intro, 0.84, 0.985);
+        const centerDissolve = phaseProgress(intro, 0.16, 0.5);
         const layerRecords = {
           backFrame: [],
           backWeave: [],
@@ -11204,6 +11189,16 @@ const gateStyle = [
           const left = smootherstep(clamp((sample.x - (textLeft - fadeWidth)) / fadeWidth, 0, 1));
           const right = smootherstep(clamp(((textRight + fadeWidth) - sample.x) / fadeWidth, 0, 1));
           return left * right;
+        };
+        const resolveCenterDissolve = (sample) => {
+          if (centerDissolve <= 0.001) return 1;
+          const centerX = chainGlyphLayout.centerX || chainTitleBox.left + chainTitleBox.width * 0.5;
+          const centerY = chainGlyphLayout.centerY || chainTitleBox.top + chainTitleBox.height * 0.52;
+          const distance = Math.hypot(sample.x - centerX, sample.y - centerY);
+          const radius = centerDissolve
+            * Math.max(chainTitleBox.width * 0.58, chainTitleBox.height * 1.9);
+          const feather = Math.max(10, chainTitleBox.height * 0.18);
+          return smootherstep(clamp((distance - radius) / feather, 0, 1));
         };
 
         for (const definition of chainDefinitions) {
@@ -11333,7 +11328,8 @@ const gateStyle = [
             * (1 - phaseProgress(build, 0.82, 0.99))
             * (1 - releaseFade)
             * resolveCanvasEdgeFade(leaderSample)
-            * resolveTitleBoundaryFade(leaderSample);
+            * resolveTitleBoundaryFade(leaderSample)
+            * resolveCenterDissolve(leaderSample);
           if (leaderAlpha > 0.002) {
             leaders.push({
               definition,
@@ -11352,7 +11348,7 @@ const gateStyle = [
                 travelUnit = normalizeFrameDistance(travelUnit);
               }
             }
-            if (travelUnit < -0.42 || travelUnit > 1.42) continue;
+            if (travelUnit < -0.72 || travelUnit > 1.72) continue;
             const sample = sampleTitleChainTravel(
               definition,
               path,
@@ -11363,11 +11359,12 @@ const gateStyle = [
               timestamp
             );
             const outside = Math.max(0, -travelUnit, travelUnit - 1);
-            const ingressFade = 1 - smootherstep(clamp((outside - 0.02) / 0.11, 0, 1));
+            const ingressFade = 1 - smootherstep(clamp((outside - 0.05) / 0.22, 0, 1));
             let alpha = visibility
               * phaseProgress(build, 0.02, 0.07)
               * ingressFade
-              * resolveTitleBoundaryFade(sample);
+              * resolveTitleBoundaryFade(sample)
+              * resolveCenterDissolve(sample);
             const order = clamp(
               definition.direction > 0 ? distanceUnit : 1 - distanceUnit,
               0,
@@ -11406,7 +11403,8 @@ const gateStyle = [
                   * ingressFade
                   * (1 - releaseFade * 0.34)
                   * resolveCanvasEdgeFade(sample)
-                  * resolveTitleBoundaryFade(sample);
+                  * resolveTitleBoundaryFade(sample)
+                  * resolveCenterDissolve(sample);
                 if (particleAlpha > 0.002) {
                   shatterRecords.push({
                     sample: { ...sample },
@@ -11423,7 +11421,8 @@ const gateStyle = [
             }
             alpha *= (1 - releaseFade * 0.96)
               * resolveCanvasEdgeFade(sample)
-              * resolveTitleBoundaryFade(sample);
+              * resolveTitleBoundaryFade(sample)
+              * resolveCenterDissolve(sample);
             const record = {
               sample,
               linkIndex,
