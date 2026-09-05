@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Kisara / Comic 001 Study</title>
+  <link rel="stylesheet" href="study.css">
+  <script src="assets/metrics.js" defer></script>
+  <script src="study.js" defer></script>
+</head>
+<body>
+  <!-- Tool icons are from the project's existing Tabler collection. -->
+  <svg class="icon-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-refresh" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4m-4 4a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/>
+    </symbol>
+    <symbol id="icon-right" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-6 6l6-6m-6-6l6 6"/>
+    </symbol>
+    <symbol id="icon-left" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12l6 6m-6-6l6-6"/>
+    </symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5l5-5m-5-7v12"/>
+    </symbol>
+  </svg>
+
+  <header class="workbar">
+    <div class="study-brand"><span class="brand-square"></span><strong>KISARA</strong><span>/ 001 STUDY</span></div>
+    <fieldset class="segments" aria-label="View">
+      <label><input type="radio" name="view" value="scene" checked><span>Scene</span></label>
+      <label><input type="radio" name="view" value="compare"><span>Compare</span></label>
+    </fieldset>
+    <a class="icon-button" href="assets/subject-vector.svg" download title="Download vector SVG" aria-label="Download vector SVG">
+      <svg><use href="#icon-download"/></svg>
+    </a>
+  </header>
+
+  <main>
+    <section id="scene-view" aria-label="Comic composition">
+      <div class="scene-tools">
+        <fieldset class="segments" aria-label="Character material">
+          <label><input type="radio" name="material" value="hybrid" checked><span>Hybrid</span></label>
+          <label><input type="radio" name="material" value="vector"><span>Vector</span></label>
+        </fieldset>
+        <span class="material-size" data-size="hybrid"></span>
+        <div class="scene-actions">
+          <button class="icon-button" id="replay" type="button" title="Replay entrance" aria-label="Replay entrance">
+            <svg><use href="#icon-refresh"/></svg>
+          </button>
+          <button class="next-button" id="next" type="button"><span>002</span><svg><use href="#icon-right"/></svg></button>
+        </div>
+      </div>
+
+      <div class="stage" id="stage" data-state="comic" aria-busy="true">
+        <div class="comic" id="comic">
+          <div class="running-head"><span>ENGAGE KISS</span><span>THE THINGS WE KEEP / 001</span></div>
+          <div class="panel-back" aria-hidden="true">
+            <img src="assets/panel-clean.webp" alt="" width="752" height="1148">
+          </div>
+          <div class="panel-eye" aria-hidden="true">
+            <img src="assets/panel-clean.webp" alt="" width="752" height="1148">
+            <span>01 / REMEMBER</span>
+          </div>
+          <div class="red-rule" aria-hidden="true"></div>
+          <div class="portrait" id="portrait">
+            <img class="portrait-paper" src="assets/subject-structure.svg" alt="" width="752" height="1148">
+            <img class="portrait-image" id="portrait-image" src="assets/subject-hybrid.webp" alt="Kisara in a monochrome manga panel" width="752" height="1148">
+          </div>
+          <div class="editorial-copy">
+            <p class="chapter-mark"><span>001</span> / A PERSONAL ARCHIVE</p>
+            <h1>YUIMI<br><em>LAB.</em></h1>
+            <p class="scene-line">Some things<br>are worth keeping.</p>
+          </div>
+          <div class="panel-label" aria-hidden="true">TO BE CONTINUED.</div>
+          <div class="running-foot"><span>NOTES. EXPERIMENTS. LITTLE OBSESSIONS.</span><span>KEEP / OPEN</span></div>
+          <div class="entrance-slab is-left" aria-hidden="true"></div>
+          <div class="entrance-slab is-right" aria-hidden="true"></div>
+        </div>
+
+        <div class="fridge" id="fridge" aria-hidden="true">
+          <video id="fridge-video" muted playsinline preload="none" aria-label="Kisara opens the refrigerator door"
+            data-src="../../public/themes/kisara/assets/fridge-opening-002.mp4"></video>
+          <img class="fridge-final" id="fridge-final"
+            src="../../public/themes/kisara/assets/fridge-opening-002-last.webp"
+            width="1920" height="1080" alt="" hidden loading="lazy">
+          <div class="fridge-heading"><span>002 / COLD STORAGE</span><strong>When the light comes in.</strong></div>
+        </div>
+        <div class="exit-slab is-left" aria-hidden="true"></div>
+        <div class="exit-slab is-right" aria-hidden="true"></div>
+        <div class="stage-message" id="stage-message" role="status" hidden></div>
+      </div>
+    </section>
+
+    <section id="compare-view" aria-label="Asset comparison" hidden>
+      <div class="compare-tools">
+        <fieldset class="segments" aria-label="Crop">
+          <label><input type="radio" name="crop" value="full" checked><span>Full portrait</span></label>
+          <label><input type="radio" name="crop" value="face"><span>Face detail</span></label>
+        </fieldset>
+        <label class="zoom-label" for="zoom">Zoom <output id="zoom-value">1.0x</output></label>
+        <input id="zoom" type="range" min="1" max="2.4" value="1" step="0.1" aria-label="Comparison zoom">
+      </div>
+      <div class="comparison" id="comparison" data-crop="full">
+        <figure class="compare-column">
+          <figcaption><strong>HYBRID</strong><span data-size="hybrid"></span></figcaption>
+          <div class="inspect-frame"><img src="assets/subject-hybrid.webp" alt="Original linework with a vector silhouette" width="752" height="1148"></div>
+          <div class="asset-caption"><span>ORIGINAL DETAIL + VECTOR SILHOUETTE</span><a href="assets/subject-hybrid.webp" download title="Download hybrid WebP" aria-label="Download hybrid WebP"><svg><use href="#icon-download"/></svg></a></div>
+        </figure>
+        <figure class="compare-column">
+          <figcaption><strong>VECTOR</strong><span data-size="vector"></span></figcaption>
+          <div class="inspect-frame"><img src="assets/subject-vector.svg" alt="Three-tone vector interpretation of the same artwork" width="752" height="1148" loading="lazy"></div>
+          <div class="asset-caption"><span data-complexity>THREE-TONE CONTOURS</span><a href="assets/subject-vector.svg" download title="Download vector SVG" aria-label="Download vector SVG"><svg><use href="#icon-download"/></svg></a></div>
+        </figure>
+      </div>
+      <details class="source-detail">
+        <summary>Source / image 03</summary>
+        <img src="assets/source-review.webp" alt="The uncorrected gray screenshot, reduced for review" width="420" height="641" loading="lazy">
+      </details>
+    </section>
+  </main>
+  <footer class="study-footer"><span>COMIC STUDY / 03</span><span>SOURCE PRESERVED</span><span>LOCAL / NOT PUBLISHED</span></footer>
+</body>
+</html>
