@@ -757,18 +757,6 @@ const gateStyle = [
       let openingEdgeRenderUsesIdleCallback = false;
       const openingEdgeRenderQueue = [];
       const openingEdgeSamplingEnabled = false;
-      const activateOpeningBridgePortal = () => {
-        if (opening?.classList.contains("kisara-comic-section")) return false;
-        if (
-          !(gateVisualShell instanceof HTMLElement)
-          || !(opening instanceof HTMLElement)
-        ) return false;
-
-        gate.classList.add("is-opening-bridge-live");
-        opening.classList.add("is-opening-bridge-live");
-        openingBridgePortalActive = true;
-        return true;
-      };
       const deactivateOpeningBridgePortal = () => {
         if (!(gateVisualShell instanceof HTMLElement)) return;
         gate.classList.remove("is-opening-bridge-live");
@@ -12607,21 +12595,22 @@ const gateStyle = [
         scrollTransitionDirection = target === "gate" ? "comic-return" : "comic-forward";
         const comic = openingMemoryScene as (HTMLElement & {
           preparePresentation?: () => Promise<void>;
-          playEntrance?: () => void;
+          settlePresentation?: () => void;
         }) | null;
         void comicTransition.run({
+          scene: comic,
+          mode: target === "opening" ? "enter" : target === "gate" ? "return" : "leave",
           prepare: target === "opening" ? () => comic?.preparePresentation?.() : undefined,
           commit: () => {
             commit();
             if (target === "opening") {
               resetOpeningMemoryPresentation();
-              comic?.playEntrance?.();
+              comic?.settlePresentation?.();
             }
             if (target === "fridge") {
               return (fridgeScene as (HTMLElement & { playCoveredEntry?: () => Promise<void> }) | null)?.playCoveredEntry?.();
             }
           },
-          reveal: target === "fridge" || target === "document" ? "fade" : "split",
         }).catch((error) => {
           console.warn("Kisara comic handoff failed", error);
         }).finally(() => {
@@ -12643,91 +12632,26 @@ const gateStyle = [
           || (Math.abs(openingRect.top) <= tolerance && openingRect.bottom > tolerance * 2);
       };
 
-      const restoreLiveOpeningBridge = () => {
-        deactivateOpeningBridgePortal();
-        invalidateOpeningEdgeLiveSurfaces();
-        syncOpeningEdgeLiveGeometry(true);
-        const activated = activateOpeningBridgePortal();
-        if (!activated) return false;
-        openingEdgeLiveSyncTimestamp = 0;
-        primeCurrentOpeningEdgeTextures();
-        return true;
-      };
-
+      // Legacy lifecycle callers only clear the retired transparent bridge.
       const activateFreshOpeningBridge = () => {
         deactivateOpeningBridgePortal();
-        gate.classList.remove("is-opening-bridge-live");
-        opening?.classList.remove("is-opening-bridge-live");
-        if (opening instanceof HTMLElement) void opening.offsetHeight;
-        const restored = restoreLiveOpeningBridge();
-        if (restored) openingBridgeRecoveryPending = false;
-        return restored;
+        openingBridgeRecoveryPending = false;
+        return false;
       };
 
       const restoreOpeningBridgePresentation = () => {
-        if (opening?.classList.contains("kisara-comic-section")) {
-          openingBridgeRecoveryPending = false;
-          return false;
-        }
-        if (
-          !openingBridgeRecoveryPending
-          || document.visibilityState === "hidden"
-          || disposed
-          || scrollFrame
-          || scrollTransitionDirection !== "idle"
-        ) return false;
-        if (pageMode !== "next") {
-          openingBridgeRecoveryPending = false;
-          return false;
-        }
-        const openingStopCurrent = isOpeningStopCurrent();
-        if (openingStopCurrent) {
-          const restored = restoreLiveOpeningBridge();
-          if (restored) openingBridgeRecoveryPending = false;
-          return restored;
-        }
-        if (restoreWindowOpen) return false;
-
-        deactivateOpeningBridgePortal();
-        gateVisualResetPending = false;
-        clearOpeningTitleBridgeDissolve();
-        releaseOpeningEdgeState();
-        resetGateState();
-        lockOpeningEdgeState();
-        scheduleOpeningEdgeTextureRefresh();
-        settleOpeningBridgeDissolve();
         openingBridgeRecoveryPending = false;
         return false;
       };
 
       const scheduleOpeningBridgeRecovery = () => {
-        if (!openingBridgeRecoveryPending || document.visibilityState === "hidden") return;
-        if (openingBridgeRecoveryFrame) window.cancelAnimationFrame(openingBridgeRecoveryFrame);
-        openingBridgeRecoveryFrame = window.requestAnimationFrame(() => {
-          if (!openingBridgeRecoveryPending || document.visibilityState === "hidden") {
-            openingBridgeRecoveryFrame = 0;
-            return;
-          }
-          openingBridgeRecoveryFrame = window.requestAnimationFrame(() => {
-            openingBridgeRecoveryFrame = 0;
-            if (!openingBridgeRecoveryPending || document.visibilityState === "hidden") return;
-            restoreOpeningBridgePresentation();
-          });
-        });
+        openingBridgeRecoveryPending = false;
       };
       const requestOpeningBridgeRecovery = () => {
-        if (disposed || document.visibilityState === "hidden" || pageMode !== "next") return;
-        openingBridgeRecoveryPending = true;
-        scheduleOpeningBridgeRecovery();
+        openingBridgeRecoveryPending = false;
       };
 
-      const getReturnToGateThreshold = () => {
-        if (opening?.classList.contains("kisara-comic-section")) return getNextPageTop() + 24;
-        const edgeHeight = openingEdge instanceof HTMLElement
-          ? openingEdge.offsetHeight
-          : 180;
-        return getNextPageTop() + edgeHeight + Math.max(24, window.innerHeight * 0.04);
-      };
+      const getReturnToGateThreshold = () => getNextPageTop() + 24;
 
       const getDocumentScrollProgress = () => {
         const root = document.scrollingElement ?? document.documentElement;
@@ -13442,6 +13366,7 @@ const gateStyle = [
       const smoothScrollToHomeSection = (stop) => {
         clearHomeGateReturnArm();
         homeSectionWheelAccumulator = 0;
+        if (stop.element === opening && isOpeningStopCurrent()) return true;
         if (stop.element === opening || isOpeningStopCurrent()) {
           const target = stop.element === opening ? "opening"
             : stop.element.dataset.kisaraHomeStop === "002" ? "fridge" : "document";

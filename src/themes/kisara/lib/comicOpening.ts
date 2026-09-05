@@ -1,9 +1,10 @@
-import { settleWithin } from "./comicTransition.ts";
+import { createComicMotion, settleWithin } from "./comicMotion.ts";
 
 export function bindComicOpening(scene: HTMLElement) {
   const controller = new AbortController();
   const { signal } = controller;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const motion = createComicMotion(signal, reducedMotion);
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   const images = Array.from(scene.querySelectorAll<HTMLImageElement>("[data-comic-src]"));
   const nodes = Array.from(scene.querySelectorAll<HTMLElement>("[data-kisara-route-kind]"));
@@ -12,7 +13,6 @@ export function bindComicOpening(scene: HTMLElement) {
   const observers: IntersectionObserver[] = [];
   let pendingImages: Promise<void> | null = null;
   let generation = 0;
-  let entranceTimer = 0;
   let entered = false;
   let visible = false;
   scene.classList.add("is-comic-armed");
@@ -27,12 +27,15 @@ export function bindComicOpening(scene: HTMLElement) {
   };
   const cancelEntrance = () => {
     generation++;
-    window.clearTimeout(entranceTimer);
-    entranceTimer = 0;
+    motion.cancel();
     scene.classList.remove("is-comic-entering");
   };
   const activateBranch = (id: string) => {
-    branches.forEach(branch => branch.classList.toggle("is-active", branch.dataset.kisaraRouteBranch === id));
+    branches.forEach(branch => {
+      const selected = branch.dataset.kisaraRouteBranch === id;
+      branch.classList.toggle("is-active", selected);
+      branch.querySelector("a")?.setAttribute("aria-expanded", String(selected));
+    });
     routeLists.forEach(list => { list.hidden = list.dataset.comicRoutes !== id; });
   };
   const reset = () => {
@@ -41,6 +44,11 @@ export function bindComicOpening(scene: HTMLElement) {
     scene.classList.add("is-comic-armed");
     activateBranch("home");
     branches.forEach(branch => { delete branch.dataset.routeTapReady; });
+  };
+  const settle = () => {
+    cancelEntrance();
+    entered = true;
+    scene.classList.remove("is-comic-armed");
   };
   const enter = async () => {
     if (entered || signal.aborted || document.hidden) return;
@@ -51,10 +59,11 @@ export function bindComicOpening(scene: HTMLElement) {
     scene.classList.remove("is-comic-armed");
     if (!reducedMotion) {
       scene.classList.add("is-comic-entering");
-      entranceTimer = window.setTimeout(() => {
-        entranceTimer = 0;
+      await motion.play(scene);
+      if (!signal.aborted && serial === generation) {
         scene.classList.remove("is-comic-entering");
-      }, 1300);
+        motion.cancel();
+      }
     }
   };
   const refresh = () => {
@@ -151,7 +160,7 @@ export function bindComicOpening(scene: HTMLElement) {
   }, { signal });
   window.addEventListener("pageshow", refresh, { signal });
   return {
-    prepare, enter, reset, refresh,
+    prepare, enter, reset, refresh, settle,
     destroy() {
       controller.abort(); cancelEntrance();
       observers.forEach(observer => observer.disconnect());

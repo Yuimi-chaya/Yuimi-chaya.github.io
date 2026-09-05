@@ -10,6 +10,8 @@ const readSource = (relativePath: string) => readFileSync(
 const opening = readSource("src/themes/kisara/components/KisaraOpeningMemoryScene.astro");
 const routes = readSource("src/themes/kisara/data/openingRoutes.ts");
 const runtime = readSource("src/themes/kisara/lib/comicOpening.ts");
+const motion = readSource("src/themes/kisara/lib/comicMotion.ts");
+const transition = readSource("src/themes/kisara/lib/comicTransition.ts");
 const css = readSource("src/themes/kisara/styles/home-comic.css");
 const home = readSource("src/themes/kisara/pages/HomePage.astro");
 const layout = readSource("src/themes/kisara/layouts/KisaraLayout.astro");
@@ -86,7 +88,7 @@ test("Comic assets are deferred; 001 no longer downloads or drives its former fo
   assert.match(runtime, /serial !== generation/);
 });
 
-test("Comic entrance and return commit behind the curtain instead of scrolling the page up", () => {
+test("Comic entrance and return use the subject-led spread, not black shutters or page sliding", () => {
   const entry = home.slice(home.indexOf("const enterNextPage ="), home.indexOf("const finalizeLovebrainExit ="));
   const back = home.slice(home.indexOf("const returnToGate ="), home.indexOf("const clearHomeGateReturnArm ="));
   assert.match(entry, /runComicHandoff\("opening"/);
@@ -95,7 +97,28 @@ test("Comic entrance and return commit behind the curtain instead of scrolling t
   assert.doesNotMatch(entry + back, /smoothScrollTo\(/);
   assert.match(home, /if \(comicTransition\.active\) \{ event\.preventDefault\(\); return; \}/);
   assert.match(home, /a\[data-comic-next\]/);
-  assert.match(css, /kisara-comic-character-in/);
+  assert.match(runtime, /await motion\.play\(scene\)/);
+  assert.match(motion, /comicSpreadPoints/);
+  assert.match(css, /\.kisara-comic-flight > \.kisara-comic \{ background: transparent; \}/);
+  assert.match(css, /\.kisara-comic\s*\{[^}]*color: var\(--comic-ink\)/);
+  assert.doesNotMatch(css + transition, /kisara-comic-curtain|slabs|reveal === "split"/);
+  assert.match(home, /comic\?\.settlePresentation\?\.\(\)/);
+  assert.match(home, /if \(stop\.element === opening && isOpeningStopCurrent\(\)\) return true;/);
+  assert.doesNotMatch(home, /openingBridgePortalActive = true/);
+  assert.match(transition, /mode === "return"/);
+  assert.doesNotMatch(motion + transition, /requestAnimationFrame|setInterval|feTurbulence/);
+});
+
+test("The comic index has editorial columns and synchronized accessible route groups", () => {
+  assert.match(opening, /kisara-comic-contents-head/);
+  assert.match(opening, /kisara-comic-page-number/);
+  assert.match(opening, /aria-controls=\{`comic-routes-/);
+  assert.match(runtime, /setAttribute\("aria-expanded", String\(selected\)\)/);
+  const navigation = css.match(/\.kisara-comic-navigation\s*\{([^}]+)\}/)?.[1] ?? "";
+  assert.match(navigation, /grid-template-columns/);
+  assert.doesNotMatch(navigation, /background:|border-radius:|box-shadow:/);
+  assert.match(css, /grid-template-rows: repeat\(5,28px\)/);
+  assert.match(css, /kisara-comic-route-details \[hidden\] \{ display: none; \}/);
 });
 
 test("Fridge handoff checks a fresh decoded frame and has bounded failure cleanup", () => {
