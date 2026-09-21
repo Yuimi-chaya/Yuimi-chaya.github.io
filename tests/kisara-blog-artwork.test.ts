@@ -9,14 +9,14 @@ const decode = (name: string) => sharp(bytes(name)).ensureAlpha().raw().toBuffer
 
 test("replacement cast images retain the shared transparent stage and resource priorities", async () => {
   const page = readFileSync(new URL("../src/themes/kisara/pages/BlogIndexPage.astro", import.meta.url), "utf8");
-  for (const [name, priority] of [["ayano-middle-art-v2.webp", "low"], ["kisara-front-blade-v5.webp", "high"]]) {
+  for (const [name, priority] of [["ayano-middle-art-v2.webp", "low"], ["kisara-front-blade-v4.webp", "high"]]) {
     const buffer = bytes(name);
     const meta = await sharp(buffer).metadata();
     assert.deepEqual([meta.width, meta.height, meta.hasAlpha], [1440, 975, true]);
     assert.ok(buffer.length < 125_000, name);
     assert.match(page, new RegExp(`${name.replaceAll(".", "\\.")}"[^>]*width="1440" height="975"[^>]*fetchpriority="${priority}"`));
   }
-  assert.doesNotMatch(page, /ayano-middle-solo-v1\.webp|kisara-front-blade-v[234]\.webp/);
+  assert.doesNotMatch(page, /ayano-middle-solo-v1\.webp|kisara-front-blade-v3\.webp/);
 });
 
 test("Ayano's replacement stays within the canvas and retains the previous visible height", async () => {
@@ -43,21 +43,21 @@ test("Ayano's replacement stays within the canvas and retains the previous visib
   assert.ok(next.pixels > 70_000 && next.pixels < 150_000);
 });
 
-test("Kisara's brightness pass lifts the complete artwork without changing alpha or pose", async () => {
-  const old = await decode("kisara-front-blade-v4.webp");
-  const next = await decode("kisara-front-blade-v5.webp");
+test("Kisara's second skin adjustment brightens warm tones without changing alpha or pose", async () => {
+  const old = await decode("kisara-front-blade-v3.webp");
+  const next = await decode("kisara-front-blade-v4.webp");
   assert.deepEqual(old.info, next.info);
   let samples = 0;
   const delta = [0, 0, 0];
   for (let i = 0; i < old.data.length; i += 4) {
     assert.equal(next.data[i + 3], old.data[i + 3], `Alpha at pixel ${i / 4}`);
     const [r, g, b, a] = old.data.subarray(i, i + 4);
-    if (a <= 240) continue;
+    if (a <= 240 || g <= 150 || g - b <= 10 || r - g <= 5) continue;
     samples++;
     for (let c = 0; c < 3; c++) delta[c] += next.data[i + c] - old.data[i + c];
   }
-  assert.ok(samples > 100_000);
+  assert.ok(samples > 10_000);
   assert.ok(delta[0] / samples > 0);
-  assert.ok(delta[1] / samples > 4 && delta[1] / samples < 26);
-  assert.ok(delta[2] / samples > 4 && delta[2] / samples < 26);
+  assert.ok(delta[1] / samples > 2 && delta[1] / samples < 10);
+  assert.ok(delta[2] / samples > 3 && delta[2] / samples < 15);
 });
