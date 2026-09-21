@@ -132,27 +132,26 @@ test("004 fills the viewport at 90 percent without narrowing the section backgro
   assert.match(component, /calc\(7vw \/ var\(--kisara-scale, 1\)\)/);
 });
 
-test("Blog hero fills the viewport and the archive begins with a compact index bridge", () => {
+test("Blog hero is a sticky stage with a compact archive handoff and traced English title", () => {
   const css = postcss.parse(read("src/themes/kisara/styles/blog.css"));
-  const heights: string[] = [];
-  const banner = new Map<string, string>();
+  const hero = new Map<string, string>();
+  const archive = new Map<string, string>();
   css.walkRules(rule => {
     if (rule.selector === ".kisara-blog-hero") {
-      rule.walkDecls("min-height", decl => { heights.push(decl.value); });
+      rule.walkDecls(decl => { hero.set(decl.prop, decl.value); });
     }
-    if (rule.selector === ".kisara-blog-archive-heading") {
-      rule.walkDecls(decl => { banner.set(decl.prop, decl.value); });
+    if (rule.selector === ".kisara-blog-archive") {
+      rule.walkDecls(decl => { archive.set(decl.prop, decl.value); });
     }
   });
-  assert.deepEqual(heights.slice(-2), [
-    "max(680px, calc(100svh / var(--kisara-scale, 1)))",
-    "max(720px, calc(100svh / var(--kisara-scale, 1)))",
-  ]);
-  assert.equal(banner.get("width"), "100%");
-  assert.equal(banner.get("margin-inline"), "0");
-  assert.equal(banner.get("min-height"), "0");
-  assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /kisara-blog-archive-intro/);
-  assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /kisara-blog-signal-list/);
+  assert.equal(hero.get("position"), "sticky");
+  assert.equal(hero.get("min-height"), "max(720px, calc(100svh / var(--kisara-scale, 1)))");
+  assert.equal(archive.get("position"), "relative");
+  assert.equal(archive.get("z-index"), "3");
+  assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /Every signal/);
+  assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /leaves a trace\./);
+  assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /kisara-blog-trace-char/);
+  assert.doesNotMatch(read("src/themes/kisara/styles/blog.css"), /kisara-blog-scanline|kisara-blog-exposure|kisara-blog-group-focus/);
 });
 
 test("Blog cast shrinks as one group and hit geometry follows its transformed bounds", () => {
@@ -163,7 +162,7 @@ test("Blog cast shrinks as one group and hit geometry follows its transformed bo
       rule.walkDecls("transform", decl => { transform = decl.value; });
     }
   });
-  assert.equal(transform, "translate3d(0, -50%, 0) scale(.92)");
+  assert.equal(transform, "translate3d(var(--blog-cast-exit-x, 0px), calc(-50% + var(--blog-cast-exit-y, 0px)), 0) scale(var(--blog-cast-scale, 0.92))");
   const source = range(read("src/themes/kisara/lib/blogPage.js"),
     "  const cacheCastGeometry =", "  const prepareCastHitMasks =");
   const masks = [{ image: {}, rect: null as any }];

@@ -30,6 +30,7 @@ const timelineYears = posts.reduce((groups, post) => {
 
 const coverPresentation = await getKisaraCoverPresentation(posts);
 const archiveCoverSizes = "(max-width: 760px) 112px, (max-width: 1100px) 45vw, 380px";
+const traceLines = ["Every signal", "leaves a trace."];
 ---
 
 <KisaraLayout title="Blog | Kisara" description="Yuimi Lab 的文章记录。" stylesheets={[blogStylesheet]}>
@@ -50,33 +51,24 @@ const archiveCoverSizes = "(max-width: 760px) 112px, (max-width: 1100px) 45vw, 3
         <img class="kisara-blog-character is-shu" data-blog-character="shu" src="/themes/kisara/assets/blog/shu-middle-art-v2.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="auto" />
         <img class="kisara-blog-character is-kisara" data-blog-character="kisara" src="/themes/kisara/assets/blog/kisara-front-blade-v6.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
       </div>
-      <div class="kisara-blog-group-focus"></div>
-      <div class="kisara-blog-exposure" aria-hidden="true"><i></i><i></i><i></i></div>
       <div class="kisara-blog-scene-veil"></div>
-      <div class="kisara-blog-develop-line" aria-hidden="true"><i></i></div>
-      <p class="kisara-blog-contact-mark" aria-hidden="true"><span>CONTACT SHEET</span><strong>03 / {String(posts.length).padStart(2, "0")}</strong></p>
     </div>
 
-    <div class="kisara-blog-hero-layout">
-      <div class="kisara-blog-ledger" aria-label="博客档案摘要">
-        <span>YUIMI LAB</span>
-        <strong>{String(posts.length).padStart(2, "0")}</strong>
-        <small>ACTIVE<br />SIGNALS</small>
-      </div>
-
-      <div class="kisara-blog-reading-note">
-        <div class="kisara-blog-index-spine">
-          <p class="kisara-blog-file-code"><span>03</span><strong>BLOG / TRANSMISSION ARCHIVE</strong></p>
-          <h1 id="kisara-blog-hero-title"><span>写下来，</span><em>再找得到。</em></h1>
-          <p class="kisara-blog-index-lead">代码、折腾过的界面，以及没有被删掉的灵感，都在这里留下可追踪的线索。</p>
-          <p class="kisara-blog-index-date"><span>LAST UPDATED</span><time>{latestPostDate}</time></p>
-        </div>
-        <div class="kisara-blog-signal-list" aria-label="博客统计">
-          <span><strong>{posts.length}</strong>篇记录</span>
-          <span><strong>{categories.length}</strong>个频道</span>
-          <span>按标签检索</span>
-        </div>
-      </div>
+    <div class="kisara-blog-hero-copy">
+      <p class="kisara-blog-kicker"><span>03</span> TRANSMISSION ARCHIVE</p>
+      <h1 id="kisara-blog-hero-title" aria-label="Every signal leaves a trace.">
+        {traceLines.map((line, lineIndex) => (
+          lineIndex === 0
+            ? <span data-trace-line>{Array.from(line).map((character, index) => <i class="kisara-blog-trace-char" style={`--trace-index: ${index};`}>{character === " " ? "\u00a0" : character}</i>)}</span>
+            : <strong data-trace-line>{Array.from(line).map((character, index) => <i class="kisara-blog-trace-char" style={`--trace-index: ${index};`}>{character === " " ? "\u00a0" : character}</i>)}</strong>
+        ))}
+      </h1>
+      <p>开发记录、部署笔记和兴趣电波。这里不负责把灵感整理得太规矩，只负责让它们还能被再次找到。</p>
+      <dl>
+        <div><dt>LOGS</dt><dd>{String(posts.length).padStart(2, "0")}</dd></div>
+        <div><dt>CHANNELS</dt><dd>{String(categories.length).padStart(2, "0")}</dd></div>
+        <div><dt>STATUS</dt><dd>ONLINE</dd></div>
+      </dl>
     </div>
 
     <div class="kisara-blog-cast-note" data-blog-cast-note data-cast-note-for="all" aria-live="polite">
@@ -105,9 +97,6 @@ const archiveCoverSizes = "(max-width: 760px) 112px, (max-width: 1100px) 45vw, 3
       <Icon name="tabler:chevron-down" aria-hidden="true" />
     </a>
 
-    <div class="kisara-blog-reading-trace" aria-hidden="true">
-      <span></span><i></i><small>SCROLL TO OPEN THE ARCHIVE</small>
-    </div>
   </section>
 
   <section id="kisara-blog-archive" class="kisara-blog-archive" data-kisara-archive>

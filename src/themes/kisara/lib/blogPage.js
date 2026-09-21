@@ -107,8 +107,22 @@ export function bindBlogPage() {
     scrollFrame = 0;
     if (!(hero instanceof HTMLElement)) return;
     const rect = hero.getBoundingClientRect();
-    const progress = clamp(-rect.top / Math.max(1, rect.height * 0.58), 0, 1);
+    const archiveRect = archive instanceof HTMLElement ? archive.getBoundingClientRect() : null;
+    const progress = archiveRect
+      ? clamp((rect.height - archiveRect.top) / Math.max(1, rect.height * 0.62), 0, 1)
+      : clamp(-rect.top / Math.max(1, rect.height * 0.58), 0, 1);
+    const exit = 1 - Math.pow(1 - progress, 3);
     hero.style.setProperty("--blog-scroll-progress", progress.toFixed(4));
+    hero.style.setProperty("--blog-scroll-exit", exit.toFixed(4));
+    hero.style.setProperty("--blog-cast-exit-x", `${Math.round(-170 * exit)}px`);
+    hero.style.setProperty("--blog-cast-exit-y", `${Math.round(-92 * exit)}px`);
+    hero.style.setProperty("--blog-cast-scale", (1 - exit * 0.08).toFixed(4));
+    hero.style.setProperty("--blog-copy-exit-x", `${Math.round(-104 * exit)}px`);
+    hero.style.setProperty("--blog-copy-exit-y", `${Math.round(-58 * exit)}px`);
+    hero.style.setProperty("--blog-copy-scale", (1 - exit * 0.04).toFixed(4));
+    hero.style.setProperty("--blog-copy-opacity", (1 - exit).toFixed(4));
+    hero.style.setProperty("--blog-index-exit-y", `${Math.round(76 * exit)}px`);
+    hero.style.setProperty("--blog-index-opacity", (1 - exit).toFixed(4));
   };
 
   const scheduleScrollSync = () => {
