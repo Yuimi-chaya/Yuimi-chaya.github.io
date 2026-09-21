@@ -132,7 +132,7 @@ test("004 fills the viewport at 90 percent without narrowing the section backgro
   assert.match(component, /calc\(7vw \/ var\(--kisara-scale, 1\)\)/);
 });
 
-test("Blog hero fills the viewport and its reading banner escapes only the archive column", () => {
+test("Blog hero fills the viewport and the archive begins with a compact index bridge", () => {
   const css = postcss.parse(read("src/themes/kisara/styles/blog.css"));
   const heights: string[] = [];
   const banner = new Map<string, string>();
@@ -148,20 +148,11 @@ test("Blog hero fills the viewport and its reading banner escapes only the archi
     "max(680px, calc(100svh / var(--kisara-scale, 1)))",
     "max(720px, calc(100svh / var(--kisara-scale, 1)))",
   ]);
-  assert.equal(banner.get("width"), "calc(100vw / var(--kisara-scale, 1))");
-  assert.equal(banner.get("margin-inline"), "calc(50% - 50vw / var(--kisara-scale, 1))");
-  assert.equal(banner.get("min-height"), "420px"); // Existing mobile composition remains intact.
-  assert.match(read("src/themes/kisara/styles/blog.css"), /width: min\(1180px, calc\(100% - 48px\)\)/);
-  for (const scale of [.9, 1]) {
-    for (const [width, height] of [[390, 844], [768, 1024], [1440, 900], [2330, 1024]]) {
-      const viewport = width / scale;
-      const archive = Math.min(1180, viewport - 48);
-      const bannerLeft = (viewport - archive) / 2 + archive / 2 - viewport / 2;
-      assert.ok(Math.abs(bannerLeft * scale) < 1e-9);
-      assert.ok(Math.abs((bannerLeft + viewport) * scale - width) < 1e-9);
-      assert.ok(Math.max(width <= 560 ? 720 : 680, height / scale) * scale >= height);
-    }
-  }
+  assert.equal(banner.get("width"), "100%");
+  assert.equal(banner.get("margin-inline"), "0");
+  assert.equal(banner.get("min-height"), "0");
+  assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /kisara-blog-archive-intro/);
+  assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /kisara-blog-signal-list/);
 });
 
 test("Blog cast shrinks as one group and hit geometry follows its transformed bounds", () => {
