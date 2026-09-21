@@ -9,7 +9,7 @@ const decode = (name: string) => sharp(bytes(name)).ensureAlpha().raw().toBuffer
 
 test("replacement cast images retain the shared transparent stage and resource priorities", async () => {
   const page = readFileSync(new URL("../src/themes/kisara/pages/BlogIndexPage.astro", import.meta.url), "utf8");
-  for (const [name, priority] of [["ayano-middle-art-v2.webp", "low"], ["kisara-front-blade-v4.webp", "high"]]) {
+  for (const [name, priority] of [["ayano-middle-art-v2.webp", "low"], ["kisara-front-blade-v6.webp", "high"]]) {
     const buffer = bytes(name);
     const meta = await sharp(buffer).metadata();
     assert.deepEqual([meta.width, meta.height, meta.hasAlpha], [1440, 975, true]);
