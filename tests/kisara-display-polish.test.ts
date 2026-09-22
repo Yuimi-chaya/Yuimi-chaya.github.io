@@ -132,6 +132,8 @@ test("004 fills the viewport at 90 percent without narrowing the section backgro
   });
   assert.ok(fullHeight && fullWidth);
   const component = read("src/themes/kisara/components/KisaraLatestNotes.astro");
+  assert.match(component, /class="kisara-latest-content"/);
+  assert.match(component, /\.kisara-latest-content[\s\S]*zoom: 1\.1/);
   assert.match(component, /repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(component, /aspect-ratio: 7 \/ 10/);
   assert.match(component, /calc\(7vw \/ var\(--kisara-scale, 1\)\)/);
