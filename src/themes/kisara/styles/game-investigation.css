@@ -39,8 +39,8 @@
   z-index: 2;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  width: min(1880px, calc(100% - 64px));
-  height: 100%;
+  width: min(1880px, 100%);
+  height: auto;
   margin-inline: auto;
 }
 
@@ -50,7 +50,7 @@
   align-items: end;
   gap: 22px;
   margin-bottom: 24px;
-  padding-right: 270px;
+  padding-right: 0;
 }
 
 .kisara-game-investigation-heading > div:first-child > p {
@@ -135,6 +135,8 @@
   gap: 28px;
   background: transparent;
 }
+
+.kisara-game-camera-slot { min-width: 0; }
 
 .kisara-event-board::before {
   content: none;
@@ -1590,10 +1592,27 @@ html.kisara-event-modal-open {
 
   .kisara-event-board {
     grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 12px;
   }
 
   .kisara-event-photo-panel {
-    padding: 28px 20px 24px;
+    padding: 10px;
+    background: #f6f7fc;
+  }
+
+  .kisara-event-photo {
+    width: min(100%, calc(34svh / var(--kisara-scale, 1)));
+    margin-inline: auto;
+  }
+
+  .kisara-event-photo-meta {
+    min-height: 25px;
+    padding-block: 0 6px;
+  }
+
+  .kisara-event-photo-caption {
+    display: none;
   }
 
   .kisara-event-photo-meta,
@@ -1602,23 +1621,52 @@ html.kisara-event-modal-open {
   }
 
   .kisara-event-brief {
-    padding: 42px clamp(32px, calc(6vw / var(--kisara-scale, 1)), 62px) 38px;
+    padding: 0;
   }
 
   .kisara-event-brief h3 {
     max-width: 620px;
+    margin: 10px 0 0;
+    font-size: 1.25rem;
+  }
+
+  .kisara-event-brief h3 br,
+  .kisara-event-brief-kicker,
+  .kisara-event-objectives small {
+    display: none;
+  }
+
+  .kisara-event-brief-status {
+    padding-bottom: 8px;
+  }
+
+  .kisara-event-brief-copy {
+    margin-top: 8px;
+    font-size: .75rem;
+    line-height: 1.5;
   }
 
   .kisara-event-objectives {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 18px;
+    gap: 8px;
+    margin-top: 12px;
   }
 
   .kisara-event-objectives li {
-    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 5px;
+    min-height: 38px;
     align-content: center;
     border-top: 1px solid rgba(73, 73, 113, 0.13);
   }
+
+  .kisara-event-objectives li > span { width: 20px; height: 20px; }
+  .kisara-event-objectives strong { font-size: .65rem; }
+  .kisara-event-progress { margin-top: 10px; }
+  .kisara-event-progress > i { margin-top: 6px; }
+  .kisara-event-work-link { margin-top: 10px; padding-top: 10px; }
+  .kisara-event-command { min-height: 40px; padding: 8px 10px; grid-template-columns: auto minmax(0, 1fr); gap: 10px; }
+  .kisara-event-command i, .kisara-event-command small { display: none; }
 }
 
 @media (max-width: 600px) {
@@ -1629,17 +1677,16 @@ html.kisara-event-modal-open {
 
   .kisara-event-board {
     min-height: 0;
-    clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
   }
 
   .kisara-event-photo-panel {
-    padding: 18px 0 18px;
+    padding: 8px;
   }
 
   .kisara-event-photo-meta {
     gap: 10px;
-    min-height: 34px;
-    padding: 0 18px 5px;
+    min-height: 24px;
+    padding: 0 8px 5px;
     font-size: 0.52rem;
   }
 
@@ -1701,7 +1748,7 @@ html.kisara-event-modal-open {
   }
 
   .kisara-event-brief {
-    padding: 30px 20px 28px;
+    padding: 0;
   }
 
   .kisara-event-brief-kicker {
@@ -1709,23 +1756,23 @@ html.kisara-event-modal-open {
   }
 
   .kisara-event-brief h3 {
-    font-size: 2rem;
+    font-size: 1.15rem;
   }
 
   .kisara-event-objectives {
-    grid-template-columns: 1fr;
-    gap: 0;
-    margin-top: 28px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 10px;
   }
 
   .kisara-event-objectives li {
-    min-height: 62px;
+    min-height: 36px;
   }
 
   .kisara-event-command {
     grid-template-columns: auto minmax(0, 1fr);
     gap: 8px 12px;
-    padding: 14px 18px;
+    padding: 8px 10px;
   }
 
   .kisara-event-command i {
@@ -1880,20 +1927,20 @@ html[data-yuimi-performance="lite"] .kisara-event-reward-burst::before {
 
   .kisara-game-investigation-shell {
     display: block;
-    width: calc(100% - 28px);
+    width: 100%;
     height: auto;
   }
 
   .kisara-game-investigation-heading {
     grid-template-columns: 1fr;
     gap: 12px;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     padding-right: 0;
   }
 
   .kisara-game-hero .kisara-game-investigation-heading h1 {
     max-width: 680px;
-    font-size: 2.5rem;
+    font-size: 2rem;
   }
 
   .kisara-game-investigation-next {
@@ -1907,16 +1954,16 @@ html[data-yuimi-performance="lite"] .kisara-event-reward-burst::before {
   }
 
   .kisara-game-investigation-shell {
-    width: calc(100% - 20px);
+    width: 100%;
   }
 
   .kisara-game-investigation-heading {
     gap: 9px;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
   }
 
   .kisara-game-hero .kisara-game-investigation-heading h1 {
-    font-size: 2rem;
+    font-size: 1.65rem;
   }
 
   .kisara-game-investigation-heading .kisara-event-heading-note {
@@ -1926,4 +1973,105 @@ html[data-yuimi-performance="lite"] .kisara-event-reward-burst::before {
   .kisara-game-investigation-next {
     font-size: 0.52rem;
   }
+}
+
+/* The camera uses the remaining grid cell; surrounding text keeps its normal size. */
+.kisara-games[data-scene-ready] .kisara-game-investigation-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  width: 100%;
+  margin-inline: auto;
+}
+.kisara-games[data-scene-ready] .kisara-event-scene {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+}
+.kisara-games[data-scene-ready] .kisara-event-board {
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(290px, 24%);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
+}
+.kisara-games[data-scene-ready] .kisara-game-camera-slot {
+  position: relative;
+  align-self: stretch;
+  min-height: 0;
+  container-type: size;
+}
+.kisara-games[data-scene-ready] .kisara-event-photo-panel {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: min(100%, 163cqh);
+  height: min(100%, calc(100cqw / 1.63));
+  aspect-ratio: 1.63;
+  margin: auto;
+  padding: 0;
+  border: 8px solid #f8f8fc;
+}
+.kisara-games[data-scene-ready] .kisara-event-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  aspect-ratio: auto;
+}
+.kisara-games[data-scene-ready] .kisara-event-command { margin-top: 10px; }
+
+@media (max-height: 700px) and (min-width: 981px) {
+  .kisara-games[data-scene-ready] .kisara-game-investigation-heading { margin-bottom: 14px; }
+  .kisara-games[data-scene-ready] .kisara-game-investigation-heading h1 { font-size: 2rem; }
+  .kisara-games[data-scene-ready] .kisara-event-brief { padding-block: 0; }
+  .kisara-games[data-scene-ready] .kisara-event-brief-kicker { margin-top: 12px; }
+  .kisara-games[data-scene-ready] .kisara-event-brief h3 { font-size: 1.5rem; }
+  .kisara-games[data-scene-ready] .kisara-event-brief-copy { margin-top: 8px; font-size: .78rem; line-height: 1.5; }
+  .kisara-games[data-scene-ready] .kisara-event-objectives { margin-top: 12px; }
+  .kisara-games[data-scene-ready] .kisara-event-objectives li { min-height: 43px; padding-block: 4px; }
+  .kisara-games[data-scene-ready] .kisara-event-work-link { margin-top: 12px; padding-top: 10px; }
+}
+
+@media (max-width: 980px) {
+  .kisara-games[data-scene-ready] .kisara-event-board {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+  .kisara-games[data-scene-ready] .kisara-event-photo-panel {
+    width: min(100%, calc(100cqh * 1518 / 1422));
+    height: min(100%, calc(100cqw * 1422 / 1518));
+    aspect-ratio: 1518 / 1422;
+    border-width: 5px;
+  }
+  .kisara-games[data-scene-ready] .kisara-event-photo-meta {
+    position: absolute;
+    z-index: 10;
+    inset: 0 0 auto;
+    min-height: 30px;
+    padding: 8px 10px;
+    color: #edf1ff;
+    background: linear-gradient(#080d24bb, transparent);
+  }
+  .kisara-games[data-scene-ready] .kisara-event-photo-meta strong { color: #ffb4cf; }
+}
+
+@media (max-width: 980px) and (max-height: 700px) {
+  .kisara-games[data-scene-ready] .kisara-event-brief-copy { display: none; }
+  .kisara-games[data-scene-ready] .kisara-event-brief h3 { margin-top: 6px; }
+  .kisara-games[data-scene-ready] .kisara-event-work-link { min-height: 36px; margin-top: 6px; padding-top: 6px; }
+  .kisara-games[data-scene-ready] .kisara-event-work-link small { display: none; }
+  .kisara-games[data-scene-ready] .kisara-event-command { min-height: 32px; margin-top: 6px; padding-block: 5px; }
+}
+
+@media (max-width: 980px) and (max-height: 600px) and (orientation: landscape) {
+  .kisara-games[data-scene-ready] .kisara-event-board {
+    grid-template-columns: minmax(0, 1fr) minmax(230px, .85fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .kisara-games[data-scene-ready] .kisara-game-investigation-heading { margin-bottom: 8px; }
+  .kisara-games[data-scene-ready] .kisara-game-investigation-heading h1 { font-size: 1.5rem; }
+  .kisara-games[data-scene-ready] .kisara-event-objectives { margin-top: 6px; }
 }

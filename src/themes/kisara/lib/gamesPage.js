@@ -1,3 +1,5 @@
+import { bindGamesViewport } from "./gamesViewport.ts";
+
 export function bindGamesPage(page) {
   window.__yuimiKisaraInnerCleanup?.();
   if (!(page instanceof HTMLElement)) return;
@@ -24,6 +26,7 @@ export function bindGamesPage(page) {
   let animations = [];
   let transitionId = 0;
   let disposed = false;
+  const viewport = bindGamesViewport(page);
   const sceneFromHash = () => ["#kisara-arcade-console", "#kisara-arcade-title"].includes(location.hash) ? 1 : 0;
 
   const stopAnimations = () => {
@@ -119,6 +122,7 @@ export function bindGamesPage(page) {
       scene.inert = position !== target;
       scene.dataset.scenePosition = position === target ? "active" : position < target ? "before" : "after";
     });
+    viewport.update();
     page.dispatchEvent(new CustomEvent("kisara:game-scene", { detail: { activeScene: target } }));
     page.querySelectorAll("[data-game-scene-jump]").forEach(link => {
       link.setAttribute("aria-current", String(Number(link.dataset.gameSceneJump) === target));
@@ -185,6 +189,7 @@ export function bindGamesPage(page) {
   const cleanup = () => {
     disposed = true;
     lifecycle.abort();
+    viewport.cleanup();
     stopAnimations();
     unloadGame();
     delete page.dataset.sceneReady;

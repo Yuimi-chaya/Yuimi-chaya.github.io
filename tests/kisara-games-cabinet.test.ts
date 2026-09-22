@@ -75,7 +75,13 @@ function fixture({ reduced = false, hash = "" } = {}) {
   const document = new EventTarget();
   const location = { hash };
   const history = { state: {}, replaceState(_state: any, _title: string, nextHash: string) { location.hash = nextHash; } };
-  const bind = vm.runInNewContext(`${runtime.replace("export function", "function")}; bindGamesPage`, { window, document, location, history, HTMLElement: Element, AbortController, CustomEvent, Promise });
+  const bind = vm.runInNewContext(`${runtime.replace(/^import .*;\r?\n/m, "").replace("export function", "function")}; bindGamesPage`, {
+    window, document, location, history, HTMLElement: Element, AbortController, CustomEvent, Promise,
+    bindGamesViewport: (page: any) => {
+      assert.equal(page.querySelectorAll("[data-game-viewport]").length, 0);
+      return { update() {}, cleanup() {} };
+    },
+  });
   bind(page);
   const click = (target: Element, detail = 1) => {
     const event = new Event("click", { cancelable: true });
