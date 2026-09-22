@@ -1,4 +1,5 @@
 import { bindVideoStill } from "./videoStill.ts";
+import { bindWorksStage } from "./worksStage.ts";
 
 export function bindWorksPage() {
   window.__yuimiKisaraInnerCleanup?.();
@@ -20,6 +21,8 @@ export function bindWorksPage() {
   let fruitPhysicsLastTime = 0;
   let fruitPhysicsReady = false;
   let fruitPhysicsVisible = true;
+  let heroStageActive = true;
+  let worksStage = null;
   let fruitPhysicsObserver = null;
   let heroIntroTimer = 0;
   let heroIntroFrame = 0;
@@ -43,8 +46,6 @@ export function bindWorksPage() {
   let blendTimer = 0;
   let chopTimer = 0;
   let statusTimer = 0;
-  let kitchenScrollFrame = 0;
-  let kitchenScrollToken = 0;
   let dragGhost = null;
   let dragState = null;
   let heroPointerTargetX = 0;
@@ -79,7 +80,6 @@ export function bindWorksPage() {
     if (blendTimer) window.clearTimeout(blendTimer);
     if (chopTimer) window.clearTimeout(chopTimer);
     if (statusTimer) window.clearTimeout(statusTimer);
-    if (kitchenScrollFrame) cancelAnimationFrame(kitchenScrollFrame);
     dragGhost?.remove();
     settlingGhosts.forEach((ghost) => ghost.remove());
     settlingGhosts.clear();
@@ -184,13 +184,13 @@ export function bindWorksPage() {
   };
 
   const requestFruitPhysicsFrame = () => {
-    if (!fruitPhysicsEnabled || !fruitPhysicsReady || !fruitPhysicsVisible || document.hidden || fruitPhysicsFrame || signal.aborted) return;
+    if (!fruitPhysicsEnabled || !fruitPhysicsReady || !fruitPhysicsVisible || !heroStageActive || document.hidden || fruitPhysicsFrame || signal.aborted) return;
     fruitPhysicsFrame = window.requestAnimationFrame(runFruitPhysics);
   };
 
   function runFruitPhysics(timestamp) {
     fruitPhysicsFrame = 0;
-    if (!fruitPhysicsReady || !fruitPhysicsVisible || document.hidden || signal.aborted || !(sliceField instanceof HTMLElement)) return;
+    if (!fruitPhysicsReady || !fruitPhysicsVisible || !heroStageActive || document.hidden || signal.aborted || !(sliceField instanceof HTMLElement)) return;
     const dt = fruitPhysicsLastTime ? Math.min(0.05, Math.max(0, (timestamp - fruitPhysicsLastTime) / 1000)) : 0;
     fruitPhysicsLastTime = timestamp;
     const width = Math.max(360, sliceFieldBounds.width);
@@ -313,7 +313,7 @@ export function bindWorksPage() {
 
   const syncWorksActivity = () => {
     if (signal.aborted || !(hero instanceof HTMLElement)) return;
-    const active = fruitPhysicsVisible && !document.hidden;
+    const active = fruitPhysicsVisible && heroStageActive && !document.hidden;
     hero.toggleAttribute("data-works-active", active);
     fruitPhysicsLastTime = 0;
     if (!active) {
@@ -501,8 +501,10 @@ export function bindWorksPage() {
     heroScrollFrame = 0;
     if (!(hero instanceof HTMLElement)) return;
     const rect = hero.getBoundingClientRect();
-    const progress = clamp(-rect.top / Math.max(1, rect.height * 0.62), 0, 1);
-    hero.style.setProperty("--works-scroll-progress", progress.toFixed(4));
+    if (!worksStage) {
+      const progress = clamp(-rect.top / Math.max(1, rect.height * 0.62), 0, 1);
+      hero.style.setProperty("--works-scroll-progress", progress.toFixed(4));
+    }
     cacheHeroGeometry();
   };
 
@@ -704,7 +706,7 @@ export function bindWorksPage() {
   };
 
   const sliceHeroFruits = (event) => {
-    if (!fruitPhysicsEnabled || !fruitPhysicsVisible || document.hidden || !(sliceField instanceof HTMLElement)) return;
+    if (!fruitPhysicsEnabled || !fruitPhysicsVisible || !heroStageActive || document.hidden || !(sliceField instanceof HTMLElement)) return;
     const fieldRect = sliceFieldBounds;
     const point = {
       x: (event.clientX - fieldRect.left) / displayScale,
@@ -753,7 +755,7 @@ export function bindWorksPage() {
     if (heroFinePointer && !heroReducedMotion) {
       const renderHeroPointer = () => {
         heroPointerFrame = 0;
-        if (signal.aborted || document.hidden || !fruitPhysicsVisible) return;
+        if (signal.aborted || document.hidden || !fruitPhysicsVisible || !heroStageActive) return;
         pendingSliceEvents.splice(0).forEach(sliceHeroFruits);
         heroPointerRenderedX += (heroPointerTargetX - heroPointerRenderedX) * 0.15;
         heroPointerRenderedY += (heroPointerTargetY - heroPointerRenderedY) * 0.15;
@@ -764,7 +766,7 @@ export function bindWorksPage() {
         }
       };
       const scheduleHeroPointer = () => {
-        if (!heroPointerFrame && !document.hidden && fruitPhysicsVisible) heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
+        if (!heroPointerFrame && !document.hidden && fruitPhysicsVisible && heroStageActive) heroPointerFrame = window.requestAnimationFrame(renderHeroPointer);
       };
       hero.addEventListener("pointermove", (event) => {
         if (event.pointerType === "touch") return;
@@ -859,7 +861,6 @@ export function bindWorksPage() {
   let mixNumber = 0;
   let suppressClickUntil = 0;
   let pendingPointer = null;
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const precisePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
   const announce = (message, sticky = false) => {
@@ -1101,60 +1102,7 @@ export function bindWorksPage() {
     return true;
   };
 
-  const cancelKitchenScroll = () => {
-    kitchenScrollToken += 1;
-    if (kitchenScrollFrame) cancelAnimationFrame(kitchenScrollFrame);
-    kitchenScrollFrame = 0;
-    delete root.dataset.scrollingResult;
-    delete root.dataset.scrollTarget;
-  };
-
-  const scrollToKitchenTarget = (target, targetName) => {
-    if (!(target instanceof HTMLElement)) return;
-    cancelKitchenScroll();
-    const startY = window.scrollY;
-    const targetTop = startY + target.getBoundingClientRect().top;
-    const topInset = targetName === "board"
-      ? (window.innerWidth <= 680 ? 18 : Math.min(82, Math.max(58, window.innerHeight * 0.09)))
-      : (window.innerWidth <= 680 ? 18 : Math.min(88, Math.max(52, window.innerHeight * 0.08)));
-    const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-    const targetY = Math.min(maxY, Math.max(0, targetTop - topInset));
-    const distance = targetY - startY;
-    if (Math.abs(distance) < 4) return;
-    if (reduceMotion) {
-      window.scrollTo(0, targetY);
-      return;
-    }
-
-    const token = ++kitchenScrollToken;
-    const duration = Math.min(760, Math.max(480, 410 + Math.abs(distance) * 0.08));
-    let startTime = 0;
-    root.dataset.scrollTarget = targetName;
-    if (targetName === "result") root.dataset.scrollingResult = "true";
-    const step = (timestamp) => {
-      if (token !== kitchenScrollToken) return;
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min(1, (timestamp - startTime) / duration);
-      const rawEase = 1 - Math.exp(-5.8 * progress);
-      const ease = rawEase / (1 - Math.exp(-5.8));
-      window.scrollTo(0, startY + distance * ease);
-      if (progress < 1) {
-        kitchenScrollFrame = requestAnimationFrame(step);
-      } else {
-        kitchenScrollFrame = 0;
-        window.scrollTo(0, targetY);
-        delete root.dataset.scrollingResult;
-        delete root.dataset.scrollTarget;
-      }
-    };
-    kitchenScrollFrame = requestAnimationFrame(step);
-  };
-
-  const scrollToResult = () => scrollToKitchenTarget(result, "result");
-  const scrollToBoard = () => scrollToKitchenTarget(cuttingBoard, "board");
-
   const resetKitchen = (announceReset = true) => {
-    cancelKitchenScroll();
     if (blendTimer) {
       window.clearTimeout(blendTimer);
       blendTimer = 0;
@@ -1168,6 +1116,8 @@ export function bindWorksPage() {
     isBlending = false;
     root.dataset.blending = "false";
     root.dataset.hasResult = "false";
+    const badge = root.querySelector("[data-kitchen-result-badge]");
+    if (badge) badge.hidden = true;
     if (result instanceof HTMLElement) result.dataset.state = "idle";
     if (resultTitle) resultTitle.textContent = "今晚还没有出杯。";
     if (resultEnglish) resultEnglish.textContent = "NO ORDER YET";
@@ -1222,10 +1172,9 @@ export function bindWorksPage() {
     if (blendButton instanceof HTMLButtonElement) blendButton.disabled = true;
     root.dataset.hasResult = "true";
     announce(`${recipe.title} 已经出杯。建议先拍照，再决定要不要喝。`, true);
-    kitchenScrollFrame = requestAnimationFrame(() => {
-      kitchenScrollFrame = 0;
-      if (root.dataset.hasResult === "true") scrollToResult();
-    });
+    const badge = root.querySelector("[data-kitchen-result-badge]");
+    if (badge) badge.hidden = false;
+    worksStage?.showPanel("result");
   };
 
   const blend = () => {
@@ -1345,8 +1294,28 @@ export function bindWorksPage() {
     if (customPointer instanceof HTMLElement) customPointer.dataset.mode = "hand";
   };
 
+  const cancelPrepInteraction = () => {
+    if (dragState) {
+      const state = dragState;
+      dragState = null;
+      state.element.classList.remove("is-drag-source");
+      if (state.element.hasPointerCapture?.(state.pointerId)) state.element.releasePointerCapture(state.pointerId);
+    }
+    window.cancelAnimationFrame(dragFrame);
+    window.cancelAnimationFrame(pointerFrame);
+    dragFrame = pointerFrame = 0;
+    pendingPointer = null;
+    dragGhost?.remove();
+    dragGhost = null;
+    settlingGhosts.forEach(ghost => ghost.remove());
+    settlingGhosts.clear();
+    delete root.dataset.dragging;
+    setDropActive(null);
+    if (customPointer) customPointer.dataset.visible = "false";
+  };
+
   const beginDrag = (event, element, id, source) => {
-    if (event.button !== 0 || isBlending) return;
+    if (event.button !== 0 || isBlending || root.inert || root.dataset.activePanel === "result") return;
     if (source === "pantry" && element.getAttribute("aria-disabled") === "true") return;
     const rect = element.getBoundingClientRect();
     dragState = {
@@ -1393,6 +1362,7 @@ export function bindWorksPage() {
   }, { signal });
 
   root.addEventListener("pointermove", (event) => {
+    if (root.inert || root.dataset.activePanel === "result") return;
     if (precisePointer) {
       pendingPointer = { x: event.clientX, y: event.clientY, target: event.target };
     }
@@ -1458,17 +1428,23 @@ export function bindWorksPage() {
     if (customPointer instanceof HTMLElement && !dragState) customPointer.dataset.visible = "false";
   }, { signal });
 
-  window.addEventListener("wheel", cancelKitchenScroll, { passive: true, signal });
-  window.addEventListener("touchstart", cancelKitchenScroll, { passive: true, signal });
-  window.addEventListener("pointerdown", cancelKitchenScroll, { passive: true, signal });
-  window.addEventListener("keydown", cancelKitchenScroll, { signal });
-
   root.addEventListener("click", (event) => {
+    if (root.inert) return;
     if (performance.now() < suppressClickUntil) {
       event.preventDefault();
       return;
     }
     const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest("[data-return-prep]")) {
+      worksStage?.showPanel("prep", true);
+      return;
+    }
+    if (target?.closest("[data-remix]")) {
+      resetKitchen();
+      worksStage?.showPanel("prep", true);
+      return;
+    }
+    if (root.dataset.activePanel === "result") return;
     const ingredient = target?.closest("[data-kitchen-ingredient]");
     const boardItem = target?.closest("[data-board-item]");
     if (ingredient instanceof HTMLElement) {
@@ -1485,46 +1461,16 @@ export function bindWorksPage() {
     else if (target?.closest("[data-load-blender]")) loadPreparedItems();
     else if (target?.closest("[data-blend]")) blend();
     else if (target?.closest("[data-trash-button]")) resetKitchen();
-    else if (target?.closest("[data-remix]")) {
-      resetKitchen();
-      kitchenScrollFrame = requestAnimationFrame(() => {
-        kitchenScrollFrame = 0;
-        scrollToBoard();
-      });
-    }
   }, { signal });
 
-  const heroPrepButtons = Array.from(hero?.querySelectorAll("[data-works-prep-id]") || []);
-  const heroPrepResponse = hero?.querySelector("[data-works-prep-response]");
-  const heroPrepProject = hero?.querySelector("[data-works-prep-project-output]");
-  const setHeroPrepFocus = (button) => {
-    if (!(hero instanceof HTMLElement) || !(button instanceof HTMLElement)) return;
-    const id = button.dataset.worksPrepId;
-    if (!id) return;
-    hero.dataset.prepFocus = id;
-    if (heroPrepResponse) heroPrepResponse.textContent = button.dataset.worksPrepNote || "PREP TABLE / READY";
-    if (heroPrepProject) heroPrepProject.textContent = button.dataset.worksPrepProject || "送上砧板";
-  };
-
-  heroPrepButtons.forEach((button) => {
-    if (!(button instanceof HTMLButtonElement)) return;
-    button.addEventListener("pointerenter", () => setHeroPrepFocus(button), { signal });
-    button.addEventListener("focus", () => setHeroPrepFocus(button), { signal });
-    button.addEventListener("click", () => {
-      const id = button.dataset.worksPrepId;
-      if (!id) return;
-      setHeroPrepFocus(button);
-      addToBoard(id);
-      scrollToBoard();
-    }, { signal });
-  });
-  hero?.querySelector("[data-works-prep-scatter]")?.addEventListener("pointerleave", () => {
-    if (!(hero instanceof HTMLElement)) return;
-    hero.dataset.prepFocus = "idle";
-    if (heroPrepResponse) heroPrepResponse.textContent = "PREP TABLE / WAITING";
-    if (heroPrepProject) heroPrepProject.textContent = "SELECT AN INGREDIENT";
-  }, { signal });
-
+  const track = document.querySelector("[data-works-stage-track]");
+  if (track instanceof HTMLElement) {
+    worksStage = bindWorksStage(track, {
+      signal,
+      onHeroActive(active) { heroStageActive = active; syncWorksActivity(); cacheHeroGeometry(); },
+      onLeavePrep: cancelPrepInteraction
+    });
+  }
   root.dataset.kitchenReady = "true";
   renderAll();
 }

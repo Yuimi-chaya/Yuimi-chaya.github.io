@@ -33,6 +33,7 @@ interface Props {
   isArticlePage?: boolean;
   stylesheets?: string[];
   priorityImages?: string[];
+  showFooter?: boolean;
   article?: BlogPost["data"];
 }
 
@@ -44,6 +45,7 @@ const {
   isArticlePage = false,
   stylesheets = [],
   priorityImages = [],
+  showFooter = true,
   article
 } = Astro.props;
 const priorityImageUrls = [...new Set(priorityImages.filter(Boolean))];
@@ -556,7 +558,7 @@ const themedNotFoundRedirectScript = `(() => {
       <slot />
     </main>
 
-    <footer class="kisara-footer">
+    {showFooter && <footer class="kisara-footer">
       <KisaraChibiStage />
       <div class="kisara-footer-meta">
         <span class="kisara-footer-signal">YUIMI LAB / KISARA</span>
@@ -566,7 +568,7 @@ const themedNotFoundRedirectScript = `(() => {
         </div>
         <span>© 2026 喝益胃 / YUIMI LAB</span>
       </div>
-    </footer>
+    </footer>}
 
     <div
       class="kisara-scrollbar is-idle"

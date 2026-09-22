@@ -163,9 +163,11 @@ const kitchenCatalog = {
 };
 ---
 
-<KisaraLayout title="Works | Kisara" description="Yuimi Lab 的项目与实验记录。" stylesheets={[projectsStylesheet]}>
+<KisaraLayout title="Works | Kisara" description="Yuimi Lab 的项目与实验记录。" stylesheets={[projectsStylesheet]} showFooter={false}>
   <KisaraIngredientSymbols />
-  <section class="kisara-works-intro" data-kisara-works-hero data-intro-state="idle" data-video-state="idle" data-prep-focus="idle" aria-labelledby="kisara-works-title">
+  <div class="kisara-works-stage-track" data-works-stage-track>
+  <div class="kisara-works-stage" data-works-stage>
+  <section class="kisara-works-intro" data-kisara-works-hero data-intro-state="idle" data-video-state="idle" aria-labelledby="kisara-works-title">
     <div class="kisara-works-intro-media">
       <video
         class="kisara-works-intro-video"
@@ -190,13 +192,10 @@ const kitchenCatalog = {
         decoding="async"
         aria-hidden="true"
       />
-      <span class="kisara-works-counter-light" aria-hidden="true"></span>
     </div>
-    <div class="kisara-works-steam" aria-hidden="true"><i></i><i></i><i></i></div>
 
     <div class="kisara-works-slice-field" data-works-slice-field aria-hidden="true">
       <div class="kisara-works-slice-trails" data-works-slice-trails></div>
-      <p class="kisara-works-slice-score"><span>CUT TEST</span><output data-works-slice-score>00</output></p>
       {kitchenIngredients.map((ingredient) => (
           <span
             class="kisara-works-slice-fruit kisara-ingredient"
@@ -230,57 +229,36 @@ const kitchenCatalog = {
       </span>
     </div>
 
+    <div class="kisara-works-editorial-exit" data-works-editorial-exit>
     <div class="kisara-works-editorial">
       <p class="kisara-works-editorial-meta"><span>04</span><em>KISARA KITCHEN / WORKS</em></p>
       <h1 id="kisara-works-title" data-works-title>
         <span class="kisara-works-title-primary">WORKS<sup aria-hidden="true">,</sup></span>
         <em class="kisara-works-title-secondary">one layer <b>at a time.</b></em>
       </h1>
-      <p class="kisara-works-editorial-lead">场景、插件、模型和页面，都是还没下锅的材料。挑一份，送上砧板。</p>
-
-      <div class="kisara-works-prep-rail" data-works-prep-scatter aria-label="选择一份技术食材送上砧板">
-        {kitchenIngredients.map((ingredient, index) => (
-          <button
-            type="button"
-            data-works-prep-id={ingredient.id}
-            data-works-prep-note={ingredient.note}
-            data-works-prep-project={ingredient.project.title}
-            style={`--prep-order: ${index}; --prep-color: ${ingredient.color};`}
-          >
-            <i aria-hidden="true"></i><span>{ingredient.code}</span><small>{ingredient.english}</small>
-          </button>
-        ))}
-      </div>
-
-      <p class="kisara-works-editorial-response" aria-live="polite">
-        <span data-works-prep-response>PREP TABLE / WAITING</span>
-        <strong data-works-prep-project-output>SELECT AN INGREDIENT</strong>
-      </p>
     </div>
-
-    <div class="kisara-works-onion-rings" aria-hidden="true"><i></i><i></i><i></i></div>
-    <div class="kisara-works-cut-trail" aria-hidden="true"><span></span><i></i><i></i><i></i><i></i></div>
-    <a class="kisara-works-intro-jump" href="#kisara-kitchen-lab">
-      <span><small>NO ORDER YET</small><strong>OPEN PREP TABLE</strong></span><Icon name="tabler:chevron-down" aria-hidden="true" />
-    </a>
-    <div class="kisara-works-hero-blend" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+    <a class="kisara-works-enter" href="#kisara-kitchen-lab" data-works-enter><Icon name="tabler:arrow-right" aria-hidden="true" /><span>进入工作台</span></a>
   </section>
 
-  <section id="kisara-kitchen-lab" class="kisara-kitchen-lab" data-kisara-kitchen>
+  <div class="kisara-works-stage-scrim" data-works-stage-scrim aria-hidden="true"></div>
+  <section id="kisara-kitchen-lab" class="kisara-kitchen-lab" data-kisara-kitchen aria-label="料理工作台">
     <script
       type="application/json"
       data-kitchen-catalog
       set:html={JSON.stringify(kitchenCatalog).replace(/</g, "\\u003c")}
     ></script>
 
-    <header class="kisara-kitchen-heading">
-      <div>
-        <p><span>PREP TABLE / 01</span> TECH INGREDIENTS</p>
-        <h2>Make something<br /><em>edible-ish.</em></h2>
+    <header class="kisara-kitchen-toolbar">
+      <button type="button" class="kisara-kitchen-back" data-works-return aria-label="返回 Works 首屏" title="返回首屏"><Icon name="tabler:arrow-left" aria-hidden="true" /></button>
+      <div class="kisara-kitchen-tabs" role="tablist" aria-label="工作台">
+        <button type="button" role="tab" id="kisara-prep-tab" aria-controls="kisara-prep-panel" aria-selected="true" data-kitchen-tab="prep"><Icon name="tabler:tools-kitchen-2" aria-hidden="true" />备料</button>
+        <button type="button" role="tab" id="kisara-result-tab" aria-controls="kisara-result-panel" aria-selected="false" tabindex="-1" data-kitchen-tab="result"><Icon name="tabler:glass" aria-hidden="true" />成品<span data-kitchen-result-badge aria-label="已有成品" hidden></span></button>
       </div>
-      <p>把技术线当成食材，先在砧板上处理，再塞进榨汁机。最后端出来的是作品、饮料，或者一次无法复现的构建结果。</p>
+      <span class="kisara-kitchen-toolbar-label">YUIMI / KITCHEN</span>
     </header>
 
+    <div class="kisara-kitchen-panel" id="kisara-prep-panel" role="tabpanel" aria-labelledby="kisara-prep-tab" tabindex="0" data-kitchen-panel="prep">
     <div class="kisara-kitchen-counter">
       <aside class="kisara-kitchen-pantry" aria-labelledby="kisara-pantry-title">
         <header>
@@ -390,7 +368,9 @@ const kitchenCatalog = {
         </button>
       </aside>
     </div>
+    </div>
 
+    <div class="kisara-kitchen-panel" id="kisara-result-panel" role="tabpanel" aria-labelledby="kisara-result-tab" tabindex="0" data-kitchen-panel="result">
     <section class="kisara-drink-result" data-drink-result data-state="idle" aria-labelledby="kisara-drink-title">
       <div class="kisara-drink-stage" aria-hidden="true">
         <span class="kisara-drink-shadow"></span>
@@ -414,12 +394,19 @@ const kitchenCatalog = {
           <div><span>INGREDIENTS</span><output data-result-ingredients>WAITING</output></div>
           <div><span>TASTE NOTE</span><output data-result-effect>尚未检测到副作用。</output></div>
         </div>
+        <div class="kisara-drink-actions">
+        <button type="button" data-return-prep>
+          <Icon name="tabler:arrow-left" aria-hidden="true" />
+          <span>返回备料</span>
+        </button>
         <button type="button" data-remix disabled>
           <Icon name="tabler:refresh" aria-hidden="true" />
           <span>再开一局</span>
         </button>
+        </div>
       </div>
     </section>
+    </div>
 
     <div class="kisara-kitchen-pointer" data-kitchen-pointer aria-hidden="true">
       <span data-pointer-mode="hand"><Icon name="tabler:hand-finger" /></span>
@@ -427,6 +414,8 @@ const kitchenCatalog = {
       <span data-pointer-mode="blade"><Icon name="tabler:blade" /></span>
     </div>
   </section>
+  </div>
+  </div>
 
   <script>
     document.addEventListener("astro:page-load", () => {
