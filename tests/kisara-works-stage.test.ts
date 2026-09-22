@@ -65,8 +65,27 @@ test("Worktop fits the remaining viewport without a fixed minimum stage height",
   assert.deepEqual(values(scope + ".kisara-kitchen-lab", "height"), ["auto"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-lab", "grid-template-rows"), ["auto minmax(0, 1fr)"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-panel", "overflow"), ["clip"]);
-  assert.deepEqual(values(scope + ".kisara-kitchen-counter", "height"), ["min(700px, 100%)"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-panel", "width"), ["100%"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-counter", "width"), ["calc(100% - 32px)"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-counter", "height"), ["calc(100% - 54px)"]);
+  assert.deepEqual(values(scope + ".kisara-drink-result", "width"), ["calc(100% - 32px)"]);
+  assert.deepEqual(values(scope + ".kisara-drink-result", "height"), ["calc(100% - 32px)"]);
   assert.match(styles, /scale\(var\(--works-panel-fit, 1\)\)/);
+});
+
+test("Large desktop worktops expand with the panel instead of staying at 1380 by 700", () => {
+  for (const [viewportWidth, viewportHeight] of [[2358, 1290], [1920, 1080]]) {
+    for (const zoom of [.9, 1]) {
+      const panelWidth = viewportWidth / zoom - 144;
+      const panelHeight = viewportHeight / zoom - 200;
+      const width = panelWidth - 32;
+      const height = panelHeight - 54;
+      const fit = getWorksPanelFit(width, height + 22, panelWidth, panelHeight);
+      assert.equal(fit, 1);
+      assert.ok(width * fit / panelWidth > .95);
+      assert.ok(height * fit / panelHeight > .9);
+    }
+  }
 });
 
 test("Complete worktop and result bounds fit the panel, not a nested scroll area", () => {
