@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import sharp from "sharp";
+import postcss from "postcss";
+import { transform } from "esbuild";
 import { blogLettering } from "../src/themes/kisara/data/blogLettering.ts";
+import { parseCssTimeMs } from "../src/themes/kisara/lib/blogPage.js";
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const source = read("src/themes/kisara/lib/blogPage.js");
@@ -22,6 +25,55 @@ test("The phrase has one filled glyph per letter, separate pen paths, and no com
   const sprite = read("public/themes/kisara/assets/blog/trace-glyphs.svg");
   for (const letter of blogLettering) {
     assert.ok(sprite.includes(`d="${letter.outline}"`));
+  }
+});
+
+test("Blog cast entry keeps production-compressed seconds as milliseconds", () => {
+  assert.equal(parseCssTimeMs("780ms"), 780);
+  assert.equal(parseCssTimeMs(".78s"), 780);
+  assert.equal(parseCssTimeMs("0s"), 0);
+  assert.equal(parseCssTimeMs("40"), 40);
+  assert.match(source, /parseCssTimeMs\(css\.getPropertyValue\("--cast-delay"\)\)/);
+  assert.match(source, /parseCssTimeMs\(css\.getPropertyValue\("--cast-duration"\)\)/);
+});
+
+test("Minified production CSS creates four staggered cast animations on the full intro timeline", async () => {
+  const compressed = await transform(read("src/themes/kisara/styles/blog.css"), { loader: "css", minify: true });
+  const css = postcss.parse(compressed.code);
+  const slots = ["sharon", "ayano", "shu", "kisara"].map(id => {
+    const properties = new Map<string, string>();
+    css.walkRules(rule => {
+      if (rule.selector === ".kisara-blog-cast-slot" || rule.selector === `.kisara-blog-cast-slot.is-${id}`) {
+        rule.walkDecls(decl => { properties.set(decl.prop, decl.value); });
+      }
+    });
+    return {
+      properties,
+      animate(frames: unknown, timing: { duration: number; delay: number }) {
+        return { frames, timing, currentTime: 0, pause() {} };
+      }
+    };
+  });
+  const introAnimations: any[] = [];
+  const prepare = vm.runInNewContext(
+    `${extract("  const addMotion =", "  const playIntro =")}; prepareMotion`,
+    {
+      reducedMotion: false, introAnimations, archiveAnimations: [], archive: null,
+      hero: { querySelectorAll: (selector: string) => selector === ".kisara-blog-cast-slot" ? slots : [], querySelector: () => null },
+      getComputedStyle: (slot: typeof slots[number]) => ({ getPropertyValue: (key: string) => slot.properties.get(key) ?? "" }),
+      parseCssTimeMs
+    }
+  );
+  prepare();
+  assert.equal(introAnimations.length, 4);
+  assert.deepEqual(introAnimations.map(({ timing }) => timing.duration), [780, 880, 940, 980]);
+  assert.deepEqual(introAnimations.map(({ timing }) => timing.delay), [40, 180, 420, 690]);
+  for (const animation of introAnimations) {
+    assert.equal(animation.currentTime, 0);
+    assert.ok(animation.timing.duration + animation.timing.delay <= 1700);
+    assert.notEqual(animation.frames[0].transform, animation.frames[1].transform);
+    assert.equal(animation.frames[0].opacity, 0);
+    assert.equal(animation.frames[1].opacity, 1);
   }
 });
 
