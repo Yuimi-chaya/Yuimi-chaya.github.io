@@ -39,6 +39,14 @@ test("Works runtime pauses hero interaction outside the opening and routes resul
   assert.match(runtime, /onHeroActive\(active\)/);
 });
 
+test("Works intro removes the metadata chip and adds two Chinese lines below the title", () => {
+  assert.doesNotMatch(page, /kisara-works-editorial-meta|KISARA KITCHEN \/ WORKS/);
+  assert.match(page, /class="kisara-works-editorial-copy"/);
+  assert.match(page, /把零散的灵感，放进一张清晰的工作台。/);
+  assert.match(page, /从备料到成品，每一步都留下自己的节奏。/);
+  assert.match(styles, /\.kisara-works-editorial-copy\s*\{/);
+});
+
 test("Works stage CSS provides sticky geometry, panel isolation, and responsive controls", () => {
   assert.match(styles, /\.kisara-works-stage\s*\{\s*position: sticky/s);
   assert.match(styles, /\.kisara-kitchen-panel\[hidden\]\s*\{\s*display: none !important/s);
