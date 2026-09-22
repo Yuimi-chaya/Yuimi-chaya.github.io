@@ -91,7 +91,7 @@ function physicsFixture() {
   const tickSource = between(works, "function runFruitPhysics(", "const startFruitPhysics =");
   const run = new Function("fruitPhysics", "renderFruit", "queueFruit", "HTMLElement", "clamp", `
     let fruitPhysicsFrame = 0, fruitPhysicsLastTime = 0;
-    const fruitPhysicsReady = true, fruitPhysicsVisible = true;
+    const fruitPhysicsReady = true, fruitPhysicsVisible = true, heroStageActive = true;
     const document = { hidden: false }, signal = { aborted: false };
     const sliceField = new HTMLElement(), sliceFieldBounds = { width: 1200, height: 900 };
     const fruitGravity = 1650;
@@ -132,7 +132,7 @@ function pointerFixture(scale = 1) {
   const pointerSource = between(works, "const sliceHeroFruits =", "if (hero instanceof HTMLElement)");
   const move = new Function("fruitPhysics", "cuts", "trails", "HTMLElement", "clamp", "displayScale", `
     const sliceField = new HTMLElement(), sliceFieldBounds = { left: 0, top: 0, width: 600, height: 600 };
-    const fruitPhysicsEnabled = true, fruitPhysicsVisible = true, document = { hidden: false }, window = { scrollY: 0 };
+    const fruitPhysicsEnabled = true, fruitPhysicsVisible = true, heroStageActive = true, document = { hidden: false }, window = { scrollY: 0 };
     let lastSlicePoint = null, lastSliceEventTime = 0;
     const sliceFruit = (...args) => cuts.push(args);
     const appendSliceTrail = (...args) => trails.push(args);
@@ -261,6 +261,7 @@ test("Works visibility suspends video, pointer queues and intro time, then resum
   const factory = new Function("hero", "heroVideo", "HTMLElement", "HTMLVideoElement", "document", "window", `
     const signal = { aborted: false }, performance = { now: () => 500 };
     let fruitPhysicsVisible = true, fruitPhysicsLastTime = 100;
+    let heroStageActive = true;
     let fruitPhysicsFrame = 1, heroPointerFrame = 2, heroIntroTimer = 3;
     let heroIntroDeadline = 1580, heroIntroRemaining = 1580, resumeHeroVideo = false, lastSlicePoint = {};
     let heroVideoPlayGeneration = 0;

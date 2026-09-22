@@ -4404,3 +4404,335 @@ html[data-yuimi-performance="lite"] .kisara-works-slice-field {
 @media (prefers-reduced-motion: reduce) {
   .kisara-works-pantry-art, .kisara-board-art-piece { transition: none; }
 }
+
+/* The Works page is a single scroll-driven stage. The older kitchen rules above
+   still own the ingredient, board, blender and drink artwork; these rules own
+   only the new stage shell and its panel navigation. */
+body[data-kisara-page="projects"] .kisara-main {
+  min-height: 0;
+  overflow: clip;
+}
+
+body[data-kisara-page="projects"] .kisara-works-stage-track {
+  position: relative;
+  min-height: calc(100svh / var(--kisara-scale, 1));
+}
+
+body[data-kisara-page="projects"] .kisara-works-stage {
+  position: sticky;
+  top: 0;
+  height: calc(100svh / var(--kisara-scale, 1));
+  min-height: 620px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+body[data-kisara-page="projects"] .kisara-works-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  min-height: 0;
+  height: 100%;
+  align-items: flex-end;
+}
+
+body[data-kisara-page="projects"] .kisara-works-editorial-exit {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  transform-origin: center bottom;
+}
+
+body[data-kisara-page="projects"] .kisara-works-editorial-exit .kisara-works-editorial {
+  pointer-events: auto;
+}
+
+body[data-kisara-page="projects"] .kisara-works-enter {
+  position: absolute;
+  z-index: 9;
+  right: clamp(28px, calc(5vw / var(--kisara-scale, 1)), 84px);
+  bottom: clamp(34px, calc(7vh / var(--kisara-scale, 1)), 88px);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid rgba(74, 50, 64, 0.32);
+  color: #4c3544;
+  background: rgba(255, 250, 241, 0.62);
+  font: 800 0.65rem/1 "Courier New", monospace;
+  letter-spacing: .04em;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+body[data-kisara-page="projects"] .kisara-works-enter svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 160ms ease;
+}
+
+body[data-kisara-page="projects"] .kisara-works-enter:hover,
+body[data-kisara-page="projects"] .kisara-works-enter:focus-visible {
+  border-color: #c43c72;
+  background: rgba(255, 255, 255, 0.9);
+  outline: 0;
+  transform: translateY(-2px);
+}
+
+body[data-kisara-page="projects"] .kisara-works-enter:hover svg,
+body[data-kisara-page="projects"] .kisara-works-enter:focus-visible svg {
+  transform: translateX(3px);
+}
+
+body[data-kisara-page="projects"] .kisara-works-stage-scrim {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 248, 240, 0), rgba(255, 248, 240, .36));
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-lab {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  display: block;
+  width: auto;
+  min-height: 0;
+  height: 100%;
+  padding: 0 clamp(18px, calc(4vw / var(--kisara-scale, 1)), 72px) 34px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  visibility: hidden;
+  background: #edf1ee;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(88, 113, 103, .42) transparent;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-lab::before {
+  z-index: -1;
+  opacity: .3;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-toolbar {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 66px;
+  margin: 0 auto clamp(18px, calc(3vh / var(--kisara-scale, 1)), 34px);
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(75, 105, 91, .22);
+  background: rgba(237, 241, 238, .92);
+  backdrop-filter: blur(10px);
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-back,
+body[data-kisara-page="projects"] .kisara-kitchen-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border: 1px solid transparent;
+  color: #4e665c;
+  background: transparent;
+  cursor: pointer;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-back {
+  width: 36px;
+  border-color: rgba(75, 105, 91, .25);
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-back:hover,
+body[data-kisara-page="projects"] .kisara-kitchen-back:focus-visible,
+body[data-kisara-page="projects"] .kisara-kitchen-tabs button:hover,
+body[data-kisara-page="projects"] .kisara-kitchen-tabs button:focus-visible {
+  border-color: #d85f9a;
+  color: #a63c70;
+  outline: 0;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-tabs {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgba(75, 105, 91, .2);
+  background: rgba(255, 255, 255, .44);
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-tabs button {
+  position: relative;
+  gap: 7px;
+  padding: 0 13px;
+  font-size: .68rem;
+  font-weight: 800;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-tabs button[aria-selected="true"] {
+  color: #fffaf3;
+  background: #557669;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-tabs svg {
+  width: 15px;
+  height: 15px;
+}
+
+body[data-kisara-page="projects"] [data-kitchen-result-badge] {
+  width: 6px;
+  height: 6px;
+  margin-left: 2px;
+  border-radius: 50%;
+  background: #d85f9a;
+  box-shadow: 0 0 0 3px rgba(216, 95, 154, .14);
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-toolbar-label {
+  color: rgba(78, 102, 92, .64);
+  font: 800 .58rem/1 "Courier New", monospace;
+  letter-spacing: .11em;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-panel[hidden] {
+  display: none !important;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-panel {
+  width: min(1380px, 100%);
+  margin: 0 auto;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-counter {
+  min-height: 0;
+  padding: 0;
+}
+
+body[data-kisara-page="projects"] .kisara-drink-result {
+  min-height: min(680px, calc(100% - 84px));
+  margin: 0 auto;
+  padding: clamp(28px, calc(6vh / var(--kisara-scale, 1)), 76px) clamp(20px, calc(6vw / var(--kisara-scale, 1)), 110px);
+  background: rgba(255, 255, 255, .32);
+}
+
+body[data-kisara-page="projects"] .kisara-drink-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+body[data-kisara-page="projects"] .kisara-drink-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid rgba(75, 105, 91, .26);
+  color: #4e665c;
+  background: rgba(255, 255, 255, .5);
+  cursor: pointer;
+}
+
+body[data-kisara-page="projects"] .kisara-drink-actions button:hover,
+body[data-kisara-page="projects"] .kisara-drink-actions button:focus-visible {
+  border-color: #d85f9a;
+  outline: 0;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-lab[data-active-panel="result"] .kisara-drink-result[data-state="idle"] {
+  opacity: .82;
+}
+
+@media (max-width: 900px) {
+  body[data-kisara-page="projects"] .kisara-works-stage {
+    min-height: 560px;
+  }
+
+  body[data-kisara-page="projects"] .kisara-works-editorial {
+    top: 112px;
+    left: 24px;
+    width: min(calc(58vw / var(--kisara-scale, 1)), 430px);
+  }
+
+  body[data-kisara-page="projects"] .kisara-works-enter {
+    right: 24px;
+    bottom: 28px;
+  }
+
+  body[data-kisara-page="projects"] .kisara-kitchen-toolbar {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  body[data-kisara-page="projects"] .kisara-kitchen-toolbar-label {
+    display: none;
+  }
+
+  body[data-kisara-page="projects"] .kisara-kitchen-tabs {
+    justify-self: stretch;
+  }
+
+  body[data-kisara-page="projects"] .kisara-kitchen-tabs button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 560px) {
+  body[data-kisara-page="projects"] .kisara-works-stage {
+    min-height: 520px;
+  }
+
+  body[data-kisara-page="projects"] .kisara-works-editorial {
+    top: 96px;
+    left: 18px;
+    width: calc(100% - 36px);
+  }
+
+  body[data-kisara-page="projects"] .kisara-works-editorial .kisara-works-title-primary {
+    font-size: 52px;
+  }
+
+  body[data-kisara-page="projects"] .kisara-works-editorial .kisara-works-title-secondary {
+    font-size: 20px;
+  }
+
+  body[data-kisara-page="projects"] .kisara-works-enter {
+    right: 18px;
+    left: 18px;
+    justify-content: center;
+  }
+
+  body[data-kisara-page="projects"] .kisara-kitchen-lab {
+    padding-inline: 12px;
+  }
+
+  body[data-kisara-page="projects"] .kisara-kitchen-toolbar {
+    gap: 8px;
+    min-height: 58px;
+  }
+
+  body[data-kisara-page="projects"] .kisara-kitchen-tabs button {
+    padding-inline: 8px;
+    font-size: .62rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-kisara-page="projects"] .kisara-works-enter,
+  body[data-kisara-page="projects"] .kisara-kitchen-tabs button,
+  body[data-kisara-page="projects"] .kisara-kitchen-back {
+    transition: none;
+  }
+
+  body[data-kisara-page="projects"] .kisara-works-stage-scrim {
+    transition: none;
+  }
+}
