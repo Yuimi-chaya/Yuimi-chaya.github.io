@@ -284,7 +284,8 @@ test("Blog uses stable hit geometry, guarded replay and deferred archive covers"
   const hit = between(blog, "const findCharacterAtPoint =", "const resolveCastHit =");
   assert.doesNotMatch(hit, /getBoundingClientRect/);
   assert.match(blog, /generation !== introGeneration/);
-  assert.match(blog, /introDeadline - performance\.now/);
+  assert.match(blog, /lastIntroTime = performance\.now/);
+  assert.match(blog, /window\.cancelAnimationFrame\(introFrame\)/);
   assert.match(blog, /pointerenter", prepareCastHitMasks/);
   assert.match(blog, /event\.key !== "Escape"/);
   const page = read("src/themes/kisara/pages/BlogIndexPage.astro");

@@ -1,7 +1,5 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
-import KisaraPageRuntime from "../components/KisaraPageRuntime.astro";
-import blogPageUrl from "../lib/blogPage.js?url";
 import blogStylesheet from "../styles/blog.css?url";
 import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
@@ -9,6 +7,7 @@ import { getCoverSources, hasTransparentCover } from "@/core/content/coverSource
 import { getThemePath } from "@/core/themes/registry";
 import { categoryLabel } from "@/lib/site";
 import { getKisaraCoverPresentation } from "../lib/coverPresentation";
+import { blogLettering } from "../data/blogLettering";
 
 const posts = await getPublishedPosts();
 const categories = Array.from(new Set(posts.map((post) => post.data.category)));
@@ -30,10 +29,11 @@ const timelineYears = posts.reduce((groups, post) => {
 
 const coverPresentation = await getKisaraCoverPresentation(posts);
 const archiveCoverSizes = "(max-width: 760px) 112px, (max-width: 1100px) 45vw, 380px";
-const traceLines = ["Every signal", "leaves a trace."];
 ---
 
 <KisaraLayout title="Blog | Kisara" description="Yuimi Lab 的文章记录。" stylesheets={[blogStylesheet]}>
+  <div class="kisara-blog-stage-track" data-blog-stage-track>
+  <div class="kisara-blog-stage" data-blog-stage>
   <section class="kisara-blog-hero" data-kisara-blog-hero data-intro-state="idle" data-cast-focus="all" aria-labelledby="kisara-blog-hero-title">
     <div class="kisara-blog-scene" aria-hidden="true">
       <img
@@ -46,50 +46,35 @@ const traceLines = ["Every signal", "leaves a trace."];
         fetchpriority="high"
       />
       <div class="kisara-blog-character-stage">
-        <img class="kisara-blog-character is-sharon" data-blog-character="sharon" src="/themes/kisara/assets/blog/sharon-back-art-v2.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" />
-        <img class="kisara-blog-character is-ayano" data-blog-character="ayano" src="/themes/kisara/assets/blog/ayano-middle-art-v2.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" />
-        <img class="kisara-blog-character is-shu" data-blog-character="shu" src="/themes/kisara/assets/blog/shu-middle-art-v2.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="auto" />
-        <img class="kisara-blog-character is-kisara" data-blog-character="kisara" src="/themes/kisara/assets/blog/kisara-front-blade-v6.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" />
+        <div class="kisara-blog-cast-slot is-sharon"><img class="kisara-blog-character" data-blog-character="sharon" src="/themes/kisara/assets/blog/sharon-back-art-v2.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" /></div>
+        <div class="kisara-blog-cast-slot is-ayano"><img class="kisara-blog-character" data-blog-character="ayano" src="/themes/kisara/assets/blog/ayano-middle-art-v2.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" /></div>
+        <div class="kisara-blog-cast-slot is-shu"><img class="kisara-blog-character" data-blog-character="shu" src="/themes/kisara/assets/blog/shu-middle-art-v2.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="auto" /></div>
+        <div class="kisara-blog-cast-slot is-kisara"><img class="kisara-blog-character" data-blog-character="kisara" src="/themes/kisara/assets/blog/kisara-front-blade-v6.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" /></div>
       </div>
       <div class="kisara-blog-scene-veil"></div>
     </div>
 
     <div class="kisara-blog-hero-copy">
-      <p class="kisara-blog-kicker"><span>03</span> TRANSMISSION ARCHIVE</p>
       <h1 id="kisara-blog-hero-title" aria-label="Every signal leaves a trace.">
-        {traceLines.map((line, lineIndex) => (
-          lineIndex === 0
-            ? <span data-trace-line>{Array.from(line).map((character, index) => <i class="kisara-blog-trace-char" style={`--trace-index: ${index};`}>{character === " " ? "\u00a0" : character}</i>)}</span>
-            : <strong data-trace-line>{Array.from(line).map((character, index) => <i class="kisara-blog-trace-char" style={`--trace-index: ${index};`}>{character === " " ? "\u00a0" : character}</i>)}</strong>
-        ))}
+        <span class="kisara-blog-trace-signal" data-trace-line>Every signal</span>
+        <svg class="kisara-blog-trace-script" viewBox="0 12 626 94" role="presentation" aria-hidden="true">
+          {blogLettering.map((letter, index) => (
+            <g transform={`translate(${letter.x} 94) scale(.046875 -.046875)`}>
+              <defs>
+                <mask id={`blog-pen-${index}`} maskUnits="userSpaceOnUse" x="-200" y="-300" width="1700" height="2100">
+                  {letter.strokes.map((stroke) => <path data-blog-pen data-pen-order={stroke.order} d={stroke.d} pathLength="1" />)}
+                </mask>
+              </defs>
+              <use class="kisara-blog-trace-glyph" href={`/themes/kisara/assets/blog/trace-glyphs.svg#${letter.character === "." ? "dot" : letter.character}`} mask={`url(#blog-pen-${index})`} fill="currentColor" />
+            </g>
+          ))}
+        </svg>
       </h1>
-      <p>开发记录、部署笔记和兴趣电波。这里不负责把灵感整理得太规矩，只负责让它们还能被再次找到。</p>
-      <dl>
-        <div><dt>LOGS</dt><dd>{String(posts.length).padStart(2, "0")}</dd></div>
-        <div><dt>CHANNELS</dt><dd>{String(categories.length).padStart(2, "0")}</dd></div>
-        <div><dt>STATUS</dt><dd>ONLINE</dd></div>
-      </dl>
     </div>
 
     <div class="kisara-blog-cast-note" data-blog-cast-note data-cast-note-for="all" aria-live="polite">
       <small data-blog-cast-label></small>
       <strong data-blog-cast-copy></strong>
-    </div>
-
-    <div class="kisara-blog-cast-index" data-blog-cast-index aria-label="切换人物视点">
-      <button type="button" data-blog-cast="kisara" aria-pressed="false"><span>01</span><strong>KISARA</strong><small>MEMORY</small></button>
-      <button type="button" data-blog-cast="shu" aria-pressed="false"><span>02</span><strong>SHU</strong><small>LOSS</small></button>
-      <button type="button" data-blog-cast="ayano" aria-pressed="false"><span>03</span><strong>AYANO</strong><small>PAST</small></button>
-      <button type="button" data-blog-cast="sharon" aria-pressed="false"><span>04</span><strong>SHARON</strong><small>CONTRACT</small></button>
-    </div>
-
-    <div class="kisara-blog-intro-controls" aria-label="头图演出控制">
-      <button type="button" data-blog-replay aria-label="重新播放头图演出" title="重新播放">
-        <Icon name="tabler:refresh" aria-hidden="true" />
-      </button>
-      <button type="button" data-blog-skip aria-label="跳过头图演出" title="跳过演出">
-        <Icon name="tabler:player-skip-forward" aria-hidden="true" />
-      </button>
     </div>
 
     <a class="kisara-blog-enter" href="#kisara-blog-archive">
@@ -99,18 +84,16 @@ const traceLines = ["Every signal", "leaves a trace."];
 
   </section>
 
-  <section id="kisara-blog-archive" class="kisara-blog-archive" data-kisara-archive>
+  <section id="kisara-blog-archive" class="kisara-blog-archive" data-kisara-archive aria-label="文章归档">
     <header class="kisara-blog-archive-heading">
       <div class="kisara-blog-archive-intro">
-        <p>ARCHIVE DIRECTORY / {String(posts.length).padStart(2, "0")}</p>
-        <h2>把有用的线索，<em>留在这里。</em></h2>
+        <p>THE ARCHIVE / {String(posts.length).padStart(2, "0")}</p>
+        <h2>文章<em>归档。</em></h2>
       </div>
       <div class="kisara-blog-archive-status">
         <span>LAST SYNC</span>
         <strong>{latestPostDate}</strong>
-        <small>SEARCH / TAGS / CHANNELS</small>
       </div>
-      <p>按标题、标签或频道检索。每条记录都保留它被写下时的日期和情绪。</p>
     </header>
 
     <div class="kisara-blog-view-switch" role="tablist" aria-label="博客归档视图">
@@ -239,6 +222,21 @@ const traceLines = ["Every signal", "leaves a trace."];
     </div>
     <p class="kisara-blog-empty" data-kisara-empty hidden>NO MATCHED SIGNAL / 换一个关键词试试。</p>
   </section>
+  </div>
+  </div>
 
-  <KisaraPageRuntime src={blogPageUrl} rootSelector="[data-kisara-blog-hero]" entry="bindBlogPage" />
+  <script>
+    document.addEventListener("astro:page-load", () => {
+      const root = document.querySelector<HTMLElement>("[data-kisara-blog-hero]");
+      if (!root) return;
+      import("../lib/blogPage.js").then(({ bindBlogPage }) => {
+        if (root.isConnected) bindBlogPage();
+      }).catch(error => {
+        if (!root.isConnected) return;
+        window.__yuimiKisaraInnerCleanup?.();
+        root.dataset.introState = "complete";
+        console.error("Kisara blog interaction failed to load", error);
+      });
+    });
+  </script>
 </KisaraLayout>

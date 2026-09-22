@@ -132,7 +132,7 @@ test("004 fills the viewport at 90 percent without narrowing the section backgro
   assert.match(component, /calc\(7vw \/ var\(--kisara-scale, 1\)\)/);
 });
 
-test("Blog hero is a sticky stage with a compact archive handoff and traced English title", () => {
+test("Blog hero is a sticky stage with a compact archive handoff and a drawn English title", () => {
   const css = postcss.parse(read("src/themes/kisara/styles/blog.css"));
   const hero = new Map<string, string>();
   const archive = new Map<string, string>();
@@ -144,17 +144,20 @@ test("Blog hero is a sticky stage with a compact archive handoff and traced Engl
       rule.walkDecls(decl => { archive.set(decl.prop, decl.value); });
     }
   });
-  assert.equal(hero.get("position"), "sticky");
-  assert.equal(hero.get("min-height"), "max(720px, calc(100svh / var(--kisara-scale, 1)))");
+  assert.equal(hero.get("position"), "relative");
+  assert.ok(read("src/themes/kisara/styles/blog.css").includes(".kisara-blog-stage-track[data-stage-ready] .kisara-blog-stage"));
+  assert.match(read("src/themes/kisara/styles/blog.css"), /min-height: max\(680px, calc\(100svh \/ var\(--kisara-scale, 1\)\)\)/);
   assert.equal(archive.get("position"), "relative");
   assert.equal(archive.get("z-index"), "3");
   assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /Every signal/);
   assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /leaves a trace\./);
-  assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /kisara-blog-trace-char/);
-  assert.doesNotMatch(read("src/themes/kisara/styles/blog.css"), /kisara-blog-scanline|kisara-blog-exposure|kisara-blog-group-focus/);
+  assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /data-blog-pen/);
+  assert.match(read("src/themes/kisara/pages/BlogIndexPage.astro"), /maskUnits="userSpaceOnUse"/);
+  assert.doesNotMatch(read("src/themes/kisara/pages/BlogIndexPage.astro"), /kisara-blog-(kicker|cast-index|intro-controls)/);
+  assert.doesNotMatch(read("src/themes/kisara/styles/blog.css"), /kisara-blog-(scanline|exposure|group-focus|cast-index|intro-controls|trace-char)/);
 });
 
-test("Blog cast shrinks as one group and hit geometry follows its transformed bounds", () => {
+test("Blog cast retraces its entry vectors and hit geometry remains settled", () => {
   const css = postcss.parse(read("src/themes/kisara/styles/blog.css"));
   let transform = "";
   css.walkRules(rule => {
@@ -162,7 +165,14 @@ test("Blog cast shrinks as one group and hit geometry follows its transformed bo
       rule.walkDecls("transform", decl => { transform = decl.value; });
     }
   });
-  assert.equal(transform, "translate3d(var(--blog-cast-exit-x, 0px), calc(-50% + var(--blog-cast-exit-y, 0px)), 0) scale(var(--blog-cast-scale, 0.92))");
+  assert.equal(transform, "translateY(-50%) scale(.92)");
+  const blogSource = read("src/themes/kisara/lib/blogPage.js");
+  assert.match(blogSource, /--cast-enter-x/);
+  assert.match(blogSource, /introAnimations\.forEach/);
+  assert.match(blogSource, /introDuration \* \(1 - exit\)/);
+  assert.match(blogSource, /alpha\[py \* mask\.width \+ px\] >= 80/);
+  assert.match(read("src/themes/kisara/styles/blog.css"), /scale\(1\.035\)/);
+  assert.doesNotMatch(blogSource, /castControls|data-blog-cast="|data-blog-replay|data-blog-skip/);
   const source = range(read("src/themes/kisara/lib/blogPage.js"),
     "  const cacheCastGeometry =", "  const prepareCastHitMasks =");
   const masks = [{ image: {}, rect: null as any }];
@@ -178,7 +188,7 @@ test("Blog cast shrinks as one group and hit geometry follows its transformed bo
   assert.equal(masks[0].rect.width, 1440 * .9 * .92);
   assert.equal(masks[0].rect.height, 975 * .9 * .92);
   assert.equal(masks[0].rect.left, 60 + -1.2 * masks[0].rect.width / 100);
-  assert.equal(masks[0].rect.top, 80 + 4.4 * masks[0].rect.height / 100);
+  assert.equal(masks[0].rect.top, -20 + 4.4 * masks[0].rect.height / 100);
 });
 
 test("A split ring keeps identical material and opacity on both glyph depth layers", () => {
