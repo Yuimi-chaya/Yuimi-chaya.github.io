@@ -63,7 +63,8 @@ test("Worktop fits the remaining viewport without a fixed minimum stage height",
   assert.deepEqual(values(scope + ".kisara-kitchen-lab", "inset"), ["0"]);
   assert.match(values(scope + ".kisara-kitchen-lab", "padding")[0], /^var\(--works-header-space, 90px\)/);
   assert.deepEqual(values(scope + ".kisara-kitchen-lab", "height"), ["auto"]);
-  assert.deepEqual(values(scope + ".kisara-kitchen-lab", "grid-template-rows"), ["auto minmax(0, 1fr)"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-lab", "grid-template-rows"), ["minmax(0, 1fr)"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-workspace", "grid-template-rows"), ["auto minmax(0, 1fr)"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-panel", "overflow"), ["clip"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-panel", "width"), ["100%"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-counter", "width"), ["calc(100% - 32px)"]);
@@ -72,6 +73,23 @@ test("Worktop fits the remaining viewport without a fixed minimum stage height",
   assert.deepEqual(values(scope + ".kisara-drink-result", "width"), ["calc(100% - 32px)"]);
   assert.deepEqual(values(scope + ".kisara-drink-result", "height"), ["calc(100% - 32px)"]);
   assert.match(styles, /scale\(var\(--works-panel-fit, 1\)\)/);
+});
+
+test("Tabs belong to the worktop header without a detached toolbar gap", () => {
+  const workspace = page.indexOf('<div class="kisara-kitchen-workspace">');
+  const toolbar = page.indexOf('<header class="kisara-kitchen-toolbar">');
+  const prep = page.indexOf('id="kisara-prep-panel"');
+  const result = page.indexOf('id="kisara-result-panel"');
+  assert.ok(workspace > 0 && workspace < toolbar && toolbar < prep && prep < result);
+  const css = postcss.parse(styles);
+  const values: Record<string, string> = {};
+  css.walkRules('body[data-kisara-page="projects"] .kisara-kitchen-toolbar', rule => {
+    if (rule.parent?.type === "root") rule.walkDecls(decl => { values[decl.prop] = decl.value; });
+  });
+  assert.equal(values.position, "relative");
+  assert.equal(values.margin, "0 16px");
+  assert.equal(values["min-height"], "44px");
+  assert.match(styles, /transform-origin: top center/);
 });
 
 test("Desktop worktops fill short CSS viewports as well as large screens", () => {
