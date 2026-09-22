@@ -1,7 +1,13 @@
 body[data-kisara-page="games"] { min-height: calc(100svh / var(--kisara-scale, 1)); background: #101512; }
 body[data-kisara-page="games"] .kisara-main { min-height: calc(100svh / var(--kisara-scale, 1)); overflow: clip; }
 body[data-kisara-page="games"] .kisara-footer { display: none; }
-body[data-kisara-page="games"] .kisara-header.is-inner-header { background: rgba(30, 33, 37, .65); border-bottom-color: #ffffff14; }
+body[data-kisara-page="games"] { --game-nav-ink: #302d46; --game-nav-muted: #646780; }
+body[data-kisara-page="games"]:has(.kisara-games[data-active-scene="1"]) { --game-nav-ink: #f0f4ee; --game-nav-muted: #b6c9bc; }
+body[data-kisara-page="games"] .kisara-header.is-inner-header { background: transparent; border-bottom-color: transparent; box-shadow: none; backdrop-filter: none; color: var(--game-nav-ink); }
+body[data-kisara-page="games"] .kisara-nav a { color: var(--game-nav-ink); }
+body[data-kisara-page="games"] :is(.kisara-brand small, .kisara-nav a svg) { color: var(--game-nav-muted); }
+body[data-kisara-page="games"] .kisara-nav a[aria-current="page"] { color: #d33b70; }
+body[data-kisara-page="games"] .kisara-theme-button { color: var(--game-nav-ink); background: transparent; border-color: var(--game-nav-muted); }
 .kisara-games { --game-content-top: 142px; --game-content-bottom: 24px; --game-content-side: 32px; position: relative; background: #101512; }
 .kisara-games [hidden] { display: none !important; }
 .kisara-game-scene { position: relative; isolation: isolate; outline: none; }
@@ -29,7 +35,7 @@ body[data-kisara-page="games"] .kisara-header.is-inner-header { background: rgba
 .kisara-arcade-backdrop { position: absolute; z-index: -1; inset: 0; pointer-events: none; }
 .kisara-arcade-backdrop img { width: 100%; height: 100%; object-fit: cover; opacity: .36; }
 .kisara-arcade-backdrop::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, #10151260, #10151218 45%, #101512cc); }
-.kisara-arcade-machine { width: min(1120px, 100%); min-width: 0; position: relative; margin-inline: auto; }
+.kisara-arcade-machine { width: min(1320px, 100%); min-width: 0; position: relative; margin-inline: auto; }
 .kisara-arcade-machine-body { position: relative; border: 2px solid #f6f8f1; border-radius: 8px 8px 4px 4px; background: #dce3df; color: #222d29; box-shadow: -12px 8px 0 #84948d, 12px 8px 0 #65776d, 0 28px 56px #0008, inset 0 0 0 5px #b1beb6; }
 .kisara-arcade-machine-body::before,.kisara-arcade-machine-body::after { content: ""; position: absolute; top: 62px; bottom: 92px; width: 5px; background: #e85f7c; }
 .kisara-arcade-machine-body::before { left: -9px; }
@@ -95,10 +101,11 @@ body[data-kisara-page="games"] .kisara-header.is-inner-header { background: rgba
 .kisara-arcade-direction { display: flex; align-items: center; gap: 8px; }
 .kisara-arcade-direction button { display: grid; place-items: center; width: 32px; height: 36px; border: 0; color: #496555; background: transparent; cursor: pointer; }
 .kisara-arcade-direction svg { width: 21px; height: 21px; }
-.kisara-arcade-joystick { width: 88px; height: 68px; position: relative; }
-.kisara-arcade-joystick span { position: absolute; bottom: 0; left: 4px; width: 80px; height: 29px; border: 3px solid #52665b; border-radius: 50%; background: #344a3d; box-shadow: inset 0 2px 4px #12291c88, 0 2px #edf4ee; }
-.kisara-arcade-joystick i { position: absolute; bottom: 14px; left: 38px; width: 10px; height: 35px; transform: rotate(-9deg); transform-origin: bottom; background: linear-gradient(90deg, #778c80, #f4f6ed 40%, #869b8e); border-radius: 3px; }
-.kisara-arcade-joystick b { position: absolute; top: 2px; left: 23px; width: 35px; height: 35px; border-radius: 50%; background: radial-gradient(circle at 32% 25%, #ffb2be, #d94869 58%, #8d2745); box-shadow: 1px 3px 2px #35473e55; }
+.kisara-arcade-joystick { flex: 0 0 88px; width: 88px; height: 82px; position: relative; isolation: isolate; }
+.kisara-arcade-joystick span { position: absolute; bottom: 2px; left: 4px; width: calc(100% - 8px); height: 26px; border: 2px solid #71877a; border-radius: 50%; background: #40584a; box-shadow: inset 0 3px 5px #12291c88, 0 2px #edf4ee, 0 4px 0 #748d7c; }
+.kisara-arcade-joystick::after { content: ""; position: absolute; z-index: 3; bottom: 8px; left: 50%; width: 24px; height: 10px; transform: translateX(-50%); border: 2px solid #63786b; border-radius: 50%; background: #263c30; box-shadow: 0 2px 1px #182e2280; }
+.kisara-arcade-joystick i { position: absolute; z-index: 2; bottom: 16px; left: calc(50% - 5px); width: 10px; height: 30px; transform: rotate(-12deg); transform-origin: 50% 100%; background: linear-gradient(90deg, #60796a, #e7efe5 35%, #a6baaa 65%, #627c6b); border-radius: 3px; box-shadow: 2px 0 2px #263c3033; }
+.kisara-arcade-joystick i > b { position: absolute; bottom: calc(100% - 7px); left: 50%; width: 36px; height: 36px; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(circle at 32% 25%, #ffb2be, #d94869 58%, #8d2745); box-shadow: inset -2px -3px 3px #7d1d3933, 1px 3px 2px #35473e55; }
 .kisara-arcade-deck-mark { display: grid; grid-template-columns: auto 42px; align-items: center; gap: 4px 10px; color: #65806d; }
 .kisara-arcade-deck-mark span { grid-row: span 2; font: 900 1.7rem/1 var(--font-mono, monospace); }
 .kisara-arcade-deck-mark i { height: 3px; background: #e36482; }
@@ -165,7 +172,7 @@ body[data-kisara-page="games"] .kisara-header.is-inner-header { background: rgba
   .kisara-arcade-control-deck { padding-inline: 12px; gap: 6px; min-height: 82px; }
   .kisara-arcade-direction { gap: 0; }
   .kisara-arcade-direction button { width: 24px; }
-  .kisara-arcade-joystick { width: 74px; transform: scale(.85); transform-origin: left center; margin-right: -10px; }
+  .kisara-arcade-joystick { flex-basis: 74px; width: 74px; transform: scale(.85); transform-origin: left center; margin-right: -10px; }
   .kisara-arcade-deck-mark { display: none; }
   .kisara-arcade-action-buttons { gap: 12px; }
   .kisara-arcade-action-buttons button { width: 38px; height: 35px; }

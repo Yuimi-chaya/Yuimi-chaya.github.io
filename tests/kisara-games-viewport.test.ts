@@ -125,8 +125,64 @@ test("The enhanced scenes own a finite viewport and complete content is fitted r
   assert.match(investigation, /container-type: size/);
   assert.match(investigation, /width: min\(100%, 163cqh\)/);
   assert.match(investigation, /height: min\(100%, calc\(100cqw \/ 1\.63\)\)/);
-  assert.match(investigation, /grid-template-rows: minmax\(0, 1fr\) auto/);
+  assert.match(investigation, /grid-template-rows: minmax\(0, 1fr\);/);
   const runtime = read("src/themes/kisara/lib/gamesPage.js");
   assert.match(runtime, /viewport\.update\(\)/);
   assert.match(runtime, /viewport\.cleanup\(\)/);
+});
+
+test("Investigation groups its title and command with the brief, without an empty camera column", () => {
+  const clue = read("src/themes/kisara/components/KisaraGameClueScene.astro");
+  const brief = clue.slice(clue.indexOf('<aside class="kisara-event-brief"'), clue.indexOf("</aside>"));
+  assert.match(brief, /id="kisara-game-investigation-title"/);
+  assert.match(brief, /data-event-command/);
+  assert.equal((clue.match(/<strong data-event-command>/g) ?? []).length, 1);
+  const css = postcss.parse(read("src/themes/kisara/styles/game-investigation.css"));
+  const rules = new Map<string, Map<string, string>>();
+  css.walkRules(rule => {
+    if (rule.parent?.type !== "root") return;
+    const declarations = new Map<string, string>();
+    rule.walkDecls(decl => { declarations.set(decl.prop, decl.value); });
+    rules.set(rule.selector, declarations);
+  });
+  const prefix = ".kisara-games[data-scene-ready]";
+  assert.equal(rules.get(`${prefix} .kisara-game-investigation > .kisara-game-viewport`)?.get("container-type"), "size");
+  assert.equal(rules.get(`${prefix} .kisara-game-investigation-shell`)?.get("width"), "min(100%, calc(163cqh + var(--game-brief-width) + 28px))");
+  assert.equal(rules.get(`${prefix} .kisara-event-board`)?.get("grid-template-columns"), "minmax(0, 1fr) var(--game-brief-width)");
+  assert.equal(rules.get(`${prefix} .kisara-event-photo-panel`)?.get("margin"), "auto 0 auto auto");
+  // Model the constrained two-column composition, not a browser layout assertion.
+  for (const [width, height] of [[2388, 1276], [1920, 1080], [1366, 768], [1024, 600]]) {
+    for (const zoom of [.9, 1]) {
+      const available = width / zoom - 64;
+      const cameraHeight = height / zoom - 166;
+      const briefWidth = width >= 1600 ? 360 : 320;
+      const composition = Math.min(available, cameraHeight * 1.63 + briefWidth + 28);
+      const cameraWidth = composition - briefWidth - 28;
+      assert.ok(cameraWidth / 1.63 <= cameraHeight + .001);
+      assert.ok(Math.abs(composition - cameraWidth - briefWidth - 28) < .001);
+      const previousPhotoWidth = Math.min((available - 28) * .76, (cameraHeight - 124) * 1.63);
+      assert.ok(cameraWidth > previousPhotoWidth, "reclaim title/footer height for the actual photograph");
+    }
+  }
+});
+
+test("Games navigation is transparent and the joystick ball belongs to its shaft", () => {
+  const css = postcss.parse(read("src/themes/kisara/styles/games.css"));
+  const rules = new Map<string, Map<string, string>>();
+  css.walkRules(rule => {
+    if (rule.parent?.type !== "root") return;
+    const declarations = new Map<string, string>();
+    rule.walkDecls(decl => { declarations.set(decl.prop, decl.value); });
+    rules.set(rule.selector, declarations);
+  });
+  const header = rules.get('body[data-kisara-page="games"] .kisara-header.is-inner-header');
+  for (const [property, expected] of [["background", "transparent"], ["border-bottom-color", "transparent"], ["box-shadow", "none"], ["backdrop-filter", "none"]]) {
+    assert.equal(header?.get(property), expected);
+  }
+  assert.ok(rules.has('body[data-kisara-page="games"]:has(.kisara-games[data-active-scene="1"])'));
+  const page = read("src/themes/kisara/pages/GamesPage.astro");
+  assert.match(page, /class="kisara-arcade-joystick"[^>]*><span><\/span><i><b><\/b><\/i><\/div>/);
+  assert.equal(rules.get(".kisara-arcade-joystick i")?.get("transform-origin"), "50% 100%");
+  assert.equal(rules.get(".kisara-arcade-joystick i > b")?.get("left"), "50%");
+  assert.equal(rules.get(".kisara-arcade-joystick::after")?.get("z-index"), "3");
 });
