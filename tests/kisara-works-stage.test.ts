@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
 import postcss from "postcss";
-import { bindWorksStage } from "../src/themes/kisara/lib/worksStage.ts";
+import { bindWorksStage, getWorksPanelFit } from "../src/themes/kisara/lib/worksStage.ts";
 
 const read = (path: string) => fs.readFileSync(path, "utf8");
 const page = read("src/themes/kisara/pages/ProjectsPage.astro");
@@ -60,11 +60,30 @@ test("Worktop fits the remaining viewport without a fixed minimum stage height",
   };
   const scope = 'body[data-kisara-page="projects"] ';
   assert.deepEqual(values(scope + ".kisara-works-stage", "min-height"), ["0"]);
-  assert.deepEqual(values(scope + ".kisara-kitchen-lab", "inset"), ["var(--works-header-space, 90px) 0 0"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-lab", "inset"), ["0"]);
+  assert.match(values(scope + ".kisara-kitchen-lab", "padding")[0], /^var\(--works-header-space, 90px\)/);
   assert.deepEqual(values(scope + ".kisara-kitchen-lab", "height"), ["auto"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-lab", "grid-template-rows"), ["auto minmax(0, 1fr)"]);
-  assert.deepEqual(values(scope + ".kisara-kitchen-panel", "overflow"), ["auto"]);
-  assert.deepEqual(values(scope + ".kisara-kitchen-counter", "height"), ["100%"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-panel", "overflow"), ["clip"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-counter", "height"), ["min(700px, 100%)"]);
+  assert.match(styles, /scale\(var\(--works-panel-fit, 1\)\)/);
+});
+
+test("Complete worktop and result bounds fit the panel, not a nested scroll area", () => {
+  for (const [viewportWidth, viewportHeight] of [[2358, 1286], [1920, 1080], [1366, 768], [1024, 600], [844, 390], [390, 844]]) {
+    for (const zoom of [.9, 1]) {
+      const width = viewportWidth / zoom - 144;
+      const height = viewportHeight / zoom - 200;
+      for (const [contentWidth, contentHeight] of [[1380, 722], [940, 642], [1000, 950], [400, 1800]]) {
+        const fit = getWorksPanelFit(contentWidth, contentHeight, width, height);
+        assert.ok(fit > 0 && fit <= 1);
+        assert.ok(contentWidth * fit <= width - 32 + .001);
+        assert.ok(contentHeight * fit <= height - 32 + .001);
+      }
+    }
+  }
+  assert.equal(getWorksPanelFit(900, 600, 1000, 700), 1);
+  assert.equal(getWorksPanelFit(0, 0, 0, 0), 1);
 });
 
 test("At 90 and 100 percent zoom, entry unlocks tabs, clicks and keyboard switch panels, resize updates header clearance", () => {
@@ -90,6 +109,11 @@ test("At 90 and 100 percent zoom, entry unlocks tabs, clicks and keyboard switch
         inert = false;
         tabIndex = 0;
         clientHeight = 768 / zoom;
+        clientWidth = 1100;
+        offsetWidth = 1000;
+        scrollWidth = 1000;
+        offsetHeight = 700;
+        scrollHeight = 722;
         attrs = new Map<string, string>();
         props = new Map<string, string>();
         style: any = {
@@ -106,6 +130,10 @@ test("At 90 and 100 percent zoom, entry unlocks tabs, clicks and keyboard switch
       }
       const shell = new Node(), hero = new Node(), kitchen = new Node(), scrim = new Node();
       const prep = new Node(), result = new Node(), prepTab = new Node(), resultTab = new Node();
+      const prepContent = new Node(), resultContent = new Node();
+      prep.clientHeight = result.clientHeight = 500 / zoom;
+      prep.querySelector = () => prepContent;
+      result.querySelector = () => resultContent;
       prep.dataset.kitchenPanel = prepTab.dataset.kitchenTab = "prep";
       result.dataset.kitchenPanel = resultTab.dataset.kitchenTab = "result";
       const track = new Node();
@@ -132,10 +160,16 @@ test("At 90 and 100 percent zoom, entry unlocks tabs, clicks and keyboard switch
       flush();
       assert.equal(kitchen.inert, false);
       assert.equal(hero.inert, true);
+      win.scrollY = 200;
+      win.dispatchEvent(new Event("scroll"));
+      flush();
+      assert.equal(kitchen.inert, false);
       resultTab.dispatchEvent(new Event("click"));
       assert.equal(kitchen.dataset.activePanel, "result");
       assert.equal(result.hidden, false);
       assert.equal(prep.inert, true);
+      const expectedFit = getWorksPanelFit(1000, 722, 1100, result.clientHeight);
+      assert.equal(Number(resultContent.props.get("--works-panel-fit")), expectedFit);
       const key = new Event("keydown", { cancelable: true });
       Object.defineProperty(key, "key", { value: "ArrowLeft" });
       resultTab.dispatchEvent(key);
@@ -146,8 +180,15 @@ test("At 90 and 100 percent zoom, entry unlocks tabs, clicks and keyboard switch
       win.dispatchEvent(new Event("resize"));
       flush();
       assert.ok(Math.abs(Number.parseFloat(shell.props.get("--works-header-space")!) - 112) < .001);
+      assert.equal(Number(prepContent.props.get("--works-panel-fit")), expectedFit);
+      prepContent.scrollHeight = 950;
+      win.dispatchEvent(new Event("resize"));
+      flush();
+      assert.equal(Number(prepContent.props.get("--works-panel-fit")), getWorksPanelFit(1000, 950, 1100, prep.clientHeight));
       controller.abort();
       assert.equal(shell.props.size, 0);
+      assert.equal(prepContent.props.size, 0);
+      assert.equal(resultContent.props.size, 0);
       assert.equal(frames.size, 0);
     }
   } finally {

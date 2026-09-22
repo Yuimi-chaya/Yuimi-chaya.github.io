@@ -6,6 +6,11 @@ type StageOptions = {
 
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
+export function getWorksPanelFit(width: number, height: number, availableWidth: number, availableHeight: number) {
+  if (![width, height, availableWidth, availableHeight].every(value => Number.isFinite(value) && value > 0)) return 1;
+  return Math.min(1, Math.max(1, availableWidth - 32) / width, Math.max(1, availableHeight - 32) / height);
+}
+
 export function bindWorksStage(track: HTMLElement, options: StageOptions) {
   const stage = track.querySelector<HTMLElement>("[data-works-stage]")!;
   const hero = track.querySelector<HTMLElement>("[data-kisara-works-hero]")!;
@@ -17,6 +22,21 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
   const header = document.querySelector<HTMLElement>(".kisara-header");
   const tabs = [...track.querySelectorAll<HTMLButtonElement>("[data-kitchen-tab]")];
   const panels = [...track.querySelectorAll<HTMLElement>("[data-kitchen-panel]")];
+  const panelContents = panels.map(panel => ({
+    panel, content: panel.querySelector<HTMLElement>(".kisara-kitchen-counter, .kisara-drink-result")
+  }));
+  const fitPanels = () => {
+    for (const { panel, content } of panelContents) {
+      if (!content || panel.hidden || !panel.clientWidth || !panel.clientHeight) continue;
+      // Untransformed local sizes exclude theme zoom and do not compound the last fit.
+      const fit = getWorksPanelFit(
+        Math.max(content.offsetWidth, content.scrollWidth),
+        Math.max(content.offsetHeight, content.scrollHeight),
+        panel.clientWidth, panel.clientHeight
+      );
+      content.style.setProperty("--works-panel-fit", String(fit));
+    }
+  };
   const parts = [...kitchen.querySelectorAll<HTMLElement>(
     ".kisara-kitchen-toolbar, .kisara-kitchen-pantry, .kisara-kitchen-prep, .kisara-appliance-deck"
   )];
@@ -45,6 +65,7 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
   const sync = () => {
     frame = 0;
     if (disposed) return;
+    fitPanels();
     const progress = clamp((window.scrollY - top) / distance);
     const exit = clamp(progress / .52);
     if (editorial) {
@@ -55,7 +76,10 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
     if (enter) enter.style.opacity = String(1 - exit);
     scrim.style.opacity = String(clamp((progress - .14) / .7));
     kitchen.style.visibility = progress > .2 ? "visible" : "hidden";
-    kitchen.inert = progress < .82;
+    // The toolbar becomes usable as soon as the worktop is visible. Keeping
+    // the whole kitchen inert until the final scroll position made visible tabs
+    // look clickable while silently rejecting every pointer and key event.
+    kitchen.inert = progress <= .2;
     hero.inert = progress >= .2;
     motions.forEach(({ animation, start, end }) => {
       animation.currentTime = clamp((progress - start) / (end - start)) * 1000;
@@ -65,7 +89,7 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
       heroActive = nextHeroActive;
       options.onHeroActive(heroActive);
     }
-    const nextPrepActive = progress >= .82 && selected === "prep";
+    const nextPrepActive = !kitchen.inert && selected === "prep";
     if (prepActive && !nextPrepActive) options.onLeavePrep();
     prepActive = nextPrepActive;
     if (focusOnEntry && progress >= .995) {
@@ -102,6 +126,7 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
       panel.hidden = panel.dataset.kitchenPanel !== name;
       panel.inert = panel.hidden;
     });
+    fitPanels();
     prepActive = !kitchen.inert && name === "prep";
     // A timer may finish while the user has scrolled back to the opening.
     // Keep the new result selected, but never pull focus out of that opening.
@@ -147,6 +172,10 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
   const observer = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
   observer?.observe(stage);
   if (header) observer?.observe(header);
+  panelContents.forEach(({ panel, content }) => {
+    observer?.observe(panel);
+    if (content) observer?.observe(content);
+  });
   window.addEventListener("scroll", schedule, { passive: true, signal });
   window.addEventListener("resize", measure, { passive: true, signal });
   window.visualViewport?.addEventListener("resize", measure, { passive: true, signal });
@@ -161,6 +190,7 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
     track.removeAttribute("data-stage-ready");
     track.style.removeProperty("height");
     stage.style.removeProperty("--works-header-space");
+    panelContents.forEach(({ content }) => content?.style.removeProperty("--works-panel-fit"));
     kitchen.style.removeProperty("visibility");
     delete kitchen.dataset.activePanel;
     hero.inert = kitchen.inert = false;

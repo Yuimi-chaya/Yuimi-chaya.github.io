@@ -4498,14 +4498,14 @@ body[data-kisara-page="projects"] .kisara-works-stage-scrim {
 body[data-kisara-page="projects"] .kisara-kitchen-lab {
   position: absolute;
   z-index: 6;
-  inset: var(--works-header-space, 90px) 0 0;
+  inset: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: auto;
   min-height: 0;
   height: auto;
   margin: 0;
-  padding: 0 clamp(18px, calc(4vw / var(--kisara-scale, 1)), 72px) 24px;
+  padding: var(--works-header-space, 90px) clamp(18px, calc(4vw / var(--kisara-scale, 1)), 72px) 24px;
   overflow: hidden;
   overscroll-behavior: contain;
   visibility: hidden;
@@ -4609,11 +4609,21 @@ body[data-kisara-page="projects"] .kisara-kitchen-panel[hidden] {
 }
 
 body[data-kisara-page="projects"] .kisara-kitchen-panel {
+  position: relative;
   width: min(1380px, 100%);
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: clip;
   margin: 0 auto;
+}
+
+body[data-kisara-page="projects"] .kisara-kitchen-panel > :is(.kisara-kitchen-counter, .kisara-drink-result) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%) scale(var(--works-panel-fit, 1));
+  transform-origin: center;
 }
 
 body[data-kisara-page="projects"] .kisara-kitchen-counter {
@@ -4623,7 +4633,7 @@ body[data-kisara-page="projects"] .kisara-kitchen-counter {
 
 body[data-kisara-page="projects"] .kisara-drink-result {
   width: 100%;
-  min-height: 100%;
+  min-height: 620px;
   margin: 0 auto;
   padding: clamp(28px, calc(6vh / var(--kisara-scale, 1)), 76px) clamp(20px, calc(6vw / var(--kisara-scale, 1)), 110px);
   background: rgba(255, 255, 255, .32);
@@ -4661,15 +4671,16 @@ body[data-kisara-page="projects"] .kisara-kitchen-lab[data-active-panel="result"
 @media (min-width: 901px) {
   body[data-kisara-page="projects"] .kisara-kitchen-counter {
     width: 100%;
-    height: 100%;
-    min-height: 440px;
+    min-width: 940px;
+    height: min(700px, 100%);
+    min-height: 620px;
     grid-template-columns: minmax(160px, .56fr) minmax(300px, 1.3fr) minmax(280px, .8fr);
   }
 }
 
 @media (max-width: 900px) {
   body[data-kisara-page="projects"] .kisara-kitchen-lab {
-    bottom: 70px;
+    padding-bottom: 82px;
   }
   body[data-kisara-page="projects"] .kisara-works-editorial {
     top: 112px;
