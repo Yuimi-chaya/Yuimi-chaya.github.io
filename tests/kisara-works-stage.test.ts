@@ -62,9 +62,12 @@ test("Worktop fits the remaining viewport without a fixed minimum stage height",
   };
   const scope = 'body[data-kisara-page="projects"] ';
   assert.deepEqual(values(scope + ".kisara-works-stage", "min-height"), ["0"]);
+  assert.deepEqual(values(scope + ".kisara-works-stage", "overflow"), ["clip"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-lab", "inset"), ["0"]);
   assert.match(values(scope + ".kisara-kitchen-lab", "padding")[0], /^var\(--works-header-space, 90px\)/);
   assert.deepEqual(values(scope + ".kisara-kitchen-lab", "height"), ["auto"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-lab", "overflow"), ["clip"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-lab", "overscroll-behavior"), ["auto"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-lab", "grid-template-rows"), ["minmax(0, 1fr)"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-workspace", "grid-template-rows"), ["auto minmax(0, 1fr)"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-panel", "overflow"), ["clip"]);
