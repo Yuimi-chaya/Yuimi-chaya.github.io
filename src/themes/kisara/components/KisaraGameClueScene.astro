@@ -16,13 +16,6 @@ import { Icon } from "astro-icon/components";
         <p>CASE FILE / EVENT 003</p>
         <h1 id="kisara-game-investigation-title">A clue in the frame.</h1>
       </div>
-      <div class="kisara-event-heading-note">
-        <span>LIMITED INVESTIGATION</span>
-        <p>不要急着进入街机厅。照片里有一个人，并不属于快门按下的那一刻。</p>
-      </div>
-      <button class="kisara-game-investigation-next" type="button" data-game-scene-next>
-        OPEN ARCADE <Icon name="tabler:chevron-down" aria-hidden="true" />
-      </button>
     </header>
 
     <kisara-game-clue-scene class="kisara-event-scene" data-state="idle">
@@ -86,9 +79,9 @@ import { Icon } from "astro-icon/components";
             <span aria-hidden="true"><i></i></span>
             <div><small>ACHIEVEMENT UNLOCKED</small><strong>记忆的备份</strong></div>
           </div>
-          <p class="kisara-event-brief-kicker">SIDE STORY / MEMORY TRACE</p>
-          <h3>那一天的合照，后来被谁悄悄改写了？</h3>
-          <p class="kisara-event-brief-copy">把视线留在不自然的胶带附近。真正的线索不会主动开口，但会回应一次足够认真的触碰。</p>
+          <p class="kisara-event-brief-kicker">CASE 003 / MEMORY TRACE</p>
+          <h3>合照里，<br />多了一个人。</h3>
+          <p class="kisara-event-brief-copy">快门按下之后，有人用胶带改写了这张照片。</p>
 
           <ol class="kisara-event-objectives">
             <li class="is-active"><span>01</span><div><strong>寻找异常点</strong><small>观察被重新贴入照片的人物</small></div></li>
@@ -104,7 +97,7 @@ import { Icon } from "astro-icon/components";
           <button class="kisara-event-work-link" type="button" data-game-scene-next>
             <span><Icon name="tabler:device-gamepad-2" aria-hidden="true" /></span>
             <div><small>AFTER THE TRACE</small><strong>进入夜间街机厅</strong></div>
-            <i aria-hidden="true">↓</i>
+            <Icon name="tabler:arrow-right" aria-hidden="true" />
           </button>
         </aside>
       </div>
@@ -406,7 +399,15 @@ import { Icon } from "astro-icon/components";
 
           if ("IntersectionObserver" in window) {
             this.cameraObserver = new IntersectionObserver((entries) => {
-              if (!entries.some((entry) => entry.isIntersecting)) return;
+              if (!entries.some((entry) => entry.isIntersecting) || this.closest("[data-game-scene]")?.getAttribute("data-scene-position") !== "active") {
+                cameraVisible = false;
+                delete this.dataset.sceneVisible;
+                if (cameraFocusFrame) cancelAnimationFrame(cameraFocusFrame);
+                cameraFocusFrame = 0;
+                cancelCameraPan();
+                cancelCameraSearch();
+                return;
+              }
               cameraVisible = true;
               this.dataset.sceneVisible = "true";
               startCameraFocus();
@@ -612,6 +613,21 @@ import { Icon } from "astro-icon/components";
           setState("idle");
           armCameraFocus();
         };
+        this.closest("[data-kisara-games]")?.addEventListener("kisara:game-scene", () => {
+          const active = this.closest("[data-game-scene]")?.getAttribute("data-scene-position") === "active";
+          cameraVisible = active;
+          if (!active) {
+            delete this.dataset.sceneVisible;
+            if (cameraFocusFrame) cancelAnimationFrame(cameraFocusFrame);
+            cameraFocusFrame = 0;
+            cancelCameraPan();
+            cancelCameraSearch();
+          } else {
+            this.dataset.sceneVisible = "true";
+            setCameraPosition(cameraCurrentX, cameraCurrentY);
+            if (this.dataset.state === "idle") startCameraFocus();
+          }
+        }, { signal });
         signal.addEventListener("abort", () => {
           if (cameraFocusFrame) cancelAnimationFrame(cameraFocusFrame);
           cameraFocusFrame = 0;

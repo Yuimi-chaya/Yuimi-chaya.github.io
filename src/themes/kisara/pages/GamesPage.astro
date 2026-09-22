@@ -6,536 +6,118 @@ import gameInvestigationStylesheet from "../styles/game-investigation.css?url";
 import { Icon } from "astro-icon/components";
 import { gamePicks } from "@/core/data/games";
 
-const gamePresentation = {
-  "2048": {
-    channel: "TILE LOGIC",
-    code: "02 / 48",
-    embed: "/themes/kisara/games/2048/index.html",
-    prompt: "MERGE THE QUIET",
-    session: "02-10 MIN",
-    control: "ARROW KEYS",
-    status: "CALM LOOP / READY"
-  },
-  hextris: {
-    channel: "HEX REACTOR",
-    code: "HEX / 06",
-    embed: "https://hextris.github.io/hextris/",
-    prompt: "ROTATE THE PANIC",
-    session: "03-12 MIN",
-    control: "LEFT / RIGHT",
-    status: "REACTOR / STABLE"
-  },
-  "clumsy-bird": {
-    channel: "PIXEL FLIGHT",
-    code: "FLY / 01",
-    embed: "https://ellisonleao.github.io/clumsy-bird/",
-    prompt: "MISS. RETRY. FLY.",
-    session: "01-05 MIN",
-    control: "CLICK / SPACE",
-    status: "FLIGHT PATH / OPEN"
-  }
+const presentation = {
+  "2048": { embed: "/themes/kisara/games/2048/index.html", genre: "NUMBER PUZZLE", time: "02-10 MIN", control: "方向键", color: "#f2ca72" },
+  hextris: { embed: "https://hextris.github.io/hextris/", genre: "HEX REACTOR", time: "03-12 MIN", control: "左右方向键", color: "#83d9c7" },
+  "clumsy-bird": { embed: "https://ellisonleao.github.io/clumsy-bird/", genre: "PIXEL FLIGHT", time: "01-05 MIN", control: "点击 / 空格", color: "#eda0b4" }
 } as const;
-
 ---
 
 <KisaraLayout title="Games | Kisara" description="Yuimi Lab 的小游戏收藏。" stylesheets={[gamesStylesheet, gameInvestigationStylesheet]}>
   <div class="kisara-games" data-kisara-games data-active-scene="0">
+    <nav class="kisara-game-scene-nav" aria-label="游戏页面场景">
+      <a href="#kisara-game-investigation" data-game-scene-jump="0" aria-current="true"><Icon name="tabler:user-scan" aria-hidden="true" /><span>影像调查</span></a>
+      <a href="#kisara-arcade-console" data-game-scene-jump="1" aria-current="false"><Icon name="tabler:device-gamepad-2" aria-hidden="true" /><span>街机厅</span></a>
+    </nav>
     <KisaraGameClueScene />
-
-    <div class="kisara-game-scene-bridge" aria-hidden="true">
-      <i class="is-paper-edge"></i>
-      <i class="is-channel-line"></i>
-      <i class="is-channel-line is-return"></i>
-    </div>
-
-    <section
-      id="kisara-arcade-console"
-      class="kisara-game-scene kisara-arcade"
-      data-game-scene
-      data-kisara-arcade
-      data-scene-position="after"
-      data-active-game={gamePicks[0].id}
-      aria-labelledby="kisara-arcade-title"
-    >
+    <section id="kisara-arcade-console" class="kisara-game-scene kisara-arcade" data-game-scene data-kisara-arcade data-scene-position="after" data-active-game={gamePicks[0].id} aria-labelledby="kisara-arcade-title" tabindex="-1">
       <div class="kisara-arcade-backdrop" aria-hidden="true">
-        <img src="/themes/kisara/assets/game-arcade-room.webp" alt="" width="2200" height="1238" decoding="async" />
-        <span></span>
+        <img data-arcade-backdrop-src="/themes/kisara/assets/game-arcade-room.webp" alt="" width="2200" height="1238" decoding="async" />
       </div>
-      <div class="kisara-arcade-arrival" aria-hidden="true"><i></i><i></i><i></i></div>
-
-      <header class="kisara-arcade-heading">
-        <p><span>02</span> AFTER HOURS / OPEN CHANNEL</p>
-        <h2 id="kisara-arcade-title">Insert a moment.<em>Keep the night.</em></h2>
-        <p>三条短暂离线的轨道。选好频道，再让这台机子真正亮起来。</p>
-      </header>
-
-      <div class="kisara-arcade-layout">
-        <aside class="kisara-arcade-queue" aria-label="游戏选择">
-          <header><span>CHANNEL</span><small>{String(gamePicks.length).padStart(2, "0")} READY</small></header>
-          <div role="tablist" aria-label="游戏频道">
-            {gamePicks.map((game, index) => (
-              <button
-                type="button"
-                data-game-select={game.id}
-                data-game-status={gamePresentation[game.id].status}
-                data-game-src={gamePresentation[game.id].embed}
-                data-game-external-src={game.play}
-                data-game-name={game.name}
-                id={`kisara-game-tab-${game.id}`}
-                role="tab"
-                aria-selected={index === 0 ? "true" : "false"}
-                aria-pressed={index === 0 ? "true" : "false"}
-                aria-controls={`kisara-game-${game.id}`}
-                tabindex={index === 0 ? "0" : "-1"}
-              >
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <strong>{game.name}</strong>
-                <small>{gamePresentation[game.id].channel}</small>
-                <i aria-hidden="true"></i>
-              </button>
-            ))}
-          </div>
-        </aside>
-
-        <div class="kisara-arcade-machine" data-game-machine>
-          <div class="kisara-arcade-machine-body">
-            <header class="kisara-arcade-machine-marquee">
-              <span>YUIMI NIGHT ARCADE</span>
-              <strong data-game-machine-title>{gamePicks[0].name}</strong>
-              <output data-game-status>{gamePresentation[gamePicks[0].id].status}</output>
-            </header>
-
-            <div class="kisara-arcade-machine-shell">
-              <div class="kisara-arcade-screen" data-game-stage data-game-screen data-screen-state="idle">
-                <div class="kisara-arcade-visual" aria-hidden="true">
-                  <span class="kisara-arcade-horizon"></span>
-                  <div class="kisara-arcade-world is-2048">
-                    <div class="kisara-arcade-tiles">
-                      <i data-value="2"></i><i data-value="4"></i><i data-value="8"></i><i data-value="16"></i>
-                      <i data-value="32"></i><i data-value="64"></i><i data-value="128"></i><i data-value="256"></i>
-                    </div>
-                    <b>2048</b>
-                  </div>
-                  <div class="kisara-arcade-world is-hextris">
-                    <div class="kisara-arcade-hex-core"><i></i><i></i><i></i><i></i><i></i><i></i><b></b></div>
-                  </div>
-                  <div class="kisara-arcade-world is-clumsy-bird">
-                    <div class="kisara-arcade-flight"><i class="is-bird"></i><i class="is-pipe-one"></i><i class="is-pipe-two"></i><span></span></div>
-                  </div>
-                </div>
-
-                <div class="kisara-arcade-panels" aria-live="polite">
+      <div class="kisara-arcade-machine" data-game-machine>
+        <div class="kisara-arcade-machine-body">
+          <header class="kisara-arcade-marquee">
+            <span class="kisara-arcade-brand"><i aria-hidden="true"></i>YUIMI</span>
+            <h2 id="kisara-arcade-title">ARCADE CLUB</h2>
+            <span class="kisara-arcade-power"><i aria-hidden="true"></i>ON</span>
+          </header>
+          <div class="kisara-arcade-bezel">
+            <div class="kisara-arcade-screen" data-game-screen data-screen-state="idle">
+              <div class="kisara-arcade-screen-bar">
+                <span data-game-machine-title>SELECT GAME</span>
+                <output data-game-counter>01 / 03</output>
+                <span class="kisara-arcade-credit">FREE PLAY</span>
+              </div>
+              <div class="kisara-arcade-menu" data-game-menu>
+                <div class="kisara-arcade-select-heading"><span>PLAYER 01</span><strong>今天玩哪一台？</strong><Icon name="tabler:device-gamepad" aria-hidden="true" /></div>
+                <div class="kisara-arcade-cartridges" role="tablist" aria-label="选择游戏">
                   {gamePicks.map((game, index) => (
-                    <article
-                      id={`kisara-game-${game.id}`}
-                      data-game-panel={game.id}
-                      role="tabpanel"
-                      aria-labelledby={`kisara-game-tab-${game.id}`}
-                      hidden={index !== 0}
-                    >
-                      <div class="kisara-arcade-panel-meta">
-                        <span>{gamePresentation[game.id].code}</span>
-                        <small>{gamePresentation[game.id].prompt}</small>
-                      </div>
-                      <h3>{game.name}</h3>
-                      <p>{game.summary}</p>
-                      <dl>
-                        <div><dt>SESSION</dt><dd>{gamePresentation[game.id].session}</dd></div>
-                        <div><dt>CONTROL</dt><dd>{gamePresentation[game.id].control}</dd></div>
-                      </dl>
-                      <a class="kisara-arcade-source" href={game.repo} target="_blank" rel="noreferrer">
-                        <Icon name="tabler:brand-github" aria-hidden="true" />SOURCE<Icon name="tabler:external-link" aria-hidden="true" />
-                      </a>
-                    </article>
+                    <button type="button" class={`kisara-arcade-cartridge is-${game.id}`} style={`--cartridge-color:${presentation[game.id].color}`}
+                      data-game-select={game.id} data-game-src={presentation[game.id].embed} data-game-external-src={game.play} data-game-name={game.name}
+                      id={`kisara-game-tab-${game.id}`} role="tab" aria-selected={index === 0 ? "true" : "false"} aria-controls={`kisara-game-${game.id}`} tabindex={index === 0 ? "0" : "-1"}>
+                      <span class="kisara-arcade-cartridge-number">{String(index + 1).padStart(2, "0")}<Icon name="tabler:arrow-right" aria-hidden="true" /></span>
+                      <span class="kisara-arcade-cartridge-art" aria-hidden="true">
+                        {game.id === "2048" ? <span class="kisara-arcade-tile-art"><i>2</i><i>4</i><i>8</i><i>16</i></span>
+                          : game.id === "hextris" ? <span class="kisara-arcade-hex-art"><i></i><b></b></span>
+                          : <span class="kisara-arcade-flight-art"><i></i><b></b><em></em></span>}
+                      </span>
+                      <strong>{game.name}</strong>
+                      <small>{presentation[game.id].genre}</small>
+                    </button>
                   ))}
                 </div>
-
-                <iframe
-                  data-game-frame
-                  title={`${gamePicks[0].name} 游戏画面`}
-                  sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-popups"
-                  allow="fullscreen; gamepad"
-                  referrerpolicy="strict-origin-when-cross-origin"
-                  hidden
-                ></iframe>
-                <div class="kisara-arcade-loader" data-game-loader hidden aria-live="polite">
-                  <i aria-hidden="true"></i><span>CONNECTING GAME FEED</span>
-                </div>
-                <span class="kisara-arcade-screen-glass" aria-hidden="true"></span>
-              </div>
-            </div>
-
-            <footer class="kisara-arcade-controls">
-              <div class="kisara-arcade-joystick" aria-hidden="true">
-                <span></span><i></i><em></em><small>PLAYER 01</small>
-              </div>
-              <div class="kisara-arcade-machine-actions">
-                <output data-game-counter aria-live="polite">01 / {String(gamePicks.length).padStart(2, "0")}</output>
-                <button class="kisara-arcade-start" type="button" data-game-launch>
-                  <i><Icon name="tabler:player-play" aria-hidden="true" /></i>
-                  <span><strong data-game-launch-label>START</strong><small data-game-launch-note>LOAD GAME</small></span>
-                </button>
-                <div class="kisara-arcade-machine-secondary">
-                  <button class="kisara-arcade-eject" type="button" data-game-eject hidden>EJECT</button>
-                  <a data-game-external href={gamePicks[0].play} target="_blank" rel="noreferrer">
-                    REMOTE <Icon name="tabler:external-link" aria-hidden="true" />
-                  </a>
+                <div class="kisara-arcade-selection">
+                  <div class="kisara-arcade-panels" aria-live="polite">
+                    {gamePicks.map((game, index) => (
+                      <article id={`kisara-game-${game.id}`} data-game-panel={game.id} role="tabpanel" aria-labelledby={`kisara-game-tab-${game.id}`} hidden={index !== 0}>
+                        <p>{game.vibe}</p>
+                        <div><span>{presentation[game.id].time}</span><span>{presentation[game.id].control}</span>
+                          <a href={game.repo} target="_blank" rel="noreferrer" aria-label={`${game.name} 源码`} title="查看源码"><Icon name="tabler:brand-github" aria-hidden="true" /></a>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                  <button class="kisara-arcade-play" type="button" data-game-launch><Icon name="tabler:player-play" aria-hidden="true" />开始游戏</button>
                 </div>
               </div>
-              <div class="kisara-arcade-machine-switches">
-                <small>CHANNEL</small>
+              <div class="kisara-arcade-session" data-game-session hidden>
+                <iframe data-game-frame title="游戏画面" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-popups" allow="fullscreen; gamepad" referrerpolicy="strict-origin-when-cross-origin" hidden></iframe>
+                <div class="kisara-arcade-loader" data-game-loader hidden role="status"><i aria-hidden="true"></i><span data-game-load-message>正在连接游戏…</span></div>
+              </div>
+              <footer class="kisara-arcade-screen-footer">
+                <output data-game-status aria-live="polite">READY</output>
                 <div>
-                  <button type="button" data-game-previous aria-label="上一个游戏" title="上一个游戏"><Icon name="tabler:chevron-left" aria-hidden="true" /></button>
-                  <button type="button" data-game-next aria-label="下一个游戏" title="下一个游戏"><Icon name="tabler:chevron-right" aria-hidden="true" /></button>
+                  <button type="button" data-game-eject hidden title="返回游戏选择"><Icon name="tabler:device-gamepad-2" aria-hidden="true" />选游戏</button>
+                  <button type="button" data-game-restart hidden title="重新开始" aria-label="重新开始"><Icon name="tabler:refresh" aria-hidden="true" /></button>
+                  <a data-game-external href={gamePicks[0].play} target="_blank" rel="noreferrer" title="在新窗口打开"><Icon name="tabler:external-link" aria-hidden="true" /><span>新窗口</span></a>
                 </div>
-              </div>
-            </footer>
-
-            <div class="kisara-arcade-machine-base" aria-hidden="true">
-              <div class="kisara-arcade-speaker"><i></i><span>STEREO</span></div>
-              <div class="kisara-arcade-coin-bay"><i></i><strong>YUIMI COIN</strong><span>READY</span></div>
-              <div class="kisara-arcade-service-plate"><span>03</span><strong>REMOTE PLAY UNIT</strong><i></i></div>
+              </footer>
+            </div>
+            <span class="kisara-arcade-bezel-label" aria-hidden="true">YUIMI ENTERTAINMENT SYSTEM / MODEL 03</span>
+          </div>
+          <div class="kisara-arcade-control-deck" role="group" aria-label="街机控制台">
+            <div class="kisara-arcade-direction">
+              <button type="button" data-game-previous aria-label="上一个游戏" title="上一个游戏"><Icon name="tabler:chevron-left" aria-hidden="true" /></button>
+              <div class="kisara-arcade-joystick" aria-hidden="true"><span></span><i></i><b></b></div>
+              <button type="button" data-game-next aria-label="下一个游戏" title="下一个游戏"><Icon name="tabler:chevron-right" aria-hidden="true" /></button>
+            </div>
+            <div class="kisara-arcade-deck-mark" aria-hidden="true"><span>01</span><i></i><small>PLAYER</small></div>
+            <div class="kisara-arcade-action-buttons">
+              <button class="is-menu" type="button" data-game-eject title="返回游戏选择" aria-label="返回游戏选择"><Icon name="tabler:device-gamepad-2" aria-hidden="true" /></button>
+              <button class="is-play" type="button" data-game-launch title="开始所选游戏" aria-label="开始所选游戏"><Icon name="tabler:player-play" aria-hidden="true" /></button>
             </div>
           </div>
+          <div class="kisara-arcade-machine-base" aria-hidden="true">
+            <div class="kisara-arcade-speaker"></div>
+            <div class="kisara-arcade-coin"><i></i><span>FREE<br />PLAY</span></div>
+            <span class="kisara-arcade-serial">Y / 003</span>
+          </div>
         </div>
+        <div class="kisara-arcade-feet" aria-hidden="true"><i></i><i></i></div>
       </div>
-
-      <button class="kisara-game-scene-step is-previous" type="button" data-game-scene-previous aria-label="返回异常影像调查">
-        <Icon name="tabler:chevron-down" aria-hidden="true" />
-        <span>INVESTIGATION</span>
-      </button>
     </section>
-
-    <nav class="kisara-game-scene-rail" aria-label="GAME 页面场景">
-      <button type="button" data-game-scene-jump="0" aria-current="true"><span>01</span><i></i></button>
-      <button type="button" data-game-scene-jump="1" aria-current="false"><span>02</span><i></i></button>
-    </nav>
-
   </div>
-
-  <script is:inline data-astro-rerun>
-    (() => {
-      window.__yuimiKisaraInnerCleanup?.();
-      const page = document.querySelector("[data-kisara-games]");
-      if (!(page instanceof HTMLElement)) return;
-
-      const lifecycle = new AbortController();
-      const signal = lifecycle.signal;
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-      const scenes = Array.from(page.querySelectorAll("[data-game-scene]"));
-      const arcade = page.querySelector("[data-kisara-arcade]");
-      let gameFrame = null;
-      let scrollFrame = 0;
-      let pointerFrame = 0;
-      let wheelTimer = 0;
-      let wheelAccumulator = 0;
-      let wheelLastTimestamp = 0;
-      let activeScene = 0;
-      let transitionSerial = 0;
-      let pointerX = 0;
-      let pointerY = 0;
-      let renderedPointerX = 0;
-      let renderedPointerY = 0;
-
-      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-      const cleanup = () => {
-        lifecycle.abort();
-        window.clearTimeout(wheelTimer);
-        if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
-        if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
-        if (gameFrame instanceof HTMLIFrameElement) {
-          gameFrame.src = "about:blank";
-          gameFrame.removeAttribute("src");
-        }
-        if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
-      };
-      window.__yuimiKisaraInnerCleanup = cleanup;
-      document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
-
-      const setActiveScene = (nextScene) => {
-        activeScene = clamp(nextScene, 0, scenes.length - 1);
-        page.dataset.activeScene = String(activeScene);
-        scenes.forEach((scene, index) => {
-          if (!(scene instanceof HTMLElement)) return;
-          scene.dataset.scenePosition = index < activeScene ? "before" : index > activeScene ? "after" : "active";
-        });
-        page.querySelectorAll("[data-game-scene-jump]").forEach((button) => {
-          if (!(button instanceof HTMLButtonElement)) return;
-          button.setAttribute("aria-current", String(Number(button.dataset.gameSceneJump) === activeScene));
-        });
-      };
-
-      const getSceneTop = (index) => {
-        const scene = scenes[index];
-        return scene instanceof HTMLElement ? scene.offsetTop : 0;
-      };
-
-      const smoothScrollToScene = (nextScene) => {
-        const targetScene = clamp(nextScene, 0, scenes.length - 1);
-        if (scrollFrame) return false;
-        const previousScene = activeScene;
-        const destination = getSceneTop(targetScene);
-        if (targetScene === activeScene && Math.abs(destination - window.scrollY) < 1) return false;
-        if (reducedMotion) {
-          setActiveScene(targetScene);
-          window.scrollTo(0, destination);
-          return true;
-        }
-
-        const transitionId = ++transitionSerial;
-        const root = document.documentElement;
-        const previousScrollBehavior = root.style.scrollBehavior;
-        root.style.scrollBehavior = "auto";
-        page.dataset.transitionDirection = targetScene > previousScene ? "down" : "up";
-        page.style.setProperty("--game-scene-progress", "0");
-        page.style.setProperty("--game-cut-shift", targetScene > previousScene ? "-120%" : "120%");
-        let current = window.scrollY;
-        let velocity = 0;
-        let lastTimestamp = performance.now();
-        const distanceTotal = Math.max(1, Math.abs(destination - current));
-        const maxVelocity = clamp(distanceTotal * 2.05, 560, 1650);
-        let sceneStateSwapped = false;
-
-        const finish = () => {
-          if (transitionId !== transitionSerial) return;
-          if (!sceneStateSwapped) setActiveScene(targetScene);
-          window.scrollTo(0, destination);
-          scrollFrame = 0;
-          root.style.scrollBehavior = previousScrollBehavior;
-          page.dataset.transitionDirection = "idle";
-          page.style.setProperty("--game-cut-shift", targetScene > previousScene ? "120%" : "-120%");
-        };
-
-        const step = (timestamp) => {
-          if (transitionId !== transitionSerial) return;
-          const deltaTime = clamp((timestamp - lastTimestamp) / 1000, 0.008, 0.034);
-          lastTimestamp = timestamp;
-          const distance = destination - current;
-          const acceleration = distance * 24 - velocity * 9.4;
-          velocity = clamp(velocity + acceleration * deltaTime, -maxVelocity, maxVelocity);
-          current += velocity * deltaTime;
-          window.scrollTo(0, current);
-          const progress = clamp(1 - Math.abs(destination - current) / distanceTotal, 0, 1);
-          page.style.setProperty("--game-scene-progress", String(progress));
-          const cutProgress = targetScene > previousScene ? -120 + progress * 240 : 120 - progress * 240;
-          page.style.setProperty("--game-cut-shift", `${cutProgress.toFixed(2)}%`);
-          if (!sceneStateSwapped && progress >= 0.34) {
-            sceneStateSwapped = true;
-            setActiveScene(targetScene);
-          }
-          if (Math.abs(distance) < 0.35 && Math.abs(velocity) < 8) {
-            finish();
-            return;
-          }
-          scrollFrame = window.requestAnimationFrame(step);
-        };
-
-        scrollFrame = window.requestAnimationFrame(step);
-        return true;
-      };
-
-      const resetWheelGesture = () => {
-        wheelAccumulator = 0;
-        wheelLastTimestamp = 0;
-        wheelTimer = 0;
-      };
-
-      const readWheelDirection = (delta) => {
-        const timestamp = performance.now();
-        if (timestamp - wheelLastTimestamp > 170) wheelAccumulator = 0;
-        wheelLastTimestamp = timestamp;
-        if (wheelTimer) window.clearTimeout(wheelTimer);
-        wheelTimer = window.setTimeout(resetWheelGesture, 170);
-        if (wheelAccumulator && Math.sign(wheelAccumulator) !== Math.sign(delta)) wheelAccumulator = 0;
-        wheelAccumulator += clamp(delta, -180, 180);
-        const threshold = clamp(window.innerHeight * 0.085, 56, 78);
-        if (Math.abs(wheelAccumulator) < threshold) return 0;
-        const direction = Math.sign(wheelAccumulator);
-        wheelAccumulator = 0;
-        return direction;
-      };
-
-      const normalizeWheel = (event) => {
-        if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return event.deltaY * 16;
-        if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return event.deltaY * window.innerHeight;
-        return event.deltaY;
-      };
-
-      if (finePointer && !reducedMotion) {
-        window.addEventListener("wheel", (event) => {
-          if (event.ctrlKey || event.metaKey) return;
-          if (event.target instanceof Element && event.target.closest("dialog[open], [data-kisara-context-menu]")) return;
-          const delta = normalizeWheel(event);
-          if (!delta) return;
-          event.preventDefault();
-          if (scrollFrame) {
-            wheelAccumulator = 0;
-            return;
-          }
-          const direction = readWheelDirection(delta);
-          if (!direction) return;
-          smoothScrollToScene(activeScene + direction);
-        }, { passive: false, signal });
-      }
-
-      window.addEventListener("scroll", () => {
-        if (scrollFrame) return;
-        const nearest = scenes.reduce((best, scene, index) => {
-          if (!(scene instanceof HTMLElement)) return best;
-          return Math.abs(scene.offsetTop - window.scrollY) < Math.abs(getSceneTop(best) - window.scrollY) ? index : best;
-        }, activeScene);
-        if (nearest !== activeScene) setActiveScene(nearest);
-      }, { passive: true, signal });
-
-      window.addEventListener("keydown", (event) => {
-        if (event.ctrlKey || event.metaKey || event.altKey) return;
-        if (event.target instanceof Element && event.target.closest("a, button, input, select, textarea, iframe, [contenteditable='true']")) return;
-        if (["ArrowDown", "PageDown"].includes(event.key)) {
-          event.preventDefault();
-          smoothScrollToScene(activeScene + 1);
-        }
-        if (["ArrowUp", "PageUp"].includes(event.key)) {
-          event.preventDefault();
-          smoothScrollToScene(activeScene - 1);
-        }
-        if (event.key === "Home") {
-          event.preventDefault();
-          smoothScrollToScene(0);
-        }
-        if (event.key === "End") {
-          event.preventDefault();
-          smoothScrollToScene(scenes.length - 1);
-        }
-      }, { signal });
-
-      page.querySelector("[data-game-scene-next]")?.addEventListener("click", () => smoothScrollToScene(1), { signal });
-      page.querySelector("[data-game-scene-previous]")?.addEventListener("click", () => smoothScrollToScene(0), { signal });
-      page.querySelectorAll("[data-game-scene-jump]").forEach((button) => {
-        button.addEventListener("click", () => smoothScrollToScene(Number(button.dataset.gameSceneJump)), { signal });
+  <script>
+    document.addEventListener("astro:page-load", () => {
+      const root = document.querySelector<HTMLElement>("[data-kisara-games]");
+      if (!root) return;
+      import("../lib/gamesPage.js").then(({ bindGamesPage }) => {
+        if (root.isConnected) bindGamesPage(root);
+      }).catch(error => {
+        if (!root.isConnected) return;
+        window.__yuimiKisaraInnerCleanup?.();
+        console.error("Kisara games interaction failed to load", error);
       });
-
-      if (arcade instanceof HTMLElement && finePointer && !reducedMotion) {
-        const renderPointer = () => {
-          pointerFrame = 0;
-          renderedPointerX += (pointerX - renderedPointerX) * 0.13;
-          renderedPointerY += (pointerY - renderedPointerY) * 0.13;
-          arcade.style.setProperty("--arcade-pointer-x", `${(renderedPointerX * 10).toFixed(2)}px`);
-          arcade.style.setProperty("--arcade-pointer-y", `${(renderedPointerY * 7).toFixed(2)}px`);
-          if (Math.abs(pointerX - renderedPointerX) > 0.002 || Math.abs(pointerY - renderedPointerY) > 0.002) {
-            pointerFrame = window.requestAnimationFrame(renderPointer);
-          }
-        };
-        const schedulePointer = () => {
-          if (!pointerFrame) pointerFrame = window.requestAnimationFrame(renderPointer);
-        };
-        arcade.addEventListener("pointermove", (event) => {
-          const rect = arcade.getBoundingClientRect();
-          pointerX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 2, -1, 1);
-          pointerY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 2, -1, 1);
-          schedulePointer();
-        }, { signal });
-        arcade.addEventListener("pointerleave", () => {
-          pointerX = 0;
-          pointerY = 0;
-          schedulePointer();
-        }, { signal });
-      }
-
-      if (!(arcade instanceof HTMLElement)) return;
-      const selectors = Array.from(arcade.querySelectorAll("[data-game-select]"));
-      const panels = Array.from(arcade.querySelectorAll("[data-game-panel]"));
-      const counter = arcade.querySelector("[data-game-counter]");
-      const status = arcade.querySelector("[data-game-status]");
-      const machineTitle = arcade.querySelector("[data-game-machine-title]");
-      const screen = arcade.querySelector("[data-game-screen]");
-      const loader = arcade.querySelector("[data-game-loader]");
-      const launch = arcade.querySelector("[data-game-launch]");
-      const launchLabel = arcade.querySelector("[data-game-launch-label]");
-      const launchNote = arcade.querySelector("[data-game-launch-note]");
-      const eject = arcade.querySelector("[data-game-eject]");
-      const external = arcade.querySelector("[data-game-external]");
-      gameFrame = arcade.querySelector("[data-game-frame]");
-      let activeGame = 0;
-
-      const setLaunchCopy = (label, note) => {
-        if (launchLabel) launchLabel.textContent = label;
-        if (launchNote) launchNote.textContent = note;
-      };
-
-      const unloadGame = () => {
-        if (gameFrame instanceof HTMLIFrameElement) {
-          gameFrame.src = "about:blank";
-          gameFrame.removeAttribute("src");
-          gameFrame.hidden = true;
-        }
-        if (loader instanceof HTMLElement) loader.hidden = true;
-        if (screen instanceof HTMLElement) screen.dataset.screenState = "idle";
-        if (launch instanceof HTMLButtonElement) launch.disabled = false;
-        if (eject instanceof HTMLButtonElement) eject.hidden = true;
-        setLaunchCopy("START", "LOAD GAME");
-      };
-
-      const loadActiveGame = () => {
-        const selector = selectors[activeGame];
-        if (!(selector instanceof HTMLElement) || !(gameFrame instanceof HTMLIFrameElement)) return;
-        const src = selector.dataset.gameSrc;
-        const name = selector.dataset.gameName ?? "GAME";
-        if (!src) return;
-        if (screen instanceof HTMLElement) screen.dataset.screenState = "loading";
-        if (loader instanceof HTMLElement) loader.hidden = false;
-        if (launch instanceof HTMLButtonElement) launch.disabled = true;
-        if (eject instanceof HTMLButtonElement) eject.hidden = true;
-        setLaunchCopy("CONNECTING", "PLEASE WAIT");
-        gameFrame.title = `${name} 游戏画面`;
-        gameFrame.hidden = false;
-        gameFrame.src = src;
-      };
-
-      const activateGame = (nextIndex) => {
-        const total = selectors.length;
-        activeGame = (nextIndex + total) % total;
-        const selector = selectors[activeGame];
-        if (!(selector instanceof HTMLElement)) return;
-        const id = selector.dataset.gameSelect ?? "2048";
-        unloadGame();
-        arcade.dataset.activeGame = id;
-        arcade.classList.remove("is-switching");
-        void arcade.offsetWidth;
-        arcade.classList.add("is-switching");
-        selectors.forEach((item, index) => {
-          const selected = index === activeGame;
-          item.setAttribute("aria-pressed", String(selected));
-          item.setAttribute("aria-selected", String(selected));
-          item.setAttribute("tabindex", selected ? "0" : "-1");
-        });
-        panels.forEach((panel) => {
-          if (panel instanceof HTMLElement) panel.hidden = panel.dataset.gamePanel !== id;
-        });
-        if (counter) counter.textContent = `${String(activeGame + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`;
-        if (status) status.textContent = selector.dataset.gameStatus ?? "CHANNEL READY";
-        if (machineTitle) machineTitle.textContent = selector.dataset.gameName ?? id;
-        if (external instanceof HTMLAnchorElement) external.href = selector.dataset.gameExternalSrc ?? selector.dataset.gameSrc ?? "#";
-      };
-
-      selectors.forEach((selector, index) => selector.addEventListener("click", () => activateGame(index), { signal }));
-      arcade.querySelector("[data-game-previous]")?.addEventListener("click", () => activateGame(activeGame - 1), { signal });
-      arcade.querySelector("[data-game-next]")?.addEventListener("click", () => activateGame(activeGame + 1), { signal });
-      launch?.addEventListener("click", loadActiveGame, { signal });
-      eject?.addEventListener("click", unloadGame, { signal });
-      gameFrame?.addEventListener("load", () => {
-        if (!(gameFrame instanceof HTMLIFrameElement) || !gameFrame.hasAttribute("src")) return;
-        if (screen instanceof HTMLElement) screen.dataset.screenState = "loaded";
-        if (loader instanceof HTMLElement) loader.hidden = true;
-        if (launch instanceof HTMLButtonElement) launch.disabled = false;
-        if (eject instanceof HTMLButtonElement) eject.hidden = false;
-        setLaunchCopy("RESTART", "RELOAD GAME");
-      }, { signal });
-
-      const initialScene = window.location.hash === "#kisara-arcade-console" ? 1 : 0;
-      setActiveScene(initialScene);
-      window.scrollTo(0, getSceneTop(initialScene));
-      window.requestAnimationFrame(() => window.scrollTo(0, getSceneTop(initialScene)));
-    })();
+    });
   </script>
 </KisaraLayout>

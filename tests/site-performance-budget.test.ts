@@ -32,7 +32,8 @@ test("lite mode removes only persistent decorative motion", () => {
   assert.doesNotMatch(kisaraThemeSource, /kisara-footer-wave/);
   assert.match(homeSource, /data-yuimi-performance="lite"\] \.kisara-ambient-particles[^]*display: none/);
   assert.match(homeSource, /data-yuimi-performance="lite"\] \.kisara-event-reward-burst::before[^]*animation: none !important/);
-  assert.match(gamesSource, /data-yuimi-performance="lite"\] \.kisara-arcade-hex-core i[^]*animation: none !important/);
+  assert.doesNotMatch(gamesSource, /kisara-arcade-hex-spin|kisara-arcade-arrival|kisara-game-scan-in/);
+  assert.match(gamesSource, /prefers-reduced-motion: reduce[^]*\.kisara-arcade-loader i \{ animation: none/);
   assert.match(fuyukawaThemeSource, /data-yuimi-performance="lite"\] \.sakura-rain span[^]*\.console-meter span[^]*animation: none !important/);
 });
 

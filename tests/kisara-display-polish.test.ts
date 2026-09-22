@@ -25,6 +25,7 @@ test("Theme zoom is scoped to Kisara and all viewport lengths keep their physica
   });
   assert.ok(scoped);
   let checked = 0;
+  const checkedFiles = new Set<string>();
   const dir = new URL("../src/themes/kisara/styles/", import.meta.url);
   for (const file of readdirSync(dir).filter(file => file.endsWith(".css"))) {
     const root = postcss.parse(readFileSync(new URL(file, dir), "utf8"));
@@ -32,9 +33,13 @@ test("Theme zoom is scoped to Kisara and all viewport lengths keep their physica
       if (!/\d(?:s|d|l)?v(?:w|h|min|max)\b/.test(decl.value)) return;
       assert.match(decl.value, /var\(--kisara-scale, 1\)/, `${file}: ${decl.prop}`);
       checked++;
+      checkedFiles.add(file);
     });
   }
-  assert.ok(checked > 300);
+  assert.ok(checked > 0);
+  for (const file of ["home.css", "blog.css", "games.css", "game-investigation.css", "projects.css", "about.css"]) {
+    assert.ok(checkedFiles.has(file), `${file}: viewport coverage was not checked`);
+  }
   for (const height of [568, 768, 900, 1440]) {
     assert.ok(Math.abs(height / .9 * .9 - height) < 1e-9);
   }

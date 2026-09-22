@@ -292,10 +292,13 @@ test("Blog uses stable hit geometry, guarded replay and deferred archive covers"
   assert.doesNotMatch(page, /loading=\{index === 0/);
 });
 
-test("The Game transition connects the two existing scenes without adding a navigation stop", () => {
+test("The Game switches two scenes directly without a scrolling bridge", () => {
   const page = read("src/themes/kisara/pages/GamesPage.astro");
-  assert.match(page, /<KisaraGameClueScene \/>\s*<div class="kisara-game-scene-bridge"/);
-  assert.match(page, /scene\.offsetTop/);
+  assert.match(page, /<KisaraGameClueScene \/>/);
+  assert.doesNotMatch(page, /kisara-game-scene-bridge|scene\.offsetTop/);
+  const runtime = read("src/themes/kisara/lib/gamesPage.js");
+  assert.match(runtime, /scene\.inert = position !== target/);
+  assert.doesNotMatch(runtime, /addEventListener\("wheel"|velocity|smoothScroll/);
   assert.match(page, /data-game-scene-jump="0"/);
   assert.match(page, /data-game-scene-jump="1"/);
 });
