@@ -4422,7 +4422,7 @@ body[data-kisara-page="projects"] .kisara-works-stage {
   position: sticky;
   top: 0;
   height: calc(100svh / var(--kisara-scale, 1));
-  min-height: 620px;
+  min-height: 0;
   overflow: hidden;
   isolation: isolate;
 }
@@ -4498,13 +4498,15 @@ body[data-kisara-page="projects"] .kisara-works-stage-scrim {
 body[data-kisara-page="projects"] .kisara-kitchen-lab {
   position: absolute;
   z-index: 6;
-  inset: 0;
-  display: block;
+  inset: var(--works-header-space, 90px) 0 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   width: auto;
   min-height: 0;
-  height: 100%;
-  padding: 0 clamp(18px, calc(4vw / var(--kisara-scale, 1)), 72px) 34px;
-  overflow: auto;
+  height: auto;
+  margin: 0;
+  padding: 0 clamp(18px, calc(4vw / var(--kisara-scale, 1)), 72px) 24px;
+  overflow: hidden;
   overscroll-behavior: contain;
   visibility: hidden;
   background: #edf1ee;
@@ -4526,7 +4528,7 @@ body[data-kisara-page="projects"] .kisara-kitchen-toolbar {
   align-items: center;
   gap: 14px;
   min-height: 66px;
-  margin: 0 auto clamp(18px, calc(3vh / var(--kisara-scale, 1)), 34px);
+  margin: 0 0 16px;
   padding: 10px 0;
   border-bottom: 1px solid rgba(75, 105, 91, .22);
   background: rgba(237, 241, 238, .92);
@@ -4608,6 +4610,9 @@ body[data-kisara-page="projects"] .kisara-kitchen-panel[hidden] {
 
 body[data-kisara-page="projects"] .kisara-kitchen-panel {
   width: min(1380px, 100%);
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
   margin: 0 auto;
 }
 
@@ -4617,7 +4622,8 @@ body[data-kisara-page="projects"] .kisara-kitchen-counter {
 }
 
 body[data-kisara-page="projects"] .kisara-drink-result {
-  min-height: min(680px, calc(100% - 84px));
+  width: 100%;
+  min-height: 100%;
   margin: 0 auto;
   padding: clamp(28px, calc(6vh / var(--kisara-scale, 1)), 76px) clamp(20px, calc(6vw / var(--kisara-scale, 1)), 110px);
   background: rgba(255, 255, 255, .32);
@@ -4652,11 +4658,19 @@ body[data-kisara-page="projects"] .kisara-kitchen-lab[data-active-panel="result"
   opacity: .82;
 }
 
-@media (max-width: 900px) {
-  body[data-kisara-page="projects"] .kisara-works-stage {
-    min-height: 560px;
+@media (min-width: 901px) {
+  body[data-kisara-page="projects"] .kisara-kitchen-counter {
+    width: 100%;
+    height: 100%;
+    min-height: 440px;
+    grid-template-columns: minmax(160px, .56fr) minmax(300px, 1.3fr) minmax(280px, .8fr);
   }
+}
 
+@media (max-width: 900px) {
+  body[data-kisara-page="projects"] .kisara-kitchen-lab {
+    bottom: 70px;
+  }
   body[data-kisara-page="projects"] .kisara-works-editorial {
     top: 112px;
     left: 24px;
@@ -4686,10 +4700,6 @@ body[data-kisara-page="projects"] .kisara-kitchen-lab[data-active-panel="result"
 }
 
 @media (max-width: 560px) {
-  body[data-kisara-page="projects"] .kisara-works-stage {
-    min-height: 520px;
-  }
-
   body[data-kisara-page="projects"] .kisara-works-editorial {
     top: 96px;
     left: 18px;

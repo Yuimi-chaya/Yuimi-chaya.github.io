@@ -14,6 +14,7 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
   const editorial = track.querySelector<HTMLElement>("[data-works-editorial-exit]");
   const fruits = track.querySelector<HTMLElement>("[data-works-slice-field]");
   const enter = track.querySelector<HTMLElement>("[data-works-enter]");
+  const header = document.querySelector<HTMLElement>(".kisara-header");
   const tabs = [...track.querySelectorAll<HTMLButtonElement>("[data-kitchen-tab]")];
   const panels = [...track.querySelectorAll<HTMLElement>("[data-kitchen-panel]")];
   const parts = [...kitchen.querySelectorAll<HTMLElement>(
@@ -79,6 +80,8 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
     if (disposed) return;
     const bounds = stage.getBoundingClientRect();
     const scale = bounds.height / Math.max(1, stage.clientHeight);
+    const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
+    stage.style.setProperty("--works-header-space", `${Math.max(0, headerBottom) / Math.max(.1, scale) + 12}px`);
     top = track.getBoundingClientRect().top + window.scrollY;
     distance = Math.max(240, bounds.height * .65);
     track.style.height = `${(bounds.height + distance) / Math.max(.1, scale)}px`;
@@ -143,6 +146,7 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
   sync();
   const observer = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
   observer?.observe(stage);
+  if (header) observer?.observe(header);
   window.addEventListener("scroll", schedule, { passive: true, signal });
   window.addEventListener("resize", measure, { passive: true, signal });
   window.visualViewport?.addEventListener("resize", measure, { passive: true, signal });
@@ -156,6 +160,7 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
     motions.forEach(({ animation }) => animation.cancel());
     track.removeAttribute("data-stage-ready");
     track.style.removeProperty("height");
+    stage.style.removeProperty("--works-header-space");
     kitchen.style.removeProperty("visibility");
     delete kitchen.dataset.activePanel;
     hero.inert = kitchen.inert = false;
