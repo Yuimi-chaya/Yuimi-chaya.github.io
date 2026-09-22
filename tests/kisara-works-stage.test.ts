@@ -68,23 +68,22 @@ test("Worktop fits the remaining viewport without a fixed minimum stage height",
   assert.deepEqual(values(scope + ".kisara-kitchen-panel", "width"), ["100%"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-counter", "width"), ["calc(100% - 32px)"]);
   assert.deepEqual(values(scope + ".kisara-kitchen-counter", "height"), ["calc(100% - 54px)"]);
+  assert.deepEqual(values(scope + ".kisara-kitchen-counter", "min-height"), ["0", "0"]);
   assert.deepEqual(values(scope + ".kisara-drink-result", "width"), ["calc(100% - 32px)"]);
   assert.deepEqual(values(scope + ".kisara-drink-result", "height"), ["calc(100% - 32px)"]);
   assert.match(styles, /scale\(var\(--works-panel-fit, 1\)\)/);
 });
 
-test("Large desktop worktops expand with the panel instead of staying at 1380 by 700", () => {
-  for (const [viewportWidth, viewportHeight] of [[2358, 1290], [1920, 1080]]) {
-    for (const zoom of [.9, 1]) {
-      const panelWidth = viewportWidth / zoom - 144;
-      const panelHeight = viewportHeight / zoom - 200;
-      const width = panelWidth - 32;
-      const height = panelHeight - 54;
-      const fit = getWorksPanelFit(width, height + 22, panelWidth, panelHeight);
-      assert.equal(fit, 1);
-      assert.ok(width * fit / panelWidth > .95);
-      assert.ok(height * fit / panelHeight > .9);
-    }
+test("Desktop worktops fill short CSS viewports as well as large screens", () => {
+  // 1203x457 is the measured panel at a 1177x581 CSS viewport and DPR 2.
+  // Physical screenshot dimensions must not substitute for CSS viewport sizes.
+  for (const [panelWidth, panelHeight] of [[1203, 457], [1374, 653], [1776, 880], [2476, 1233]]) {
+    const width = panelWidth - 32;
+    const height = panelHeight - 54;
+    const fit = getWorksPanelFit(width, height + 22, panelWidth, panelHeight);
+    assert.equal(fit, 1);
+    assert.ok(width * fit / panelWidth > .95);
+    assert.ok(height * fit / panelHeight > .85);
   }
 });
 
