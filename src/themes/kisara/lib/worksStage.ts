@@ -65,7 +65,6 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
   const sync = () => {
     frame = 0;
     if (disposed) return;
-    fitPanels();
     const progress = clamp((window.scrollY - top) / distance);
     const exit = clamp(progress / .52);
     if (editorial) {
@@ -84,6 +83,9 @@ export function bindWorksStage(track: HTMLElement, options: StageOptions) {
     motions.forEach(({ animation, start, end }) => {
       animation.currentTime = clamp((progress - start) / (end - start)) * 1000;
     });
+    // Translated entry artwork contributes to scrollHeight; measure this frame,
+    // not the previous scroll position's animation offsets.
+    fitPanels();
     const nextHeroActive = progress < .2;
     if (heroActive !== nextHeroActive) {
       heroActive = nextHeroActive;

@@ -28,6 +28,8 @@ test("Works stage binds scroll entry, keyboard tabs, and hash deep links", () =>
   assert.match(stage, /location\.hash === "#kisara-result-panel"/);
   assert.match(stage, /showPanel\("result"\)/);
   assert.match(stage, /window\.scrollTo\(\{ top: top \+ distance/);
+  const sync = stage.slice(stage.indexOf("const sync ="), stage.indexOf("const schedule ="));
+  assert.ok(sync.indexOf("fitPanels();") > sync.indexOf("animation.currentTime ="));
 });
 
 test("Works runtime pauses hero interaction outside the opening and routes results to the result tab", () => {
@@ -90,6 +92,15 @@ test("Tabs belong to the worktop header without a detached toolbar gap", () => {
   assert.equal(values.margin, "0 16px");
   assert.equal(values["min-height"], "44px");
   assert.match(styles, /transform-origin: top center/);
+});
+
+test("Board uses the former readout row instead of keeping an empty fourth grid track", () => {
+  assert.doesNotMatch(page, /BOARD LOAD|CUT LEVEL|class="kisara-prep-readout"/);
+  const rows: string[] = [];
+  postcss.parse(styles).walkRules('body[data-kisara-page="projects"] .kisara-kitchen-prep', rule => {
+    rule.walkDecls("grid-template-rows", decl => { rows.push(decl.value); });
+  });
+  assert.deepEqual(rows, ["minmax(300px, 1fr) auto auto", "minmax(0, 1fr) auto auto"]);
 });
 
 test("Desktop worktops fill short CSS viewports as well as large screens", () => {
