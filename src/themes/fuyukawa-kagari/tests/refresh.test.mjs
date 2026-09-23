@@ -4,6 +4,7 @@ import vm from "node:vm";
 import test from "node:test";
 import postcss from "postcss";
 import { parse } from "@astrojs/compiler";
+import { getCoverStyle } from "../data/coverFocus.ts";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const css = read("styles/refresh.css") + "\n" + read("styles/refresh-pages.css");
@@ -31,25 +32,31 @@ test("refresh uses bounded typography, reduced motion, and compact-screen layout
   assert.match(css, /\.post-cover-frame[^}]*aspect-ratio: 7 \/ 10/);
 });
 
-test("home and archive preserve complete covers in stable portrait frames", () => {
+test("home and archive share portrait poster framing and focus-aware crops", () => {
   const rules = new Map();
   postcss.parse(css).walkRules((rule) => {
     if (rule.parent.type !== "root") return;
     rules.set(rule.selector, Object.fromEntries(rule.nodes.filter((node) => node.type === "decl").map((node) => [node.prop, node.value])));
   });
-  const home = rules.get("body[data-fuyukawa] .journal-entry > img");
   const frame = rules.get("body[data-fuyukawa] .post-cover-frame");
   const image = rules.get("body[data-fuyukawa] .post-cover-frame img");
-  assert.equal(home["aspect-ratio"], "7 / 10");
   assert.equal(frame["aspect-ratio"], "7 / 10");
-  for (const cover of [home, image]) {
-    assert.equal(cover["object-fit"], "contain");
-    assert.equal(cover["object-position"], "center");
-  }
+  assert.equal(frame.padding, "8px");
+  assert.equal(frame.overflow, "hidden");
+  assert.equal(frame.background, "#fff");
+  assert.equal(image["object-fit"], "cover");
+  assert.equal(image["object-position"], "var(--cover-focus, 50% 32%)");
   assert.equal(image.position, "absolute");
-  assert.equal(image.height, "100%");
-  assert.doesNotMatch(read("pages/BlogIndexPage.astro"), /coverFocus|style={`object-position:/);
-  assert.match(read("pages/HomePage.astro"), /width="700" height="1000" loading="lazy"/);
+  assert.equal(image.height, "calc(100% - 16px)");
+  assert.equal(getCoverStyle("/blog-covers/cover-08.webp"), "--cover-focus: 50% 30%;");
+  assert.equal(getCoverStyle("/blog-covers/cover-17.webp"), undefined);
+  assert.equal(getCoverStyle(undefined), undefined);
+  assert.match(read("pages/HomePage.astro"), /<span class="post-cover-frame" style=\{getCoverStyle\(post\.data\.cover\)\}>/);
+  assert.match(read("pages/BlogIndexPage.astro"), /<div class="post-cover-frame" style=\{getCoverStyle\(post\.cover\)\}>/);
+  for (const page of ["HomePage.astro", "BlogIndexPage.astro"]) {
+    assert.match(read(`pages/${page}`), /getCoverSources/);
+    assert.match(read(`pages/${page}`), /width="700" height="1000" loading="lazy"/);
+  }
 });
 
 test("header stays transparent with symmetric centered navigation", () => {
@@ -66,6 +73,12 @@ test("header stays transparent with symmetric centered navigation", () => {
   assert.equal(nav["grid-column"], "2");
   assert.equal(nav["justify-self"], "center");
   assert.match(css, /max-width: 760px[^]*?\.nav-links \{ grid-column: 1;[^}]*justify-content: center/);
+  const innerNav = rules.get("body[data-fuyukawa] .site-header .nav-links");
+  assert.match(innerNav.background, /linear-gradient/);
+  assert.match(innerNav["backdrop-filter"], /blur\(16px\)/);
+  assert.equal(innerNav["-webkit-backdrop-filter"], innerNav["backdrop-filter"]);
+  assert.match(innerNav["box-shadow"], /inset 0 1px 0/);
+  assert.match(read("layouts/BaseLayout.astro"), /canonicalPath !== "\/" && <link rel="stylesheet" href=\{refreshPagesHref\}/);
 });
 
 test("article index sticks to the viewport while the page can still lock for notices", () => {

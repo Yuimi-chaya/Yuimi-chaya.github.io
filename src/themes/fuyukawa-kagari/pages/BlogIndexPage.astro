@@ -2,6 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getPublishedPosts } from "@/core/content/blog";
 import { getCoverSources } from "@/core/content/coverSources";
+import { getCoverStyle } from "../data/coverFocus";
 import { categoryLabel } from "@/lib/site";
 import { Icon } from "astro-icon/components";
 import { getThemePath } from "@/core/themes/registry";
@@ -85,8 +86,8 @@ const themeRoutePrefix = getThemePath("fuyukawa-kagari", "/").replace(/\/$/, "")
             <span>updated</span>
           </div>
           <a class="post-row blog-post-row" href={getThemePath("fuyukawa-kagari", `/blog/${post.id}/`)}>
-            <div class="post-cover-frame">
-              <img src={post.cover} {...getCoverSources(post.cover, "(max-width: 480px) calc(100vw - 100px), 360px")} alt="" loading="lazy" decoding="async" />
+            <div class="post-cover-frame" style={getCoverStyle(post.cover)}>
+              <img src={post.cover} {...getCoverSources(post.cover, "(max-width: 480px) calc(100vw - 100px), 360px")} alt="" width="700" height="1000" loading="lazy" decoding="async" />
             </div>
             <div class="blog-post-copy">
               <div class="meta-row">

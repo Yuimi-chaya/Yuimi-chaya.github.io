@@ -5,6 +5,7 @@ import { kagariAssets } from "../assets";
 import { Icon } from "astro-icon/components";
 import { getPublishedPosts } from "@/core/content/blog";
 import { getCoverSources } from "@/core/content/coverSources";
+import { getCoverStyle } from "../data/coverFocus";
 import { getThemePath } from "@/core/themes/registry";
 import LayeredHero from "../components/LayeredHero.astro";
 import ChapterRail from "../components/ChapterRail.astro";
@@ -197,7 +198,9 @@ const fallingTags = [
     <div class="journal-grid">
       {recentPosts.map((post) => (
         <a class="journal-entry" href={getThemePath("fuyukawa-kagari", `/blog/${post.id}/`)}>
-          <img src={post.data.cover ?? kagariAssets.heroWallpaper} {...getCoverSources(post.data.cover, "(max-width: 480px) calc(100vw - 48px), (max-width: 760px) 180px, 380px")} alt="" width="700" height="1000" loading="lazy" decoding="async" />
+          <span class="post-cover-frame" style={getCoverStyle(post.data.cover)}>
+            <img src={post.data.cover ?? kagariAssets.heroWallpaper} {...getCoverSources(post.data.cover, "(max-width: 480px) calc(100vw - 48px), (max-width: 760px) 180px, 380px")} alt="" width="700" height="1000" loading="lazy" decoding="async" />
+          </span>
           <div>
             <time datetime={post.data.pubDate.toISOString()}>{post.data.pubDate.toLocaleDateString("zh-CN")}</time>
             <h3>{post.data.title}</h3>
