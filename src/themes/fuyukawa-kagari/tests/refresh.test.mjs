@@ -68,6 +68,42 @@ test("header stays transparent with symmetric centered navigation", () => {
   assert.match(css, /max-width: 760px[^]*?\.nav-links \{ grid-column: 1;[^}]*justify-content: center/);
 });
 
+test("article index sticks to the viewport while the page can still lock for notices", () => {
+  const rules = new Map();
+  postcss.parse(css).walkRules((rule) => {
+    if (rule.parent.type !== "root") return;
+    rules.set(rule.selector, Object.fromEntries(rule.nodes.filter((node) => node.type === "decl").map((node) => [node.prop, node.value])));
+  });
+  assert.equal(rules.get('body[data-fuyukawa][data-yuimi-article-page="true"]:not(.is-notice-open)')["overflow-x"], "clip");
+  assert.equal(rules.get("body[data-fuyukawa] .article-toc").top, "106px");
+  assert.match(read("layouts/ArticleLayout.astro"), /<aside class="article-toc"/);
+  assert.match(read("layouts/BaseLayout.astro"), /data-yuimi-article-page=\{isArticlePage \? "true"/);
+});
+
+test("only the split foreground fades at its lower edge, and notice close has a visible glyph", () => {
+  const hero = postcss.parse(read("styles/manga.css"));
+  const foreground = [];
+  hero.walkRules((rule) => {
+    if (rule.selector === "body[data-fuyukawa] .manga-scene-camera .manga-scene-front") {
+      foreground.push(Object.fromEntries(rule.nodes.filter((node) => node.type === "decl").map((node) => [node.prop, node.value])));
+    }
+  });
+  const fade = foreground.find((rule) => rule["mask-image"]);
+  assert.equal(fade?.["mask-image"], "linear-gradient(to bottom, #000 76%, #000c 84%, transparent 100%)");
+  assert.equal(fade["-webkit-mask-image"], fade["mask-image"]);
+  assert.doesNotMatch(read("styles/manga.css"), /\.manga-scene-back[^{}]*\{[^}]*mask-image/);
+
+  const rules = new Map();
+  postcss.parse(css).walkRules((rule) => {
+    if (rule.parent.type !== "root") return;
+    rules.set(rule.selector, Object.fromEntries(rule.nodes.filter((node) => node.type === "decl").map((node) => [node.prop, node.value])));
+  });
+  const close = rules.get("body[data-fuyukawa] .home-notice-close");
+  assert.equal(close["font-size"], "1.35rem");
+  assert.equal(close["z-index"], "1");
+  assert.match(read("pages/HomePage.astro"), /data-notice-close aria-label="关闭公告">×<\/button>/);
+});
+
 test("all theme templates parse without errors", async () => {
   for (const path of [
     "layouts/BaseLayout.astro", "layouts/ArticleLayout.astro",
