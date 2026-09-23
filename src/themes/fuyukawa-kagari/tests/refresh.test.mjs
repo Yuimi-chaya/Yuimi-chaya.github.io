@@ -73,11 +73,10 @@ test("header stays transparent with symmetric centered navigation", () => {
   assert.equal(nav["grid-column"], "2");
   assert.equal(nav["justify-self"], "center");
   assert.match(css, /max-width: 760px[^]*?\.nav-links \{ grid-column: 1;[^}]*justify-content: center/);
-  const innerNav = rules.get("body[data-fuyukawa] .site-header .nav-links");
-  assert.match(innerNav.background, /linear-gradient/);
-  assert.match(innerNav["backdrop-filter"], /blur\(16px\)/);
-  assert.equal(innerNav["-webkit-backdrop-filter"], innerNav["backdrop-filter"]);
-  assert.match(innerNav["box-shadow"], /inset 0 1px 0/);
+  const innerPages = postcss.parse(read("styles/refresh-pages.css"));
+  innerPages.walkRules((rule) => {
+    assert.doesNotMatch(rule.selector, /(?:\.site-header|\.nav-links|\.nav-icon|\.nav-label|\.nav-hint)/);
+  });
   assert.match(read("layouts/BaseLayout.astro"), /canonicalPath !== "\/" && <link rel="stylesheet" href=\{refreshPagesHref\}/);
 });
 
