@@ -12,6 +12,34 @@ const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.ur
 const source = read("src/themes/kisara/lib/blogPage.js");
 const extract = (start: string, end: string) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
 
+test("Blog's server-rendered idle frame cannot reveal the completed cast or lettering", () => {
+  const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
+  assert.match(page, /data-intro-state="idle"/);
+  assert.match(page, /<noscript><style>/);
+  const css = postcss.parse(read("src/themes/kisara/styles/blog.css"));
+  const selector = '.kisara-blog-hero[data-intro-state="idle"]';
+  const hidden = new Set<string>();
+  let reduced = false;
+  css.walkRules(rule => {
+    if (!rule.selector.includes(selector)) return;
+    const isReduced = rule.parent?.type === "atrule" && rule.parent.params === "(prefers-reduced-motion: reduce)";
+    rule.walkDecls("opacity", decl => {
+      if (isReduced) {
+        assert.equal(decl.value, "1");
+        reduced = true;
+      } else {
+        assert.equal(decl.value, "0");
+        for (const item of rule.selector.split(",")) hidden.add(item.trim());
+      }
+    });
+  });
+  for (const part of [".kisara-blog-cast-slot", ".kisara-blog-trace-signal", ".kisara-blog-trace-script", ".kisara-blog-enter"]) {
+    assert.ok(hidden.has(`${selector} ${part}`), `${part} must not flash its final frame`);
+  }
+  assert.equal(reduced, true);
+  assert.match(page, /root\.dataset\.introState = "complete"/);
+});
+
 test("The phrase has one filled glyph per letter, separate pen paths, and no competing text layer", () => {
   const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
   assert.equal(blogLettering.map(letter => letter.character).join(""), "leavesatrace.");
