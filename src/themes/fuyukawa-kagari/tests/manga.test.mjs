@@ -329,3 +329,79 @@ test("extracted profile reveal still docks, releases scrolling, resets and clean
   assert.equal(timers.size, 0);
   assert.ok([...window.events.values()].every((handlers) => handlers.size === 0));
 });
+
+test("avatar flower has a generous hit area and keeps tracking a captured drag", async () => {
+  const markup = await read("pages/HomePage.astro");
+  const css = await read("styles/theme.css");
+  assert.match(markup, /class="avatar-flower" data-avatar-flower/);
+  assert.match(css, /\.avatar-flower \{[^}]*width: 64px;[^}]*height: 64px;[^}]*pointer-events: none;/);
+  assert.match(css, /\.hero\.is-docked \.avatar-flower \{[^}]*pointer-events: auto;/);
+  assert.match(css, /\.avatar-flower\.is-dragging \{[^}]*transform 0ms;/);
+  assert.match(css, /\.avatar-flower::after \{[^}]*left: 25px;/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[^}]*\.avatar-flower\.is-tracking,[^}]*\.avatar-flower\.is-dragging \{[^}]*transition: none;/);
+  assert.match(await read("lib/home-hero.mjs"), /if \(reduceFlowerMotion\) return;/);
+
+  const hero = element(), stage = element(), doc = element(), win = element();
+  const flower = element(), avatar = element();
+  const classes = new Set(), styles = {}, captures = new Set(), timers = new Map();
+  let timerId = 0;
+  hero.style.setProperty = () => {};
+  hero.classList = { add() {}, remove() {} };
+  stage.querySelector = () => hero;
+  stage.getBoundingClientRect = () => ({ top: 0 });
+  flower.style.setProperty = (key, value) => { styles[key] = value; };
+  flower.classList = {
+    add: (...values) => values.forEach((value) => classes.add(value)),
+    remove: (...values) => values.forEach((value) => classes.delete(value))
+  };
+  flower.getBoundingClientRect = () => ({ left: 100, width: 64 });
+  flower.setPointerCapture = (id) => captures.add(id);
+  flower.hasPointerCapture = (id) => captures.has(id);
+  flower.releasePointerCapture = (id) => captures.delete(id);
+  doc.querySelector = (selector) => ({
+    "[data-hero-stage]": stage,
+    "[data-avatar-flower]": flower,
+    "[data-poke-avatar]": avatar
+  })[selector] ?? null;
+  doc.documentElement = { classList: { contains: () => false } };
+  Object.assign(win, {
+    scrollY: 0, innerHeight: 800,
+    setTimeout: (callback) => { timers.set(++timerId, callback); return timerId; },
+    clearTimeout: (id) => timers.delete(id),
+    scrollTo() {}
+  });
+  const context = vm.createContext({
+    window: win, document: doc, history: {}, location: { hash: "#keep-position" },
+    requestAnimationFrame: () => 1, cancelAnimationFrame() {}
+  });
+  vm.runInContext((await read("lib/home-hero.mjs")).replace("export function", "function") + "\nvar cleanup = mountHomeHero();", context);
+
+  flower.dispatch("pointermove", { clientX: 152, pointerType: "mouse" });
+  assert.equal(styles["--flower-sway"], "12.5deg");
+  let prevented = false;
+  flower.dispatch("pointerdown", { pointerId: 7, clientX: 152, button: 0, isPrimary: true, preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.ok(captures.has(7));
+  flower.dispatch("pointermove", { pointerId: 7, clientX: 212, pointerType: "mouse" });
+  assert.equal(styles["--flower-sway"], "32deg");
+  flower.dispatch("pointerleave");
+  flower.dispatch("pointerup", { pointerId: 8 });
+  assert.equal(styles["--flower-sway"], "32deg");
+  flower.dispatch("pointerup", { pointerId: 7 });
+  assert.equal(styles["--flower-sway"], "0deg");
+  assert.equal(captures.size, 0);
+  assert.ok(!classes.has("is-dragging"));
+
+  flower.dispatch("pointerdown", { pointerId: 9, clientX: 132, button: 0, preventDefault() {} });
+  flower.dispatch("pointermove", { pointerId: 9, clientX: 92 });
+  assert.equal(styles["--flower-sway"], "-18deg");
+  flower.dispatch("pointercancel", { pointerId: 9 });
+  assert.equal(styles["--flower-sway"], "0deg");
+  flower.dispatch("pointerdown", { pointerId: 10, clientX: 132, button: 0, preventDefault() {} });
+  assert.ok(captures.has(10));
+  context.cleanup();
+  assert.equal(captures.size, 0);
+  assert.equal(styles["--flower-sway"], "0deg");
+  assert.ok([...flower.events.values()].every((handlers) => handlers.size === 0));
+  assert.ok([...avatar.events.values()].every((handlers) => handlers.size === 0));
+});

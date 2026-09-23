@@ -1912,17 +1912,28 @@ img {
 .avatar-flower {
   position: absolute;
   left: 50%;
-  top: -4px;
+  top: -14px;
   z-index: 4;
-  width: 28px;
-  height: 50px;
-  pointer-events: auto;
+  width: 64px;
+  height: 64px;
+  pointer-events: none;
   opacity: 0;
+  cursor: grab;
+  touch-action: none;
   transform: translateX(-50%) translateY(24px) scaleY(0.12) rotate(var(--flower-sway));
-  transform-origin: 50% 100%;
+  transform-origin: 50% calc(100% - 4px);
   transition:
     opacity 180ms ease,
-    transform 620ms cubic-bezier(0.18, 1.28, 0.24, 1);
+    transform 260ms var(--manga-ease, ease-out);
+}
+
+.avatar-flower.is-tracking {
+  transition: opacity 180ms ease, transform 80ms ease-out;
+}
+
+.avatar-flower.is-dragging {
+  cursor: grabbing;
+  transition: opacity 180ms ease, transform 0ms;
 }
 
 .avatar-flower__bloom::before {
@@ -1939,13 +1950,14 @@ img {
 
 .hero.is-docked .avatar-flower {
   opacity: 1;
+  pointer-events: auto;
   transform: translateX(-50%) translateY(-28px) scaleY(1) rotate(var(--flower-sway));
 }
 
 .avatar-flower::before {
   position: absolute;
   left: 50%;
-  bottom: 4px;
+  bottom: 8px;
   width: 4px;
   height: 28px;
   content: "";
@@ -1957,8 +1969,8 @@ img {
 
 .avatar-flower::after {
   position: absolute;
-  left: 7px;
-  bottom: 12px;
+  left: 25px;
+  bottom: 16px;
   width: 10px;
   height: 6px;
   content: "";
@@ -1970,7 +1982,7 @@ img {
 .avatar-flower__bloom {
   position: absolute;
   left: 50%;
-  top: 0;
+  top: 10px;
   width: 10px;
   height: 10px;
   background: #ffd966;
@@ -3531,6 +3543,12 @@ html[data-yuimi-performance="lite"] .console-meter span {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .avatar-flower,
+  .avatar-flower.is-tracking,
+  .avatar-flower.is-dragging {
+    transition: none;
+  }
+
   .sakura-rain span {
     animation: none;
     opacity: 0.18;

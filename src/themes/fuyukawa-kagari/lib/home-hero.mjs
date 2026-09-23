@@ -205,10 +205,16 @@ export function mountHomeHero() {
     runTypingLoop(nameTarget, nameLines, 96, 46, 1500);
 
     const pokeAvatar = document.querySelector("[data-poke-avatar]");
+    const avatarFlower = document.querySelector("[data-avatar-flower]");
     const pokeBubble = document.querySelector("[data-poke-bubble]");
     let lastPokeAt = 0;
     let bubbleTimer = 0;
     let pokeTimer = 0;
+    let flowerPointerId = null;
+    let flowerDragX = 0;
+    let flowerDragAngle = 0;
+    let flowerAngle = 0;
+    const reduceFlowerMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
     const showPokeBubble = (text) => {
       if (!pokeBubble) return;
@@ -220,14 +226,52 @@ export function mountHomeHero() {
       }, 1700);
     };
 
-    const handlePokeMove = (event) => {
-      const rect = pokeAvatar.getBoundingClientRect();
-      const offset = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
-      pokeAvatar.style.setProperty("--flower-sway", `${offset * 9}deg`);
+    const setFlowerAngle = (angle) => {
+      flowerAngle = clamp(angle, -32, 32);
+      avatarFlower.style.setProperty("--flower-sway", `${flowerAngle}deg`);
     };
 
-    const handlePokeLeave = () => {
-      pokeAvatar.style.setProperty("--flower-sway", "0deg");
+    const handleFlowerMove = (event) => {
+      if (flowerPointerId !== null) {
+        if (event.pointerId === flowerPointerId) {
+          setFlowerAngle(flowerDragAngle + (event.clientX - flowerDragX) * 0.45);
+        }
+        return;
+      }
+      if (reduceFlowerMotion) return;
+      if (event.pointerType && event.pointerType !== "mouse" && event.pointerType !== "pen") return;
+      const rect = avatarFlower.getBoundingClientRect();
+      avatarFlower.classList.add("is-tracking");
+      setFlowerAngle(((event.clientX - rect.left) / rect.width - 0.5) * 40);
+    };
+
+    const handleFlowerDown = (event) => {
+      if (flowerPointerId !== null || event.isPrimary === false || event.button !== 0) return;
+      event.preventDefault();
+      flowerPointerId = event.pointerId;
+      flowerDragX = event.clientX;
+      flowerDragAngle = flowerAngle;
+      avatarFlower.classList.remove("is-tracking");
+      avatarFlower.classList.add("is-dragging");
+      avatarFlower.setPointerCapture(event.pointerId);
+    };
+
+    const resetFlower = () => {
+      flowerPointerId = null;
+      avatarFlower.classList.remove("is-tracking", "is-dragging");
+      setFlowerAngle(0);
+    };
+
+    const handleFlowerUp = (event) => {
+      if (event.pointerId !== flowerPointerId) return;
+      if (avatarFlower.hasPointerCapture(event.pointerId)) {
+        avatarFlower.releasePointerCapture(event.pointerId);
+      }
+      resetFlower();
+    };
+
+    const handleFlowerLeave = () => {
+      if (flowerPointerId === null) resetFlower();
     };
 
     const handlePokeDoubleClick = (event) => {
@@ -247,12 +291,24 @@ export function mountHomeHero() {
       pokeTimer = window.setTimeout(() => pokeAvatar.classList.remove("is-poked"), 720);
     };
 
-    pokeAvatar?.addEventListener("pointermove", handlePokeMove);
-    pokeAvatar?.addEventListener("pointerleave", handlePokeLeave);
+    avatarFlower?.addEventListener("pointermove", handleFlowerMove);
+    avatarFlower?.addEventListener("pointerdown", handleFlowerDown);
+    avatarFlower?.addEventListener("pointerup", handleFlowerUp);
+    avatarFlower?.addEventListener("pointercancel", handleFlowerUp);
+    avatarFlower?.addEventListener("lostpointercapture", handleFlowerUp);
+    avatarFlower?.addEventListener("pointerleave", handleFlowerLeave);
     pokeAvatar?.addEventListener("dblclick", handlePokeDoubleClick);
     heroCleanupTasks.push(() => {
-      pokeAvatar?.removeEventListener("pointermove", handlePokeMove);
-      pokeAvatar?.removeEventListener("pointerleave", handlePokeLeave);
+      if (flowerPointerId !== null && avatarFlower?.hasPointerCapture(flowerPointerId)) {
+        avatarFlower.releasePointerCapture(flowerPointerId);
+      }
+      if (avatarFlower) resetFlower();
+      avatarFlower?.removeEventListener("pointermove", handleFlowerMove);
+      avatarFlower?.removeEventListener("pointerdown", handleFlowerDown);
+      avatarFlower?.removeEventListener("pointerup", handleFlowerUp);
+      avatarFlower?.removeEventListener("pointercancel", handleFlowerUp);
+      avatarFlower?.removeEventListener("lostpointercapture", handleFlowerUp);
+      avatarFlower?.removeEventListener("pointerleave", handleFlowerLeave);
       pokeAvatar?.removeEventListener("dblclick", handlePokeDoubleClick);
     });
 
