@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import sharp from "sharp";
+import { selectCoverNames } from "./lib/cover-selection.mjs";
 
 const root = new URL("../public/blog-covers/", import.meta.url);
 const output = new URL("responsive/", root);
@@ -14,8 +15,12 @@ const manifest = {};
 let generated = 0;
 let totalBytes = 0;
 
-// Derive only smaller display sizes from the accepted cover, never replace it.
-for (const name of (await readdir(root)).filter(name => /^cover-\d+\.webp$/.test(name)).sort()) {
+// Only manifest-listed covers are accepted by default; new sources require --include=cover-N.webp.
+const additions = process.argv.slice(2).map(argument => {
+  if (!argument.startsWith("--include=")) throw new Error(`Unknown option: ${argument}`);
+  return argument.slice("--include=".length);
+});
+for (const name of selectCoverNames(previous, additions)) {
   const source = await readFile(new URL(name, root));
   const metadata = await sharp(source).metadata();
   if (!metadata.width || !metadata.height || (metadata.pages ?? 1) > 1) continue;
