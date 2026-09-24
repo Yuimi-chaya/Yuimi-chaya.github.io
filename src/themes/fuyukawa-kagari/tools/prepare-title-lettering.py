@@ -1,6 +1,7 @@
-"""Bake the fixed Home title from Georgia Italic outlines and authored pen paths."""
+"""Bake the fixed Home title from Segoe Print Bold outlines and pen paths."""
 
 import argparse
+import hashlib
 from pathlib import Path
 
 from fontTools.pens.svgPathPen import SVGPathPen
@@ -8,37 +9,38 @@ from fontTools.ttLib import TTFont
 
 
 TITLE = "Yuimi Lab"
-SCALE = 3 / 64
+SCALE = 11 / 256
+PREVIOUS_ASSET_SHA256 = "fe78e689b639c8508bd6b252a991694278ca3dad87773107151e9f80adfc62b6"
 STROKES = {
     "Y": (
-        "M190 1380L680 1380M405 1300Q475 920 610 550",
-        "M1030 1380L1450 1380M1220 1270Q960 940 610 550",
-        "M610 550L520 160Q500 55 190 35L840 35",
+        "M105 1380Q360 1180 730 750",
+        "M1410 1430Q1170 1110 730 750",
+        "M730 750Q650 450 660 20",
     ),
     "u": (
-        "M70 920Q470 1120 350 700L250 265Q195 30 450 35Q610 35 790 210",
-        "M1000 950L810 180Q755 -30 1115 80",
+        "M350 960Q270 680 220 335Q190 90 345 90Q590 75 820 570",
+        "M970 920Q885 650 905 330Q910 105 1035 50",
     ),
     "i": (
-        "M490 1390L490 1370",
-        "M85 940Q470 1110 380 720L240 145Q210 25 540 70",
+        "M500 1460L500 1450",
+        "M345 950Q260 610 245 290Q225 105 255 40",
     ),
     "m": (
-        "M90 920Q470 1100 375 720L200 40",
-        "M425 815Q830 1130 960 835Q1010 730 930 480L795 40",
-        "M1035 815Q1510 1160 1550 820L1420 155Q1410 25 1730 85",
+        "M310 970Q275 600 250 80",
+        "M320 350Q655 1080 860 870Q970 750 970 410L990 110",
+        "M1070 330Q1360 950 1540 880Q1680 850 1720 520Q1750 130 1910 115",
     ),
     "L": (
-        "M285 1380L890 1380",
-        "M555 1300L305 155Q280 35 0 35L790 35Q1030 50 1170 380",
+        "M430 1370Q355 790 280 160",
+        "M285 160Q750 205 1170 175",
     ),
     "a": (
-        "M877 901Q567 1155 286 723Q35 249 252 64Q439 -102 753 214",
-        "M995 1000L799 224Q735 -18 1135 86",
+        "M835 920Q635 1130 375 715Q175 400 220 175Q320 -10 625 360Q860 660 850 875",
+        "M930 920Q850 510 900 180Q925 60 1060 75",
     ),
     "b": (
-        "M210 1500L570 1500L235 150",
-        "M390 800Q670 1090 885 850Q1110 580 850 235Q615 -90 300 105",
+        "M465 1650Q365 1180 255 335",
+        "M355 750Q690 1175 940 950Q1160 720 835 315Q540 -70 275 175",
     ),
 }
 
@@ -46,7 +48,13 @@ STROKES = {
 def build_svg(font_path: Path) -> str:
     font = TTFont(font_path)
     if font["head"].unitsPerEm != 2048:
-        raise ValueError("Expected the Georgia Italic 2048-unit outlines")
+        raise ValueError("Expected the Segoe Print Bold 2048-unit outlines")
+    families = {name.toUnicode() for name in font["name"].names if name.nameID == 1}
+    if "Segoe Print" not in families:
+        raise ValueError("Expected Segoe Print Bold, not another font family")
+    weights = {name.toUnicode() for name in font["name"].names if name.nameID == 2}
+    if "Bold" not in weights:
+        raise ValueError("Expected the original bold title weight")
     glyph_set = font.getGlyphSet()
     names = font.getBestCmap()
     advances = font["hmtx"]
@@ -68,7 +76,7 @@ def build_svg(font_path: Path) -> str:
         for stroke in STROKES[character]:
             paths.append(
                 f'<path class="pen" d="{stroke}" pathLength="1" fill="none" '
-                f'stroke="#fff" stroke-width="360" stroke-linecap="round" '
+                f'stroke="#fff" stroke-width="500" stroke-linecap="round" '
                 f'stroke-linejoin="round" style="animation-delay:{order * 68}ms"/>'
             )
             order += 1
@@ -101,7 +109,7 @@ def build_svg(font_path: Path) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--font", type=Path, default=Path(r"C:\Windows\Fonts\georgiai.ttf"))
+    parser.add_argument("--font", type=Path, default=Path(r"C:\Windows\Fonts\segoeprb.ttf"))
     parser.add_argument(
         "--output",
         type=Path,
@@ -112,7 +120,10 @@ def main() -> None:
     svg = build_svg(args.font)
     if args.output.exists():
         if args.output.read_text(encoding="utf-8") != svg:
-            raise FileExistsError(f"Different lettering already exists: {args.output}")
+            digest = hashlib.sha256(args.output.read_bytes()).hexdigest()
+            if digest != PREVIOUS_ASSET_SHA256:
+                raise FileExistsError(f"Different lettering already exists: {args.output}")
+            args.output.write_text(svg, encoding="utf-8", newline="\n")
     else:
         args.output.write_text(svg, encoding="utf-8", newline="\n")
     print(f"{args.output}: {len(svg.encode('utf-8'))} bytes")

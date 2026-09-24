@@ -277,7 +277,9 @@ test("Home title uses baked outlines and a nearly complete pen-mask reveal", asy
   const svg = await fs.readFile(path.join(assets, "hero-title.svg"), "utf8");
   assert.match(home, /<h1><img src="\/themes\/fuyukawa-kagari\/assets\/hero-title\.svg" alt="Yuimi Lab" \/><\/h1>/);
   assert.match(refresh, /\.hero-copy \{[^}]*translateY\(calc\(-20px \+ \(1 - var\(--copy-opacity\)\) \* -30px\)\)/);
-  assert.match(refresh, /\.hero h1 \{[^}]*aspect-ratio: 453\.031 \/ 94/);
+  assert.match(refresh, /\.hero h1 \{[^}]*aspect-ratio: 451\.824 \/ 94/);
+  assert.match(await read("tools/prepare-title-lettering.py"), /segoeprb\.ttf/);
+  assert.match(svg, /<path id="glyph-Y" d="M874 664V665/);
   assert.match(mobile, /max-width: 760px[^]*?\.hero-copy \{[^}]*top: 118px;[^}]*transform: translateY\(calc\(\(1 - var\(--copy-opacity\)\) \* -30px\)\)/);
   assert.equal((svg.match(/class="pen"/g) ?? []).length, 18);
   assert.equal((svg.match(/<use href="#glyph-/g) ?? []).length, 8);
