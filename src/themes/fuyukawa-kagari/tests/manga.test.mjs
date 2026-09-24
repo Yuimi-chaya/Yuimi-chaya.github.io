@@ -270,6 +270,36 @@ test("manga CSS stays theme-local, responsive, and never crops article covers", 
   assert.match(await read("layouts/BaseLayout.astro"), /canonicalPath !== "\/" && <link rel="stylesheet" href=\{mangaPagesHref\}/);
 });
 
+test("Home title uses baked outlines and a nearly complete pen-mask reveal", async () => {
+  const home = await read("pages/HomePage.astro");
+  const refresh = await read("styles/refresh.css");
+  const mobile = await read("styles/manga.css");
+  const svg = await fs.readFile(path.join(assets, "hero-title.svg"), "utf8");
+  assert.match(home, /<h1><img src="\/themes\/fuyukawa-kagari\/assets\/hero-title\.svg" alt="Yuimi Lab" \/><\/h1>/);
+  assert.match(refresh, /\.hero-copy \{[^}]*translateY\(calc\(-20px \+ \(1 - var\(--copy-opacity\)\) \* -30px\)\)/);
+  assert.match(refresh, /\.hero h1 \{[^}]*aspect-ratio: 453\.031 \/ 94/);
+  assert.match(mobile, /max-width: 760px[^]*?\.hero-copy \{[^}]*top: 118px;[^}]*transform: translateY\(calc\(\(1 - var\(--copy-opacity\)\) \* -30px\)\)/);
+  assert.equal((svg.match(/class="pen"/g) ?? []).length, 18);
+  assert.equal((svg.match(/<use href="#glyph-/g) ?? []).length, 8);
+  assert.doesNotMatch(svg, /<text|@font-face|href="\/themes\/kisara/);
+  assert.match(svg, /@media\(prefers-reduced-motion:reduce\)\{\.pen\{animation:none\}\}/);
+  assert.ok(Buffer.byteLength(svg) < 16_000);
+
+  const full = svg.replaceAll(/ mask="url\(#pen-\d+\)"/g, "");
+  const maskedPixels = await sharp(Buffer.from(svg)).resize({ width: 906 }).ensureAlpha().raw().toBuffer();
+  const fullPixels = await sharp(Buffer.from(full)).resize({ width: 906 }).ensureAlpha().raw().toBuffer();
+  let ink = 0, missing = 0, outside = 0;
+  for (let index = 3; index < maskedPixels.length; index += 4) {
+    if (fullPixels[index] > 127) {
+      ink += 1;
+      if (maskedPixels[index] < 127) missing += 1;
+    } else if (maskedPixels[index] > 127) outside += 1;
+  }
+  assert.ok(ink > 50_000);
+  assert.ok(missing / ink < .005, `missing ${missing} / ${ink} pixels`);
+  assert.equal(outside, 0);
+});
+
 test("every new Astro template parses and images have a single typed registry", async () => {
   for (const file of (await fs.readdir(path.join(theme, "components"))).filter((name) => name.endsWith(".astro"))) {
     const result = await parse(await read(`components/${file}`));

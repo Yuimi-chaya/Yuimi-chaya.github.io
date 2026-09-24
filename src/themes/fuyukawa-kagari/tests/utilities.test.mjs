@@ -126,13 +126,16 @@ test("About game entries use small complete thumbnails in an actual grid", () =>
   assert.doesNotMatch(read("styles/refresh-pages.css"), /\.about-game-card (?:img|div|h3|p)\s*\{/);
 });
 
-test("Home title has dark letter interiors and a white stroke, with no artwork changes", () => {
+test("Home title keeps dark ink and a white contour over manga artwork", () => {
   const title = declarations(css, "body[data-fuyukawa] .hero h1");
-  assert.equal(title.color, "#495675");
-  assert.equal(title["paint-order"], "stroke fill");
-  assert.equal(title["-webkit-text-stroke"], "3px #ffffff");
+  const titleSvg = readFileSync(new URL("../../../../public/themes/fuyukawa-kagari/assets/hero-title.svg", import.meta.url), "utf8");
+  const ink = titleSvg.match(/<use[^>]+fill="(#[a-f\d]{6})"/)?.[1];
+  assert.equal(ink, "#465575");
+  assert.match(titleSvg, /stroke="#fff" stroke-width="100"[^>]+paint-order="stroke fill"/);
+  assert.equal(title["-webkit-text-stroke"], "0");
+  assert.match(title.filter, /drop-shadow\(3px 4px 0 #e9b9d0\)/);
   const linear = (v) => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4;
-  const rgb = title.color.slice(1).match(/../g).map((part) => linear(parseInt(part, 16) / 255));
+  const rgb = ink.slice(1).match(/../g).map((part) => linear(parseInt(part, 16) / 255));
   const luminance = rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722;
   assert.ok(1.05 / (luminance + .05) > 7);
 });
