@@ -392,26 +392,35 @@ test("every new Astro template parses and images have a single typed registry", 
 
 test("profile reveal gates fast wheels and stays steady through collapse and reopening", async () => {
   const hero = element(), stage = element(), document = element(), window = element();
-  const profileCard = element();
-  const classes = new Set(), styles = {};
+  const profileCard = element(), cue = element(), skip = element();
+  const classes = new Set(), rootClasses = new Set(), styles = {};
   hero.classList = {
     add: (...values) => values.forEach((value) => classes.add(value)),
     remove: (...values) => values.forEach((value) => classes.delete(value)),
     toggle: (value, force) => force ? classes.add(value) : classes.delete(value)
   };
   hero.style.setProperty = (key, value) => { styles[key] = value; };
-  hero.querySelector = (selector) => selector === ".identity-terminal" ? profileCard : null;
+  hero.querySelector = (selector) => ({
+    ".identity-terminal": profileCard, ".scroll-cue": cue
+  })[selector] ?? null;
   stage.querySelector = () => hero;
   stage.getBoundingClientRect = () => ({ top: -window.scrollY, bottom: 800 - window.scrollY });
-  document.querySelector = (selector) => selector === "[data-hero-stage]" ? stage : null;
-  document.documentElement = { classList: { contains: () => false } };
+  stage.contains = () => false;
+  document.querySelector = (selector) => ({
+    "[data-hero-stage]": stage, ".skip-to-content": skip
+  })[selector] ?? null;
+  document.documentElement = { classList: {
+    add: (value) => rootClasses.add(value),
+    remove: (value) => rootClasses.delete(value),
+    contains: (value) => rootClasses.has(value)
+  } };
   const timers = new Map(), frames = new Map();
   let id = 0;
   Object.assign(window, {
     scrollY: 0, innerHeight: 800,
     setTimeout: (callback, delay) => { timers.set(++id, { callback, delay }); return id; },
     clearTimeout: (timer) => timers.delete(timer),
-    scrollTo({ top }) { this.scrollY = top; }
+    scrollTo({ top, behavior }) { this.scrollY = top; this.lastScrollBehavior = behavior; }
   });
   const context = vm.createContext({
     window, document, history: {}, location: { hash: "" },
@@ -426,7 +435,13 @@ test("profile reveal gates fast wheels and stays steady through collapse and reo
   };
   window.scrollY = 12;
   assert.equal(wheel(200).prevented, true);
-  assert.equal(window.scrollY, 12);
+  assert.equal(window.scrollY, 0);
+  assert.equal(window.lastScrollBehavior, "instant");
+  assert.ok(rootClasses.has("is-fuyukawa-hero-locked"));
+  window.scrollY = 320;
+  window.dispatch("scroll");
+  assert.equal(window.scrollY, 0);
+  assert.ok(rootClasses.has("is-fuyukawa-hero-locked"));
   assert.ok(classes.has("is-pulling"));
   const settleTimer = [...timers.values()].find((timer) => timer.delay === 260);
   settleTimer.callback();
@@ -442,15 +457,19 @@ test("profile reveal gates fast wheels and stays steady through collapse and reo
   assert.equal(wheel(-3).prevented, true);
   assert.ok(classes.has("is-docked"));
   profileCard.dispatch("transitionend", { target: profileCard, propertyName: "transform" });
+  assert.ok(!rootClasses.has("is-fuyukawa-hero-locked"));
   assert.equal(wheel(60).prevented, false);
   window.scrollY = 0;
   assert.equal(wheel(-60).prevented, true);
   assert.equal(styles["--profile-opacity"], "0");
+  assert.ok(!rootClasses.has("is-fuyukawa-hero-locked"));
   assert.equal(wheel(200).prevented, true);
+  assert.ok(rootClasses.has("is-fuyukawa-hero-locked"));
   [...timers.values()].find((timer) => timer.delay === 260).callback();
   assert.equal(wheel(60).prevented, true);
   assert.equal(typeof [...timers.values()].find((timer) => timer.delay === 900)?.callback, "function");
   assert.equal(wheel(-60).prevented, true);
+  assert.ok(!rootClasses.has("is-fuyukawa-hero-locked"));
   profileCard.dispatch("transitionend", { target: profileCard, propertyName: "transform" });
   assert.equal(wheel(200).prevented, true);
   assert.equal(wheel(60).prevented, true);
@@ -460,14 +479,45 @@ test("profile reveal gates fast wheels and stays steady through collapse and reo
   assert.ok(classes.has("is-docked"));
   assert.equal(wheel(60).prevented, true);
   [...timers.values()].find((timer) => timer.delay === 900).callback();
+  assert.ok(!rootClasses.has("is-fuyukawa-hero-locked"));
   assert.equal(wheel(60).prevented, false);
   window.scrollY = 1200;
   assert.equal(wheel(60).prevented, false);
   assert.equal(window.scrollY, 1200);
+  window.scrollY = 0;
+  assert.equal(wheel(-60).prevented, true);
+  assert.equal(wheel(200).prevented, true);
+  cue.dispatch("click");
+  assert.ok(!rootClasses.has("is-fuyukawa-hero-locked"));
+  assert.equal(wheel(60).prevented, false);
+  assert.equal(wheel(-60).prevented, true);
+  assert.equal(wheel(200).prevented, true);
+  const pageDown = { key: "PageDown", target: {}, prevented: false, preventDefault() { this.prevented = true; } };
+  document.dispatch("keydown", pageDown);
+  assert.equal(pageDown.prevented, true);
+  assert.ok(rootClasses.has("is-fuyukawa-hero-locked"));
+  profileCard.dispatch("transitionend", { target: profileCard, propertyName: "transform" });
+  assert.ok(!rootClasses.has("is-fuyukawa-hero-locked"));
+  assert.equal(wheel(-60).prevented, true);
+  assert.equal(wheel(200).prevented, true);
+  document.dispatch("focusin", { target: { closest: () => true } });
+  assert.ok(!rootClasses.has("is-fuyukawa-hero-locked"));
+  assert.equal(wheel(-60).prevented, true);
+  assert.equal(wheel(200).prevented, true);
+  skip.dispatch("click");
+  assert.ok(!rootClasses.has("is-fuyukawa-hero-locked"));
+  assert.equal(wheel(-60).prevented, true);
+  assert.equal(wheel(200).prevented, true);
+  assert.ok(rootClasses.has("is-fuyukawa-hero-locked"));
   context.cleanup();
+  assert.ok(!rootClasses.has("is-fuyukawa-hero-locked"));
   assert.equal(timers.size, 0);
   assert.ok([...window.events.values()].every((handlers) => handlers.size === 0));
   assert.ok([...profileCard.events.values()].every((handlers) => handlers.size === 0));
+  assert.ok([...cue.events.values()].every((handlers) => handlers.size === 0));
+  assert.ok([...skip.events.values()].every((handlers) => handlers.size === 0));
+  assert.ok([...document.events.values()].every((handlers) => handlers.size === 0));
+  assert.match(await read("styles/refresh.css"), /html:has\(body\[data-fuyukawa\]\)\.is-fuyukawa-hero-locked \{[^}]*overflow-y: hidden;[^}]*scroll-behavior: auto;/);
 });
 
 test("avatar flower has a generous hit area and keeps tracking a captured drag", async () => {
@@ -503,7 +553,7 @@ test("avatar flower has a generous hit area and keeps tracking a captured drag",
     "[data-avatar-flower]": flower,
     "[data-poke-avatar]": avatar
   })[selector] ?? null;
-  doc.documentElement = { classList: { contains: () => false } };
+  doc.documentElement = { classList: { contains: () => false, remove() {} } };
   Object.assign(win, {
     scrollY: 0, innerHeight: 800,
     setTimeout: (callback) => { timers.set(++timerId, callback); return timerId; },

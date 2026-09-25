@@ -16,6 +16,8 @@ export function mountHomeHero() {
     const resetDelay = 260;
     const releaseDelay = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : 900;
     const profileCard = hero?.querySelector(".identity-terminal");
+    const scrollRoot = document.documentElement;
+    const scrollLockClass = "is-fuyukawa-hero-locked";
     const terminalLines = [
       "pin --dev-notes --anime-diary",
       "collect \"blue moments\" && write",
@@ -29,6 +31,7 @@ export function mountHomeHero() {
     let state = "idle";
     let resetTimer = 0;
     let releaseTimer = 0;
+    let correctingScroll = false;
     const typingTimers = new Set();
 
     const setTypingTimer = (callback, delay) => {
@@ -82,9 +85,17 @@ export function mountHomeHero() {
 
     const initialHash = location.hash;
     const initialScrollFrame = !initialHash
-      ? requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0 }))
+      ? requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }))
       : 0;
     heroCleanupTasks.push(() => cancelAnimationFrame(initialScrollFrame));
+
+    const lockHeroScroll = () => {
+      if (scrollRoot.classList.contains(scrollLockClass)) return;
+      scrollRoot.classList.add(scrollLockClass);
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    };
+
+    const unlockHeroScroll = () => scrollRoot.classList.remove(scrollLockClass);
 
     const setProgress = (progress) => {
       if (!hero) return;
@@ -104,6 +115,7 @@ export function mountHomeHero() {
       pull = 0;
       reversePull = 0;
       state = "idle";
+      unlockHeroScroll();
       hero?.classList.remove("is-docked", "is-pulling");
       setProgress(0);
     };
@@ -128,6 +140,10 @@ export function mountHomeHero() {
       window.clearTimeout(releaseTimer);
       releaseTimer = 0;
       state = "passed";
+      if (scrollRoot.classList.contains(scrollLockClass) && window.scrollY > 2) {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      }
+      unlockHeroScroll();
     };
 
     const handleProfileTransitionEnd = (event) => {
@@ -137,6 +153,8 @@ export function mountHomeHero() {
     };
 
     const dockProfile = () => {
+      window.clearTimeout(resetTimer);
+      lockHeroScroll();
       pull = pullDistance;
       reversePull = 0;
       state = "docked";
@@ -169,6 +187,7 @@ export function mountHomeHero() {
           pull = 0;
           reversePull = 0;
           state = "idle";
+          unlockHeroScroll();
           hero.classList.remove("is-docked", "is-pulling");
           setProgress(0);
           return;
@@ -176,6 +195,8 @@ export function mountHomeHero() {
 
         pull = clamp(pull + event.deltaY * 0.82, 0, pullDistance);
         state = pull > 0 ? "pulling" : "idle";
+        if (state === "pulling") lockHeroScroll();
+        else unlockHeroScroll();
         hero.classList.toggle("is-pulling", state === "pulling");
         hero.classList.remove("is-docked");
         setProgress(pull / pullDistance);
@@ -196,6 +217,7 @@ export function mountHomeHero() {
 
       event.preventDefault();
       window.clearTimeout(releaseTimer);
+      lockHeroScroll();
 
       const resistance = 1 - clamp(pull / pullDistance) * 0.5;
       pull = clamp(pull + event.deltaY * resistance, 0, pullDistance);
@@ -211,6 +233,12 @@ export function mountHomeHero() {
     const handleHeroScroll = () => {
       if (!stage || !hero) return;
 
+      if (scrollRoot.classList.contains(scrollLockClass) && window.scrollY > 2
+        && !correctingScroll && !scrollRoot.classList.contains("is-notice-open")) {
+        correctingScroll = true;
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        correctingScroll = false;
+      }
       const nativeProgress = clamp(-stage.getBoundingClientRect().top / (window.innerHeight || 1));
       hero.style.setProperty("--hero-dim", `${0.12 + clamp((nativeProgress - 1.05) / 0.25) * 0.12}`);
 
@@ -251,6 +279,31 @@ export function mountHomeHero() {
       flowerAngle = clamp(angle, -32, 32);
       avatarFlower.style.setProperty("--flower-sway", `${flowerAngle}deg`);
     };
+
+    const skipHeroGate = () => {
+      if (!scrollRoot.classList.contains(scrollLockClass)) return;
+      dockProfile();
+      releaseScroll();
+    };
+    const handleNavigationKey = (event) => {
+      if (!scrollRoot.classList.contains(scrollLockClass)
+        || scrollRoot.classList.contains("is-notice-open")
+        || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
+        || !["ArrowDown", "PageDown", "End", " "].includes(event.key)
+        || event.target?.closest?.("a, button, input, select, textarea, [contenteditable]")) return;
+      if (event.key === "End") {
+        skipHeroGate();
+        return;
+      }
+      event.preventDefault();
+      if (state === "pulling") dockProfile();
+    };
+    const handleContentFocus = (event) => {
+      if (scrollRoot.classList.contains(scrollLockClass)
+        && event.target?.closest?.("#page-content")
+        && !stage?.contains?.(event.target)) skipHeroGate();
+    };
+    const skipLinks = [hero?.querySelector(".scroll-cue"), document.querySelector(".skip-to-content")].filter(Boolean);
 
     const handleFlowerMove = (event) => {
       if (flowerPointerId !== null) {
@@ -336,6 +389,9 @@ export function mountHomeHero() {
     setProgress(0);
     handleHeroScroll();
     profileCard?.addEventListener("transitionend", handleProfileTransitionEnd);
+    skipLinks.forEach((link) => link.addEventListener("click", skipHeroGate));
+    document.addEventListener("keydown", handleNavigationKey);
+    document.addEventListener("focusin", handleContentFocus);
     window.addEventListener("wheel", handleHeroWheel, { passive: false });
     window.addEventListener("scroll", handleHeroScroll, { passive: true });
     window.addEventListener("resize", handleHeroScroll);
@@ -347,7 +403,11 @@ export function mountHomeHero() {
       window.clearTimeout(pokeTimer);
       typingTimers.forEach((timer) => window.clearTimeout(timer));
       typingTimers.clear();
+      unlockHeroScroll();
       profileCard?.removeEventListener("transitionend", handleProfileTransitionEnd);
+      skipLinks.forEach((link) => link.removeEventListener("click", skipHeroGate));
+      document.removeEventListener("keydown", handleNavigationKey);
+      document.removeEventListener("focusin", handleContentFocus);
       window.removeEventListener("wheel", handleHeroWheel);
       window.removeEventListener("scroll", handleHeroScroll);
       window.removeEventListener("resize", handleHeroScroll);
