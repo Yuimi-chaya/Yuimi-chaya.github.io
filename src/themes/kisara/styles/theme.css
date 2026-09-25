@@ -18,6 +18,28 @@ html {
   scroll-behavior: smooth;
 }
 
+/*
+ * Kisara route changes use Astro's swap lifecycle without a visual
+ * crossfade. Hiding the old snapshot prevents the browser View Transition
+ * layer from briefly compositing two pages or flashing an intermediate frame.
+ */
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation: none !important;
+  mix-blend-mode: normal !important;
+}
+
+::view-transition-old(*) {
+  display: none !important;
+}
+
+::view-transition-new(*) {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+
 html[data-kisara-home-boot="pending"] {
   overflow-y: hidden;
   overscroll-behavior-y: none;
