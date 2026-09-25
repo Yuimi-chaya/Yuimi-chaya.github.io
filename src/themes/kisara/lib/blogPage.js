@@ -128,11 +128,12 @@ export function bindBlogPage() {
       const css = getComputedStyle(slot);
       const value = key => parseFloat(css.getPropertyValue(key)) || 0;
       const x = value("--cast-x"), y = value("--cast-y");
+      const enterRotate = value("--cast-enter-rotate");
       const delay = parseCssTimeMs(css.getPropertyValue("--cast-delay"));
       const duration = parseCssTimeMs(css.getPropertyValue("--cast-duration"));
       addMotion(introAnimations, slot, [
-        { opacity: 0, transform: `translate3d(${x + value("--cast-enter-x")}%, ${y + value("--cast-enter-y")}%, 0) scale(${value("--cast-enter-scale")})` },
-        { opacity: 1, transform: `translate3d(${x}%, ${y}%, 0) scale(1)` },
+        { opacity: 0, transform: `translate3d(${x + value("--cast-enter-x")}%, ${y + value("--cast-enter-y")}%, 0) rotate(${enterRotate}deg) scale(${value("--cast-enter-scale")})` },
+        { opacity: 1, transform: `translate3d(${x}%, ${y}%, 0) rotate(0deg) scale(1)` },
       ], duration, delay, "cubic-bezier(0.23, 1, 0.32, 1)");
     });
     addMotion(introAnimations, hero?.querySelector(".kisara-blog-trace-signal"), [

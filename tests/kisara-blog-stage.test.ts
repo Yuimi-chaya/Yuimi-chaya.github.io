@@ -94,8 +94,8 @@ test("Minified production CSS creates four staggered cast animations on the full
   );
   prepare();
   assert.equal(introAnimations.length, 4);
-  assert.deepEqual(introAnimations.map(({ timing }) => timing.duration), [780, 880, 940, 980]);
-  assert.deepEqual(introAnimations.map(({ timing }) => timing.delay), [40, 180, 420, 690]);
+  assert.deepEqual(introAnimations.map(({ timing }) => timing.duration), [820, 900, 980, 1040]);
+  assert.deepEqual(introAnimations.map(({ timing }) => timing.delay), [30, 170, 390, 640]);
   for (const animation of introAnimations) {
     assert.equal(animation.currentTime, 0);
     assert.ok(animation.timing.duration + animation.timing.delay <= 1700);
@@ -103,6 +103,9 @@ test("Minified production CSS creates four staggered cast animations on the full
     assert.equal(animation.frames[0].opacity, 0);
     assert.equal(animation.frames[1].opacity, 1);
   }
+  assert.equal(new Set(introAnimations.map(({ frames }) => frames[0].transform)).size, 4);
+  assert.ok(introAnimations.every(({ frames }) => frames[0].transform.includes("rotate(")));
+  assert.ok(introAnimations.every(({ frames }) => frames[1].transform.includes("rotate(0deg)")));
 });
 
 test("Completed pen masks reveal the whole actual glyph without extra outline pixels", async () => {
