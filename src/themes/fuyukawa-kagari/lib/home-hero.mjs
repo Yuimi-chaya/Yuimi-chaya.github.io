@@ -14,7 +14,8 @@ export function mountHomeHero() {
     const pullDistance = 260;
     const dockThreshold = 0.56;
     const resetDelay = 260;
-    const releaseDelay = 120;
+    const releaseDelay = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : 900;
+    const profileCard = hero?.querySelector(".identity-terminal");
     const terminalLines = [
       "pin --dev-notes --anime-diary",
       "collect \"blue moments\" && write",
@@ -24,6 +25,7 @@ export function mountHomeHero() {
     const nameLines = ["喝益胃", "Yuimi-chaya"];
 
     let pull = 0;
+    let reversePull = 0;
     let state = "idle";
     let resetTimer = 0;
     let releaseTimer = 0;
@@ -78,7 +80,8 @@ export function mountHomeHero() {
       history.scrollRestoration = "manual";
     }
 
-    const initialScrollFrame = !location.hash
+    const initialHash = location.hash;
+    const initialScrollFrame = !initialHash
       ? requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0 }))
       : 0;
     heroCleanupTasks.push(() => cancelAnimationFrame(initialScrollFrame));
@@ -99,6 +102,7 @@ export function mountHomeHero() {
       window.clearTimeout(resetTimer);
       window.clearTimeout(releaseTimer);
       pull = 0;
+      reversePull = 0;
       state = "idle";
       hero?.classList.remove("is-docked", "is-pulling");
       setProgress(0);
@@ -119,35 +123,51 @@ export function mountHomeHero() {
       resetTimer = window.setTimeout(settlePull, resetDelay);
     };
 
+    const releaseScroll = () => {
+      if (state !== "docked") return;
+      window.clearTimeout(releaseTimer);
+      releaseTimer = 0;
+      state = "passed";
+    };
+
+    const handleProfileTransitionEnd = (event) => {
+      if (event.target === profileCard && event.propertyName === "transform") {
+        releaseScroll();
+      }
+    };
+
     const dockProfile = () => {
       pull = pullDistance;
+      reversePull = 0;
       state = "docked";
       hero?.classList.remove("is-pulling");
       hero?.classList.add("is-docked");
       setProgress(1);
 
       window.clearTimeout(releaseTimer);
-      releaseTimer = window.setTimeout(() => {
-        state = "passed";
-      }, releaseDelay);
+      releaseTimer = window.setTimeout(releaseScroll, releaseDelay);
     };
 
     const handleHeroWheel = (event) => {
       if (!stage || !hero) return;
       if (document.documentElement.classList.contains("is-notice-open")) return;
 
-      const atHeroTop = window.scrollY <= 2 && stage.getBoundingClientRect().top >= -2;
+      const stageRect = stage.getBoundingClientRect();
+      const atHeroTop = window.scrollY <= 2 && stageRect.top >= -2;
       if (!atHeroTop) {
-        state = "passed";
-        return;
+        if (state === "passed" || initialHash || stageRect.bottom <= 0) return;
+        event.preventDefault();
       }
 
       if (event.deltaY < 0) {
         event.preventDefault();
-        window.clearTimeout(releaseTimer);
 
         if (state === "passed" || state === "docked") {
+          reversePull += -event.deltaY;
+          if (reversePull < 36) return;
+          window.clearTimeout(releaseTimer);
           pull = 0;
+          reversePull = 0;
           state = "idle";
           hero.classList.remove("is-docked", "is-pulling");
           setProgress(0);
@@ -167,6 +187,7 @@ export function mountHomeHero() {
         return;
       }
 
+      reversePull = 0;
       if (state === "passed") return;
       if (state === "docked") {
         event.preventDefault();
@@ -314,6 +335,7 @@ export function mountHomeHero() {
 
     setProgress(0);
     handleHeroScroll();
+    profileCard?.addEventListener("transitionend", handleProfileTransitionEnd);
     window.addEventListener("wheel", handleHeroWheel, { passive: false });
     window.addEventListener("scroll", handleHeroScroll, { passive: true });
     window.addEventListener("resize", handleHeroScroll);
@@ -325,6 +347,7 @@ export function mountHomeHero() {
       window.clearTimeout(pokeTimer);
       typingTimers.forEach((timer) => window.clearTimeout(timer));
       typingTimers.clear();
+      profileCard?.removeEventListener("transitionend", handleProfileTransitionEnd);
       window.removeEventListener("wheel", handleHeroWheel);
       window.removeEventListener("scroll", handleHeroScroll);
       window.removeEventListener("resize", handleHeroScroll);

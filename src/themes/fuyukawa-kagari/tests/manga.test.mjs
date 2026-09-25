@@ -390,8 +390,9 @@ test("every new Astro template parses and images have a single typed registry", 
   }
 });
 
-test("extracted profile reveal still docks, releases scrolling, resets and cleans up", async () => {
+test("profile reveal gates fast wheels and stays steady through collapse and reopening", async () => {
   const hero = element(), stage = element(), document = element(), window = element();
+  const profileCard = element();
   const classes = new Set(), styles = {};
   hero.classList = {
     add: (...values) => values.forEach((value) => classes.add(value)),
@@ -399,8 +400,9 @@ test("extracted profile reveal still docks, releases scrolling, resets and clean
     toggle: (value, force) => force ? classes.add(value) : classes.delete(value)
   };
   hero.style.setProperty = (key, value) => { styles[key] = value; };
+  hero.querySelector = (selector) => selector === ".identity-terminal" ? profileCard : null;
   stage.querySelector = () => hero;
-  stage.getBoundingClientRect = () => ({ top: 0 });
+  stage.getBoundingClientRect = () => ({ top: -window.scrollY, bottom: 800 - window.scrollY });
   document.querySelector = (selector) => selector === "[data-hero-stage]" ? stage : null;
   document.documentElement = { classList: { contains: () => false } };
   const timers = new Map(), frames = new Map();
@@ -409,10 +411,10 @@ test("extracted profile reveal still docks, releases scrolling, resets and clean
     scrollY: 0, innerHeight: 800,
     setTimeout: (callback, delay) => { timers.set(++id, { callback, delay }); return id; },
     clearTimeout: (timer) => timers.delete(timer),
-    scrollTo() {}
+    scrollTo({ top }) { this.scrollY = top; }
   });
   const context = vm.createContext({
-    window, document, history: {}, location: { hash: "#keep-position" },
+    window, document, history: {}, location: { hash: "" },
     requestAnimationFrame: (callback) => { frames.set(++id, callback); return id; },
     cancelAnimationFrame: (frame) => frames.delete(frame)
   });
@@ -422,20 +424,50 @@ test("extracted profile reveal still docks, releases scrolling, resets and clean
     window.dispatch("wheel", event);
     return event;
   };
+  window.scrollY = 12;
   assert.equal(wheel(200).prevented, true);
+  assert.equal(window.scrollY, 12);
   assert.ok(classes.has("is-pulling"));
   const settleTimer = [...timers.values()].find((timer) => timer.delay === 260);
   settleTimer.callback();
   assert.ok(classes.has("is-docked"));
   assert.equal(styles["--profile-opacity"], "1");
   assert.equal(wheel(60).prevented, true);
-  [...timers.values()].find((timer) => timer.delay === 120).callback();
+  assert.equal([...timers.values()].some((timer) => timer.delay === 120), false);
+  profileCard.dispatch("transitionend", { target: profileCard, propertyName: "opacity" });
+  assert.equal(wheel(60).prevented, true);
+  assert.equal(wheel(-2).prevented, true);
+  assert.ok(classes.has("is-docked"));
+  assert.equal(wheel(60).prevented, true);
+  assert.equal(wheel(-3).prevented, true);
+  assert.ok(classes.has("is-docked"));
+  profileCard.dispatch("transitionend", { target: profileCard, propertyName: "transform" });
   assert.equal(wheel(60).prevented, false);
+  window.scrollY = 0;
   assert.equal(wheel(-60).prevented, true);
   assert.equal(styles["--profile-opacity"], "0");
+  assert.equal(wheel(200).prevented, true);
+  [...timers.values()].find((timer) => timer.delay === 260).callback();
+  assert.equal(wheel(60).prevented, true);
+  assert.equal(typeof [...timers.values()].find((timer) => timer.delay === 900)?.callback, "function");
+  assert.equal(wheel(-60).prevented, true);
+  profileCard.dispatch("transitionend", { target: profileCard, propertyName: "transform" });
+  assert.equal(wheel(200).prevented, true);
+  assert.equal(wheel(60).prevented, true);
+  [...timers.values()].find((timer) => timer.delay === 260).callback();
+  assert.equal(wheel(60).prevented, true);
+  assert.equal(wheel(-2).prevented, true);
+  assert.ok(classes.has("is-docked"));
+  assert.equal(wheel(60).prevented, true);
+  [...timers.values()].find((timer) => timer.delay === 900).callback();
+  assert.equal(wheel(60).prevented, false);
+  window.scrollY = 1200;
+  assert.equal(wheel(60).prevented, false);
+  assert.equal(window.scrollY, 1200);
   context.cleanup();
   assert.equal(timers.size, 0);
   assert.ok([...window.events.values()].every((handlers) => handlers.size === 0));
+  assert.ok([...profileCard.events.values()].every((handlers) => handlers.size === 0));
 });
 
 test("avatar flower has a generous hit area and keeps tracking a captured drag", async () => {
