@@ -1118,14 +1118,22 @@ const gateStyle = [
             .slice(0, sceneSlotRecords.length);
         }
         activePresentations.sort((left, right) => left.order - right.order);
-        // Source-over needs an opaque lower plate for a true complementary dissolve.
         if (activePresentations.length === 2) {
           const [lower, upper] = activePresentations;
           const total = lower.opacity + upper.opacity;
-          activePresentations = [
-            { ...lower, opacity: 1 },
-            { ...upper, opacity: upper.opacity / total }
-          ];
+          if (!reducedMotion && lower.kind === "memory" && upper.kind === "memory") {
+            const reveal = upper.opacity / total;
+            activePresentations = [
+              { ...lower, opacity: 1 },
+              { ...upper, opacity: 1, clip: `inset(0 ${(100 * (1 - reveal)).toFixed(3)}% 0 0)` }
+            ];
+          } else {
+            // The smoke handoff retains its original source-over dissolve.
+            activePresentations = [
+              { ...lower, opacity: 1 },
+              { ...upper, opacity: upper.opacity / total }
+            ];
+          }
         }
 
         const assignments = new Map();
@@ -1164,6 +1172,7 @@ const gateStyle = [
             : `translate3d(calc(${renderedShiftX.toFixed(3)}px + var(--kisara-base-shift-x)), calc(${renderedShiftY.toFixed(3)}px + var(--kisara-base-shift-y)), 0) scale(${renderedScale.toFixed(5)}) scale(var(--kisara-gravity-scale))`;
           setSceneSlotStyle(slot, "z-index", String(presentation.order + 1));
           setSceneSlotStyle(slot, "opacity", renderedOpacity.toFixed(4));
+          setSceneSlotStyle(slot, "clip-path", presentation.clip || "none");
           setSceneSlotStyle(slot, "transform-origin", presentation.origin || "center");
           setSceneSlotStyle(slot, "transform", transform);
         });
