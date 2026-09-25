@@ -342,6 +342,9 @@ test("manga CSS stays theme-local, responsive, and never crops article covers", 
   assert.match(source, /:has\(\.chapter-rail\[data-rail-mode="scroll"\]\) \{ overflow-x: clip; \}/);
   assert.match(await read("components/ChapterRail.astro"), /class="chapter-rail-stage"/);
   assert.match(source, /\.chapter-rail-stage \{ width: 100%; overflow: clip; \}/);
+  assert.match(source, /\.chapter-leaf\[data-rail-active\] \.chapter-sticker \{ transform: scale\(1\.3\); \}/);
+  assert.match(source, /@media \(max-width: 480px\) \{[^]*?\.chapter-leaf\[data-rail-active\] \.chapter-sticker \{ transform: scale\(1\.22\); \}/);
+  assert.match(source, /\.chapter-sticker \{ transition: none; transform: none !important; \}/);
   assert.doesNotMatch(await read("pages/BlogIndexPage.astro"), /compact-post-row|class="post-list"/);
   assert.match(await read("layouts/BaseLayout.astro"), /canonicalPath !== "\/" && <link rel="stylesheet" href=\{mangaPagesHref\}/);
 });
