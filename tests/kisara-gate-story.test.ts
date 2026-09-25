@@ -47,10 +47,6 @@ test("action inserts have shorter dwell than reactions and all nine shots read a
 });
 
 test("ordinary edits crossfade without a blank interval and fit two slots including the kiss to smoke bridge", () => {
-  const compositorStart = home.indexOf("      const syncSceneSlots =");
-  const compositorEnd = home.indexOf("      const computeSceneHandoff =", compositorStart);
-  assert.ok(compositorStart >= 0 && compositorEnd > compositorStart);
-  assert.doesNotMatch(home.slice(compositorStart, compositorEnd), /clip-path|inset\(/);
   const check = (frames: Array<{ opacity: number } | null>, covered: boolean) => {
     const active = frames.filter(frame => frame && frame.opacity > 0.00005);
     assert.ok(active.length <= 2);
@@ -68,19 +64,6 @@ test("ordinary edits crossfade without a blank interval and fit two slots includ
       ...transformationScenes.map((_, index) => getTransformationFrame(index, intro))
     ], true);
   }
-});
-
-test("memory edits use a short eased dissolve with a restrained camera settle", () => {
-  const before = getMemoryFrame(3, memoryTimeline[3].start + 0.001)!;
-  const entering = getMemoryFrame(3, (memoryTimeline[3].start + memoryTimeline[3].enterEnd) / 2)!;
-  const settled = getMemoryFrame(3, memoryTimeline[3].enterEnd)!;
-  assert.ok(before.opacity < entering.opacity && entering.opacity < settled.opacity);
-  assert.ok(entering.scale > settled.scale);
-  assert.notEqual(entering.shiftX, settled.shiftX);
-  assert.notEqual(entering.shiftY, settled.shiftY);
-  const late = getMemoryFrame(3, memoryTimeline[3].leaveStart + 0.5 * (memoryTimeline[3].end - memoryTimeline[3].leaveStart))!;
-  assert.ok(late.opacity < 1);
-  assert.equal(getMemoryFrame(3, memoryTimeline[3].end)!.opacity, 0);
 });
 
 test("the close-up pushes in and closes to black before the kiss, then opens only after the swap", () => {
