@@ -3,6 +3,10 @@ const smooth = (value: number) => {
   const p = unit(value);
   return p * p * (3 - 2 * p);
 };
+const smoother = (value: number) => {
+  const p = unit(value);
+  return p * p * p * (p * (p * 6 - 15) + 10);
+};
 const between = (value: number, start: number, end: number) => unit((value - start) / (end - start));
 
 export const memoryFillDuration = 9000;
@@ -56,17 +60,21 @@ export function getMemoryFrame(index: number, fill: number, intro = 0, reducedMo
   if (!scene) return null;
   const persistent = "persistent" in scene;
   const local = between(fill, scene.start, persistent ? 1 : scene.end);
+  const enter = smoother(between(fill, scene.start, scene.enterEnd));
+  const enterPose = 1 - enter;
   const leave = persistent
-    ? 1 - smooth(between(intro, 0.025, 0.23))
-    : 1 - smooth(between(fill, scene.leaveStart, scene.end));
-  const opacity = smooth(between(fill, scene.start, scene.enterEnd)) * leave;
+    ? 1 - smoother(between(intro, 0.025, 0.23))
+    : 1 - smoother(between(fill, scene.leaveStart, scene.end));
+  const opacity = enter * leave;
   const approach = index === 7;
   const impact = index === 4 ? Math.sin(local * Math.PI * 4) * (1 - local) : 0;
   return {
     opacity,
-    scale: reducedMotion ? 1.02 : approach ? 1.035 + local * 0.245 : 1.035 + local * 0.012,
-    shiftX: reducedMotion ? 0 : (local - 0.5) * scene.drift + impact * 3,
-    shiftY: reducedMotion ? 0 : scene.lift * local + impact * 1.5,
+    scale: reducedMotion
+      ? 1.02
+      : (approach ? 1.035 + local * 0.245 : 1.035 + local * 0.012) + enterPose * 0.024,
+    shiftX: reducedMotion ? 0 : (local - 0.5) * scene.drift + enterPose * scene.drift * 0.34 + impact * 3,
+    shiftY: reducedMotion ? 0 : scene.lift * local + enterPose * scene.lift * 0.28 + impact * 1.5,
     origin: approach ? "50% 45%" : "center",
     blur: 0,
     saturation: 1,
