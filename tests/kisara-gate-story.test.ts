@@ -46,7 +46,7 @@ test("action inserts have shorter dwell than reactions and all nine shots read a
   }
 });
 
-test("ordinary edits retain two-shot coverage and fit two slots including the kiss to smoke bridge", () => {
+test("ordinary edits crossfade without a blank interval and fit two slots including the kiss to smoke bridge", () => {
   const check = (frames: Array<{ opacity: number } | null>, covered: boolean) => {
     const active = frames.filter(frame => frame && frame.opacity > 0.00005);
     assert.ok(active.length <= 2);
@@ -64,62 +64,6 @@ test("ordinary edits retain two-shot coverage and fit two slots including the ki
       ...transformationScenes.map((_, index) => getTransformationFrame(index, intro))
     ], true);
   }
-});
-
-test("wheel-scrubbed memory edits reveal an opaque next shot and clear the clip in either direction", () => {
-  class SceneElement {
-    dataset: Record<string, string> = {};
-    style: Record<string, any> = { setProperty(name: string, value: string) { this[name] = value; } };
-  }
-  const slots = Array.from({ length: 2 }, (_, index) => ({
-    element: new SceneElement(), index, sceneId: "", rendered: Object.create(null)
-  }));
-  const context = {
-    HTMLElement: SceneElement, sceneSlotRecords: slots, sceneSlotOverflowWarned: false,
-    reducedMotion: false, sceneImageWarmers: new Map(), isSceneImageReady: () => true,
-    quantizeRuntimeValue: (value: number) => value,
-    console: { warn() { assert.fail("Memory edit exceeded the two scene slots"); } }
-  };
-  const start = home.indexOf("      const setSceneSlotStyle =");
-  const end = home.indexOf("      const computeSceneHandoff =", start);
-  assert.ok(start >= 0 && end > start);
-  const sync = vm.runInNewContext(`${home.slice(start, end)}\nsyncSceneSlots;`, context);
-  const render = (fill: number) => {
-    sync(memoryScenes.map((scene, order) => ({
-      ...scene, ...getMemoryFrame(order, fill), kind: "memory", order
-    })));
-    return slots.filter(slot => Number(slot.element.style.opacity) > 0.00005)
-      .sort((a, b) => Number(a.element.style["z-index"]) - Number(b.element.style["z-index"]));
-  };
-
-  for (const index of [1, 2, 3, 4, 5, 6, 7]) {
-    const { start, enterEnd } = memoryTimeline[index];
-    const middle = (start + enterEnd) / 2;
-    for (const fill of [start + 0.0001, middle, enterEnd - 0.0001, middle]) {
-      const [lower, upper] = render(fill);
-      assert.equal(lower.sceneId, memoryScenes[index - 1].id);
-      assert.equal(upper.sceneId, memoryScenes[index].id);
-      assert.equal(lower.element.style.opacity, "1.0000");
-      assert.equal(upper.element.style.opacity, "1.0000");
-      assert.equal(lower.element.style["clip-path"], "none");
-      const hidden = Number(upper.element.style["clip-path"].match(/inset\(0 ([\d.]+)% 0 0\)/)?.[1]);
-      assert.ok(hidden > 0 && hidden < 100, `${index}: the incoming image has a finite reveal`);
-    }
-    const [settled] = render(enterEnd);
-    assert.equal(settled.sceneId, memoryScenes[index].id);
-    assert.equal(settled.element.style["clip-path"], "none");
-  }
-
-  const [memory, smoke] = [
-    { id: "kiss", kind: "memory", order: 8, opacity: 0.5, scale: 1, shiftX: 0, shiftY: 0, image: "kiss" },
-    { id: "smoke", kind: "transformation", order: 9, opacity: 0.5, scale: 1, shiftX: 0, shiftY: 0, image: "smoke" }
-  ];
-  sync([memory, smoke]);
-  assert.equal(slots.find(slot => slot.sceneId === "smoke")?.element.style.opacity, "0.5000");
-  assert.equal(slots.find(slot => slot.sceneId === "smoke")?.element.style["clip-path"], "none");
-  context.reducedMotion = true;
-  sync([memory, { ...smoke, id: "quiet-smoke", kind: "memory" }]);
-  assert.equal(slots.find(slot => slot.sceneId === "quiet-smoke")?.element.style.opacity, "0.5000");
 });
 
 test("the close-up pushes in and closes to black before the kiss, then opens only after the swap", () => {

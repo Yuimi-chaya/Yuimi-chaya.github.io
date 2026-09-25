@@ -22,15 +22,15 @@ export function advanceMemoryBlackout(current: number, target: number, elapsed: 
 
 // The scroll clock is also the edit: brief action inserts, longer reaction shots.
 export const memoryTimeline = [
-  { start: 0.02, enterEnd: 0.065, leaveStart: 0.128, end: 0.15, drift: -12, lift: -3 },
-  { start: 0.128, enterEnd: 0.15, leaveStart: 0.278, end: 0.298, drift: 6, lift: 0 },
-  { start: 0.278, enterEnd: 0.298, leaveStart: 0.327, end: 0.345, drift: -16, lift: -5 },
-  { start: 0.327, enterEnd: 0.345, leaveStart: 0.379, end: 0.397, drift: 10, lift: -16 },
-  { start: 0.379, enterEnd: 0.397, leaveStart: 0.441, end: 0.459, drift: -12, lift: 3 },
-  { start: 0.441, enterEnd: 0.459, leaveStart: 0.503, end: 0.525, drift: 14, lift: 6 },
-  { start: 0.503, enterEnd: 0.525, leaveStart: 0.652, end: 0.674, drift: -5, lift: 0 },
-  { start: 0.652, enterEnd: 0.674, leaveStart: 0.83, end: 0.852, drift: 0, lift: 0 },
-  { start: 0.83, enterEnd: 0.852, leaveStart: 1, end: 1, drift: 0, lift: 0, persistent: true }
+  { start: 0.02, enterEnd: 0.065, leaveStart: 0.128, end: 0.175, drift: -12, lift: -3 },
+  { start: 0.128, enterEnd: 0.175, leaveStart: 0.278, end: 0.315, drift: 6, lift: 0 },
+  { start: 0.278, enterEnd: 0.315, leaveStart: 0.327, end: 0.351, drift: -16, lift: -5 },
+  { start: 0.327, enterEnd: 0.351, leaveStart: 0.379, end: 0.407, drift: 10, lift: -16 },
+  { start: 0.379, enterEnd: 0.407, leaveStart: 0.441, end: 0.476, drift: -12, lift: 3 },
+  { start: 0.441, enterEnd: 0.476, leaveStart: 0.503, end: 0.553, drift: 14, lift: 6 },
+  { start: 0.503, enterEnd: 0.553, leaveStart: 0.652, end: 0.702, drift: -5, lift: 0 },
+  { start: 0.652, enterEnd: 0.702, leaveStart: 0.83, end: 0.87, drift: 0, lift: 0 },
+  { start: 0.83, enterEnd: 0.87, leaveStart: 1, end: 1, drift: 0, lift: 0, persistent: true }
 ] as const;
 
 export const memoryScenes = [

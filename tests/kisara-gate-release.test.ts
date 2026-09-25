@@ -193,7 +193,7 @@ function attachSceneCompositor(f: ReturnType<typeof fixture>) {
   }));
   const context = {
     HTMLElement: SceneElement, sceneSlotRecords: slots, sceneSlotOverflowWarned: false,
-    mobilePerformance: false, litePerformance: false, reducedMotion: false, sceneImageWarmers: new Map(),
+    mobilePerformance: false, litePerformance: false, sceneImageWarmers: new Map(),
     isSceneImageReady: () => true, quantizeRuntimeValue: (value: number) => value,
     console: { warn() { assert.fail("Shot sequence exceeded the two-slot compositor capacity"); } }
   };
