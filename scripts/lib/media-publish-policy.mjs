@@ -10,5 +10,6 @@ export const excludedPublicMedia = [
     ...[1, 2, 3, 4, 5].map(version => `${name}-generated-v${version}.webp`)
   ]).map(name => `themes/kisara/assets/blog/${name}`),
   ...["engage-kiss-layers-v2-qa.png", "engage-kiss-layers-v2-qa.webp", "engage-kiss-group-final.webp"]
-    .map(name => `themes/kisara/assets/blog/${name}`)
+    .map(name => `themes/kisara/assets/blog/${name}`),
+  "themes/kisara/assets/fridge-opening-002.mp4"
 ];

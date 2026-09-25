@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { stripTypeScriptTypes } from "node:module";
@@ -9,10 +9,20 @@ const fridgeSource = readFileSync(
   "utf8"
 );
 
+test("Baked fridge clip is smaller while the original remains available", () => {
+  const asset = (name: string) => fileURLToPath(new URL(`../public/themes/kisara/assets/${name}`, import.meta.url));
+  const original = statSync(asset("fridge-opening-002.mp4"));
+  const baked = statSync(asset("fridge-opening-002-fast.mp4"));
+  assert.ok(baked.size > 0 && baked.size < original.size);
+  assert.match(fridgeSource, /data-src="\/themes\/kisara\/assets\/fridge-opening-002-fast\.mp4"/);
+});
+
 test("Fridge inventory begins dropping just before the door reaches its open frame", () => {
-  assert.match(fridgeSource, /const bodyDropStartTime = 0\.88;/);
-  assert.match(fridgeSource, /video\.playbackRate = 1\.25;/);
+  assert.match(fridgeSource, /const bodyDropStartTime = 0\.88 \/ 1\.5;/);
+  assert.match(fridgeSource, /video\.playbackRate = 1;/);
   assert.match(fridgeSource, /video\.addEventListener\("timeupdate", bodyReleaseHandler\)/);
+  assert.match(fridgeSource, /bodyReleaseFrame = video\.requestVideoFrameCallback\(checkReleaseFrame\)/);
+  assert.match(fridgeSource, /video\.cancelVideoFrameCallback\(bodyReleaseFrame\)/);
   assert.match(fridgeSource, /video\.currentTime >= bodyDropStartTime/);
   assert.match(fridgeSource, /bodyElements\.length !== 4/);
   assert.match(fridgeSource, /data-fridge-kind="pig-capsule"/);

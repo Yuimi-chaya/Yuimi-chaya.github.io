@@ -68,7 +68,11 @@ test("publish exclusions only affect reviewed originals and cannot target public
   await assert.rejects(() => prunePublishedMedia(new URL("../public/", import.meta.url)), /Refusing to prune/);
   assert.equal(new Set(excludedPublicMedia).size, excludedPublicMedia.length);
   assert.ok(excludedPublicMedia.every(name => !/\.\.|^\//.test(name)));
-  assert.ok(excludedPublicMedia.every(name => !/solo-v1|blade-v2|\.mp4$|\.mp3$|readme\//.test(name)));
+  assert.ok(excludedPublicMedia.includes("themes/kisara/assets/fridge-opening-002.mp4"));
+  assert.ok(excludedPublicMedia.every(name =>
+    name === "themes/kisara/assets/fridge-opening-002.mp4"
+      || !/solo-v1|blade-v2|\.mp4$|\.mp3$|readme\//.test(name)
+  ));
 });
 
 test("the entire exclusion plan is checked for path traversal and references before any file removal", async () => {

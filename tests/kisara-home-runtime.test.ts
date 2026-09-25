@@ -410,10 +410,11 @@ test("Home removes the retired edge sampler instead of widening the Gate rendere
 
 test("002 defers its video, preserves drop timing and stops physics before background return", () => {
   const source = read("src/themes/kisara/components/KisaraFridgeScene.astro");
-  assert.match(source, /data-src="\/themes\/kisara\/assets\/fridge-opening-002\.mp4/);
+  assert.match(source, /data-src="\/themes\/kisara\/assets\/fridge-opening-002-fast\.mp4/);
   assert.doesNotMatch(source, /<video\b[^>]*\ssrc=/);
   assert.match(source, /preload="none"/);
-  assert.match(source, /bodyDropStartTime = 0\.88/);
+  assert.match(source, /bodyDropStartTime = 0\.88 \/ 1\.5/);
+  assert.match(source, /video\.playbackRate = 1;/);
   assert.match(source, /const interruptForLifecycle = \(\) => \{\s*sceneVisible = false;\s*cancelActiveDrag\(\);\s*stopLoop\(\);/);
   assert.match(source, /if \(document\.hidden \|\| !sceneVisible \|\| !bodiesLaunched\) return/);
   assert.match(source, /if \(bodiesLaunched\) resetBodies\(\)/);

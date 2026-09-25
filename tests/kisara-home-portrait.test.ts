@@ -66,7 +66,7 @@ test("003 portrait stays attached to the mapped knife tip and its bubble fits na
   for (const [width, height] of [[320, 760], [390, 844], [768, 1200], [820, 1180], [1440, 900], [2560, 1080]]) {
     const box = homePortraitLayout(width, height);
     const scale = box.mediaWidth / 1920;
-    assert.ok(box.mediaWidth >= width && box.mediaHeight >= height);
+    assert.ok(box.mediaWidth >= width * 1.12 && box.mediaHeight >= height * 1.12);
     assert.ok(Math.abs(box.portraitX + box.size * .46 - (750 * scale + box.x)) < .001);
     assert.ok(Math.abs(box.portraitY + box.size * .12 - (373 * scale + box.y)) < .001);
     const half = box.bubbleWidth / 2;

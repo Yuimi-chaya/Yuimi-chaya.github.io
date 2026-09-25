@@ -1,6 +1,6 @@
 // Coordinates are measured on the 1920 x 1080 final frame, not the viewport.
 export function homePortraitLayout(width: number, height: number) {
-  const scale = Math.max(width / 1920, height / 1080);
+  const scale = Math.max(width / 1920, height / 1080) * 1.12;
   const mediaWidth = 1920 * scale, mediaHeight = 1080 * scale;
   const size = Math.min(180, Math.max(112, width * .105));
   const tipX = 750 * scale, tipY = 373 * scale;

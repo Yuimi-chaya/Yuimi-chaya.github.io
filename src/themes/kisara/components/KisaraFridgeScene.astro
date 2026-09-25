@@ -12,7 +12,7 @@ import { getThemePath } from "@/core/themes/registry";
       <video
         class="kisara-fridge-video"
         data-fridge-video
-        data-src="/themes/kisara/assets/fridge-opening-002.mp4?v=ad1cc7d0"
+        data-src="/themes/kisara/assets/fridge-opening-002-fast.mp4"
         width="1920"
         height="1080"
         preload="none"
@@ -257,6 +257,7 @@ import { getThemePath } from "@/core/themes/registry";
         let reloadPipelineOnResume = false;
         let playbackEndedHandler: (() => void) | null = null;
         let bodyReleaseHandler: (() => void) | null = null;
+        let bodyReleaseFrame = 0;
         let animationFrame = 0;
         let lastFrameAt = 0;
         let boundsWidth = 1;
@@ -265,7 +266,7 @@ import { getThemePath } from "@/core/themes/registry";
         let activeDrag: FridgeBody | null = null;
         let bodiesLaunched = false;
         const launchTimers: number[] = [];
-        const bodyDropStartTime = 0.88;
+        const bodyDropStartTime = 0.88 / 1.5;
         const spawnRatios = [0.57, 0.69, 0.82, 0.94];
         const settledAngles = [-0.09, 0.06, -0.045, 0.08];
         const hydrateMedia = () => {
@@ -512,7 +513,9 @@ import { getThemePath } from "@/core/themes/registry";
 
         const clearBodyReleaseHandler = () => {
           if (bodyReleaseHandler) video.removeEventListener("timeupdate", bodyReleaseHandler);
+          if (bodyReleaseFrame) video.cancelVideoFrameCallback(bodyReleaseFrame);
           bodyReleaseHandler = null;
+          bodyReleaseFrame = 0;
         };
 
         const finishOpening = () => {
@@ -671,7 +674,7 @@ import { getThemePath } from "@/core/themes/registry";
           }
 
           video.pause();
-          video.playbackRate = 1.25;
+          video.playbackRate = 1;
           this.removeAttribute("data-frame-ready");
           try {
             video.currentTime = 0;
@@ -695,6 +698,16 @@ import { getThemePath } from "@/core/themes/registry";
             }
           };
           video.addEventListener("timeupdate", bodyReleaseHandler);
+          if (typeof video.requestVideoFrameCallback === "function") {
+            const checkReleaseFrame = () => {
+              bodyReleaseFrame = 0;
+              bodyReleaseHandler?.();
+              if (bodyReleaseHandler && openingStarted && !opened) {
+                bodyReleaseFrame = video.requestVideoFrameCallback(checkReleaseFrame);
+              }
+            };
+            bodyReleaseFrame = video.requestVideoFrameCallback(checkReleaseFrame);
+          }
           schedulePlaybackWatchdog(playGeneration, 0);
           readyFrameController?.abort();
           readyFrameController = new AbortController();
