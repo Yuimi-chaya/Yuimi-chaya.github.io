@@ -6,6 +6,7 @@ const smooth = (value: number) => {
 const between = (value: number, start: number, end: number) => unit((value - start) / (end - start));
 
 export const memoryFillDuration = 9000;
+export const memoryBlendDuration = 300;
 export const memoryBrightenDuration = 650;
 
 export function advanceMemoryProgress(progress: number, target: number, velocity: number, frameRatio: number, strength: number, damping: number) {
@@ -21,16 +22,19 @@ export function advanceMemoryBlackout(current: number, target: number, elapsed: 
 }
 
 // The scroll clock is also the edit: brief action inserts, longer reaction shots.
+// Blend windows stay in real milliseconds so a shot's dwell does not stretch its
+// dissolve. The authored start/leaveStart values continue to control the edit.
+const memoryBlend = memoryBlendDuration / memoryFillDuration;
 export const memoryTimeline = [
-  { start: 0.02, enterEnd: 0.065, leaveStart: 0.128, end: 0.175, drift: -12, lift: -3 },
-  { start: 0.128, enterEnd: 0.175, leaveStart: 0.278, end: 0.315, drift: 6, lift: 0 },
-  { start: 0.278, enterEnd: 0.315, leaveStart: 0.327, end: 0.351, drift: -16, lift: -5 },
-  { start: 0.327, enterEnd: 0.351, leaveStart: 0.379, end: 0.407, drift: 10, lift: -16 },
-  { start: 0.379, enterEnd: 0.407, leaveStart: 0.441, end: 0.476, drift: -12, lift: 3 },
-  { start: 0.441, enterEnd: 0.476, leaveStart: 0.503, end: 0.553, drift: 14, lift: 6 },
-  { start: 0.503, enterEnd: 0.553, leaveStart: 0.652, end: 0.702, drift: -5, lift: 0 },
-  { start: 0.652, enterEnd: 0.702, leaveStart: 0.83, end: 0.87, drift: 0, lift: 0 },
-  { start: 0.83, enterEnd: 0.87, leaveStart: 1, end: 1, drift: 0, lift: 0, persistent: true }
+  { start: 0.02, enterEnd: 0.02 + memoryBlend, leaveStart: 0.128, end: 0.128 + memoryBlend, drift: -12, lift: -3 },
+  { start: 0.128, enterEnd: 0.128 + memoryBlend, leaveStart: 0.278, end: 0.278 + memoryBlend, drift: 6, lift: 0 },
+  { start: 0.278, enterEnd: 0.278 + memoryBlend, leaveStart: 0.327, end: 0.327 + memoryBlend, drift: -16, lift: -5 },
+  { start: 0.327, enterEnd: 0.327 + memoryBlend, leaveStart: 0.379, end: 0.379 + memoryBlend, drift: 10, lift: -16 },
+  { start: 0.379, enterEnd: 0.379 + memoryBlend, leaveStart: 0.441, end: 0.441 + memoryBlend, drift: -12, lift: 3 },
+  { start: 0.441, enterEnd: 0.441 + memoryBlend, leaveStart: 0.503, end: 0.503 + memoryBlend, drift: 14, lift: 6 },
+  { start: 0.503, enterEnd: 0.503 + memoryBlend, leaveStart: 0.652, end: 0.652 + memoryBlend, drift: -5, lift: 0 },
+  { start: 0.652, enterEnd: 0.652 + memoryBlend, leaveStart: 0.83, end: 0.83 + memoryBlend, drift: 0, lift: 0 },
+  { start: 0.83, enterEnd: 0.83 + memoryBlend, leaveStart: 1, end: 1, drift: 0, lift: 0, persistent: true }
 ] as const;
 
 export const memoryScenes = [
@@ -50,6 +54,60 @@ export const transformationScenes = [
   { id: "detail", image: "/themes/kisara/assets/transformation-detail.webp", position: "55% 48%" },
   { id: "silhouette", image: "/themes/kisara/assets/transformation-silhouette.webp", position: "50% 50%" }
 ] as const;
+
+const memoryTonePalette = [
+  { r: 70, g: 89, b: 122 },
+  { r: 197, g: 187, b: 196 },
+  { r: 196, g: 144, b: 122 },
+  { r: 173, g: 120, b: 121 },
+  { r: 222, g: 192, b: 121 },
+  { r: 134, g: 73, b: 98 },
+  { r: 187, g: 118, b: 102 },
+  { r: 176, g: 155, b: 142 },
+  { r: 226, g: 169, b: 168 },
+  { r: 235, g: 193, b: 178 }
+] as const;
+
+const toneDistance = (from: typeof memoryTonePalette[number], to: typeof memoryTonePalette[number]) =>
+  Math.hypot(to.r - from.r, to.g - from.g, to.b - from.b);
+
+const toneColor = (
+  from: typeof memoryTonePalette[number],
+  to: typeof memoryTonePalette[number],
+  progress: number
+) => `rgb(${
+  Math.round(from.r + (to.r - from.r) * progress)
+}, ${
+  Math.round(from.g + (to.g - from.g) * progress)
+}, ${
+  Math.round(from.b + (to.b - from.b) * progress)
+})`;
+
+export function getMemoryBaseOpacity(fill: number) {
+  const first = memoryTimeline[0];
+  return 1 - smooth(between(fill, first.start, first.enterEnd));
+}
+
+export function getMemoryToneBridge(fill: number, intro = 0, reducedMotion = false) {
+  if (intro > 0 || reducedMotion) return { opacity: 0, color: "transparent" };
+  const active = memoryTimeline.findLastIndex(scene => fill >= scene.start);
+  if (active < 0 || active >= memoryScenes.length) {
+    return { opacity: 0, color: "transparent" };
+  }
+  const scene = memoryTimeline[active];
+  const progress = smooth(between(fill, scene.start, scene.enterEnd));
+  if (progress <= 0 || progress >= 1) return { opacity: 0, color: "transparent" };
+
+  const from = memoryTonePalette[active];
+  const to = memoryTonePalette[active + 1];
+  const strength = unit((toneDistance(from, to) - 96) / 100);
+  if (strength <= 0) return { opacity: 0, color: "transparent" };
+
+  return {
+    opacity: Math.sin(progress * Math.PI) * (0.045 + strength * 0.115),
+    color: toneColor(from, to, progress)
+  };
+}
 
 export function getMemoryFrame(index: number, fill: number, intro = 0, reducedMotion = false) {
   const scene = memoryTimeline[index];

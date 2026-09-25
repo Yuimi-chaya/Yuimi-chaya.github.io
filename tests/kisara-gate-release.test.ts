@@ -7,7 +7,17 @@ import {
   mapReleaseAutoplayProgress, getReconstructionProgress, getTitleReconstructionFrame, getTitleContractFrame,
   getTransformationFrame, getGateSceneHandoff, getReconstructionRadii, transformationTimeline
 } from "../src/themes/kisara/lib/gateRelease.ts";
-import { memoryScenes, transformationScenes, memoryFillDuration, getMemoryFrame, getMemoryBlackout, advanceMemoryProgress, advanceMemoryBlackout } from "../src/themes/kisara/lib/gateStory.ts";
+import {
+  memoryScenes,
+  transformationScenes,
+  memoryFillDuration,
+  getMemoryFrame,
+  getMemoryBaseOpacity,
+  getMemoryToneBridge,
+  getMemoryBlackout,
+  advanceMemoryProgress,
+  advanceMemoryBlackout
+} from "../src/themes/kisara/lib/gateStory.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const home = read("src/themes/kisara/pages/HomePage.astro");
@@ -86,7 +96,8 @@ function fixture(overrides: Record<string, unknown> = {}) {
     heroAutoplayActive: false, heroAutoplayLastTimestamp: 0, heroAutoplayFillDuration: memoryFillDuration,
     clamp, mapChargeIntroProgress, getChargeIntroClock,
     mapReleaseAutoplayProgress, gateRelease, getTransformationFrame, getGateSceneHandoff,
-    getReconstructionProgress, getMemoryFrame, getMemoryBlackout, isStoryFrameReady: () => true, areIntroImagesReady: () => true,
+    getReconstructionProgress, getMemoryFrame, getMemoryBaseOpacity, getMemoryToneBridge, getMemoryBlackout,
+    isStoryFrameReady: () => true, areIntroImagesReady: () => true,
     memorySceneRecords: memoryScenes.map((scene, index) => ({
       ...scene, id: `memory-${scene.id}`, kind: "memory", order: index
     })),

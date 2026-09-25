@@ -171,6 +171,7 @@ const gateStyle = [
             <div class="kisara-gate-background kisara-gate-background-base"></div>
             <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="0"></div>
             <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="1"></div>
+            <div class="kisara-memory-tone-bridge"></div>
             <div class="kisara-gate-background kisara-gate-background-fight"></div>
             <div class="kisara-memory-blackout"></div>
             <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
@@ -317,7 +318,16 @@ const gateStyle = [
     } from "../lib/gateRelease";
     import { createGateReconstructionRenderer } from "../lib/gateReconstruction";
     import { titleDataStreamFragment } from "../lib/titleDataStream";
-    import { memoryFillDuration, getMemoryFrame, getMemoryBlackout, getMemoryWarmIndices, advanceMemoryProgress, advanceMemoryBlackout } from "../lib/gateStory";
+    import {
+      memoryFillDuration,
+      getMemoryFrame,
+      getMemoryBaseOpacity,
+      getMemoryToneBridge,
+      getMemoryBlackout,
+      getMemoryWarmIndices,
+      advanceMemoryProgress,
+      advanceMemoryBlackout
+    } from "../lib/gateStory";
     import { createStoryImageLoader } from "../lib/storyImageLoader";
     const releaseStaleKisaraHomeRuntime = (candidate) => {
       if (!(candidate instanceof HTMLElement) || candidate.dataset.bound !== "true") return false;
@@ -1197,7 +1207,12 @@ const gateStyle = [
           setRuntimeStyle(gate, "--kisara-memory-blackout", memoryBlackoutOpacity.toFixed(4));
         }
         memoryBlackoutTimestamp = now;
-        if (composed) setRuntimeStyle(gate, "--kisara-bg-opacity", fill < 0.065 ? "1" : "0");
+        if (composed) {
+          const toneBridge = getMemoryToneBridge(fill, chargeIntroProgress, reducedMotion);
+          setRuntimeStyle(gate, "--kisara-bg-opacity", getMemoryBaseOpacity(fill).toFixed(4));
+          setRuntimeStyle(gate, "--kisara-memory-bridge-opacity", toneBridge.opacity.toFixed(4));
+          setRuntimeStyle(gate, "--kisara-memory-bridge-color", toneBridge.color);
+        }
         return { handoff };
       };
       const pointOnQuinticCurve = (start, controlA, controlB, controlC, controlD, end, progress) => {
