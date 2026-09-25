@@ -99,6 +99,7 @@ function element(dataset = {}) {
     removeEventListener(event, handler) { events.get(event)?.delete(handler); },
     dispatch(event, value = {}) { for (const handler of events.get(event) ?? []) handler(value); },
     setAttribute(key, value) { this.attributes[key] = value; },
+    removeAttribute(key) { delete this.attributes[key]; },
     querySelector() {}, querySelectorAll() { return []; },
     getBoundingClientRect() { return { left: 0, top: 0, width: 1200, height: 700 }; }
   };
@@ -232,23 +233,93 @@ test("archive filters include empty categories and restore every entry", () => {
 
 test("chapter controls target real leaf positions and account for track ends", () => {
   assert.equal(nearestRailIndex([0, 324, 648, 972], 600), 2);
-  const root = element(), previous = element(), next = element(), label = element();
+  const root = element(), stage = element(), previous = element(), next = element(), label = element();
+  root.style = { getPropertyValue() { return ""; }, setProperty() {}, removeProperty() {} };
   const track = Object.assign(element(), { scrollLeft: 0, scrollWidth: 1296, clientWidth: 400, scrollTo(value) { this.scrollLeft = Math.min(value.left, this.scrollWidth - this.clientWidth); } });
-  const items = [0, 324, 648, 972].map((offsetLeft) => ({ offsetLeft }));
+  const items = [0, 324, 648, 972].map((offsetLeft) => Object.assign(element(), { offsetLeft }));
   root.querySelectorAll = () => items;
-  root.querySelector = (selector) => ({ "[data-rail-track]": track, "[data-rail-prev]": previous, "[data-rail-next]": next, "[data-rail-position]": label })[selector];
+  root.querySelector = (selector) => ({ ".chapter-rail-stage": stage, "[data-rail-track]": track, "[data-rail-prev]": previous, "[data-rail-next]": next, "[data-rail-position]": label })[selector];
   const frames = [];
   const win = Object.assign(element(), { matchMedia: () => ({ matches: true }), requestAnimationFrame: (callback) => { frames.push(callback); return frames.length; }, cancelAnimationFrame() {} });
+  win.matchMedia = () => Object.assign(element(), { matches: true });
   const cleanup = mountChapterRail(root, win);
+  assert.equal(root.dataset.railMode, "native");
+  assert.equal(track.tabIndex, 0);
   assert.equal(previous.disabled, true);
   next.dispatch("click");
   assert.equal(track.scrollLeft, 324);
   track.dispatch("scroll"); frames.pop()();
   assert.equal(label.textContent, "02 / 04");
+  assert.equal(items[1].attributes["data-rail-active"], "true");
+  assert.equal(items[0].attributes["data-rail-active"], undefined);
   next.dispatch("click"); next.dispatch("click");
   track.dispatch("scroll"); frames.pop()();
   assert.equal(next.disabled, true);
   cleanup();
+  assert.equal(root.dataset.railMode, undefined);
+  assert.ok([...track.events.values()].every((handlers) => handlers.size === 0));
+});
+
+test("vertical chapter runway advances, reverses and releases scrolling without wheel capture", () => {
+  const root = element(), stage = Object.assign(element(), { clientHeight: 600, clientWidth: 500 });
+  const previous = element(), next = element(), label = element();
+  const styles = new Map();
+  root.style = {
+    getPropertyValue: (name) => styles.get(name) ?? "",
+    setProperty: (name, value) => styles.set(name, value),
+    removeProperty: (name) => styles.delete(name)
+  };
+  const track = Object.assign(element(), { scrollLeft: 0, scrollWidth: 2060, clientWidth: 500, scrollTo() {} });
+  const items = [250, 770, 1290, 1810].map((offsetLeft) => Object.assign(element(), { offsetLeft }));
+  root.querySelectorAll = () => items;
+  root.querySelector = (selector) => ({ ".chapter-rail-stage": stage, "[data-rail-track]": track, "[data-rail-prev]": previous, "[data-rail-next]": next, "[data-rail-position]": label })[selector];
+  const reduced = Object.assign(element(), { matches: false });
+  const fine = Object.assign(element(), { matches: true });
+  const frames = new Map();
+  let frameId = 0;
+  const win = Object.assign(element(), {
+    scrollY: 0,
+    matchMedia: (query) => query.includes("reduced") ? reduced : fine,
+    requestAnimationFrame(callback) { frames.set(++frameId, callback); return frameId; },
+    cancelAnimationFrame(id) { frames.delete(id); },
+    scrollTo({ top, behavior }) { this.scrollY = top; this.lastBehavior = behavior; this.dispatch("scroll"); }
+  });
+  root.getBoundingClientRect = () => ({ top: 500 - win.scrollY });
+  const step = () => { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach((callback) => callback()); };
+  const cleanup = mountChapterRail(root, win);
+  assert.equal(root.dataset.railMode, "scroll");
+  assert.equal(track.tabIndex, -1);
+  assert.equal(styles.get("--rail-runway"), "2160px");
+  assert.equal(track.style.transform, "translate3d(0px, 0, 0)");
+  win.scrollY = 500 + 540;
+  win.dispatch("scroll"); step();
+  assert.equal(track.style.transform, "translate3d(-540px, 0, 0)");
+  assert.equal(label.textContent, "02 / 04");
+  previous.dispatch("click"); step();
+  assert.equal(win.scrollY, 500);
+  assert.equal(win.lastBehavior, "smooth");
+  win.scrollY = 500 + 1560 + 500;
+  win.dispatch("scroll"); step();
+  assert.equal(track.style.transform, "translate3d(-1560px, 0, 0)");
+  assert.equal(label.textContent, "04 / 04");
+  assert.equal(next.disabled, true);
+  win.scrollY = 500 + 520;
+  win.dispatch("scroll"); step();
+  assert.equal(label.textContent, "02 / 04");
+  assert.equal(items[3].attributes["data-rail-active"], undefined);
+  track.dispatch("focusin", { target: items[2] }); step();
+  assert.equal(win.scrollY, 500 + 1040);
+  assert.equal(win.lastBehavior, "instant");
+  assert.equal(items[2].attributes["data-rail-active"], "true");
+  reduced.matches = true; reduced.dispatch("change");
+  assert.equal(root.dataset.railMode, "native");
+  assert.equal(track.tabIndex, 0);
+  assert.equal(styles.has("--rail-runway"), false);
+  assert.equal(track.style.transform, "");
+  cleanup();
+  assert.ok([...win.events.values()].every((handlers) => handlers.size === 0));
+  assert.ok([...fine.events.values()].every((handlers) => handlers.size === 0));
+  assert.ok([...reduced.events.values()].every((handlers) => handlers.size === 0));
 });
 
 test("manga CSS stays theme-local, responsive, and never crops article covers", async () => {
@@ -266,6 +337,11 @@ test("manga CSS stays theme-local, responsive, and never crops article covers", 
   assert.match(source, /max-width: 480px/);
   assert.match(source, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(await read("lib/manga-runtime.mjs"), /preventDefault|deviceorientation|setInterval/);
+  assert.match(source, /\.chapter-track::-webkit-scrollbar \{ display: none; \}/);
+  assert.match(source, /\.chapter-rail\[data-rail-mode="scroll"\] \.chapter-rail-stage \{ position: sticky/);
+  assert.match(source, /:has\(\.chapter-rail\[data-rail-mode="scroll"\]\) \{ overflow-x: clip; \}/);
+  assert.match(await read("components/ChapterRail.astro"), /class="chapter-rail-stage"/);
+  assert.match(source, /\.chapter-rail-stage \{ width: 100%; overflow: clip; \}/);
   assert.doesNotMatch(await read("pages/BlogIndexPage.astro"), /compact-post-row|class="post-list"/);
   assert.match(await read("layouts/BaseLayout.astro"), /canonicalPath !== "\/" && <link rel="stylesheet" href=\{mangaPagesHref\}/);
 });

@@ -11,23 +11,25 @@ const chapters: { route: string; label: string; title: string; note: string; ima
 ];
 ---
 <section class="chapter-rail" data-manga-rail aria-labelledby="chapter-rail-title">
-  <header class="manga-section-heading">
-    <div><p class="section-kicker">A little table of contents</p><h2 id="chapter-rail-title">故事，从哪一页开始？</h2></div>
-    <div class="manga-rail-controls">
-      <span data-rail-position aria-live="polite">01 / 04</span>
-      <button type="button" data-rail-prev aria-label="上一章" title="上一章" aria-controls="home-chapters"><Icon name="tabler:arrow-left" /></button>
-      <button type="button" data-rail-next aria-label="下一章" title="下一章" aria-controls="home-chapters"><Icon name="tabler:arrow-right" /></button>
+  <div class="chapter-rail-stage">
+    <header class="manga-section-heading">
+      <div><p class="section-kicker">A little table of contents</p><h2 id="chapter-rail-title">故事，从哪一页开始？</h2></div>
+      <div class="manga-rail-controls">
+        <span data-rail-position aria-live="polite">01 / 04</span>
+        <button type="button" data-rail-prev aria-label="上一章" aria-controls="home-chapters"><Icon name="tabler:arrow-left" /></button>
+        <button type="button" data-rail-next aria-label="下一章" aria-controls="home-chapters"><Icon name="tabler:arrow-right" /></button>
+      </div>
+    </header>
+    <div class="chapter-track" id="home-chapters" data-rail-track tabindex="0" aria-label="手帖章节">
+      {chapters.map((chapter, index) => (
+        <a class="chapter-leaf" data-rail-active={index === 0 ? "true" : undefined} href={getThemePath("fuyukawa-kagari", chapter.route)}>
+          <span class="chapter-number">{chapter.label}</span>
+          <div class="chapter-picture"><MangaArt image={chapter.image} /></div>
+          <MangaArt image={chapter.sticker} class="chapter-sticker" />
+          <div class="chapter-caption"><h3>{chapter.title}</h3><p>{chapter.note}</p></div>
+          <Icon name="tabler:arrow-up" class="chapter-arrow" aria-hidden="true" />
+        </a>
+      ))}
     </div>
-  </header>
-  <div class="chapter-track" id="home-chapters" data-rail-track tabindex="0" aria-label="手帖章节">
-    {chapters.map((chapter) => (
-      <a class="chapter-leaf" data-rail-item href={getThemePath("fuyukawa-kagari", chapter.route)}>
-        <span class="chapter-number">{chapter.label}</span>
-        <div class="chapter-picture"><MangaArt image={chapter.image} /></div>
-        <MangaArt image={chapter.sticker} class="chapter-sticker" />
-        <div class="chapter-caption"><h3>{chapter.title}</h3><p>{chapter.note}</p></div>
-        <Icon name="tabler:arrow-up" class="chapter-arrow" aria-hidden="true" />
-      </a>
-    ))}
   </div>
 </section>

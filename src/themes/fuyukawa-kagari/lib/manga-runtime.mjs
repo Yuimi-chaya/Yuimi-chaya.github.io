@@ -122,42 +122,95 @@ export function nearestRailIndex(offsets, left) {
 }
 
 export function mountChapterRail(root, win = window) {
+  const stage = root.querySelector(".chapter-rail-stage");
   const track = root.querySelector("[data-rail-track]");
-  const items = [...root.querySelectorAll("[data-rail-item]")];
+  const items = [...root.querySelectorAll(".chapter-leaf")];
   const previous = root.querySelector("[data-rail-prev]");
   const next = root.querySelector("[data-rail-next]");
   const position = root.querySelector("[data-rail-position]");
-  if (!track || !items.length || !previous || !next) return () => {};
-  let frame = 0;
+  if (!stage || !track || !items.length || !previous || !next) return () => {};
+  const reduced = win.matchMedia("(prefers-reduced-motion: reduce)");
+  const fine = win.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 761px)");
+  let frame = 0, scrollMode = false, travel = 0, active = -1;
   const offsets = () => items.map((item) => item.offsetLeft - items[0].offsetLeft);
-  const update = () => {
-    frame = 0;
-    const index = nearestRailIndex(offsets(), track.scrollLeft);
-    previous.disabled = track.scrollLeft <= 2;
-    next.disabled = track.scrollLeft >= track.scrollWidth - track.clientWidth - 2;
+  const top = () => root.getBoundingClientRect().top + win.scrollY;
+  const select = (index) => {
+    previous.disabled = index === 0;
+    next.disabled = index === items.length - 1;
+    if (active === index) return;
+    active = index;
+    items.forEach((item, i) => {
+      if (i === index) item.setAttribute("data-rail-active", "true");
+      else item.removeAttribute("data-rail-active");
+    });
     if (position) position.textContent = `${String(index + 1).padStart(2, "0")} / ${String(items.length).padStart(2, "0")}`;
   };
+  const update = () => {
+    frame = 0;
+    const left = scrollMode ? clamp(win.scrollY - top(), 0, travel) : track.scrollLeft;
+    if (scrollMode) track.style.transform = `translate3d(${-left.toFixed(1)}px, 0, 0)`;
+    select(nearestRailIndex(offsets(), left));
+  };
   const schedule = () => { if (!frame) frame = win.requestAnimationFrame(update); };
+  const measure = () => {
+    const enabled = fine.matches && !reduced.matches && items.length > 1;
+    root.dataset.railMode = enabled ? "scroll" : "native";
+    scrollMode = enabled;
+    if (enabled) {
+      travel = Math.max(0, track.scrollWidth - stage.clientWidth);
+      if (travel > 2) {
+        const runway = `${stage.clientHeight + travel}px`;
+        if (root.style.getPropertyValue("--rail-runway") !== runway) root.style.setProperty("--rail-runway", runway);
+      } else {
+        scrollMode = false;
+        root.dataset.railMode = "native";
+      }
+    }
+    track.tabIndex = scrollMode ? -1 : 0;
+    if (!scrollMode) {
+      root.style.removeProperty("--rail-runway");
+      track.style.transform = "";
+    }
+    update();
+  };
   const move = (direction) => {
     const positions = offsets();
-    const index = clamp(nearestRailIndex(positions, track.scrollLeft) + direction, 0, items.length - 1);
-    track.scrollTo({ left: positions[index], behavior: win.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    const current = scrollMode ? active : nearestRailIndex(positions, track.scrollLeft);
+    const index = clamp(current + direction, 0, items.length - 1);
+    if (scrollMode) win.scrollTo({ top: top() + positions[index], behavior: "smooth" });
+    else track.scrollTo({ left: positions[index], behavior: reduced.matches ? "auto" : "smooth" });
   };
   const prevClick = () => move(-1), nextClick = () => move(1);
+  const focusIn = (event) => {
+    const index = items.indexOf(event.target);
+    if (index < 0 || !scrollMode) return;
+    win.scrollTo({ top: top() + offsets()[index], behavior: "instant" });
+    schedule();
+  };
+  const onScroll = () => { if (scrollMode) schedule(); };
   previous.addEventListener("click", prevClick);
   next.addEventListener("click", nextClick);
+  track.addEventListener("focusin", focusIn);
   track.addEventListener("scroll", schedule, { passive: true });
-  win.addEventListener("resize", schedule, { passive: true });
-  const observer = win.ResizeObserver ? new win.ResizeObserver(schedule) : null;
-  observer?.observe(track);
-  update();
+  win.addEventListener("scroll", onScroll, { passive: true });
+  win.addEventListener("resize", measure, { passive: true });
+  fine.addEventListener("change", measure);
+  reduced.addEventListener("change", measure);
+  measure();
   return () => {
     win.cancelAnimationFrame(frame);
-    observer?.disconnect();
+    delete root.dataset.railMode;
+    root.style.removeProperty("--rail-runway");
+    track.style.transform = "";
+    track.tabIndex = 0;
     previous.removeEventListener("click", prevClick);
     next.removeEventListener("click", nextClick);
+    track.removeEventListener("focusin", focusIn);
     track.removeEventListener("scroll", schedule);
-    win.removeEventListener("resize", schedule);
+    win.removeEventListener("scroll", onScroll);
+    win.removeEventListener("resize", measure);
+    fine.removeEventListener("change", measure);
+    reduced.removeEventListener("change", measure);
   };
 }
 
