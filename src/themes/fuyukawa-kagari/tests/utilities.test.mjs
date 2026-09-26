@@ -5,6 +5,7 @@ import vm from "node:vm";
 import test from "node:test";
 import postcss from "postcss";
 import sharp from "sharp";
+import { dampenLive2dPointer, LIVE2D_POINTER_PROFILE, mountLive2dPointerGuard } from "../lib/live2d-input.mjs";
 import { clampWaifuPosition, mountWaifuAnchor } from "../lib/waifu-anchor.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -176,6 +177,36 @@ test("Live2D position and visibility remain defined without any CDN stylesheet",
   assert.match(layout, /astro:before-swap", hideLive2dForRoute/);
 });
 
+test("Live2D mouse input is softened around the canvas center and cleaned up", () => {
+  const canvas = {
+    getBoundingClientRect: () => ({ left: 200, top: 300, width: 100, height: 100 })
+  };
+  const event = { clientX: 300, clientY: 300, pageX: 300, pageY: 300 };
+  assert.equal(dampenLive2dPointer(event, canvas), true);
+  assert.equal(event.pageX, 286);
+  assert.equal(event.pageY, 322);
+  assert.equal(LIVE2D_POINTER_PROFILE.x, 0.72);
+  assert.equal(LIVE2D_POINTER_PROFILE.y, 0.56);
+
+  const handlers = new Set();
+  const doc = {
+    addEventListener: (name, handler, options) => {
+      assert.equal(name, "mousemove");
+      assert.equal(options.capture, true);
+      handlers.add(handler);
+    },
+    removeEventListener: (name, handler, options) => {
+      assert.equal(name, "mousemove");
+      assert.equal(options.capture, true);
+      handlers.delete(handler);
+    }
+  };
+  const cleanup = mountLive2dPointerGuard(canvas, doc);
+  assert.equal(handlers.size, 1);
+  cleanup();
+  assert.equal(handlers.size, 0);
+});
+
 test("Fuyukawa Live2D uses the bundled Chieri model package", () => {
   const config = JSON.parse(readFileSync(
     new URL("../../../../public/themes/fuyukawa-kagari/live2d/waifu-tips.json", import.meta.url),
@@ -192,6 +223,8 @@ test("Fuyukawa Live2D uses the bundled Chieri model package", () => {
   assert.deepEqual(model.FileReferences.Textures, ["texture_00.png"]);
   assert.match(layout, /const live2dConfig = "\/themes\/fuyukawa-kagari\/live2d\/waifu-tips\.json"/);
   assert.match(layout, /waifuPath: live2dConfig/);
+  assert.match(layout, /mountLive2dPointerGuard\(document\.getElementById\("live2d"\)\)/);
+  assert.match(layout, /live2dPointerCleanup\?\.\(\)/);
   assert.doesNotMatch(layout, /cdnPath: "https:\/\/fastly\.jsdelivr\.net\/gh\/fghrsh\/live2d_api\//);
   assert.doesNotMatch(layout, /data-live2d-model|data-live2d-texture/);
   assert.equal(declarations(css, "body[data-fuyukawa] .live2d-controls")["grid-template-columns"], "repeat(2, minmax(0, 1fr))");

@@ -236,6 +236,7 @@ const themedNotFoundRedirectScript = `(() => {
     <MangaRuntime />
 
     <script>
+      import { mountLive2dPointerGuard } from "../lib/live2d-input.mjs";
       import { mountWaifuAnchor } from "../lib/waifu-anchor.mjs";
 
       let pigScrollTimer = 0;
@@ -406,11 +407,14 @@ const themedNotFoundRedirectScript = `(() => {
       let live2dVisibilityTimer = 0;
       let live2dGeneration = 0;
       let waifuAnchorCleanup = null;
+      let live2dPointerCleanup = null;
       const live2dConnection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       const live2dResources = new Map();
       const anchorWaifu = (waifu) => {
         waifuAnchorCleanup?.();
         waifuAnchorCleanup = mountWaifuAnchor(waifu);
+        live2dPointerCleanup?.();
+        live2dPointerCleanup = mountLive2dPointerGuard(document.getElementById("live2d"));
       };
 
       const setLive2dStatus = (text) => {
@@ -447,6 +451,8 @@ const themedNotFoundRedirectScript = `(() => {
         window.clearTimeout(live2dVisibilityTimer);
         waifuAnchorCleanup?.();
         waifuAnchorCleanup = null;
+        live2dPointerCleanup?.();
+        live2dPointerCleanup = null;
         removeLocalWaifuFallback();
         document.getElementById("waifu")?.remove();
         document.getElementById("waifu-toggle")?.remove();
@@ -685,6 +691,8 @@ const themedNotFoundRedirectScript = `(() => {
         window.clearTimeout(live2dVisibilityTimer);
         waifuAnchorCleanup?.();
         waifuAnchorCleanup = null;
+        live2dPointerCleanup?.();
+        live2dPointerCleanup = null;
         clearLive2dSchedule();
         removeLocalWaifuFallback();
         const waifu = document.getElementById("waifu");
