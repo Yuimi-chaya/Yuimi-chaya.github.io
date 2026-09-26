@@ -156,14 +156,18 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window,
     core = next;
     originalUpdate = next.update;
     next.update = function (...args) {
+      const result = originalUpdate.apply(this, args);
       if (active()) {
         const now = win.performance.now();
         const dt = clamp(now - lastFrame, 0, 100);
         lastFrame = now;
         reaction.hover += ((hovering ? 1 : 0) - reaction.hover) * Math.min(1, dt / 180);
         applyLive2dExpression(this, reaction, now, reducedMotion?.matches);
+        // The runtime updates drawable vertices inside its own update; recalculate
+        // once after our parameters so the current frame includes the reaction.
+        this._model?.update?.();
       }
-      return originalUpdate.apply(this, args);
+      return result;
     };
   };
   const onMove = () => {
@@ -224,7 +228,9 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window,
       canvas?.addEventListener("pointerleave", onLeave);
       canvas?.addEventListener("pointerdown", onDown);
       root?.addEventListener("pointerup", onUp);
+      doc.addEventListener("pointerup", onUp, { capture: true });
       root?.addEventListener("pointercancel", onLeave);
+      doc.addEventListener("pointercancel", onLeave, { capture: true });
       findModel();
       scheduleIdle();
     },
@@ -239,7 +245,9 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window,
       canvas?.removeEventListener("pointerleave", onLeave);
       canvas?.removeEventListener("pointerdown", onDown);
       root?.removeEventListener("pointerup", onUp);
+      doc.removeEventListener("pointerup", onUp, { capture: true });
       root?.removeEventListener("pointercancel", onLeave);
+      doc.removeEventListener("pointercancel", onLeave, { capture: true });
       restoreCore();
       root = null;
       canvas = null;

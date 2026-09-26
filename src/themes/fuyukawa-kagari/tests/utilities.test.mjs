@@ -261,8 +261,9 @@ test("Chieri reactions respond to hover, tap and idle without treating a drag as
   doc.hidden = false;
   const ids = ["ParamAngleX", "ParamCheek", "ParamEyeLOpen", "ParamEyeROpen"];
   const values = [30, 0, 1, 1];
+  let modelUpdateCount = 0;
   const core = {
-    _model: { parameters: { ids } },
+    _model: { parameters: { ids }, update: () => { modelUpdateCount++; } },
     getParameterDefaultValue: (index) => index >= 2 ? 1 : 0,
     getParameterMinimumValue: () => 0,
     getParameterValueByIndex: (index) => values[index],
@@ -292,6 +293,7 @@ test("Chieri reactions respond to hover, tap and idle without treating a drag as
   now += 100;
   core.update();
   assert.ok(values[1] > 0);
+  assert.equal(modelUpdateCount, 2);
 
   canvas.dispatch("pointerdown", { button: 0, isPrimary: true, pointerId: 1, clientX: 10, clientY: 10 });
   root.dispatch("pointerup", { pointerId: 1, clientX: 30, clientY: 30 });
@@ -304,6 +306,7 @@ test("Chieri reactions respond to hover, tap and idle without treating a drag as
   now += 210;
   core.update();
   assert.ok(values[3] < 1);
+  assert.equal(modelUpdateCount, 4);
   canvas.dispatch("pointerleave");
   const idle = [...timers.values()].at(-1);
   now += 9000;
