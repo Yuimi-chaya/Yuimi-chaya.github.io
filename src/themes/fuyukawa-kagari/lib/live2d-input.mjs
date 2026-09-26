@@ -49,16 +49,54 @@ const PARAMETER_SCALE = Object.freeze({
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+const smoothstep = (value) => {
+  const progress = clamp(value, 0, 1);
+  return progress * progress * (3 - 2 * progress);
+};
+
+const envelope = (elapsed, attack, hold, release) => {
+  if (elapsed < 0) return 0;
+  if (elapsed < attack) return smoothstep(elapsed / attack);
+  if (elapsed < attack + hold) return 1;
+  if (elapsed < attack + hold + release) {
+    return 1 - smoothstep((elapsed - attack - hold) / release);
+  }
+  return 0;
+};
+
 export function applyLive2dExpression(core, reaction, now, reducedMotion = false) {
   const ids = core._model?.parameters?.ids;
   if (!ids) return;
+  const indexOf = (id) => ids.indexOf(id);
+  const rangeOf = (index) => {
+    const minimum = Number(core.getParameterMinimumValue?.(index));
+    const maximum = Number(core.getParameterMaximumValue?.(index));
+    return {
+      minimum: Number.isFinite(minimum) ? minimum : 0,
+      maximum: Number.isFinite(maximum) && maximum > minimum ? maximum : 1
+    };
+  };
   const set = (id, value) => {
     const index = ids.indexOf(id);
     if (index >= 0) core.setParameterValueByIndex(index, value);
   };
+  const setDefault = (id) => {
+    const index = indexOf(id);
+    if (index >= 0) set(id, core.getParameterDefaultValue(index));
+  };
+  const setTargetRatio = (id, ratio, intensity) => {
+    const index = indexOf(id);
+    if (index < 0) return;
+    const { minimum, maximum } = rangeOf(index);
+    const target = minimum + (maximum - minimum) * clamp(ratio, 0, 1);
+    const baseline = core.getParameterDefaultValue(index);
+    set(id, baseline + (target - baseline) * clamp(intensity, 0, 1));
+  };
   const add = (id, value) => {
-    const index = ids.indexOf(id);
-    if (index >= 0) core.setParameterValueByIndex(index, core.getParameterValueByIndex(index) + value);
+    const index = indexOf(id);
+    if (index < 0) return;
+    const { minimum, maximum } = rangeOf(index);
+    set(id, clamp(core.getParameterValueByIndex(index) + value, minimum, maximum));
   };
   for (const [id, scale] of Object.entries(PARAMETER_SCALE)) {
     const index = ids.indexOf(id);
@@ -69,48 +107,60 @@ export function applyLive2dExpression(core, reaction, now, reducedMotion = false
   }
 
   const elapsed = now - reaction.startedAt;
-  const duration = reaction.kind === "tap" ? 1250 : 1500;
+  const duration = reaction.kind === "tap" ? 1650 : 1500;
   const expression = elapsed >= 0 && elapsed < duration
-    ? Math.min(1, elapsed / 180, (duration - elapsed) / 320)
+    ? envelope(elapsed, 120, reaction.kind === "tap" ? 720 : 260, reaction.kind === "tap" ? 560 : 420)
     : 0;
   const hover = reaction.hover ?? 0;
   const smile = reaction.kind === "tap" || reaction.kind === "idle-smile" ? expression : 0;
   const curious = reaction.kind === "idle-curious" ? expression : 0;
-  const eyeSmile = Math.max(hover * 0.65, smile, curious * 0.4);
-  add("ParamCheek", hover * 0.3 + smile * 0.65 + curious * 0.25);
-  add("ParamMouthForm", -hover * 0.25 - smile * 0.7);
-  add("ParamMouthOpenY", smile * 0.25 + curious * 0.18);
-  add("ParamBrowLY", smile * 0.18 + curious * 0.38);
-  add("ParamBrowRY", smile * 0.18 + curious * 0.38);
-  if (eyeSmile > 0) {
-    for (const id of ["ParamEyeLSmile", "ParamEyeRSmile"]) {
-      const index = ids.indexOf(id);
-      if (index < 0) continue;
-      const baseline = core.getParameterDefaultValue(index);
-      set(id, baseline + (0.05 - baseline) * eyeSmile);
-    }
+  const eyeSmile = Math.max(hover * 0.9, smile, curious * 0.55);
+  const mouthSmile = Math.max(hover * 0.55, smile, curious * 0.4);
+  const mouthOpen = reaction.kind === "tap"
+    ? envelope(elapsed - 80, 70, 420, 380)
+    : curious * 0.72;
+
+  // Expression parameters are owned by this controller for the current frame.
+  // Resetting them first prevents the previous gesture from leaking into the next one.
+  for (const id of [
+    "ParamCheek", "ParamMouthForm", "ParamMouthOpenY", "ParamBrowLY", "ParamBrowRY",
+    "ParamBrowLForm", "ParamBrowRForm", "ParamEyeLSmile", "ParamEyeRSmile",
+    "ParamEyeLOpen", "ParamEyeROpen"
+  ]) {
+    setDefault(id);
   }
+  if (eyeSmile > 0) {
+    setTargetRatio("ParamEyeLSmile", 0.04, eyeSmile);
+    setTargetRatio("ParamEyeRSmile", 0.04, eyeSmile);
+  }
+  setTargetRatio("ParamCheek", 0.52, Math.max(hover * 0.2, smile * 0.82, curious * 0.3));
+  setTargetRatio("ParamMouthForm", 0.14, mouthSmile);
+  setTargetRatio("ParamMouthOpenY", 0.62, mouthOpen);
+  setTargetRatio("ParamBrowLY", 0.6, Math.max(smile * 0.55, curious * 0.9));
+  setTargetRatio("ParamBrowRY", 0.6, Math.max(smile * 0.55, curious * 0.9));
+
+  const blink = reaction.kind === "tap"
+    ? envelope(elapsed, 80, 560, 360)
+    : reaction.kind === "idle-blink" && elapsed >= 0 && elapsed < 600
+      ? envelope(elapsed, 80, 120, 260) : 0;
+  const eyeClosure = reaction.kind === "tap" ? blink
+    : reaction.kind === "idle-blink" ? blink : 0;
+  if (eyeClosure > 0) {
+    const eyeIds = reaction.kind === "idle-blink"
+      ? ["ParamEyeLOpen", "ParamEyeROpen"]
+      : reaction.eyes === "left" ? ["ParamEyeLOpen"]
+      : reaction.eyes === "right" ? ["ParamEyeROpen"]
+        : ["ParamEyeLOpen", "ParamEyeROpen"];
+    for (const id of eyeIds) setTargetRatio(id, 0.03, eyeClosure);
+  }
+
   if (!reducedMotion && expression > 0) {
     const direction = reaction.eyes === "left" ? -1 : 1;
     if (reaction.kind === "tap" || reaction.kind === "idle-curious") {
       add("ParamAngleZ", direction * (reaction.kind === "tap" ? 2 : 1.2) * expression);
-      add("ParamHairSide", direction * 0.65 * Math.sin(Math.PI * elapsed / duration) * expression);
+      add("ParamHairSide", direction * (reaction.kind === "tap" ? 0.45 : 0.65)
+        * Math.sin(Math.PI * elapsed / duration) * expression);
     }
-  }
-
-  const blink = reaction.kind === "tap" ? expression * 0.96
-    : reaction.kind === "idle-blink" && elapsed >= 0 && elapsed < 420
-      ? Math.sin(Math.PI * elapsed / 420) * 0.82 : 0;
-  if (blink <= 0) return;
-  const eyeIds = reaction.eyes === "left" ? ["ParamEyeLOpen"]
-    : reaction.eyes === "right" ? ["ParamEyeROpen"]
-      : ["ParamEyeLOpen", "ParamEyeROpen"];
-  for (const id of eyeIds) {
-    const index = ids.indexOf(id);
-    if (index < 0) continue;
-    const closed = core.getParameterMinimumValue(index);
-    const current = core.getParameterValueByIndex(index);
-    core.setParameterValueByIndex(index, current + (closed - current) * blink);
   }
 }
 
@@ -174,6 +224,11 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window,
     if (!active()) return;
     scheduleIdle();
   };
+  const onPointerMove = (event) => {
+    if (event.pointerType && !["mouse", "pen"].includes(event.pointerType)) return;
+    hovering = true;
+    scheduleIdle();
+  };
   const onEnter = (event) => {
     if (event.pointerType && !["mouse", "pen"].includes(event.pointerType)) return;
     hovering = true;
@@ -225,8 +280,10 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window,
       doc.addEventListener("visibilitychange", onVisibility);
       reducedMotion?.addEventListener?.("change", onVisibility);
       canvas?.addEventListener("pointerenter", onEnter);
+      canvas?.addEventListener("pointermove", onPointerMove, { passive: true });
       canvas?.addEventListener("pointerleave", onLeave);
       canvas?.addEventListener("pointerdown", onDown);
+      root?.addEventListener("pointerdown", onDown);
       root?.addEventListener("pointerup", onUp);
       doc.addEventListener("pointerup", onUp, { capture: true });
       root?.addEventListener("pointercancel", onLeave);
@@ -242,8 +299,10 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window,
       doc.removeEventListener("visibilitychange", onVisibility);
       reducedMotion?.removeEventListener?.("change", onVisibility);
       canvas?.removeEventListener("pointerenter", onEnter);
+      canvas?.removeEventListener("pointermove", onPointerMove);
       canvas?.removeEventListener("pointerleave", onLeave);
       canvas?.removeEventListener("pointerdown", onDown);
+      root?.removeEventListener("pointerdown", onDown);
       root?.removeEventListener("pointerup", onUp);
       doc.removeEventListener("pointerup", onUp, { capture: true });
       root?.removeEventListener("pointercancel", onLeave);

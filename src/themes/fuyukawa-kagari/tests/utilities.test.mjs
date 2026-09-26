@@ -211,39 +211,42 @@ test("Chieri pointer expression separates restrained head movement from the eyes
   const ids = ["ParamAngleX", "ParamAngleY", "ParamAngleZ", "ParamBodyAngleX",
     "ParamEyeBallX", "ParamEyeBallY", "ParamCheek", "ParamEyeLOpen", "ParamEyeROpen",
     "ParamMouthForm", "ParamMouthOpenY", "ParamBrowLY", "ParamBrowRY",
-    "ParamEyeLSmile", "ParamEyeRSmile", "ParamHairSide"];
-  const values = [30, -30, 22, 10, 1, -1, 0, 1, 1, 0, 0, 0, 0, 0.5, 0.5, 0];
+    "ParamEyeLSmile", "ParamEyeRSmile", "ParamHairSide", "ParamBrowLForm", "ParamBrowRForm"];
+  const values = [30, -30, 22, 10, 1, -1, 0, 1, 1, 0, 0, 0, 0, 0.5, 0.5, 0, 0, 0];
+  const defaults = [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0.5, 0.5, 0, 0, 0];
+  const minimums = [-30, -30, -30, -10, -1, -1, 0, 0, 0, -1, 0, -1, -1, 0, 0, -1, -1, -1];
+  const maximums = [30, 30, 30, 10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
   const core = {
     _model: { parameters: { ids } },
-    getParameterDefaultValue: (index) => [7, 8].includes(index) ? 1 : index >= 13 ? 0.5 : 0,
-    getParameterMinimumValue: () => 0,
+    getParameterDefaultValue: (index) => defaults[index],
+    getParameterMinimumValue: (index) => minimums[index],
+    getParameterMaximumValue: (index) => maximums[index],
     getParameterValueByIndex: (index) => values[index],
     setParameterValueByIndex: (index, value) => { values[index] = value; }
   };
-  applyLive2dExpression(core, { hover: 0.5, kind: "tap", startedAt: 100, eyes: "right" }, 310);
+  applyLive2dExpression(core, { hover: 0.5, kind: "tap", startedAt: 100, eyes: "right" }, 500);
   assert.ok(Math.abs(values[0] - 6.6) < 0.001);
   assert.ok(Math.abs(values[1] + 5.4) < 0.001);
   assert.equal(values[2], 2);
   assert.ok(Math.abs(values[3] - 2.8) < 0.001);
   assert.equal(values[4], 0.68);
   assert.equal(values[5], -0.55);
-  assert.ok(values[6] > 0.7);
+  assert.ok(values[6] > 0.3);
   assert.equal(values[7], 1);
-  assert.ok(values[8] < 0.1);
-  assert.ok(values[9] < -0.7);
-  assert.ok(values[10] >= 0.25);
-  assert.ok(values[11] > 0 && values[12] > 0);
-  assert.ok(values[13] < 0.2 && values[14] < 0.2);
+  assert.ok(values[8] < 0.1, "the selected eye is visibly winked");
+  assert.ok(values[9] < -0.65, "the mouth forms a visible smile");
+  assert.ok(values[10] >= 0.35, "the mouth visibly opens");
+  assert.ok(values[11] > 0 && values[12] > 0, "the brows lift with the expression");
+  assert.ok(values[13] < 0.1 && values[14] < 0.1, "both eyes use the smile deformation");
   assert.ok(values[15] > 0);
-  values[8] = 1;
-  applyLive2dExpression(core, { hover: 0, kind: "tap", startedAt: 100, eyes: "right" }, 900);
-  assert.ok(values[8] < 0.1, "the wink remains visible beyond the first 240ms");
-  const previous = values[10];
-  applyLive2dExpression(core, { hover: 0, kind: "tap", startedAt: 100, eyes: "right" }, 1700);
-  assert.equal(values[10], previous);
+  applyLive2dExpression(core, { hover: 0, kind: "tap", startedAt: 100, eyes: "right" }, 1900);
+  assert.equal(values[8], 1, "the wink returns to the neutral eye state");
+  assert.equal(values[9], 0, "the mouth returns to neutral");
+  assert.equal(values[10], 0, "the mouth closes after the gesture");
+  assert.equal(values[13], 0.5, "the eye smile returns to the model default");
   values[2] = 22;
   values[15] = 0;
-  applyLive2dExpression(core, { hover: 0, kind: "tap", startedAt: 100, eyes: "right" }, 310, true);
+  applyLive2dExpression(core, { hover: 0, kind: "tap", startedAt: 100, eyes: "right" }, 500, true);
   assert.equal(values[2], 0);
   assert.equal(values[15], 0);
 });
@@ -259,13 +262,15 @@ test("Chieri reactions respond to hover, tap and idle without treating a drag as
   };
   const doc = new Element(), root = new Element(), canvas = new Element();
   doc.hidden = false;
-  const ids = ["ParamAngleX", "ParamCheek", "ParamEyeLOpen", "ParamEyeROpen"];
-  const values = [30, 0, 1, 1];
+  const ids = ["ParamAngleX", "ParamCheek", "ParamEyeLOpen", "ParamEyeROpen",
+    "ParamEyeLSmile", "ParamEyeRSmile", "ParamMouthForm", "ParamMouthOpenY"];
+  const values = [30, 0, 1, 1, 0.5, 0.5, 0, 0];
   let modelUpdateCount = 0;
   const core = {
     _model: { parameters: { ids }, update: () => { modelUpdateCount++; } },
-    getParameterDefaultValue: (index) => index >= 2 ? 1 : 0,
-    getParameterMinimumValue: () => 0,
+    getParameterDefaultValue: (index) => [2, 3].includes(index) ? 1 : index >= 4 && index <= 5 ? 0.5 : 0,
+    getParameterMinimumValue: (index) => index === 6 ? -1 : 0,
+    getParameterMaximumValue: () => 1,
     getParameterValueByIndex: (index) => values[index],
     setParameterValueByIndex: (index, value) => { values[index] = value; },
     update() {}
@@ -305,7 +310,9 @@ test("Chieri reactions respond to hover, tap and idle without treating a drag as
   root.dispatch("pointerup", { pointerType: "touch", pointerId: 2, clientX: 12, clientY: 11 });
   now += 210;
   core.update();
-  assert.ok(values[3] < 1);
+  assert.ok(values[3] < 1, "touch activates a visible wink");
+  assert.ok(values[4] < 0.1 && values[5] < 0.1, "touch activates the smile eyes");
+  assert.ok(values[6] < 0.1 && values[7] > 0.3, "touch activates smile and open mouth");
   assert.equal(modelUpdateCount, 4);
   canvas.dispatch("pointerleave");
   const idle = [...timers.values()].at(-1);
