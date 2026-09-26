@@ -236,7 +236,7 @@ const themedNotFoundRedirectScript = `(() => {
     <MangaRuntime />
 
     <script>
-      import { mountLive2dPointerGuard } from "../lib/live2d-input.mjs";
+      import { createLive2dReactions, mountLive2dPointerGuard } from "../lib/live2d-input.mjs";
       import { mountWaifuAnchor } from "../lib/waifu-anchor.mjs";
 
       let pigScrollTimer = 0;
@@ -408,13 +408,17 @@ const themedNotFoundRedirectScript = `(() => {
       let live2dGeneration = 0;
       let waifuAnchorCleanup = null;
       let live2dPointerCleanup = null;
+      let live2dReactions = null;
       const live2dConnection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       const live2dResources = new Map();
       const anchorWaifu = (waifu) => {
         waifuAnchorCleanup?.();
         waifuAnchorCleanup = mountWaifuAnchor(waifu);
         live2dPointerCleanup?.();
-        live2dPointerCleanup = mountLive2dPointerGuard(document.getElementById("live2d"));
+        live2dReactions?.stop();
+        const canvas = document.getElementById("live2d");
+        live2dPointerCleanup = live2dReactions ? null : mountLive2dPointerGuard(canvas);
+        live2dReactions?.start(waifu, canvas);
       };
 
       const setLive2dStatus = (text) => {
@@ -453,6 +457,7 @@ const themedNotFoundRedirectScript = `(() => {
         waifuAnchorCleanup = null;
         live2dPointerCleanup?.();
         live2dPointerCleanup = null;
+        live2dReactions?.stop();
         removeLocalWaifuFallback();
         document.getElementById("waifu")?.remove();
         document.getElementById("waifu-toggle")?.remove();
@@ -532,6 +537,7 @@ const themedNotFoundRedirectScript = `(() => {
           waifu.classList.remove("waifu-active");
           if (persist) localStorage.setItem("waifu-display", Date.now().toString());
           live2dVisibilityTimer = window.setTimeout(() => waifu.classList.add("waifu-hidden"), 180);
+          live2dReactions?.stop();
         }
       };
 
@@ -629,6 +635,15 @@ const themedNotFoundRedirectScript = `(() => {
             typeof window.initWidget === "function" ? Promise.resolve() : loadExternalResource(`${live2dBase}waifu-tips.js`, "js")
           ]);
           if (generation !== live2dGeneration || !isHomeRoute()) return;
+          if (!live2dReactions) {
+            try {
+              const { AppDelegate } = await import(/* @vite-ignore */ `${live2dBase}chunk/index2.js`);
+              if (generation !== live2dGeneration || !isHomeRoute()) return;
+              live2dReactions = createLive2dReactions(AppDelegate);
+            } catch {
+              // The pinned widget can still load without its optional performance layer.
+            }
+          }
           window.initWidget({
             waifuPath: live2dConfig,
             cubism2Path: `${live2dBase}live2d.min.js`,
@@ -693,6 +708,7 @@ const themedNotFoundRedirectScript = `(() => {
         waifuAnchorCleanup = null;
         live2dPointerCleanup?.();
         live2dPointerCleanup = null;
+        live2dReactions?.stop();
         clearLive2dSchedule();
         removeLocalWaifuFallback();
         const waifu = document.getElementById("waifu");

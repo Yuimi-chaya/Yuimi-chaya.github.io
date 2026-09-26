@@ -5,7 +5,7 @@ import vm from "node:vm";
 import test from "node:test";
 import postcss from "postcss";
 import sharp from "sharp";
-import { dampenLive2dPointer, LIVE2D_POINTER_PROFILE, mountLive2dPointerGuard } from "../lib/live2d-input.mjs";
+import { applyLive2dExpression, createLive2dReactions, dampenLive2dPointer, LIVE2D_POINTER_PROFILE, mountLive2dPointerGuard } from "../lib/live2d-input.mjs";
 import { clampWaifuPosition, mountWaifuAnchor } from "../lib/waifu-anchor.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -207,6 +207,116 @@ test("Live2D mouse input is softened around the canvas center and cleaned up", (
   assert.equal(handlers.size, 0);
 });
 
+test("Chieri pointer expression separates restrained head movement from the eyes", () => {
+  const ids = ["ParamAngleX", "ParamAngleY", "ParamAngleZ", "ParamBodyAngleX",
+    "ParamEyeBallX", "ParamEyeBallY", "ParamCheek", "ParamEyeLOpen", "ParamEyeROpen"];
+  const values = [30, -30, 22, 10, 1, -1, 0, 1, 1];
+  const core = {
+    _model: { parameters: { ids } },
+    getParameterDefaultValue: (index) => index > 6 ? 1 : 0,
+    getParameterMinimumValue: () => 0,
+    getParameterValueByIndex: (index) => values[index],
+    setParameterValueByIndex: (index, value) => { values[index] = value; }
+  };
+  applyLive2dExpression(core, { cheek: 0.2, blinkAt: 100, blinkStrength: 0.8, eyes: "right" }, 220);
+  assert.ok(Math.abs(values[0] - 6.6) < 0.001);
+  assert.ok(Math.abs(values[1] + 5.4) < 0.001);
+  assert.equal(values[2], 0);
+  assert.ok(Math.abs(values[3] - 2.8) < 0.001);
+  assert.equal(values[4], 0.68);
+  assert.equal(values[5], -0.55);
+  assert.equal(values[6], 0.2);
+  assert.equal(values[7], 1);
+  assert.ok(values[8] < 0.3);
+});
+
+test("Chieri reactions respond to hover, tap and idle without treating a drag as a tap", () => {
+  let now = 1000, nextTimer = 0;
+  const timers = new Map();
+  const win = {
+    performance: { now: () => now },
+    setTimeout: (fn) => { timers.set(++nextTimer, fn); return nextTimer; },
+    clearTimeout: (id) => timers.delete(id),
+    matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} })
+  };
+  const doc = new Element(), root = new Element(), canvas = new Element();
+  doc.hidden = false;
+  const ids = ["ParamAngleX", "ParamCheek", "ParamEyeLOpen", "ParamEyeROpen"];
+  const values = [30, 0, 1, 1];
+  const core = {
+    _model: { parameters: { ids } },
+    getParameterDefaultValue: (index) => index >= 2 ? 1 : 0,
+    getParameterMinimumValue: () => 0,
+    getParameterValueByIndex: (index) => values[index],
+    setParameterValueByIndex: (index, value) => { values[index] = value; },
+    update() {}
+  };
+  const originalUpdate = core.update;
+  let modelReady = true;
+  class AppDelegate {
+    constructor() {
+      this.subdelegates = { at: () => ({ getLive2DManager: () => ({
+        _models: { at: () => modelReady ? { getModel: () => core } : null }
+      }) }) };
+    }
+    run() { return "running"; }
+  }
+  const originalRun = AppDelegate.prototype.run;
+  const reactions = createLive2dReactions(AppDelegate, doc, win);
+  reactions.start(root, canvas);
+  assert.equal(new AppDelegate().run(), "running");
+  assert.notEqual(core.update, originalUpdate);
+  canvas.dispatch("pointerenter", { pointerType: "touch" });
+  now += 100;
+  core.update();
+  assert.equal(values[1], 0);
+  canvas.dispatch("pointerenter", { pointerType: "mouse" });
+  now += 100;
+  core.update();
+  assert.ok(values[1] > 0);
+
+  canvas.dispatch("pointerdown", { button: 0, isPrimary: true, pointerId: 1, clientX: 10, clientY: 10 });
+  root.dispatch("pointerup", { pointerId: 1, clientX: 30, clientY: 30 });
+  now += 60;
+  values[3] = 1;
+  core.update();
+  assert.equal(values[3], 1);
+  canvas.dispatch("pointerdown", { button: 0, isPrimary: true, pointerId: 2, clientX: 10, clientY: 10 });
+  root.dispatch("pointerup", { pointerId: 2, clientX: 12, clientY: 11 });
+  now += 100;
+  core.update();
+  assert.ok(values[3] < 1);
+  canvas.dispatch("pointerleave");
+  const idle = [...timers.values()].at(-1);
+  now += 11000;
+  idle();
+  now += 120;
+  values[2] = values[3] = 1;
+  core.update();
+  assert.ok(values[2] < 1 || values[3] < 1);
+  root.classList.add("waifu-hidden");
+  values[0] = 30;
+  core.update();
+  assert.equal(values[0], 30);
+  reactions.stop();
+  assert.equal(core.update, originalUpdate);
+  assert.equal(timers.size, 0);
+  root.classList.remove("waifu-hidden");
+  modelReady = false;
+  reactions.start(root, canvas);
+  assert.equal(core.update, originalUpdate);
+  modelReady = true;
+  [...timers.values()][0]();
+  assert.notEqual(core.update, originalUpdate);
+  reactions.stop();
+  assert.equal(timers.size, 0);
+  for (const node of [doc, root, canvas]) {
+    for (const handlers of node.events.values()) assert.equal(handlers.size, 0);
+  }
+  reactions.destroy();
+  assert.equal(AppDelegate.prototype.run, originalRun);
+});
+
 test("Fuyukawa Live2D uses the bundled Chieri model package", () => {
   const config = JSON.parse(readFileSync(
     new URL("../../../../public/themes/fuyukawa-kagari/live2d/waifu-tips.json", import.meta.url),
@@ -223,7 +333,9 @@ test("Fuyukawa Live2D uses the bundled Chieri model package", () => {
   assert.deepEqual(model.FileReferences.Textures, ["texture_00.png"]);
   assert.match(layout, /const live2dConfig = "\/themes\/fuyukawa-kagari\/live2d\/waifu-tips\.json"/);
   assert.match(layout, /waifuPath: live2dConfig/);
-  assert.match(layout, /mountLive2dPointerGuard\(document\.getElementById\("live2d"\)\)/);
+  assert.match(layout, /createLive2dReactions\(AppDelegate\)/);
+  assert.match(layout, /live2dReactions\?\.start\(waifu, canvas\)/);
+  assert.match(layout, /live2dReactions \? null : mountLive2dPointerGuard\(canvas\)/);
   assert.match(layout, /live2dPointerCleanup\?\.\(\)/);
   assert.doesNotMatch(layout, /cdnPath: "https:\/\/fastly\.jsdelivr\.net\/gh\/fghrsh\/live2d_api\//);
   assert.doesNotMatch(layout, /data-live2d-model|data-live2d-texture/);
@@ -329,6 +441,7 @@ test("rapid hide/show cancels stale Live2D hiding without changing its viewport 
     },
     localStorage: { setItem() {}, removeItem() {} },
     anchorWaifu: () => { anchors++; },
+    live2dReactions: null,
     live2dToggle: toggle,
     setLive2dStatus() {}
   });
