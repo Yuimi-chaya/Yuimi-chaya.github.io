@@ -49,9 +49,17 @@ const PARAMETER_SCALE = Object.freeze({
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-export function applyLive2dExpression(core, reaction, now) {
+export function applyLive2dExpression(core, reaction, now, reducedMotion = false) {
   const ids = core._model?.parameters?.ids;
   if (!ids) return;
+  const set = (id, value) => {
+    const index = ids.indexOf(id);
+    if (index >= 0) core.setParameterValueByIndex(index, value);
+  };
+  const add = (id, value) => {
+    const index = ids.indexOf(id);
+    if (index >= 0) core.setParameterValueByIndex(index, core.getParameterValueByIndex(index) + value);
+  };
   for (const [id, scale] of Object.entries(PARAMETER_SCALE)) {
     const index = ids.indexOf(id);
     if (index < 0) continue;
@@ -60,14 +68,39 @@ export function applyLive2dExpression(core, reaction, now) {
     core.setParameterValueByIndex(index, baseline + (current - baseline) * scale);
   }
 
-  const cheek = ids.indexOf("ParamCheek");
-  if (cheek >= 0 && reaction.cheek > 0) {
-    core.setParameterValueByIndex(cheek, core.getParameterValueByIndex(cheek) + reaction.cheek);
-  }
-  const elapsed = now - reaction.blinkAt;
-  const blink = elapsed >= 0 && elapsed < 240
-    ? Math.sin(Math.PI * elapsed / 240) * reaction.blinkStrength
+  const elapsed = now - reaction.startedAt;
+  const duration = reaction.kind === "tap" ? 1250 : 1500;
+  const expression = elapsed >= 0 && elapsed < duration
+    ? Math.min(1, elapsed / 180, (duration - elapsed) / 320)
     : 0;
+  const hover = reaction.hover ?? 0;
+  const smile = reaction.kind === "tap" || reaction.kind === "idle-smile" ? expression : 0;
+  const curious = reaction.kind === "idle-curious" ? expression : 0;
+  const eyeSmile = Math.max(hover * 0.65, smile, curious * 0.4);
+  add("ParamCheek", hover * 0.3 + smile * 0.65 + curious * 0.25);
+  add("ParamMouthForm", -hover * 0.25 - smile * 0.7);
+  add("ParamMouthOpenY", smile * 0.25 + curious * 0.18);
+  add("ParamBrowLY", smile * 0.18 + curious * 0.38);
+  add("ParamBrowRY", smile * 0.18 + curious * 0.38);
+  if (eyeSmile > 0) {
+    for (const id of ["ParamEyeLSmile", "ParamEyeRSmile"]) {
+      const index = ids.indexOf(id);
+      if (index < 0) continue;
+      const baseline = core.getParameterDefaultValue(index);
+      set(id, baseline + (0.05 - baseline) * eyeSmile);
+    }
+  }
+  if (!reducedMotion && expression > 0) {
+    const direction = reaction.eyes === "left" ? -1 : 1;
+    if (reaction.kind === "tap" || reaction.kind === "idle-curious") {
+      add("ParamAngleZ", direction * (reaction.kind === "tap" ? 2 : 1.2) * expression);
+      add("ParamHairSide", direction * 0.65 * Math.sin(Math.PI * elapsed / duration) * expression);
+    }
+  }
+
+  const blink = reaction.kind === "tap" ? expression * 0.96
+    : reaction.kind === "idle-blink" && elapsed >= 0 && elapsed < 420
+      ? Math.sin(Math.PI * elapsed / 420) * 0.82 : 0;
   if (blink <= 0) return;
   const eyeIds = reaction.eyes === "left" ? ["ParamEyeLOpen"]
     : reaction.eyes === "right" ? ["ParamEyeROpen"]
@@ -81,7 +114,7 @@ export function applyLive2dExpression(core, reaction, now) {
   }
 }
 
-export function createLive2dReactions(AppDelegate, doc = document, win = window) {
+export function createLive2dReactions(AppDelegate, doc = document, win = window, random = Math.random) {
   let delegate = null;
   let root = null;
   let canvas = null;
@@ -92,25 +125,24 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window)
   let press = null;
   let hovering = false;
   let lastFrame = 0;
+  let taps = 0;
   const reducedMotion = win.matchMedia?.("(prefers-reduced-motion: reduce)");
-  const reaction = { cheek: 0, blinkAt: -Infinity, blinkStrength: 0, eyes: "both" };
+  const reaction = { hover: 0, kind: null, startedAt: -Infinity, eyes: "both" };
   const originalRun = AppDelegate.prototype.run;
 
-  const active = () => root && !root.classList.contains("waifu-hidden")
-    && !doc.hidden && !reducedMotion?.matches;
+  const active = () => root && !root.classList.contains("waifu-hidden") && !doc.hidden;
   const scheduleIdle = () => {
     win.clearTimeout(idleTimer);
-    if (!active()) return;
+    if (!active() || reducedMotion?.matches) return;
     idleTimer = win.setTimeout(() => {
       if (active() && !hovering) {
-        const variant = Math.floor(Math.random() * 3);
-        reaction.blinkAt = win.performance.now();
-        reaction.blinkStrength = variant === 0 ? 0.85 : 0.72;
-        reaction.eyes = variant === 1 ? "left" : variant === 2 ? "right" : "both";
-        reaction.cheek = variant === 0 ? 0.1 : 0.2;
+        const variant = Math.floor(random() * 3);
+        reaction.kind = ["idle-blink", "idle-smile", "idle-curious"][variant];
+        reaction.startedAt = win.performance.now();
+        reaction.eyes = "both";
       }
       scheduleIdle();
-    }, 9000 + Math.random() * 9000);
+    }, 9000 + random() * 9000);
   };
   const restoreCore = () => {
     if (core && originalUpdate) core.update = originalUpdate;
@@ -128,10 +160,8 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window)
         const now = win.performance.now();
         const dt = clamp(now - lastFrame, 0, 100);
         lastFrame = now;
-        const target = hovering ? 0.16 : 0;
-        reaction.cheek += (target - reaction.cheek) * Math.min(1, dt / 180);
-        if (now - reaction.blinkAt > 850 && !hovering) reaction.cheek *= 0.88;
-        applyLive2dExpression(this, reaction, now);
+        reaction.hover += ((hovering ? 1 : 0) - reaction.hover) * Math.min(1, dt / 180);
+        applyLive2dExpression(this, reaction, now, reducedMotion?.matches);
       }
       return originalUpdate.apply(this, args);
     };
@@ -159,10 +189,9 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window)
     const moved = Math.hypot(event.clientX - press.x, event.clientY - press.y);
     press = null;
     if (moved > 8 || !active()) return;
-    reaction.blinkAt = win.performance.now();
-    reaction.blinkStrength = 0.9;
-    reaction.eyes = "right";
-    reaction.cheek = 0.32;
+    reaction.kind = "tap";
+    reaction.startedAt = win.performance.now();
+    reaction.eyes = ++taps % 2 ? "right" : "left";
     scheduleIdle();
   };
   const onVisibility = () => {
@@ -216,8 +245,9 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window)
       canvas = null;
       press = null;
       hovering = false;
-      reaction.cheek = 0;
-      reaction.blinkAt = -Infinity;
+      reaction.hover = 0;
+      reaction.kind = null;
+      reaction.startedAt = -Infinity;
     },
     destroy() {
       this.stop();

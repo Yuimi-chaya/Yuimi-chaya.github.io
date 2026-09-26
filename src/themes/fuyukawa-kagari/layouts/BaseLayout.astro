@@ -640,8 +640,8 @@ const themedNotFoundRedirectScript = `(() => {
               const { AppDelegate } = await import(/* @vite-ignore */ `${live2dBase}chunk/index2.js`);
               if (generation !== live2dGeneration || !isHomeRoute()) return;
               live2dReactions = createLive2dReactions(AppDelegate);
-            } catch {
-              // The pinned widget can still load without its optional performance layer.
+            } catch (error) {
+              console.warn("[Yuimi Live2D] Expression controller unavailable; using basic pointer tracking.", error);
             }
           }
           window.initWidget({

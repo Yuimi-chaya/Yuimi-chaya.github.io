@@ -209,25 +209,43 @@ test("Live2D mouse input is softened around the canvas center and cleaned up", (
 
 test("Chieri pointer expression separates restrained head movement from the eyes", () => {
   const ids = ["ParamAngleX", "ParamAngleY", "ParamAngleZ", "ParamBodyAngleX",
-    "ParamEyeBallX", "ParamEyeBallY", "ParamCheek", "ParamEyeLOpen", "ParamEyeROpen"];
-  const values = [30, -30, 22, 10, 1, -1, 0, 1, 1];
+    "ParamEyeBallX", "ParamEyeBallY", "ParamCheek", "ParamEyeLOpen", "ParamEyeROpen",
+    "ParamMouthForm", "ParamMouthOpenY", "ParamBrowLY", "ParamBrowRY",
+    "ParamEyeLSmile", "ParamEyeRSmile", "ParamHairSide"];
+  const values = [30, -30, 22, 10, 1, -1, 0, 1, 1, 0, 0, 0, 0, 0.5, 0.5, 0];
   const core = {
     _model: { parameters: { ids } },
-    getParameterDefaultValue: (index) => index > 6 ? 1 : 0,
+    getParameterDefaultValue: (index) => [7, 8].includes(index) ? 1 : index >= 13 ? 0.5 : 0,
     getParameterMinimumValue: () => 0,
     getParameterValueByIndex: (index) => values[index],
     setParameterValueByIndex: (index, value) => { values[index] = value; }
   };
-  applyLive2dExpression(core, { cheek: 0.2, blinkAt: 100, blinkStrength: 0.8, eyes: "right" }, 220);
+  applyLive2dExpression(core, { hover: 0.5, kind: "tap", startedAt: 100, eyes: "right" }, 310);
   assert.ok(Math.abs(values[0] - 6.6) < 0.001);
   assert.ok(Math.abs(values[1] + 5.4) < 0.001);
-  assert.equal(values[2], 0);
+  assert.equal(values[2], 2);
   assert.ok(Math.abs(values[3] - 2.8) < 0.001);
   assert.equal(values[4], 0.68);
   assert.equal(values[5], -0.55);
-  assert.equal(values[6], 0.2);
+  assert.ok(values[6] > 0.7);
   assert.equal(values[7], 1);
-  assert.ok(values[8] < 0.3);
+  assert.ok(values[8] < 0.1);
+  assert.ok(values[9] < -0.7);
+  assert.ok(values[10] >= 0.25);
+  assert.ok(values[11] > 0 && values[12] > 0);
+  assert.ok(values[13] < 0.2 && values[14] < 0.2);
+  assert.ok(values[15] > 0);
+  values[8] = 1;
+  applyLive2dExpression(core, { hover: 0, kind: "tap", startedAt: 100, eyes: "right" }, 900);
+  assert.ok(values[8] < 0.1, "the wink remains visible beyond the first 240ms");
+  const previous = values[10];
+  applyLive2dExpression(core, { hover: 0, kind: "tap", startedAt: 100, eyes: "right" }, 1700);
+  assert.equal(values[10], previous);
+  values[2] = 22;
+  values[15] = 0;
+  applyLive2dExpression(core, { hover: 0, kind: "tap", startedAt: 100, eyes: "right" }, 310, true);
+  assert.equal(values[2], 0);
+  assert.equal(values[15], 0);
 });
 
 test("Chieri reactions respond to hover, tap and idle without treating a drag as a tap", () => {
@@ -262,7 +280,7 @@ test("Chieri reactions respond to hover, tap and idle without treating a drag as
     run() { return "running"; }
   }
   const originalRun = AppDelegate.prototype.run;
-  const reactions = createLive2dReactions(AppDelegate, doc, win);
+  const reactions = createLive2dReactions(AppDelegate, doc, win, () => 0);
   reactions.start(root, canvas);
   assert.equal(new AppDelegate().run(), "running");
   assert.notEqual(core.update, originalUpdate);
@@ -277,20 +295,20 @@ test("Chieri reactions respond to hover, tap and idle without treating a drag as
 
   canvas.dispatch("pointerdown", { button: 0, isPrimary: true, pointerId: 1, clientX: 10, clientY: 10 });
   root.dispatch("pointerup", { pointerId: 1, clientX: 30, clientY: 30 });
-  now += 60;
+  now += 200;
   values[3] = 1;
   core.update();
   assert.equal(values[3], 1);
-  canvas.dispatch("pointerdown", { button: 0, isPrimary: true, pointerId: 2, clientX: 10, clientY: 10 });
-  root.dispatch("pointerup", { pointerId: 2, clientX: 12, clientY: 11 });
-  now += 100;
+  canvas.dispatch("pointerdown", { button: 0, isPrimary: true, pointerType: "touch", pointerId: 2, clientX: 10, clientY: 10 });
+  root.dispatch("pointerup", { pointerType: "touch", pointerId: 2, clientX: 12, clientY: 11 });
+  now += 210;
   core.update();
   assert.ok(values[3] < 1);
   canvas.dispatch("pointerleave");
   const idle = [...timers.values()].at(-1);
-  now += 11000;
+  now += 9000;
   idle();
-  now += 120;
+  now += 210;
   values[2] = values[3] = 1;
   core.update();
   assert.ok(values[2] < 1 || values[3] < 1);
@@ -326,11 +344,18 @@ test("Fuyukawa Live2D uses the bundled Chieri model package", () => {
     new URL("../../../../public/themes/fuyukawa-kagari/live2d/chieri/qianhuili.model3.json", import.meta.url),
     "utf8"
   ));
+  const display = JSON.parse(readFileSync(
+    new URL("../../../../public/themes/fuyukawa-kagari/live2d/chieri/qianhuili.cdi3.json", import.meta.url),
+    "utf8"
+  ));
   assert.equal(config.models.length, 1);
   assert.equal(config.models[0].name, "雪村千绘莉");
   assert.equal(config.models[0].paths[0], "/themes/fuyukawa-kagari/live2d/chieri/qianhuili.model3.json");
   assert.equal(model.FileReferences.Moc, "qianhuili.moc3");
   assert.deepEqual(model.FileReferences.Textures, ["texture_00.png"]);
+  for (const id of ["ParamEyeLOpen", "ParamEyeROpen", "ParamEyeLSmile", "ParamEyeRSmile", "ParamHairSide", "ParamMouthForm"]) {
+    assert.ok(display.Parameters.some((parameter) => parameter.Id === id), `missing Chieri parameter ${id}`);
+  }
   assert.match(layout, /const live2dConfig = "\/themes\/fuyukawa-kagari\/live2d\/waifu-tips\.json"/);
   assert.match(layout, /waifuPath: live2dConfig/);
   assert.match(layout, /createLive2dReactions\(AppDelegate\)/);
