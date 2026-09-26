@@ -176,6 +176,27 @@ test("Live2D position and visibility remain defined without any CDN stylesheet",
   assert.match(layout, /astro:before-swap", hideLive2dForRoute/);
 });
 
+test("Fuyukawa Live2D uses the bundled Chieri model package", () => {
+  const config = JSON.parse(readFileSync(
+    new URL("../../../../public/themes/fuyukawa-kagari/live2d/waifu-tips.json", import.meta.url),
+    "utf8"
+  ));
+  const model = JSON.parse(readFileSync(
+    new URL("../../../../public/themes/fuyukawa-kagari/live2d/chieri/qianhuili.model3.json", import.meta.url),
+    "utf8"
+  ));
+  assert.equal(config.models.length, 1);
+  assert.equal(config.models[0].name, "雪村千绘莉");
+  assert.equal(config.models[0].paths[0], "/themes/fuyukawa-kagari/live2d/chieri/qianhuili.model3.json");
+  assert.equal(model.FileReferences.Moc, "qianhuili.moc3");
+  assert.deepEqual(model.FileReferences.Textures, ["texture_00.png"]);
+  assert.match(layout, /const live2dConfig = "\/themes\/fuyukawa-kagari\/live2d\/waifu-tips\.json"/);
+  assert.match(layout, /waifuPath: live2dConfig/);
+  assert.doesNotMatch(layout, /cdnPath: "https:\/\/fastly\.jsdelivr\.net\/gh\/fghrsh\/live2d_api\//);
+  assert.doesNotMatch(layout, /data-live2d-model|data-live2d-texture/);
+  assert.equal(declarations(css, "body[data-fuyukawa] .live2d-controls")["grid-template-columns"], "repeat(2, minmax(0, 1fr))");
+});
+
 test("drag bounds do not depend on document scroll or page height", () => {
   for (const [viewportWidth, viewportHeight, size] of [[1440, 900, 280], [390, 844, 220], [320, 240, 176]]) {
     for (const left of [-5000, 0, 100, 99999]) {

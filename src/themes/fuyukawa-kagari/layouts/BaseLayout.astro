@@ -109,8 +109,6 @@ const themedNotFoundRedirectScript = `(() => {
           <div class="live2d-controls">
             <button type="button" data-live2d-toggle>隐藏看板娘</button>
             <button type="button" data-live2d-message>说句话</button>
-            <button type="button" data-live2d-model>换模型</button>
-            <button type="button" data-live2d-texture>换衣服</button>
           </div>
         </section>
 
@@ -394,13 +392,12 @@ const themedNotFoundRedirectScript = `(() => {
       document.addEventListener("astro:page-load", syncToyDock);
 
       const live2dBase = "https://fastly.jsdelivr.net/npm/live2d-widgets@1.0.0-rc.6/dist/";
+      const live2dConfig = "/themes/fuyukawa-kagari/live2d/waifu-tips.json";
       const live2dStatus = document.querySelector("[data-live2d-status]");
       const live2dToggle = document.querySelector("[data-live2d-toggle]");
       const live2dMessage = document.querySelector("[data-live2d-message]");
-      const live2dModel = document.querySelector("[data-live2d-model]");
-      const live2dTexture = document.querySelector("[data-live2d-texture]");
       const live2dWidget = live2dStatus?.closest(".live2d-control-widget");
-      const live2dControls = [live2dToggle, live2dMessage, live2dModel, live2dTexture].filter(Boolean);
+      const live2dControls = [live2dToggle, live2dMessage].filter(Boolean);
       let live2dVisible = true;
       let live2dReady = false;
       let live2dInitStarted = false;
@@ -627,8 +624,7 @@ const themedNotFoundRedirectScript = `(() => {
           ]);
           if (generation !== live2dGeneration || !isHomeRoute()) return;
           window.initWidget({
-            waifuPath: `${live2dBase}waifu-tips.json`,
-            cdnPath: "https://fastly.jsdelivr.net/gh/fghrsh/live2d_api/",
+            waifuPath: live2dConfig,
             cubism2Path: `${live2dBase}live2d.min.js`,
             cubism5Path: "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js",
             tools: ["photo", "quit"],
@@ -749,15 +745,6 @@ const themedNotFoundRedirectScript = `(() => {
         window.setTimeout(reconcileWaifuFallback, 800);
         showWaifuMessage("我在这里。要不要继续给博客堆一点可爱的功能？");
       });
-      live2dModel?.addEventListener("click", () => {
-        if (!isHomeRoute()) return;
-        hardReloadLive2d();
-      });
-      live2dTexture?.addEventListener("click", () => {
-        if (!isHomeRoute()) return;
-        hardReloadLive2d();
-      });
-
       const musicCacheKey = "yuimi-radio-state-v1";
       const musicAutoplayKey = "yuimi-radio-autoplay-v1";
       const musicSessionAutoplayKey = "yuimi-radio-session-autoplay-v1";
