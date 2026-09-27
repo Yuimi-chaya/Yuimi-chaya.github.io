@@ -3,6 +3,7 @@ title: "Vibe Coding 时代,流水的 token 从哪里来?"
 description: "从官方订阅和按量 API 到中转站,聊聊额度、价格、隐私和质量该怎么判断,以及怎样把选好的接口接入 Codex."
 pubDate: 2026-09-28
 updatedDate: 2026-09-28
+cover: "/blog-covers/cover-21.webp"
 tags: ["Vibe Coding", "AI", "Codex", "API", "使用经验"]
 category: "tech"
 ---
