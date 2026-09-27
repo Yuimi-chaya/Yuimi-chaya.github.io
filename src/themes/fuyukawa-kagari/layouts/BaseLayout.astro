@@ -236,7 +236,7 @@ const themedNotFoundRedirectScript = `(() => {
     <MangaRuntime />
 
     <script>
-      import { createLive2dReactions, mountLive2dPointerGuard } from "../lib/live2d-input.mjs";
+      import { createLive2dReactions } from "../lib/live2d-input.mjs";
       import { mountWaifuAnchor } from "../lib/waifu-anchor.mjs";
 
       let pigScrollTimer = 0;
@@ -407,17 +407,14 @@ const themedNotFoundRedirectScript = `(() => {
       let live2dVisibilityTimer = 0;
       let live2dGeneration = 0;
       let waifuAnchorCleanup = null;
-      let live2dPointerCleanup = null;
       let live2dReactions = null;
       const live2dConnection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       const live2dResources = new Map();
       const anchorWaifu = (waifu) => {
         waifuAnchorCleanup?.();
         waifuAnchorCleanup = mountWaifuAnchor(waifu);
-        live2dPointerCleanup?.();
         live2dReactions?.stop();
         const canvas = document.getElementById("live2d");
-        live2dPointerCleanup = live2dReactions ? null : mountLive2dPointerGuard(canvas);
         live2dReactions?.start(waifu, canvas);
       };
 
@@ -455,8 +452,6 @@ const themedNotFoundRedirectScript = `(() => {
         window.clearTimeout(live2dVisibilityTimer);
         waifuAnchorCleanup?.();
         waifuAnchorCleanup = null;
-        live2dPointerCleanup?.();
-        live2dPointerCleanup = null;
         live2dReactions?.stop();
         removeLocalWaifuFallback();
         document.getElementById("waifu")?.remove();
@@ -523,7 +518,7 @@ const themedNotFoundRedirectScript = `(() => {
         window.clearTimeout(live2dVisibilityTimer);
         live2dVisible = visible;
         if (live2dToggle) live2dToggle.textContent = visible ? "隐藏看板娘" : "显示看板娘";
-        setLive2dStatus(visible ? "看板娘正在左下角待机。" : "看板娘已收起。");
+        setLive2dStatus(visible ? "看板娘正在左侧待机。" : "看板娘已收起。");
         if (visible) {
           if (persist) localStorage.removeItem("waifu-display");
         }
@@ -592,7 +587,7 @@ const themedNotFoundRedirectScript = `(() => {
         const hasWidgetTools = Boolean(document.getElementById("waifu-tool"));
         if (hasUsableCanvas && hasWidgetTools) {
           removeLocalWaifuFallback();
-          setLive2dStatus("看板娘正在左下角待机。");
+          setLive2dStatus("看板娘正在左侧待机。");
           return;
         }
         ensureLocalWaifuFallback();
@@ -610,7 +605,7 @@ const themedNotFoundRedirectScript = `(() => {
         const canvasRect = canvas.getBoundingClientRect();
         if (canvasRect.width > 80 && canvasRect.height > 80) {
           removeLocalWaifuFallback();
-          setLive2dStatus("看板娘正在左下角待机。");
+          setLive2dStatus("看板娘正在左侧待机。");
         }
       };
 
@@ -641,7 +636,7 @@ const themedNotFoundRedirectScript = `(() => {
               if (generation !== live2dGeneration || !isHomeRoute()) return;
               live2dReactions = createLive2dReactions(AppDelegate);
             } catch (error) {
-              console.warn("[Yuimi Live2D] Expression controller unavailable; using basic pointer tracking.", error);
+              console.warn("[Yuimi Live2D] Expression controller unavailable.", error);
             }
           }
           window.initWidget({
@@ -655,7 +650,7 @@ const themedNotFoundRedirectScript = `(() => {
           live2dReady = true;
           live2dVisible = true;
           if (live2dToggle) live2dToggle.textContent = "隐藏看板娘";
-          setLive2dStatus("看板娘正在左下角待机。");
+          setLive2dStatus("看板娘正在左侧待机。");
           waitForWaifu((waifu) => {
             waifu.classList.remove("waifu-hidden");
             waifu.classList.add("waifu-active");
@@ -706,8 +701,6 @@ const themedNotFoundRedirectScript = `(() => {
         window.clearTimeout(live2dVisibilityTimer);
         waifuAnchorCleanup?.();
         waifuAnchorCleanup = null;
-        live2dPointerCleanup?.();
-        live2dPointerCleanup = null;
         live2dReactions?.stop();
         clearLive2dSchedule();
         removeLocalWaifuFallback();

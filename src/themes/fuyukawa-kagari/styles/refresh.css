@@ -287,17 +287,50 @@ body[data-fuyukawa] .music-info-area { gap: 8px; }
 body[data-fuyukawa] .music-meta { font-size: .6rem; font-weight: 500; }
 body[data-fuyukawa] .music-track { font-family: inherit; font-size: .95rem; font-weight: 600; white-space: normal; line-height: 1.5; }
 body[data-fuyukawa] .music-widget .music-note { padding: 0; min-height: 0; background: none; border: 0; font-size: .68rem; font-weight: 400; }
-body[data-fuyukawa] .music-widget .record-player { width: 108px; height: 108px; border-radius: 8px; border: 1px solid #ccdae6; background: linear-gradient(135deg, #fff5f8, #e4eff8); box-shadow: inset 0 0 0 4px #ffffffaa, 0 4px 0 #dce4ed; }
-body[data-fuyukawa] .music-widget .record-disc { width: 82px; height: 82px; border: 3px solid #bec8d4; background: repeating-radial-gradient(circle, #ffffff10 0 1px, transparent 1px 4px), #303544; box-shadow: 0 3px 5px #38475f22; animation: record-spin 5.6s linear infinite; animation-play-state: paused; }
+/* One em is the deck size: pivot, arm and cartridge share the same geometry. */
+body[data-fuyukawa] .music-widget .record-player {
+  --record-size: 108px; font-size: var(--record-size); width: var(--record-size); height: var(--record-size);
+  isolation: isolate; box-sizing: border-box; border-radius: 8px; border: 1px solid #cad8e5;
+  background: linear-gradient(145deg, #fff5f9, #f7fbff 48%, #e5eef7);
+  box-shadow: inset 0 0 0 4px #ffffffb3, 0 3px 0 #dce5ed, 0 8px 14px #56738612;
+}
+body[data-fuyukawa] .music-widget .record-disc {
+  position: absolute; left: 6%; top: 17%; width: .76em; height: .76em; box-sizing: border-box;
+  border: .018em solid #a7b5c4;
+  background: conic-gradient(from -25deg, transparent, #ffffff1c 45deg, transparent 75deg 175deg, #ffffff12 210deg, transparent 245deg), repeating-radial-gradient(circle, #ffffff10 0 .6px, #00000014 .6px 1.4px, transparent 1.4px 2.7px), #282e3a;
+  box-shadow: 0 0 0 .022em #d4dee8, inset 0 0 0 .035em #141e2b, 0 .035em .07em #38475f33;
+  animation: record-spin 5.6s linear infinite; animation-play-state: paused;
+}
+body[data-fuyukawa] .record-disc::before { inset: .05em; border-color: #ffffff14; }
+body[data-fuyukawa] .record-disc::after { inset: .13em; border-color: #ffffff0c; }
 body[data-fuyukawa].is-music-playing .record-disc { animation-play-state: running; }
 body[data-fuyukawa] .toy-dock:not(:hover):not(:focus-within):not(.is-pinned) .record-disc,
 body[data-fuyukawa] .toy-dock.is-dismissed .record-disc { animation-play-state: paused; }
-body[data-fuyukawa] .music-widget .record-label { width: 30px; height: 30px; background: #f4cfdf; box-shadow: none; border: 2px solid #fffc; }
-body[data-fuyukawa] .music-widget .record-label img { width: 22px; height: 20px; }
-body[data-fuyukawa] .music-widget .record-arm { top: 12px; right: 12px; width: 42px; height: 15px; border-width: 3px; border-color: #8598ac; filter: none; transform: translate(7px, 6px) rotate(-58deg); transition: transform 240ms var(--manga-ease); }
-body[data-fuyukawa].is-music-playing .record-arm { transform: translate(-5px, 7px) rotate(-14deg); }
-body[data-fuyukawa] .record-arm::before { width: 13px; height: 13px; right: -8px; top: -8px; border-width: 2px; background: #edf3f9; }
-body[data-fuyukawa] .record-arm::after { width: 8px; height: 10px; left: -4px; bottom: -7px; border-radius: 2px; box-shadow: none; background: #be8da8; }
+body[data-fuyukawa] .music-widget .record-label { width: .27em; height: .27em; box-sizing: border-box; background: #f4cfdf; box-shadow: 0 0 0 .02em #1c243080; border: 1px solid #fff5fa; }
+body[data-fuyukawa] .music-widget .record-label img { width: .2em; height: .18em; }
+body[data-fuyukawa] .record-label::after { content: ""; position: absolute; width: .028em; height: .028em; border-radius: 50%; background: #6a7a8a; border: 1px solid #e9f1f7; }
+body[data-fuyukawa] .music-widget .record-player::after {
+  content: ""; position: absolute; z-index: 3; left: 82%; top: 18%; width: .13em; height: .13em;
+  box-sizing: border-box; border: .018em solid #acbccb; border-radius: 50%; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #778da0 0 16%, #eaf2f8 20% 48%, #d0dde8 52%);
+  box-shadow: 0 .018em .03em #4358752b; pointer-events: none;
+}
+body[data-fuyukawa] .music-widget .record-arm {
+  top: 18%; left: calc(82% - .019em); right: auto; width: .038em; height: .5em;
+  border: 0; border-radius: 2px; background: linear-gradient(90deg, #8196aa, #f4f8fc 48%, #93a8ba);
+  filter: none; box-shadow: .012em .018em .025em #43587524;
+  transform-origin: 50% 0; transform: rotate(-5deg); transition: transform 240ms var(--manga-ease);
+}
+body[data-fuyukawa].is-music-playing .record-arm { transform: rotate(26deg); }
+body[data-fuyukawa] .record-arm::before {
+  top: -.07em; right: auto; left: 50%; width: .085em; height: .09em; box-sizing: border-box;
+  border: 1px solid #a7b8c8; border-radius: 2px; background: linear-gradient(90deg, #b2c2d1, #f7fbfe, #9dafc0); transform: translateX(-50%);
+}
+body[data-fuyukawa] .record-arm::after {
+  top: calc(100% - .04em); bottom: auto; left: 50%; width: .086em; height: .13em; box-sizing: border-box;
+  border: 1px solid #b589a4; border-radius: 2px; box-shadow: 0 .018em .025em #43587526;
+  background: linear-gradient(180deg, #f2d8e5, #c591ad 77%, #65798d 78%); transform: translateX(-50%);
+}
 body[data-fuyukawa] :is(.music-track, .toy-widget-title strong) { color: var(--ink); }
 body[data-fuyukawa] :is(.music-note, .music-meta, .music-cover-caption, .music-control-label, .music-control-label strong) { color: var(--ink-soft); }
 body[data-fuyukawa] :is(.music-progress, .music-volume) { gap: 4px; padding: 0; border: 0; border-radius: 0; background: none; overflow: visible; }
@@ -324,18 +357,64 @@ body[data-fuyukawa] .music-widget input[type="range"]::-moz-range-thumb { box-si
 body[data-fuyukawa] #waifu {
   --waifu-size: min(280px, calc(100dvh - 64px), calc(100vw - 32px));
   position: fixed !important; top: auto !important; right: auto !important;
-  bottom: max(8px, env(safe-area-inset-bottom)) !important; left: 14px !important;
+  bottom: max(8px, env(safe-area-inset-bottom)) !important; left: 48px !important;
   width: var(--waifu-size); height: var(--waifu-size); margin: 0 !important; z-index: 19 !important;
   transform: none !important; opacity: 0; pointer-events: none;
   transition: opacity 180ms ease;
 }
 body[data-fuyukawa] #waifu.waifu-active { opacity: 1; pointer-events: auto; }
 body[data-fuyukawa] #waifu.waifu-hidden { display: none !important; }
-body[data-fuyukawa] #waifu-tips { position: absolute; top: -24px; left: 0; margin: 0 14px; width: 238px !important; opacity: 0; pointer-events: none; padding: 8px 10px; font-size: .78rem; line-height: 1.6; transition: opacity 180ms ease; }
-body[data-fuyukawa] #waifu-tips.waifu-tips-active { opacity: 1; }
-body[data-fuyukawa] #waifu-tool { position: absolute; display: flex; flex-direction: column; }
-body[data-fuyukawa] #live2d { width: 100% !important; height: 100% !important; touch-action: none; cursor: grab; }
+body[data-fuyukawa] #waifu-tips {
+  position: absolute; top: 18%; left: calc(100% - 112px) !important; margin: 0 !important;
+  width: min(230px, calc(100vw - var(--waifu-size) - 74px)) !important;
+  min-height: 0; padding: 10px 12px; font-size: .78rem; line-height: 1.55;
+  color: #385267 !important; background: #ffffffdf !important; border: 1px solid #d6e5ef !important;
+  border-radius: 15px 15px 15px 5px !important; box-shadow: 0 12px 26px #6d8ca42b !important;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  opacity: 0; pointer-events: none; transition: opacity 180ms ease, transform 180ms ease;
+  transform: translateY(4px);
+}
+body[data-fuyukawa] #waifu-tips::before {
+  content: ""; position: absolute; left: -7px; top: 17px; width: 12px; height: 12px;
+  background: #ffffffdf !important; border-left: 1px solid #d6e5ef; border-bottom: 1px solid #d6e5ef;
+  transform: rotate(45deg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+body[data-fuyukawa] #waifu-tips.waifu-tips-active { opacity: 1 !important; visibility: visible !important; }
+body[data-fuyukawa] #waifu-tips.waifu-tips-active { transform: translateY(0); }
+body[data-fuyukawa] #waifu-tool {
+  position: absolute; top: 42% !important; left: -38px !important; right: auto !important; display: flex; flex-direction: column;
+  align-items: center; gap: 5px !important; width: 30px !important; padding: 8px 5px;
+  border: 1px solid #ffffffc4; border-radius: 18px; background: #ffffffb8;
+  box-shadow: 0 8px 20px #6d8ca42b; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  opacity: 0; transform: translateX(5px); transition: opacity 180ms ease, transform 180ms ease;
+}
+body[data-fuyukawa] #waifu:hover #waifu-tool,
+body[data-fuyukawa] #waifu:focus-within #waifu-tool { opacity: 1; transform: translateX(0); }
+body[data-fuyukawa] #waifu-tool svg {
+  box-sizing: content-box; width: 19px !important; height: 19px !important; padding: 5px !important; border-radius: 12px;
+  fill: #64849d !important; background: transparent; border: 0; box-shadow: none;
+  transition: background 160ms ease, fill 160ms ease, transform 160ms ease;
+}
+body[data-fuyukawa] #waifu-tool svg:hover { background: #eaf4fb; fill: #3f6f8e; transform: scale(1.06); }
+body[data-fuyukawa] #waifu-canvas { width: var(--waifu-size); height: var(--waifu-size); }
+body[data-fuyukawa] #live2d {
+  display: block; width: var(--waifu-size) !important; height: var(--waifu-size) !important;
+  touch-action: none; cursor: grab;
+  /* The source cut ends at the ankles; dissolve only the final strip into the hero. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 78%, #000000f5 84%, #000000a8 92%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0 78%, #000000f5 84%, #000000a8 92%, transparent 100%);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+}
 body[data-fuyukawa] .is-waifu-dragging #live2d { cursor: grabbing; }
+body[data-fuyukawa] .waifu-local-fallback { left: 48px; width: var(--waifu-size); }
+body[data-fuyukawa] .waifu-local-bubble {
+  left: 172px; bottom: 178px; width: min(230px, calc(100vw - 260px));
+  min-height: 0; padding: 10px 12px; border: 1px solid #d6e5ef;
+  border-radius: 15px 15px 15px 5px; background: #ffffffdf;
+  box-shadow: 0 12px 26px #6d8ca42b; color: #385267;
+}
+body[data-fuyukawa] .waifu-local-character { margin-left: 0; }
 body[data-fuyukawa] .custom-context-menu { background: #fffffffa; border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 8px; }
 body[data-fuyukawa] .custom-context-menu button:hover { background: #eaf5ef; box-shadow: none; transform: none; }
 body[data-fuyukawa] .context-theme-group button[aria-pressed="true"] { color: var(--accent); background: #eaf5ef; }
@@ -457,13 +536,25 @@ body[data-fuyukawa] .footer-status-line { grid-column: 1 / -1; border-top: 1px s
   body[data-fuyukawa] .pig-scrollbar { display: none; }
   body[data-fuyukawa] .toy-dock-panel { padding: 12px; }
   body[data-fuyukawa] .live2d-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  body[data-fuyukawa] #waifu { --waifu-size: min(220px, calc(100dvh - 64px), calc(100vw - 32px)); left: 8px !important; }
-  body[data-fuyukawa] #waifu-tips { width: 190px !important; margin-left: 8px !important; }
+  body[data-fuyukawa] #waifu { --waifu-size: min(220px, calc(100dvh - 64px), calc(100vw - 32px)); left: 40px !important; }
+  body[data-fuyukawa] #waifu-tips {
+    top: 10%; left: 48% !important; width: min(190px, calc(100vw - 176px)) !important;
+    padding: 8px 10px; font-size: .72rem; line-height: 1.5;
+  }
+  body[data-fuyukawa] #waifu-tips::before { top: 14px; }
+  body[data-fuyukawa] #waifu-tool { left: -34px !important; width: 27px !important; padding: 7px 4px; }
+  body[data-fuyukawa] .waifu-local-fallback { left: 40px; width: 220px; }
+  body[data-fuyukawa] .waifu-local-bubble {
+    left: 126px; bottom: 150px; width: min(190px, calc(100vw - 176px)); padding: 8px 10px;
+    font-size: .72rem; line-height: 1.5;
+  }
+}
+@media (pointer: coarse) {
+  body[data-fuyukawa] #waifu-tool { opacity: .9; transform: none; }
 }
 @media (max-width: 360px) {
   body[data-fuyukawa] .music-player-shell { grid-template-columns: 92px minmax(0, 1fr); gap: 10px; }
-  body[data-fuyukawa] .music-widget .record-player { width: 92px; height: 92px; }
-  body[data-fuyukawa] .music-widget .record-disc { width: 70px; height: 70px; }
+  body[data-fuyukawa] .music-widget .record-player { --record-size: 92px; }
   body[data-fuyukawa] .music-bottom-row { grid-template-columns: 1fr; gap: 12px; }
   body[data-fuyukawa] .music-controls { justify-content: center; }
 }
@@ -481,6 +572,8 @@ html:has(body[data-fuyukawa])[data-yuimi-visibility="hidden"] :is(.sakura-rain s
   body[data-fuyukawa] .sakura-rain span:nth-child(n + 9) { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
+  body[data-fuyukawa] .music-widget .record-disc { animation: none !important; }
+  body[data-fuyukawa] .music-widget .record-arm { transition: none !important; }
   body[data-fuyukawa] .sakura-rain { display: none; }
   html:has(body[data-fuyukawa]) { scroll-behavior: auto; }
   body[data-fuyukawa] *, body[data-fuyukawa] *::before, body[data-fuyukawa] *::after {
