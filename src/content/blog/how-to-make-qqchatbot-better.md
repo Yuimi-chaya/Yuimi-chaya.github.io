@@ -3,6 +3,7 @@ title: "一个 QQ Bot 要怎样才算更好聊"
 description: "从回复节奏、表情包、模型选择到记忆与主动聊天，记录我怎样分辨 QQ Bot 在私聊中的别扭，并让它真正接住人发来的话。"
 pubDate: 2026-09-27
 updatedDate: 2026-09-27
+cover: "/blog-covers/cover-32.webp"
 tags: ["QQ 机器人", "LLM RP", "AI", "聊天体验"]
 category: "tech"
 ---
