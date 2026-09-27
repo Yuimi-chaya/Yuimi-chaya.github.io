@@ -196,6 +196,7 @@ import { getThemePath } from "@/core/themes/registry";
   if (!customElements.get("kisara-fridge-scene")) {
     class KisaraFridgeScene extends HTMLElement {
       controller: AbortController | null = null;
+      connectionGeneration = 0;
       observer: IntersectionObserver | null = null;
       preloadObserver: IntersectionObserver | null = null;
       resizeObserver: ResizeObserver | null = null;
@@ -223,6 +224,15 @@ import { getThemePath } from "@/core/themes/registry";
       }
 
       connectedCallback() {
+        const generation = ++this.connectionGeneration;
+        // Bind only after Astro has finished replacing the parsed video node.
+        queueMicrotask(() => {
+          if (!this.isConnected || generation !== this.connectionGeneration) return;
+          this.initializeScene();
+        });
+      }
+
+      initializeScene() {
         this.controller?.abort();
         this.observer?.disconnect();
         this.preloadObserver?.disconnect();
@@ -1044,6 +1054,7 @@ import { getThemePath } from "@/core/themes/registry";
       }
 
       disconnectedCallback() {
+        this.connectionGeneration += 1;
         this.controller?.abort();
         this.controller = null;
         this.observer?.disconnect();

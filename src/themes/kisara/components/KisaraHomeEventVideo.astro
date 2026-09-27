@@ -79,15 +79,22 @@ const reactions = ["😋", "🤤", "😍", "😚"];
   if (!customElements.get("kisara-home-event-video")) {
     class KisaraHomeEventVideo extends HTMLElement {
       runtime: ReturnType<typeof bindHomeEvent> | null = null;
+      connectionGeneration = 0;
       resetPresentation() { this.runtime?.reset(); }
       preloadPresentation() { this.runtime?.preload(); }
       prepareCoveredEntry() { return this.runtime?.prepareCoveredEntry(); }
       refreshPresentationAfterVisibility() { this.runtime?.refresh(); }
       connectedCallback() {
-        this.runtime?.destroy();
-        this.runtime = bindHomeEvent(this);
+        const generation = ++this.connectionGeneration;
+        // Astro replaces parsed media after connecting the new page's elements.
+        queueMicrotask(() => {
+          if (!this.isConnected || generation !== this.connectionGeneration) return;
+          this.runtime?.destroy();
+          this.runtime = bindHomeEvent(this);
+        });
       }
       disconnectedCallback() {
+        this.connectionGeneration += 1;
         this.runtime?.destroy();
         this.runtime = null;
       }
