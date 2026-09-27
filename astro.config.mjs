@@ -1,4 +1,5 @@
 import { defineConfig } from "astro/config";
+import { unified } from "@astrojs/markdown-remark";
 import expressiveCode from "astro-expressive-code";
 import sitemap from "@astrojs/sitemap";
 import icon from "astro-icon";
@@ -161,26 +162,28 @@ export default defineConfig({
   ],
   markdown: {
     syntaxHighlight: false,
-    gfm: true,
-    remarkPlugins: [remarkGfm],
-    rehypePlugins: [
-      rehypeSlug,
-      [
-        rehypeAutolinkHeadings,
-        {
-          behavior: "append",
-          properties: {
-            className: ["heading-anchor"],
-            ariaLabel: "复制标题链接"
-          },
-          content: {
-            type: "text",
-            value: "#"
+    processor: unified({
+      gfm: true,
+      remarkPlugins: [remarkGfm],
+      rehypePlugins: [
+        rehypeSlug,
+        [
+          rehypeAutolinkHeadings,
+          {
+            behavior: "append",
+            properties: {
+              className: ["heading-anchor"],
+              ariaLabel: "复制标题链接"
+            },
+            content: {
+              type: "text",
+              value: "#"
+            }
           }
-        }
-      ],
-      [rehypeExpressiveCode, expressiveCodeOptions]
-    ]
+        ],
+        [rehypeExpressiveCode, expressiveCodeOptions]
+      ]
+    })
   },
   devToolbar: {
     enabled: false
