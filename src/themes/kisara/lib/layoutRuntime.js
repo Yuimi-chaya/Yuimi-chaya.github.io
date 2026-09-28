@@ -252,7 +252,7 @@ export const initKisaraLayoutRuntime = () => {
   };
 
   const keepNativeMenu = (target) => target instanceof Element
-    && Boolean(target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), audio, video'));
+    && Boolean(target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), audio[controls], video[controls]'));
   menu?.addEventListener("keydown", (event) => {
     const items = [...menu.querySelectorAll('button:not(:disabled), a[href]')];
     const index = items.indexOf(document.activeElement);
@@ -367,5 +367,6 @@ export const initKisaraLayoutRuntime = () => {
   document.addEventListener("astro:before-swap", cleanup, { once: true, signal });
 };
 
+document.addEventListener("astro:after-swap", initKisaraLayoutRuntime);
 document.addEventListener("astro:page-load", initKisaraLayoutRuntime);
 initKisaraLayoutRuntime();
