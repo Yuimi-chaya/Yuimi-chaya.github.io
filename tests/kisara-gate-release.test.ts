@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
+import { advanceGateAutoplay } from "../src/themes/kisara/lib/gateAutoplay.ts";
 import {
   gateRelease, mapChargeIntroProgress, getChargeIntroClock,
   mapReleaseAutoplayProgress, getReconstructionProgress, getTitleReconstructionFrame, getTitleContractFrame,
@@ -93,7 +94,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
     sceneImageWarmers: new Map([["transformation-2", { status: "ready" }]]),
     releaseWarmupState: { spaceLens: true }, releaseWarmupPending: { spaceLens: false },
     burstProgress: 0, targetBurstProgress: 0, burstVelocity: 0,
-    heroAutoplayActive: false, heroAutoplayLastTimestamp: 0, heroAutoplayFillDuration: memoryFillDuration,
+    heroAutoplayActive: false, heroAutoplayLastTimestamp: 0, advanceGateAutoplay,
     clamp, mapChargeIntroProgress, getChargeIntroClock,
     mapReleaseAutoplayProgress, gateRelease, getTransformationFrame, getGateSceneHandoff,
     getReconstructionProgress, getMemoryFrame, getMemoryBaseOpacity, getMemoryToneBridge, getMemoryBlackout,
@@ -526,7 +527,7 @@ test("AUTO waits for media but the prepared 10 to 11 pair never pauses its runni
   assert.equal(f.state.targetProgress, .33);
   f.state.isStoryFrameReady = () => true;
   f.api.advanceHeroAutoplay(2116);
-  assert.ok(Math.abs(f.state.targetProgress - (.33 + 16 / memoryFillDuration)) < 1e-10);
+  assert.equal(f.state.targetProgress, advanceGateAutoplay(.33, 16));
   const intro = fixture({ areIntroImagesReady: () => false, isStoryFrameReady: () => false });
   intro.api.startChargeIntro(intro.state.now);
   assert.equal(intro.state.chargeIntroActive, false);
@@ -849,7 +850,7 @@ test("reverse rendering takes over the exact liquid pose, eases parallax and nev
   assert.equal(styles.get("--kisara-post-release-opacity"), "0.000", "Reversing again cannot flash old particles");
   assert.equal(effects.filter(effect => effect === "clear-post").length, 1);
   const abyss = sourceBetween("drawTitleAbyss", "updateGatePresentation");
-  assert.match(abyss, /getTitleReconstructionFrame\(getReconstructionProgress\(burstProgress\)\)\.sourceOpacity <= \.001/);
+  assert.match(abyss, /sourceFrame\.sourceOpacity <= \.001/);
 });
 
 test("post-release suspension preserves buffers and phase, while ordinary exits and reset still clear them", () => {
@@ -921,7 +922,7 @@ test("returning to a cached procedural title restores its layer even when reduce
     pageMode: "gate", document: { visibilityState: "visible" },
     chargeIntroProgress: .1, titleAbyssDomHandoffStart: .72,
     burstProgress: 0, releaseStart: gateRelease.phases.start,
-    getTitleReconstructionFrame, getReconstructionProgress,
+    getTitleReconstructionFrame, getReconstructionProgress, getTitleContractFrame,
     progress: 1, energyProgress: 1, velocity: 0,
     titleAbyssLastPaintTimestamp: 950, titleAbyssLastFill: 1,
     titleAbyssLastIntro: .1,
@@ -935,6 +936,10 @@ test("returning to a cached procedural title restores its layer even when reduce
     + "; drawTitleAbyss;", state);
   draw(1000);
   assert.equal(classes.has("is-title-abyss-ready"), true);
+  state.chargeIntroProgress = .6;
+  draw(1016);
+  assert.equal(classes.has("is-title-abyss-ready"), false, "Invisible contract title must not regenerate its pixel field");
+  state.chargeIntroProgress = .1;
   state.burstProgress = .5;
   draw(1050);
   assert.equal(classes.has("is-title-abyss-ready"), false);
@@ -945,4 +950,20 @@ test("returning to a cached procedural title restores its layer even when reduce
   draw(1100);
   assert.equal(classes.has("is-title-abyss-ready"), true);
   assert.equal(state.titleAbyssLastPaintTimestamp, 950, "The cached surface is reused without painting it again");
+});
+
+test("gate presentation reads its bounds before mutating styles", () => {
+  const f = presentationFixture();
+  let wrote = false;
+  let reads = 0;
+  const state = f.context;
+  const original = state.setRuntimeStyle;
+  state.setRuntimeStyle = (...args: any[]) => { wrote = true; original(...args); };
+  for (const [element, width, height] of [[state.gate, 1600, 900], [state.titleLensCanvas, 1200, 320]]) {
+    for (const [key, value] of [["clientWidth", width], ["clientHeight", height]]) {
+      Object.defineProperty(element, key, { get() { assert.equal(wrote, false); reads++; return value; } });
+    }
+  }
+  f.update(1000);
+  assert.equal(reads, 4);
 });

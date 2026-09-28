@@ -319,7 +319,6 @@ const gateStyle = [
     import { createGateReconstructionRenderer } from "../lib/gateReconstruction";
     import { titleDataStreamFragment } from "../lib/titleDataStream";
     import {
-      memoryFillDuration,
       getMemoryFrame,
       getMemoryBaseOpacity,
       getMemoryToneBridge,
@@ -329,6 +328,7 @@ const gateStyle = [
       advanceMemoryBlackout
     } from "../lib/gateStory";
     import { createStoryImageLoader } from "../lib/storyImageLoader";
+    import { advanceGateAutoplay } from "../lib/gateAutoplay";
     const releaseStaleKisaraHomeRuntime = (candidate) => {
       if (!(candidate instanceof HTMLElement) || candidate.dataset.bound !== "true") return false;
       const candidateAutoControl = candidate.querySelector("[data-kisara-auto]");
@@ -710,7 +710,6 @@ const gateStyle = [
       const chargeHandoffEnd = 0.18;
       const releaseStart = gateRelease.phases.start;
       const releaseAutoplayDuration = gateRelease.duration;
-      const heroAutoplayFillDuration = memoryFillDuration;
       let releaseUsesReconstruction = false;
       let releaseUsesSmokeCarrier = false;
       let releaseReturnPose = null;
@@ -2055,6 +2054,10 @@ const gateStyle = [
           clearTitleChains();
         }
         rebuildTitleChainLayout();
+        // Build all three distance tables at layout time, not as each hidden
+        // chain crosses its first visible progress threshold.
+        const compact = mobilePerformance || chainTitleBox.width < 420;
+        chainDefinitions.forEach(definition => buildTitleChainLinkUnits(definition, compact));
       };
 
       const clearTitleDataCanvas = () => {
@@ -2169,7 +2172,8 @@ const gateStyle = [
           !force
           && titleAbyssFluidLastPaintTimestamp > 0
           && timestamp - titleAbyssFluidLastPaintTimestamp < interval
-          && Math.abs(fill - titleAbyssFluidLastPalette) < (reducedMotion ? 0.0025 : 0.025)
+          // Moving the red edge must not force a full noise-buffer rebuild.
+          && (!reducedMotion || Math.abs(fill - titleAbyssFluidLastPalette) < 0.0025)
         ) return;
 
         const width = titleAbyssFluidCanvas.width;
@@ -4715,10 +4719,10 @@ const gateStyle = [
           gate.classList.remove("is-title-abyss-ready");
           return;
         }
-        if (
-          burstProgress >= releaseStart
-            && getTitleReconstructionFrame(getReconstructionProgress(burstProgress)).sourceOpacity <= .001
-        ) {
+        const sourceFrame = burstProgress >= releaseStart
+          ? getTitleReconstructionFrame(getReconstructionProgress(burstProgress))
+          : getTitleContractFrame(chargeIntroProgress);
+        if (sourceFrame.sourceOpacity <= .001) {
           gate.classList.remove("is-title-abyss-ready");
           return;
         }
@@ -4741,7 +4745,7 @@ const gateStyle = [
         if (
           !force
           && gap < frameInterval
-          && Math.abs(fill - titleAbyssLastFill) < 0.0025
+          && Math.abs(fill - titleAbyssLastFill) < 0.00001
           && Math.abs(chargeIntroProgress - titleAbyssLastIntro) < 0.0025
         ) {
           gate.classList.add("is-title-abyss-ready");
@@ -4977,6 +4981,11 @@ const gateStyle = [
 
 
       const updateGatePresentation = (timestamp, advanceCharge = true) => {
+        // Read bounds together before style writes can invalidate layout.
+        const width = Math.max(1, gate.clientWidth);
+        const height = Math.max(1, gate.clientHeight);
+        const titleWidth = titleLensCanvas?.clientWidth || 0;
+        const titleHeight = titleLensCanvas?.clientHeight || 0;
         const fill = clamp(energyProgress, 0, 1);
         const intro = clamp(chargeIntroProgress, 0, 1);
         const reconstruction = getReconstructionProgress(burstProgress);
@@ -4997,8 +5006,8 @@ const gateStyle = [
         const cameraScale = Math.max(
           1 + (0.011 + Math.sin(sceneClock * 0.28 + 0.2) * 0.0065
             + Math.sin(sceneClock * 0.1 + 1.8) * 0.0032) * breathFade,
-          1 + Math.max(Math.abs(cameraX) * 2 / Math.max(1, gate.clientWidth),
-            Math.abs(cameraY) * 2 / Math.max(1, gate.clientHeight))
+          1 + Math.max(Math.abs(cameraX) * 2 / width,
+            Math.abs(cameraY) * 2 / height)
         );
         setRuntimeStyle(gate, "--kisara-title-vivid", titleVivid.toFixed(4));
         setRuntimeStyle(gate, "--kisara-tide-energy-opacity", clamp(0.025 + tideCharge * 0.34 + titleVivid * 0.42, 0, 0.8).toFixed(4));
@@ -5013,8 +5022,6 @@ const gateStyle = [
         setRuntimeStyle(gate, "--kisara-enchant-flow", `${(intro * 170 - 35).toFixed(3)}%`);
         setRuntimeStyle(gate, "--kisara-release-rewind", "0");
         setRuntimeStyle(meterShell, "--kisara-beam-opacity", (1 - phaseProgress(intro, chargeHandoffStart, chargeHandoffEnd)).toFixed(3));
-        const width = Math.max(1, gate.clientWidth);
-        const height = Math.max(1, gate.clientHeight);
         const originX = reconstructionCenter.x * width;
         const originY = reconstructionCenter.y * height;
         const wash = getReconstructionRadii(reconstruction, width, height, originX, originY);
@@ -5050,8 +5057,8 @@ const gateStyle = [
           const liquidPressure = .2 + titleFrame.finalFlow * .08;
           if (titleFrame.sourceOpacity > .001) drawTitleAbyss(timestamp);
           drawTitleLens(timestamp, {
-            centerX: (titleLensCanvas?.clientWidth || 0) * 0.5,
-            centerY: (titleLensCanvas?.clientHeight || 0) * 0.5,
+            centerX: titleWidth * 0.5,
+            centerY: titleHeight * 0.5,
             ...titleFrame,
             strength: 0, gravity: 0, collapse: 0, crush: 0,
             shockStrength: 0, shockRadius: 0, shockWidth: 12,
@@ -6308,8 +6315,8 @@ const gateStyle = [
           chainFrameInterval > 0
           && chainLastPaintTimestamp > 0
           && timestamp - chainLastPaintTimestamp < chainFrameInterval
-          && Math.abs(fill - chainLastPaintFill) < 0.003
-          && Math.abs(intro - chainLastPaintIntro) < 0.003
+          && Math.abs(fill - chainLastPaintFill) < 0.00001
+          && Math.abs(intro - chainLastPaintIntro) < 0.00001
         ) {
           return;
         }
@@ -6712,7 +6719,6 @@ const gateStyle = [
         const renderStartedAt = performance.now();
         if (energyCanvasWidth <= 0 || energyCanvasHeight <= 0) resizeEnergyCanvas();
         updateGatePresentation(timestamp);
-        drawTitleAbyss(timestamp);
         if (!reducedMotion && progress > 0.7 && chargeIntroProgress < 0.999) {
           syncMemorySequence(clamp(progress, 0, 1));
         }
@@ -7611,11 +7617,7 @@ const gateStyle = [
         }
         if (chargeIntroActive) return;
         if (!chargeIntroComplete) {
-          const next = clamp(
-            targetProgress + deltaTime / heroAutoplayFillDuration,
-            0,
-            1
-          );
+          const next = advanceGateAutoplay(targetProgress, deltaTime);
           if (isStoryFrameReady(next, chargeIntroProgress)) targetProgress = next;
           return;
         }
@@ -7639,6 +7641,10 @@ const gateStyle = [
         }
         heroAutoplayActive = true;
         heroAutoplayLastTimestamp = 0;
+        if (!chargeIntroActive && !chargeIntroComplete && releaseMode === "manual") {
+          targetProgress = progress;
+          velocity = 0;
+        }
         scheduleReleaseWarmup(true);
         syncHeroAutoplayControl();
         startAnimation();
@@ -7661,7 +7667,9 @@ const gateStyle = [
           : 1;
         lastFrameTime = timestamp;
         advanceHeroAutoplay(timestamp);
-        const memoryStep = advanceMemoryProgress(progress, targetProgress, velocity, frameRatio, springStrength, damping);
+        const memoryStep = heroAutoplayActive && !chargeIntroActive && releaseMode === "manual"
+          ? { progress: targetProgress, velocity: 0 }
+          : advanceMemoryProgress(progress, targetProgress, velocity, frameRatio, springStrength, damping);
         progress = memoryStep.progress;
         velocity = memoryStep.velocity;
         const fillReadyForIntro = targetProgress >= 0.9995 && progress >= 0.995;

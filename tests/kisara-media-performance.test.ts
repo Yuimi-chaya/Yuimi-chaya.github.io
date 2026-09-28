@@ -96,7 +96,7 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.doesNotMatch(fluidSource, /signedDistance|tideAlpha|edgeAmplitude = \(3\.6/);
   assert.doesNotMatch(abyssSource, /const redGradient =/);
   assert.match(abyssSource, /context\.drawImage\(titleAbyssRimCanvas, 0, 0\)/);
-  assert.match(homeSource, /reducedMotion \? 0\.0025 : 0\.025/);
+  assert.match(fluidSource, /!reducedMotion \|\| Math\.abs\(fill - titleAbyssFluidLastPalette\) < 0\.0025/);
   assert.match(homeSource, /const titleLiquidLastPaintTimestamp =|let titleLiquidLastPaintTimestamp/);
   assert.match(homeSource, /const liquidInterval =/);
   assert.match(homeSource, /liquidDelta < \(reducedMotion \? 0\.002 : 0\.012\)/);
@@ -109,7 +109,7 @@ test("Kisara Home renders its title abyss procedurally and pauses it with the Ga
   assert.match(homeSource, /const titleAbyssDomHandoffStart = 0\.72/);
   assert.match(homeSource, /phaseProgress\(intro, titleAbyssDomHandoffStart, 0\.88\)/);
   assert.doesNotMatch(abyssSource, /chargeIntroProgress >= titleAbyssDomHandoffStart/);
-  assert.match(abyssSource, /getTitleReconstructionFrame\(getReconstructionProgress\(burstProgress\)\)\.sourceOpacity <= \.001[^]*classList\.remove\("is-title-abyss-ready"\)/);
+  assert.match(abyssSource, /sourceFrame\.sourceOpacity <= \.001[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.match(abyssSource, /burstProgress >= releaseStart[^]*classList\.remove\("is-title-abyss-ready"\)/);
   assert.doesNotMatch(abyssSource, /paintSingularityField|eventHorizon|ringRadius|Starfield|voidPockets/);
   assert.match(homeSource, /titleAbyssPointerX \* \(mobilePerformance \? 20 : 76\)/);
