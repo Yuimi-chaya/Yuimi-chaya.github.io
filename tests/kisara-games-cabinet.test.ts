@@ -144,7 +144,7 @@ test("Games load only on launch; switching scene unloads and stale loads are ign
   f.window.__yuimiKisaraInnerCleanup();
 });
 
-test("Keyboard tabs wrap, loading can be canceled, timeout exposes retry, and cleanup restores flow", () => {
+test("Keyboard tabs wrap, loading can be canceled, and cleanup preserves the outgoing layout", () => {
   const f = fixture({ reduced: true, hash: "#kisara-arcade-console" });
   const key = new Event("keydown", { cancelable: true });
   Object.assign(key, { key: "ArrowLeft" });
@@ -158,9 +158,10 @@ test("Keyboard tabs wrap, loading can be canceled, timeout exposes retry, and cl
   assert.equal(f.get("menu").hidden, false);
   assert.equal(f.get("screen").dataset.screenState, "idle");
   f.document.dispatchEvent(new Event("astro:before-swap"));
-  assert.equal(f.page.dataset.sceneReady, undefined);
+  assert.equal(f.page.dataset.sceneReady, "true");
   assert.equal(f.arcade.hidden, false);
-  assert.equal(f.investigation.inert, false);
+  assert.equal(f.investigation.hidden, true);
+  assert.equal(f.investigation.inert, true);
 });
 
 test("Keyboard and reduced-motion scene changes do not animate", () => {

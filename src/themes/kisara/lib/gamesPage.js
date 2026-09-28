@@ -192,8 +192,8 @@ export function bindGamesPage(page) {
     viewport.cleanup();
     stopAnimations();
     unloadGame();
-    delete page.dataset.sceneReady;
-    scenes.forEach(scene => { scene.hidden = false; scene.inert = false; });
+    // The outgoing document can still paint before Astro swaps it. Keep its layout.
+    scenes.forEach((scene, position) => { scene.hidden = position !== activeScene; });
     if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
   };
   window.__yuimiKisaraInnerCleanup = cleanup;

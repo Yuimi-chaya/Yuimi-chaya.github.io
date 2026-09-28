@@ -14,13 +14,13 @@ const presentation = {
 ---
 
 <KisaraLayout title="Games | Kisara" description="Yuimi Lab 的小游戏收藏。" stylesheets={[gamesStylesheet, gameInvestigationStylesheet]}>
-  <div class="kisara-games" data-kisara-games data-active-scene="0">
+  <div class="kisara-games" data-kisara-games data-active-scene="0" data-scene-ready="true">
     <nav class="kisara-game-scene-nav" aria-label="游戏页面场景">
       <a href="#kisara-game-investigation" data-game-scene-jump="0" aria-current="true"><Icon name="tabler:user-scan" aria-hidden="true" /><span>影像调查</span></a>
       <a href="#kisara-arcade-console" data-game-scene-jump="1" aria-current="false"><Icon name="tabler:device-gamepad-2" aria-hidden="true" /><span>街机厅</span></a>
     </nav>
     <KisaraGameClueScene />
-    <section id="kisara-arcade-console" class="kisara-game-scene kisara-arcade" data-game-scene data-kisara-arcade data-scene-position="after" data-active-game={gamePicks[0].id} aria-labelledby="kisara-arcade-title" tabindex="-1">
+    <section id="kisara-arcade-console" class="kisara-game-scene kisara-arcade" data-game-scene data-kisara-arcade data-scene-position="after" data-active-game={gamePicks[0].id} aria-labelledby="kisara-arcade-title" tabindex="-1" hidden>
       <div class="kisara-arcade-backdrop" aria-hidden="true">
         <img data-arcade-backdrop-src="/themes/kisara/assets/game-arcade-room.webp" alt="" width="2200" height="1238" decoding="async" />
       </div>
@@ -109,6 +109,14 @@ const presentation = {
       </div>
     </section>
   </div>
+  <noscript>
+    <style is:inline>
+      .kisara-games[data-scene-ready] { display: block; height: auto; overflow: visible; }
+      .kisara-games[data-scene-ready] > [data-game-scene] { height: calc(100svh / var(--kisara-scale, 1)); }
+      .kisara-games #kisara-arcade-console[hidden] { display: grid !important; }
+      .kisara-games .kisara-game-entry { display: none; }
+    </style>
+  </noscript>
   <script>
     document.addEventListener("astro:page-load", () => {
       const root = document.querySelector<HTMLElement>("[data-kisara-games]");

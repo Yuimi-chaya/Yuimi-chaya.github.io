@@ -42,7 +42,7 @@ export function bindGamesViewport(page: HTMLElement) {
       observer?.disconnect();
       window.removeEventListener("resize", schedule);
       window.visualViewport?.removeEventListener("resize", schedule);
-      slots.forEach(slot => slot.querySelector<HTMLElement>("[data-game-fit]")?.style.removeProperty("--game-fit-scale"));
+      // Preserve the last fit while Astro can still paint the outgoing document.
     }
   };
 }

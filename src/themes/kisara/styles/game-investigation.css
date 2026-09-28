@@ -1355,23 +1355,18 @@ html.kisara-event-modal-open {
 @keyframes kisara-event-camera-focus {
   0% {
     filter: blur(8px) saturate(0.66) contrast(0.95) brightness(0.86);
-    transform: scale(1.06);
   }
   56% {
     filter: blur(2.4px) saturate(0.79) contrast(1) brightness(0.96);
-    transform: scale(1.024);
   }
   80% {
     filter: blur(0.35px) saturate(0.9) contrast(1.045) brightness(1.025);
-    transform: scale(1.004);
   }
   90% {
     filter: blur(0.7px) saturate(0.86) contrast(1.025) brightness(1.01);
-    transform: scale(1.008);
   }
   100% {
     filter: blur(0) saturate(0.88) contrast(1.04) brightness(1.03);
-    transform: scale(1);
   }
 }
 
@@ -1969,6 +1964,93 @@ html[data-yuimi-performance="lite"] .kisara-event-reward-burst::before {
   .kisara-game-investigation-next {
     font-size: 0.52rem;
   }
+}
+
+/* The activity opens inside its existing photo frame; layout dimensions stay fixed. */
+.kisara-game-entry {
+  --entry-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #f1e8ed;
+  pointer-events: none;
+}
+.kisara-game-entry::before,
+.kisara-game-entry::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 50%;
+  background: #282938;
+  border-bottom: 1px solid #dcb5c33d;
+  transition: transform 280ms var(--entry-ease);
+}
+.kisara-game-entry::after { inset: 50% 0 0; border-bottom: 0; border-top: 1px solid #dcb5c33d; }
+.kisara-game-entry-label {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  max-width: calc(100% - 32px);
+  text-align: center;
+  transition: opacity 160ms ease;
+}
+.kisara-game-entry-label > svg { width: 34px; height: 34px; margin-bottom: 6px; color: #e895b0; }
+.kisara-game-entry-label > span { color: #c5bccb; font: 600 .65rem/1.5 "Courier New", monospace; }
+.kisara-game-entry-label > strong { font: 500 2.2rem/1.3 Georgia, "Yu Mincho", "Songti SC", serif; }
+.kisara-game-entry-label > [data-game-entry-status] { font-family: inherit; font-size: .75rem; }
+.kisara-game-entry-track { position: relative; width: 112px; height: 2px; overflow: hidden; background: #ffffff26; }
+.kisara-game-entry-track b { display: block; width: 100%; height: 100%; background: #ed9eba; transform: translateX(-100%); }
+.kisara-event-scene[data-entry-state="loading"] .kisara-game-entry-track b { animation: kisara-game-film-loading 1100ms linear infinite; }
+.kisara-event-scene[data-entry-state="opening"] .kisara-game-entry::before { transform: translateY(-100%); }
+.kisara-event-scene[data-entry-state="opening"] .kisara-game-entry::after { transform: translateY(100%); }
+.kisara-event-scene[data-entry-state="opening"] .kisara-game-entry-label { opacity: 0; }
+.kisara-game-entry [data-game-entry-retry] {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px;
+  color: #282938; background: #edc6d3; border: 1px solid #f4d8e1; border-radius: 2px; cursor: pointer; pointer-events: auto;
+}
+.kisara-game-entry [data-game-entry-retry] svg { width: 16px; height: 16px; }
+.kisara-game-entry [data-game-entry-retry]:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+.kisara-event-scene[data-entry-state="error"] .kisara-game-entry-track { visibility: hidden; }
+/* Failed module delivery must not leave a permanent cover over an already loaded photo. */
+.kisara-event-scene[data-entry-state="waiting"] .kisara-game-entry { animation: kisara-game-entry-fallback 1ms 6000ms forwards; }
+@keyframes kisara-game-film-loading { to { transform: translateX(100%); } }
+@keyframes kisara-game-entry-fallback { to { opacity: 0; visibility: hidden; } }
+
+.kisara-games[data-active-scene="0"] .kisara-game-scene-nav {
+  border-color: #afa7bd66; background: #f5eff7; box-shadow: 0 3px 12px #44324b09; border-radius: 2px;
+}
+.kisara-games[data-active-scene="0"] .kisara-game-scene-nav a { color: #6a657b; }
+.kisara-games[data-active-scene="0"] .kisara-game-scene-nav [aria-current="true"] {
+  color: #9e2855; background: #f3dce7; box-shadow: inset 0 -2px #c83e70;
+}
+.kisara-game-investigation .kisara-game-investigation-heading { border-left: 3px solid #c83e70; padding-left: 12px; }
+.kisara-game-investigation .kisara-game-investigation-heading h1 { font-weight: 600; }
+.kisara-game-investigation .kisara-event-brief-status > span { display: inline-flex; align-items: center; gap: 7px; }
+.kisara-game-investigation .kisara-event-brief-status > span::before { content: ""; width: 5px; height: 5px; background: #c83e70; transform: rotate(45deg); }
+.kisara-game-investigation .kisara-event-objectives li.is-active { background: linear-gradient(90deg, #ce548212, transparent 85%); }
+.kisara-game-investigation .kisara-event-progress > i { background: #77788d2b; }
+.kisara-game-investigation .kisara-event-photo-panel::after { content: ""; position: absolute; z-index: 21; inset: 0; border: 1px solid #f4effb66; pointer-events: none; }
+
+@media (min-width: 981px) and (hover: hover) and (pointer: fine) {
+  /* Match the mounted camera before connectedCallback, avoiding an initial lens jump. */
+  .kisara-event-scene[data-entry-state="waiting"]:not([data-camera-mode]) .kisara-event-photo > img {
+    object-position: 50% 18%;
+    transform: translate3d(0, 0, 0) scale(1.12);
+    transform-origin: 50% 50%;
+  }
+}
+@media (max-height: 700px), (max-width: 600px) {
+  .kisara-game-entry-label { gap: 8px; }
+  .kisara-game-entry-label > svg { width: 24px; height: 24px; margin: 0; }
+  .kisara-game-entry-label > strong { font-size: 1.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kisara-game-entry::before, .kisara-game-entry::after, .kisara-game-entry-label { transition: none; }
+  .kisara-event-scene[data-entry-state="loading"] .kisara-game-entry-track b { animation: none; transform: none; opacity: .5; }
 }
 
 /* Size the composition around the photo, not an oversized empty camera column. */

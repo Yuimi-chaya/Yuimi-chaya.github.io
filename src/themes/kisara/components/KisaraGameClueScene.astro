@@ -8,14 +8,25 @@ import { Icon } from "astro-icon/components";
   data-game-scene
   data-scene-position="active"
   data-intro-state="complete"
+  tabindex="-1"
   aria-labelledby="kisara-game-investigation-title"
 >
   <div class="kisara-game-viewport" data-game-viewport>
   <div class="kisara-game-investigation-shell">
-    <kisara-game-clue-scene class="kisara-event-scene" data-state="idle">
+    <kisara-game-clue-scene class="kisara-event-scene" data-state="idle" data-entry-state="waiting">
       <div class="kisara-event-board">
         <div class="kisara-game-camera-slot">
         <div class="kisara-event-photo-panel">
+          <div class="kisara-game-entry" data-game-entry>
+            <div class="kisara-game-entry-label">
+              <Icon name="tabler:user-scan" aria-hidden="true" />
+              <span>PHOTO ARCHIVE / 0317</span>
+              <strong>合照之外</strong>
+              <span data-game-entry-status role="status">正在调取底片</span>
+              <i class="kisara-game-entry-track" aria-hidden="true"><b></b></i>
+              <button type="button" data-game-entry-retry hidden><Icon name="tabler:refresh" aria-hidden="true" />重新读取</button>
+            </div>
+          </div>
           <div class="kisara-event-photo-meta">
             <span>ARCHIVE PHOTO / NO. 0317</span>
             <strong>异常影像调查</strong>
@@ -69,8 +80,8 @@ import { Icon } from "astro-icon/components";
         <aside class="kisara-event-brief" aria-label="游戏调查信息">
           <header class="kisara-game-investigation-heading">
             <div>
-              <p>CASE FILE / EVENT 003</p>
-              <h1 id="kisara-game-investigation-title">A clue in the frame.</h1>
+              <p>PHOTO ARCHIVE / EVENT 003</p>
+              <h1 id="kisara-game-investigation-title">合照之外</h1>
             </div>
           </header>
           <div class="kisara-event-brief-status">
@@ -143,6 +154,7 @@ import { Icon } from "astro-icon/components";
 </section>
 
 <script>
+  import { bindGameEntry } from "../lib/gameEntry.ts";
   if (!customElements.get("kisara-game-clue-scene")) {
     class KisaraGameClueScene extends HTMLElement {
       controller: AbortController | null = null;
@@ -357,6 +369,7 @@ import { Icon } from "astro-icon/components";
           if (
             !cameraVisible
             || !cameraDecoded
+            || !["complete", "fallback"].includes(this.dataset.entryState ?? "")
             || cameraFocusFrame
             || (desktopCamera
               ? this.classList.contains("is-camera-ready")
@@ -637,6 +650,8 @@ import { Icon } from "astro-icon/components";
         beginSecretGrantCycle();
         setState("idle");
         armCameraFocus();
+        this.addEventListener("kisara:game-entry-ready", startCameraFocus, { signal });
+        bindGameEntry(this, signal);
       }
 
       disconnectedCallback() {

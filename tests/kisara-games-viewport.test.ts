@@ -82,12 +82,12 @@ test("Viewport adaptation measures local unscaled bounds, observes growth and st
     binding.cleanup();
     assert.equal(disconnected, true);
     assert.equal(frames.size, 0);
-    assert.equal(properties.size, 0);
+    assert.equal(Number(properties.get("--game-fit-scale")), .525, "keep the outgoing cabinet at its last size");
     win.dispatchEvent(new Event("resize"));
     observeCallback();
     binding.update();
     assert.equal(frames.size, 0);
-    assert.equal(properties.size, 0);
+    assert.equal(Number(properties.get("--game-fit-scale")), .525);
   } finally {
     if (oldWindow) Object.defineProperty(globalThis, "window", oldWindow);
     else Reflect.deleteProperty(globalThis, "window");
