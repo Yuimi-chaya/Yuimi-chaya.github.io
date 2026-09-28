@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import postcss from "postcss";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const source = read("src/themes/kisara/lib/layoutRuntime.js");
@@ -250,6 +251,33 @@ test("Late clipboard results cannot write feedback into a closed, reopened or di
     resolve(true);
     await pending;
     assert.equal(feedback.length, interruption === "none" ? 1 : 0);
+  }
+});
+
+test("Menu palette and layer stay stable regardless of theme stylesheet loading order", () => {
+  const theme = postcss.parse(read("src/themes/kisara/styles/theme.css"));
+  const menu = postcss.parse(read("src/themes/kisara/styles/context-menu.css"));
+  for (const sheets of [[theme, menu], [menu, theme], [menu, theme, menu, theme]]) {
+    const declarations = (selector: string) => {
+      const result = new Map<string, string>();
+      for (const sheet of sheets) {
+        for (const rule of sheet.nodes) {
+          if (rule.type === "rule" && rule.selectors.includes(selector)) {
+            rule.walkDecls(decl => { result.set(decl.prop, decl.value); });
+          }
+        }
+      }
+      return result;
+    };
+    const menuStyle = declarations(".kisara-context-menu");
+    assert.equal(menuStyle.get("color"), "var(--menu-ink)");
+    assert.equal(menuStyle.get("--menu-ink"), "#303137");
+    assert.equal(menuStyle.get("background"), "#fcfcfd");
+    assert.equal(menuStyle.get("z-index"), "10060");
+    assert.equal(menuStyle.get("max-height"), "calc(calc(100dvh / var(--kisara-scale, 1)) - 24px)");
+    const panelStyle = declarations(".kisara-theme-panel");
+    assert.equal(panelStyle.get("color"), "#f8f5ff");
+    assert.ok(panelStyle.get("background")?.endsWith("#171c40"));
   }
 });
 
