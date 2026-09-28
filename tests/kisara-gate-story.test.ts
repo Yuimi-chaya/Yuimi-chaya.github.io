@@ -167,11 +167,15 @@ test("all story images are web-sized, valid and under the aggregate download bud
   assert.ok(total < 850000, `${total} bytes`);
 });
 
-test("atmosphere removes scene blur, flashing haze and halo particles and respects lifecycle", () => {
+test("atmosphere stays stable and softening is confined to opacity-driven image copies", () => {
   assert.doesNotMatch(styles, /kisara-memory-flare|kisara-ambient-particle-halo|\.kisara-ambient-particles i::after/);
-  const slotStyles = styles.slice(styles.indexOf(".kisara-gate-scene-slot {"), styles.indexOf(".kisara-gate-background-fight {"));
+  const slotStyles = styles.slice(styles.indexOf(".kisara-gate-scene-slot {"), styles.indexOf(".kisara-gate-scene-softness {"));
   assert.doesNotMatch(slotStyles, /blur|blend-mode|gradient/);
-  assert.match(styles, /\.kisara-memory-tone-bridge \{[^}]*z-index: 19;[^}]*background-color: var\(--kisara-memory-bridge-color\)/);
+  assert.equal(styles.includes("kisara-memory-tone-bridge"), false);
+  assert.equal(home.includes("kisara-memory-tone-bridge"), false);
+  const soft = styles.slice(styles.indexOf(".kisara-gate-scene-softness {"), styles.indexOf('html[data-yuimi-performance="lite"] .kisara-gate-scene-softness'));
+  assert.ok(soft.includes("background: inherit;") && soft.includes("filter: blur(5px);"));
+  assert.ok(soft.includes("will-change: opacity;") && !soft.includes("transition:"));
   assert.match(styles, /is-story-suspended[^]*animation-play-state: paused/);
   assert.match(styles, /prefers-reduced-motion: reduce[^]*\.kisara-ambient-particles[^]*display: none/);
   assert.match(home, /gate\.classList\.toggle\("is-story-suspended", document\.visibilityState === "hidden"\)/);

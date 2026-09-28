@@ -38,8 +38,6 @@
   --kisara-bg-saturation: 1;
   --kisara-bg-brightness: 1;
   --kisara-memory-blackout: 0;
-  --kisara-memory-bridge-opacity: 0;
-  --kisara-memory-bridge-color: transparent;
   --kisara-fight-opacity: 0;
   --kisara-fight-blur: 16px;
   --kisara-fight-scale: 1.06;
@@ -464,7 +462,6 @@ html[data-kisara-found-self-entry] .kisara-found-self.is-leaving,
 .kisara-gate-bridge-current,
 .kisara-gate-visual,
 .kisara-gate-background,
-.kisara-memory-tone-bridge,
 .kisara-memory-blackout,
 .kisara-space-lens-canvas,
 .kisara-post-release-canvas,
@@ -609,10 +606,25 @@ html[data-kisara-gate-media="failed"] .kisara-gate-visual-shell::after {
   will-change: opacity, transform;
 }
 
-.kisara-memory-tone-bridge {
-  z-index: 19;
-  background-color: var(--kisara-memory-bridge-color);
-  opacity: var(--kisara-memory-bridge-opacity);
+.kisara-gate-scene-softness {
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  filter: blur(5px);
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+html[data-yuimi-performance="lite"] .kisara-gate-scene-softness,
+html[data-yuimi-performance="mobile"] .kisara-gate-scene-softness {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kisara-gate-scene-softness {
+    display: none;
+  }
 }
 
 .kisara-gate-background-fight {

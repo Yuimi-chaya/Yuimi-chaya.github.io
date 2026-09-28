@@ -201,7 +201,8 @@ function attachSceneCompositor(f: ReturnType<typeof fixture>) {
     };
   }
   const slots = Array.from({ length: 2 }, (_, index) => ({
-    element: new SceneElement(), index, sceneId: "", rendered: Object.create(null)
+    element: new SceneElement(), softElement: new SceneElement(), renderedSoftness: "",
+    index, sceneId: "", rendered: Object.create(null)
   }));
   const context = {
     HTMLElement: SceneElement, sceneSlotRecords: slots, sceneSlotOverflowWarned: false,
@@ -236,6 +237,9 @@ function attachSceneCompositor(f: ReturnType<typeof fixture>) {
       const slot = slots.find((candidate) => candidate.sceneId === id);
       return Number(slot?.element.style.opacity || 0);
     },
+    softness(id: string) {
+      return Number(slots.find(slot => slot.sceneId === id)?.softElement.style.opacity || 0);
+    },
     snapshot() {
       return slots.filter((slot) => Number(slot.element.style.opacity) > .00005)
         .map((slot) => ({ id: slot.sceneId, opacity: Number(slot.element.style.opacity) }));
@@ -254,8 +258,11 @@ test("the real frame loop finishes a reaction edit even when scroll is already s
   f.step(1046);
   const opacity = slots.contribution("memory-embrace");
   assert.ok(opacity > 0 && opacity < 1);
-  f.advance(150);
+  assert.ok(slots.softness("memory-fallen") > 0);
+  assert.ok(slots.softness("memory-embrace") > 0);
+  f.advance(220);
   assert.equal(f.state.memoryEditor.active, false);
+  assert.equal(slots.softness("memory-embrace"), 0);
   assert.deepEqual(slots.snapshot(), [{ id: "memory-embrace", opacity: 1 }]);
 });
 
@@ -273,7 +280,7 @@ test("a late decoded reaction starts on the old plate then completes through the
   f.state.render();
   assert.equal(f.state.memoryEditor.active, true);
   assert.deepEqual(slots.snapshot(), [{ id: "memory-fallen", opacity: 1 }]);
-  f.advance(150);
+  f.advance(220);
   assert.deepEqual(slots.snapshot(), [{ id: "memory-embrace", opacity: 1 }]);
 });
 

@@ -169,9 +169,8 @@ const gateStyle = [
         <div class="kisara-gate-bridge-current">
           <div class="kisara-gate-visual">
             <div class="kisara-gate-background kisara-gate-background-base"></div>
-            <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="0"></div>
-            <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="1"></div>
-            <div class="kisara-memory-tone-bridge"></div>
+            <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="0"><div class="kisara-gate-scene-softness"></div></div>
+            <div class="kisara-gate-background kisara-gate-scene-slot" data-kisara-scene-slot="1"><div class="kisara-gate-scene-softness"></div></div>
             <div class="kisara-gate-background kisara-gate-background-fight"></div>
             <div class="kisara-memory-blackout"></div>
             <div class="kisara-gate-background kisara-gate-background-fight-wash"></div>
@@ -457,6 +456,8 @@ const gateStyle = [
         gate.querySelectorAll("[data-kisara-scene-slot]")
       ).map((element, index) => ({
         element,
+        softElement: element.querySelector(".kisara-gate-scene-softness"),
+        renderedSoftness: "",
         index,
         sceneId: "",
         rendered: Object.create(null)
@@ -1174,6 +1175,11 @@ const gateStyle = [
             : `translate3d(calc(${renderedShiftX.toFixed(3)}px + var(--kisara-base-shift-x)), calc(${renderedShiftY.toFixed(3)}px + var(--kisara-base-shift-y)), 0) scale(${renderedScale.toFixed(5)}) scale(var(--kisara-gravity-scale))`;
           setSceneSlotStyle(slot, "z-index", String(presentation.order + 1));
           setSceneSlotStyle(slot, "opacity", renderedOpacity.toFixed(4));
+          const softness = (presentation.softness || 0).toFixed(4);
+          if (slot.softElement && slot.renderedSoftness !== softness) {
+            slot.softElement.style.opacity = softness;
+            slot.renderedSoftness = softness;
+          }
           setSceneSlotStyle(slot, "transform-origin", presentation.origin || "center");
           setSceneSlotStyle(slot, "transform", transform);
         });
@@ -1197,7 +1203,7 @@ const gateStyle = [
         const scenePresentations = [];
         memorySceneRecords.forEach((record, index) => {
           const frame = getMemoryFrame(index, fill, chargeIntroProgress, reducedMotion, edit.weights[index]);
-          if (frame) scenePresentations.push({ ...record, ...frame });
+          if (frame) scenePresentations.push({ ...record, ...frame, softness: edit.softness[index] });
         });
         const handoff = computeSceneHandoff();
         transformationSceneRecords.forEach((record, index) => {
@@ -1219,8 +1225,6 @@ const gateStyle = [
         memoryBlackoutTimestamp = now;
         if (composed) {
           setRuntimeStyle(gate, "--kisara-bg-opacity", edit.baseOpacity.toFixed(4));
-          setRuntimeStyle(gate, "--kisara-memory-bridge-opacity", edit.bridgeOpacity.toFixed(4));
-          setRuntimeStyle(gate, "--kisara-memory-bridge-color", edit.bridgeColor);
         }
         return { handoff };
       };
