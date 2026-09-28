@@ -84,6 +84,105 @@
   .kisara-scrollbar-thumb { left: 1px; }
 }
 
+.kisara-scrollbar-chapters { display: none; }
+
+/* The rail stays outside scene flights; only its chapter position moves. */
+.kisara-home-page[data-kisara-home-transition="true"] > .kisara-scrollbar { z-index: 10042; }
+
+.kisara-scrollbar.is-home-chapters {
+  --kisara-scroll-accent: #c7658b;
+  top: 50%;
+  right: 6px;
+  bottom: auto;
+  width: 28px;
+  height: min(260px, calc(100svh / var(--kisara-scale, 1) - 180px));
+  transform: translateY(-50%);
+}
+
+.is-home-chapters::before,
+.is-home-chapters .kisara-scrollbar-progress {
+  top: 4px;
+  left: 23px;
+  width: 1px;
+  height: calc(100% - 8px);
+}
+
+.is-home-chapters::before {
+  bottom: 4px;
+  background: #858b9a80;
+  box-shadow: 1px 0 0 #ffffff60;
+}
+
+.is-home-chapters .kisara-scrollbar-progress {
+  opacity: .8;
+}
+
+.is-home-chapters .kisara-scrollbar-thumb {
+  left: 20px;
+  width: 7px;
+  border-radius: 1px;
+}
+
+.is-home-chapters[data-chapter-motion="true"] .kisara-scrollbar-progress,
+.is-home-chapters[data-chapter-motion="true"] .kisara-scrollbar-thumb {
+  transition: transform 260ms cubic-bezier(.2, .65, .3, 1);
+}
+
+.is-home-chapters .kisara-scrollbar-thumb i { display: none; }
+
+.is-home-chapters .kisara-scrollbar-chapters {
+  position: absolute;
+  inset: 4px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.kisara-scrollbar-chapters > span {
+  position: relative;
+  height: 0;
+  padding-right: 12px;
+  color: var(--kisara-chapter-ink, #747b8c);
+  font: 10px/1 Consolas, monospace;
+  text-align: right;
+  text-shadow: 0 1px 1px #ffffffa6;
+  transform: translateY(-5px);
+  transition: color 160ms ease;
+}
+
+.kisara-scrollbar-chapters > span::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  width: 5px;
+  height: 1px;
+  background: #9399a6;
+}
+
+.is-home-chapters[data-stage="1"],
+.is-home-chapters[data-stage="2"] {
+  --kisara-chapter-ink: #abb7ce;
+}
+
+.is-home-chapters[data-stage="1"] .kisara-scrollbar-chapters > span,
+.is-home-chapters[data-stage="2"] .kisara-scrollbar-chapters > span {
+  text-shadow: 0 1px 2px #11162a;
+}
+
+.is-home-chapters[data-stage="0"] .kisara-scrollbar-chapters > :nth-child(1),
+.is-home-chapters[data-stage="1"] .kisara-scrollbar-chapters > :nth-child(2),
+.is-home-chapters[data-stage="2"] .kisara-scrollbar-chapters > :nth-child(3),
+.is-home-chapters[data-stage="3"] .kisara-scrollbar-chapters > :nth-child(4),
+.is-home-chapters[data-stage="4"] .kisara-scrollbar-chapters > :nth-child(5) {
+  color: #df719e;
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .kisara-scrollbar.is-home-chapters { right: 2px; height: min(200px, calc(100svh / var(--kisara-scale, 1) - 180px)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .kisara-scrollbar { transition: none; }
+  .kisara-scrollbar, .kisara-scrollbar * { transition: none; }
 }

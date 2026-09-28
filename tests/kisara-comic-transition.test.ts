@@ -115,7 +115,7 @@ function fixture() {
   for (let i = 0; i < 5; i++) scene.append(make("comic-caption", { comicCaption: "" }));
   const doc = Object.assign(new EventTarget(), {
     hidden: false, visibilityState: "visible", createElement: (tag: string) => new FakeNode(tag),
-    querySelectorAll: () => [], body: { append(node: FakeNode) { nodes.push(node); } },
+    querySelectorAll: () => [], body: { dataset: {}, append(node: FakeNode) { nodes.push(node); } },
   });
   const win = Object.assign(new EventTarget(), {
     innerHeight: 900, matchMedia: () => ({ matches: false }), setTimeout, clearTimeout,
@@ -140,7 +140,7 @@ function fixture() {
 function gateHandoffFixture(f: ReturnType<typeof fixture>, controller: AbortController, ready: Promise<void>) {
   const home = readFileSync(new URL("../src/themes/kisara/pages/HomePage.astro", import.meta.url), "utf8");
   const functions = [
-    ["runComicHandoff", "isOpeningStopCurrent"],
+    ["setHomeRailTransition", "isOpeningStopCurrent"],
     ["enterNextPage", "finalizeLovebrainExit"],
     ["drawTitleLens", "glitchAlphabet"],
   ];
@@ -152,6 +152,7 @@ function gateHandoffFixture(f: ReturnType<typeof fixture>, controller: AbortCont
     return home.slice(start, end);
   }).join("\n");
   const events: string[] = [];
+  const railStates: boolean[] = [];
   const state = {
     comicTransition: createComicTransition(controller.signal, false),
     openingMemoryScene: { preparePresentation: () => ready },
@@ -163,7 +164,8 @@ function gateHandoffFixture(f: ReturnType<typeof fixture>, controller: AbortCont
     titleLensCanvas: { dataset: { active: "true" } },
     titleLensRenderer: { draw: () => events.push("draw"), clear: () => events.push("clear-lens") },
     clamp: (value: number, min: number, max: number) => Math.min(max, Math.max(min, value)),
-    performance, document: f.doc, window: { scrollY: 0 },
+    performance, CustomEvent, document: f.doc,
+    window: { scrollY: 0, dispatchEvent: (event: CustomEvent) => railStates.push(event.detail.active) },
     cancelSmoothScroll: () => events.push("cancel-scroll"),
     clearOpeningTitleBridgeDissolve: () => events.push("clear-bridge"),
     clearReleaseTransientEffects: () => events.push("clear-effects"),
@@ -180,7 +182,7 @@ function gateHandoffFixture(f: ReturnType<typeof fixture>, controller: AbortCont
   const api = vm.runInNewContext(
     stripTypeScriptTypes(source) + "\n({ enterNextPage, drawTitleLens });", state
   );
-  return { state, events, api };
+  return { state, events, api, railStates };
 }
 
 test("The real Gate keeps liquid rendering through preparation and reveal, then resets under full paper", async () => {
@@ -188,7 +190,7 @@ test("The real Gate keeps liquid rendering through preparation and reveal, then 
   const controller = new AbortController();
   try {
     const ready = deferred();
-    const { state, events, api } = gateHandoffFixture(f, controller, ready.promise);
+    const { state, events, api, railStates } = gateHandoffFixture(f, controller, ready.promise);
     api.enterNextPage();
     assert.equal(state.comicTransition.active, true);
     assert.equal(state.pageMode, "gate");
@@ -207,6 +209,7 @@ test("The real Gate keeps liquid rendering through preparation and reveal, then 
     await flush();
     assert.equal(state.pageMode, "next");
     assert.equal(state.comicTransition.active, false);
+    assert.deepEqual(railStates, [true, false]);
     assert.deepEqual(events.slice(2), [
       "clear-bridge", "clear-effects", "post-release:false", "scroll", "reset-gate",
       "reset-comic", "settle-comic", "render",
@@ -221,7 +224,7 @@ test("Aborting a Gate flight never clears the exposed material or commits the re
     const controller = new AbortController();
     try {
       const ready = deferred();
-      const { state, events, api } = gateHandoffFixture(f, controller, ready.promise);
+      const { state, events, api, railStates } = gateHandoffFixture(f, controller, ready.promise);
       api.enterNextPage();
       if (duringMotion) ready.resolve();
       await flush();
@@ -229,6 +232,7 @@ test("Aborting a Gate flight never clears the exposed material or commits the re
       await flush();
       assert.equal(state.pageMode, "gate");
       assert.equal(state.comicTransition.active, false);
+      assert.deepEqual(railStates, [true, false]);
       assert.equal(f.nodes.length, 0);
       assert.deepEqual(events, ["render"]);
       ready.resolve();

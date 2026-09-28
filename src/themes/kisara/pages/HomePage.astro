@@ -7810,8 +7810,14 @@ const gateStyle = [
         return Math.max(1, Math.round((openingRect?.top ?? gate.getBoundingClientRect().height) + window.scrollY));
       };
 
+      const setHomeRailTransition = (active) => {
+        document.body.dataset.kisaraHomeTransition = String(active);
+        window.dispatchEvent(new CustomEvent("kisara:home-transition", { detail: { active } }));
+      };
+
       const runComicHandoff = (target, commit) => {
         if (comicTransition.active) return true;
+        setHomeRailTransition(true);
         // Input is locked by the flight; keep the exposed Gate renderers alive until coverage.
         if (pageMode !== "gate" || target !== "opening") pageMode = "snap";
         scrollTransitionDirection = target === "gate" ? "comic-return" : "comic-forward";
@@ -7841,6 +7847,7 @@ const gateStyle = [
           scrollTransitionDirection = "idle";
           lastObservedScrollY = window.scrollY;
           homeSectionInputGuardUntil = performance.now() + 220;
+          setHomeRailTransition(false);
           render();
         });
         return true;
@@ -8593,6 +8600,7 @@ const gateStyle = [
         }
         const reverse = stop.index < current.index;
         scrollTransitionDirection = reverse ? "section-return" : "section-forward";
+        setHomeRailTransition(true);
         void chapterTransition.run(current.element, stop.element, reverse, () => {
           settleHomeSectionStop(stop);
           if (openingBridgePortalActive) {
@@ -8612,6 +8620,7 @@ const gateStyle = [
             performance.now() + 120,
             homeSectionWheelLastTimestamp + 180
           );
+          setHomeRailTransition(false);
         });
         return true;
       };
@@ -9085,6 +9094,7 @@ const gateStyle = [
       const cleanup = () => {
         if (disposed) return;
         disposed = true;
+        setHomeRailTransition(false);
         lovebrainActive = false;
         lovebrainExitCommitted = false;
         gate.classList.remove(
