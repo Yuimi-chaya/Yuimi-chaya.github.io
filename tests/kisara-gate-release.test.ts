@@ -13,12 +13,11 @@ import {
   transformationScenes,
   memoryFillDuration,
   getMemoryFrame,
-  getMemoryBaseOpacity,
-  getMemoryToneBridge,
   getMemoryBlackout,
   advanceMemoryProgress,
   advanceMemoryBlackout
 } from "../src/themes/kisara/lib/gateStory.ts";
+import { createMemoryEditor } from "../src/themes/kisara/lib/gateMemoryEdit.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const home = read("src/themes/kisara/pages/HomePage.astro");
@@ -82,7 +81,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
     releaseReturnPose: null, postReleaseParticles: [],
     mobileFrameInterval: 0, lastAnimationPaintTimestamp: 0, animationFrame: 0, lastFrameTime: 0,
     progress: 1, targetProgress: 1, velocity: 0, springStrength: 0.06, damping: 0.76, settleDistance: 0.00035,
-    memoryBlackoutOpacity: 0, memoryBlackoutTimestamp: 0, advanceMemoryProgress, advanceMemoryBlackout,
+    memoryBlackoutOpacity: 0, memoryBlackoutTimestamp: 0, memoryEditTimestamp: 0, advanceMemoryProgress, advanceMemoryBlackout,
     chargeIntroProgress: 0, chargeIntroActive: false, chargeIntroComplete: false, chargeIntroReversing: false,
     chargeIntroLastTimestamp: 0, chargeIntroClock: 0, chargeIntroTargetClock: 1, chargeIntroTarget: 1,
     chargeIntroDuration: gateRelease.introDuration, energyProgress: 1, fillDistance: 2100,
@@ -97,8 +96,8 @@ function fixture(overrides: Record<string, unknown> = {}) {
     heroAutoplayActive: false, heroAutoplayLastTimestamp: 0, advanceGateAutoplay,
     clamp, mapChargeIntroProgress, getChargeIntroClock,
     mapReleaseAutoplayProgress, gateRelease, getTransformationFrame, getGateSceneHandoff,
-    getReconstructionProgress, getMemoryFrame, getMemoryBaseOpacity, getMemoryToneBridge, getMemoryBlackout,
-    isStoryFrameReady: () => true, areIntroImagesReady: () => true,
+    getReconstructionProgress, getMemoryFrame, getMemoryBlackout,
+    isStoryFrameReady: () => true, areIntroImagesReady: () => true, isSceneImageReady: () => true,
     memorySceneRecords: memoryScenes.map((scene, index) => ({
       ...scene, id: `memory-${scene.id}`, kind: "memory", order: index
     })),
@@ -113,6 +112,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
     now: 1000, requested: 0, cleared: 0, rendered: 0, rail: null, effects: [], nextPageEntries: 0,
     ...overrides
   };
+  state.memoryEditor = createMemoryEditor(state.progress);
   state.window = { requestAnimationFrame: () => ++state.requested, scrollY: 0 };
   state.performance = { now: () => state.now };
   state.phaseProgress = (value: number, start: number, end: number) =>
@@ -242,6 +242,40 @@ function attachSceneCompositor(f: ReturnType<typeof fixture>) {
     }
   };
 }
+
+test("the real frame loop finishes a reaction edit even when scroll is already settled", () => {
+  const f = fixture({ progress: 0.49, targetProgress: 0.49 });
+  const slots = attachSceneCompositor(f);
+  f.state.render();
+  f.state.progress = f.state.targetProgress = 0.51;
+  f.step(1016);
+  assert.equal(f.state.memoryEditor.active, true);
+  assert.ok(f.state.requested > 0, "A settled scroll must schedule the unfinished edit");
+  f.step(1046);
+  const opacity = slots.contribution("memory-embrace");
+  assert.ok(opacity > 0 && opacity < 1);
+  f.advance(150);
+  assert.equal(f.state.memoryEditor.active, false);
+  assert.deepEqual(slots.snapshot(), [{ id: "memory-embrace", opacity: 1 }]);
+});
+
+test("a late decoded reaction starts on the old plate then completes through the compositor", () => {
+  let decoded = false;
+  const f = fixture({ progress: 0.49, targetProgress: 0.49,
+    isSceneImageReady: (record: { id: string }) => record.id !== "memory-embrace" || decoded });
+  const slots = attachSceneCompositor(f);
+  f.state.render();
+  f.state.progress = f.state.targetProgress = 0.51;
+  f.advance(300);
+  assert.equal(f.state.memoryEditor.active, false);
+  assert.deepEqual(slots.snapshot(), [{ id: "memory-fallen", opacity: 1 }]);
+  decoded = true;
+  f.state.render();
+  assert.equal(f.state.memoryEditor.active, true);
+  assert.deepEqual(slots.snapshot(), [{ id: "memory-fallen", opacity: 1 }]);
+  f.advance(150);
+  assert.deepEqual(slots.snapshot(), [{ id: "memory-embrace", opacity: 1 }]);
+});
 
 test("finishing the heart automatically starts release in the same frame without wheel input", () => {
   const f = fixture();

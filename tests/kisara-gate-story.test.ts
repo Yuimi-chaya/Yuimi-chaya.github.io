@@ -4,8 +4,8 @@ import test from "node:test";
 import vm from "node:vm";
 import sharp from "sharp";
 import {
-  memoryScenes, transformationScenes, memoryTimeline, memoryFillDuration, memoryBlendDuration,
-  getMemoryFrame, getMemoryBaseOpacity, getMemoryToneBridge, getMemoryBlackout, getMemoryWarmIndices, advanceMemoryProgress,
+  memoryScenes, transformationScenes, memoryTimeline, memoryFillDuration,
+  getMemoryFrame, getMemoryBlackout, getMemoryWarmIndices, advanceMemoryProgress,
   advanceMemoryBlackout, memoryBrightenDuration
 } from "../src/themes/kisara/lib/gateStory.ts";
 import { gateRelease, getTransformationFrame } from "../src/themes/kisara/lib/gateRelease.ts";
@@ -25,26 +25,6 @@ test("the story preserves the supplied order and reuses established reaction and
   assert.equal((home.match(/data-kisara-scene-slot="/g) ?? []).length, 2);
 });
 
-test("all memory dissolves use one fixed blend window while authored shot starts stay non-uniform", () => {
-  const normalizedBlend = memoryBlendDuration / memoryFillDuration;
-  assert.equal(memoryBlendDuration, 300);
-  assert.ok(new Set(memoryTimeline.map(scene => scene.start)).size > 1);
-  for (const scene of memoryTimeline.slice(0, -1)) {
-    assert.ok(Math.abs(scene.enterEnd - scene.start - normalizedBlend) < 1e-12);
-    assert.ok(Math.abs(scene.end - scene.leaveStart - normalizedBlend) < 1e-12);
-  }
-});
-
-test("the base plate fades with the first shot and high-contrast edits receive a short tone bridge", () => {
-  const first = memoryTimeline[0];
-  assert.equal(getMemoryBaseOpacity(0), 1);
-  assert.equal(getMemoryBaseOpacity(first.enterEnd), 0);
-  assert.ok(getMemoryBaseOpacity((first.start + first.enterEnd) / 2) < 1);
-  assert.ok(getMemoryToneBridge((first.start + first.enterEnd) / 2).opacity > 0);
-  assert.equal(getMemoryToneBridge(first.enterEnd).opacity, 0);
-  assert.equal(getMemoryToneBridge((first.start + first.enterEnd) / 2, 0.1).opacity, 0);
-  assert.equal(getMemoryToneBridge((first.start + first.enterEnd) / 2, 0, true).opacity, 0);
-});
 
 test("action inserts have shorter dwell than reactions and all nine shots read at 30/60/120Hz", () => {
   for (const fps of [30, 60, 120]) {
@@ -67,7 +47,7 @@ test("action inserts have shorter dwell than reactions and all nine shots read a
   }
 });
 
-test("ordinary edits crossfade without a blank interval and fit two slots including the kiss to smoke bridge", () => {
+test("selected shots and the kiss to smoke bridge never exceed the two-slot compositor", () => {
   const check = (frames: Array<{ opacity: number } | null>, covered: boolean) => {
     const active = frames.filter(frame => frame && frame.opacity > 0.00005);
     assert.ok(active.length <= 2);

@@ -320,13 +320,12 @@ const gateStyle = [
     import { titleDataStreamFragment } from "../lib/titleDataStream";
     import {
       getMemoryFrame,
-      getMemoryBaseOpacity,
-      getMemoryToneBridge,
       getMemoryBlackout,
       getMemoryWarmIndices,
       advanceMemoryProgress,
       advanceMemoryBlackout
     } from "../lib/gateStory";
+    import { createMemoryEditor } from "../lib/gateMemoryEdit";
     import { createStoryImageLoader } from "../lib/storyImageLoader";
     import { advanceGateAutoplay } from "../lib/gateAutoplay";
     const releaseStaleKisaraHomeRuntime = (candidate) => {
@@ -719,6 +718,8 @@ const gateStyle = [
       const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
       const startsComplete = reducedMotion && !restoredBelowGate && !foundSelfEntryRequested;
       let progress = startsComplete ? 1 : 0;
+      const memoryEditor = createMemoryEditor(progress);
+      let memoryEditTimestamp = 0;
       let targetProgress = progress;
       let velocity = 0;
       let burstProgress = startsComplete ? 1 : 0;
@@ -1182,9 +1183,20 @@ const gateStyle = [
         getReconstructionProgress(burstProgress)
       );
       const syncMemorySequence = (fill) => {
+        const now = performance.now();
+        if (chargeIntroProgress > 0) memoryEditor.reset(1);
+        const edit = chargeIntroProgress > 0 ? memoryEditor.snapshot() : memoryEditor.update(
+          fill, memoryEditTimestamp ? now - memoryEditTimestamp : 0,
+          (index) => {
+            const record = memorySceneRecords[index];
+            const ready = isSceneImageReady(record);
+            return ready && !["failed", "timed-out"].includes(sceneImageWarmers.get(record?.id)?.status);
+          }, reducedMotion
+        );
+        memoryEditTimestamp = now;
         const scenePresentations = [];
         memorySceneRecords.forEach((record, index) => {
-          const frame = getMemoryFrame(index, fill, chargeIntroProgress, reducedMotion);
+          const frame = getMemoryFrame(index, fill, chargeIntroProgress, reducedMotion, edit.weights[index]);
           if (frame) scenePresentations.push({ ...record, ...frame });
         });
         const handoff = computeSceneHandoff();
@@ -1197,7 +1209,6 @@ const gateStyle = [
         });
         const composed = syncSceneSlots(scenePresentations);
         const blackout = getMemoryBlackout(fill, chargeIntroProgress, reducedMotion);
-        const now = performance.now();
         if (composed) {
           memoryBlackoutOpacity = advanceMemoryBlackout(
             memoryBlackoutOpacity, blackout,
@@ -1207,10 +1218,9 @@ const gateStyle = [
         }
         memoryBlackoutTimestamp = now;
         if (composed) {
-          const toneBridge = getMemoryToneBridge(fill, chargeIntroProgress, reducedMotion);
-          setRuntimeStyle(gate, "--kisara-bg-opacity", getMemoryBaseOpacity(fill).toFixed(4));
-          setRuntimeStyle(gate, "--kisara-memory-bridge-opacity", toneBridge.opacity.toFixed(4));
-          setRuntimeStyle(gate, "--kisara-memory-bridge-color", toneBridge.color);
+          setRuntimeStyle(gate, "--kisara-bg-opacity", edit.baseOpacity.toFixed(4));
+          setRuntimeStyle(gate, "--kisara-memory-bridge-opacity", edit.bridgeOpacity.toFixed(4));
+          setRuntimeStyle(gate, "--kisara-memory-bridge-color", edit.bridgeColor);
         }
         return { handoff };
       };
@@ -7775,6 +7785,7 @@ const gateStyle = [
 
         const settled = !heroAutoplayActive
           && !chargeIntroActive
+          && !memoryEditor.active
           && memoryBlackoutOpacity <= getMemoryBlackout(progress, chargeIntroProgress, reducedMotion) + 0.00005
           && !["forward", "rewinding"].includes(releaseMode)
           && Math.abs(targetProgress - progress) < settleDistance
@@ -7789,6 +7800,7 @@ const gateStyle = [
           lastFrameTime = 0;
           lastAnimationPaintTimestamp = 0;
           render();
+          if (memoryEditor.active) animationFrame = window.requestAnimationFrame(animate);
           return;
         }
 
@@ -7998,6 +8010,8 @@ const gateStyle = [
         velocity = 0;
         memoryBlackoutOpacity = 0;
         memoryBlackoutTimestamp = 0;
+        memoryEditor.reset(0);
+        memoryEditTimestamp = 0;
         targetBurstProgress = 0;
         burstProgress = 0;
         burstVelocity = 0;
@@ -8973,7 +8987,7 @@ const gateStyle = [
       gate.addEventListener("kisara:scene-ready", () => {
         if (foundSelfActive || lovebrainActive) return;
         render();
-        if (pageMode === "gate" && targetProgress >= 0.995 && !chargeIntroComplete) startAnimation();
+        if (pageMode === "gate" && (memoryEditor.active || (targetProgress >= 0.995 && !chargeIntroComplete))) startAnimation();
         startEnergyAnimation();
       }, { signal });
 
@@ -9052,6 +9066,7 @@ const gateStyle = [
         }
       }
       document.addEventListener("visibilitychange", () => {
+        memoryEditTimestamp = 0;
         gate.classList.toggle("is-story-suspended", document.visibilityState === "hidden");
         if (document.visibilityState === "hidden") {
           openingBridgeResumeLive = openingBridgePortalActive
