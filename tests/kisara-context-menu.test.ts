@@ -75,7 +75,7 @@ function layoutFixture() {
     __yuimiKisaraLayoutCleanup: null as null | (() => void),
   });
   new Function("document", "window", "HTMLElement", "Element", "Node", "getKisaraScale", "requestAnimationFrame", "cancelAnimationFrame",
-    source.slice(source.indexOf("const gateStageLabels")).replace("export const initKisaraLayoutRuntime", "const initKisaraLayoutRuntime")
+    source.slice(source.indexOf("const clamp =")).replace("export const initKisaraLayoutRuntime", "const initKisaraLayoutRuntime")
   )(doc, win, Element, Element, Element, () => 1, () => 1, () => {});
   return {
     doc, win, Element, get menu() { return menu; },
