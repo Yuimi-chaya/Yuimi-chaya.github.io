@@ -30,7 +30,7 @@ test("Kisara layout runtime remains idempotent across Astro swaps", () => {
 
 test("Kisara layout runtime preserves scroll rail and context actions", () => {
   assert.match(runtimeSource, /kisara:gate-progress/);
-  assert.match(runtimeSource, /--kisara-scroll-progress/);
+  assert.ok(runtimeSource.includes("scrollFill.style.transform"));
   assert.match(runtimeSource, /data-kisara-action/);
   assert.match(runtimeSource, /window\.__yuimiTheme\?\.select/);
   assert.match(runtimeSource, /navigator\.clipboard\?\.writeText/);

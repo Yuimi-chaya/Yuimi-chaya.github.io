@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import test from "node:test";
+import postcss from "postcss";
 import { getHomeChapterProgress } from "../src/themes/kisara/lib/homeScrollRail.ts";
 
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const runtime = read("src/themes/kisara/lib/layoutRuntime.js");
 
-function mount({ home = true, y = 900, gate = false } = {}) {
+function mount({ home = true, y = 900, gate = false, gateProgress = .45 } = {}) {
   class Node extends EventTarget {
     dataset: Record<string, string> = {};
     classes = new Set<string>();
@@ -17,18 +18,20 @@ function mount({ home = true, y = 900, gate = false } = {}) {
       contains: (key: string) => this.classes.has(key),
       toggle: (key: string, active: boolean) => active ? this.classes.add(key) : this.classes.delete(key),
     };
-    style = { setProperty: (key: string, value: string) => this.properties.set(key, value) };
-    get clientHeight() { return this.classes.has("is-home-chapters") ? 260 : 800; }
+    style = { transform: "", height: "", setProperty: (key: string, value: string) => this.properties.set(key, value) };
+    get clientHeight() { return this.classes.has("is-home-rail") ? 260 : 800; }
     getBoundingClientRect() { return { height: this.clientHeight * .9 }; }
     setAttribute(key: string, value: string) { this.attributes.set(key, value); }
-    querySelectorAll() { return marks; }
+    querySelector(selector: string) { return selector === ".kisara-scrollbar-progress" ? fill : thumb; }
   }
-  const marks = home ? Array.from({ length: 5 }, () => new Node()) : [];
+  const fill = new Node();
+  const thumb = new Node();
   const rail = new Node();
+  if (home) rail.classes.add("is-home-rail");
   const body = new Node();
   if (home) body.classes.add("kisara-home-page");
   const source = new Node();
-  Object.assign(source.dataset, { kisaraScrollActive: String(gate), kisaraScrollProgress: "0.45", kisaraScrollStage: "outer-bind" });
+  Object.assign(source.dataset, { kisaraScrollActive: String(gate), kisaraScrollProgress: String(gateProgress), kisaraScrollStage: "outer-bind" });
   const root = { scrollHeight: 5500, dataset: { theme: "kisara" } };
   const win = Object.assign(new EventTarget(), { scrollY: y, innerHeight: 900, innerWidth: 1440 });
   let measurements = 0;
@@ -58,7 +61,11 @@ function mount({ home = true, y = 900, gate = false } = {}) {
   const transition = (active: boolean) => win.dispatchEvent(new CustomEvent("kisara:home-transition", { detail: { active } }));
   const scroll = (value: number) => { win.scrollY = value; win.dispatchEvent(new Event("scroll")); flush(); };
   flush();
-  return { rail, marks, root, win, scroll, transition, flush, resize: () => { resize(); flush(); }, measured: () => measurements };
+  const advanceGate = (value: number) => {
+    win.dispatchEvent(new CustomEvent("kisara:gate-progress", { detail: { active: true, progress: value, stage: "awakening" } }));
+    flush();
+  };
+  return { rail, fill, thumb, root, win, scroll, transition, flush, advanceGate, resize: () => { resize(); flush(); }, measured: () => measurements };
 }
 
 test("Unequal chapters occupy equal rail intervals with continuous touch progress", () => {
@@ -73,54 +80,103 @@ test("Unequal chapters occupy equal rail intervals with continuous touch progres
 
 test("Covered forward and reverse jumps keep the visible chapter unchanged until settlement", () => {
   const app = mount({ y: 1900 });
-  assert.equal(app.rail.dataset.stage, "1");
+  assert.equal(app.rail.dataset.chapter, "2");
   app.transition(true);
-  const before = [...app.rail.properties];
+  const before = [app.fill.style.transform, app.thumb.style.transform];
   const reads = app.measured();
   app.root.scrollHeight = 900;
   app.scroll(0);
   app.resize();
-  assert.deepEqual([...app.rail.properties], before);
+  assert.deepEqual([app.fill.style.transform, app.thumb.style.transform], before);
   assert.equal(app.measured(), reads, "covered frames must not read transient geometry");
   assert.equal(app.rail.classes.has("is-idle"), false);
   app.root.scrollHeight = 5500;
   app.scroll(3200);
   app.transition(false);
   app.flush();
-  assert.equal(app.rail.dataset.stage, "2");
-  assert.equal(app.rail.properties.get("--kisara-scroll-progress"), "0.5");
+  assert.equal(app.rail.dataset.chapter, "3");
+  assert.equal(app.fill.style.transform, "scaleY(0.6)");
   app.transition(true);
   app.scroll(900);
-  assert.equal(app.rail.dataset.stage, "2");
+  assert.equal(app.rail.dataset.chapter, "3");
   app.transition(false);
   app.flush();
-  assert.equal(app.rail.dataset.stage, "0");
+  assert.equal(app.rail.dataset.chapter, "1");
 });
 
 test("Reload in a chapter and footer uses local track pixels at ninety percent zoom", () => {
   const app = mount({ y: 3200 });
   assert.equal(app.rail.attributes.get("aria-valuetext"), "Home 第 3 章，共 4 章");
-  assert.equal(app.rail.dataset.stage, "2");
-  assert.equal(app.rail.dataset.chapterMotion, "false");
+  assert.equal(app.rail.dataset.chapter, "3");
+  assert.equal(app.rail.dataset.railMotion, "false");
   app.scroll(4500);
-  assert.equal(app.rail.dataset.chapterMotion, "true");
+  assert.equal(app.rail.dataset.railMotion, "true");
   assert.equal(app.rail.attributes.get("aria-valuetext"), "Home 页尾");
-  assert.equal(app.rail.properties.get("--kisara-scroll-thumb-y"), "252px");
+  assert.equal(app.thumb.style.transform, "translate3d(0,252px,0)");
   assert.equal((252 + 8) * .9, 260 * .9);
 });
 
-test("Gate return restores the gate rail and other pages keep document scrolling", () => {
+test("Gate return retains the same track and other pages keep document scrolling", () => {
   const app = mount({ y: 900, gate: true });
   app.transition(true);
   app.scroll(0);
-  assert.ok(app.rail.classes.has("is-home-chapters"));
+  assert.ok(app.rail.classes.has("is-home-rail"));
   app.transition(false);
   app.flush();
   assert.ok(app.rail.classes.has("is-gate-progress"));
-  assert.ok(!app.rail.classes.has("is-home-chapters"));
-  assert.equal(app.rail.properties.get("--kisara-scroll-progress"), "0.45");
+  assert.ok(app.rail.classes.has("is-home-rail"));
+  assert.equal(app.fill.style.transform, "scaleY(0.09)");
+  assert.equal(app.rail.attributes.get("aria-valuetext"), "外环缠绕 45%");
   const other = mount({ home: false, y: 2300 });
-  assert.ok(!other.rail.classes.has("is-home-chapters"));
+  assert.ok(!other.rail.classes.has("is-home-rail"));
   assert.equal(other.rail.attributes.get("aria-label"), "页面滚动进度");
-  assert.equal(other.rail.properties.get("--kisara-scroll-progress"), "0.5");
+  assert.equal(other.fill.style.transform, "scaleY(0.5)");
+});
+
+test("The completed Gate and chapter 01 share the exact same visual endpoint", () => {
+  const app = mount({ y: 0, gate: true, gateProgress: 1 });
+  const before = [app.rail.clientHeight, app.thumb.style.height, app.thumb.style.transform, app.fill.style.transform];
+  app.transition(true);
+  app.scroll(900);
+  app.transition(false);
+  app.flush();
+  assert.deepEqual([app.rail.clientHeight, app.thumb.style.height, app.thumb.style.transform, app.fill.style.transform], before);
+  assert.equal(app.fill.style.transform, "scaleY(0.2)");
+  assert.equal(app.rail.dataset.chapter, "1");
+  app.transition(true);
+  app.advanceGate(0);
+  app.scroll(0);
+  assert.equal(app.fill.style.transform, "scaleY(0.2)");
+  app.transition(false);
+  app.flush();
+  assert.equal(app.thumb.style.transform, "translate3d(0,0px,0)");
+  assert.equal(app.rail.dataset.railMotion, "true");
+  app.resize();
+  app.advanceGate(0);
+  assert.equal(app.rail.dataset.railMotion, "true", "duplicate notifications must not cut an ongoing return short");
+  app.advanceGate(.2);
+  assert.equal(app.rail.dataset.railMotion, "false", "continuous Gate input follows directly");
+  assert.equal(app.rail.properties.size, 0, "no inherited transform variables are written to the track");
+});
+
+test("Home track geometry and layer ordering are independent of transition and progress state", () => {
+  const sheet = postcss.parse(read("src/themes/kisara/styles/scrollbar.css"));
+  const home = sheet.nodes.find(node => node.type === "rule" && node.selector === ".kisara-scrollbar.is-home-rail") as postcss.Rule;
+  const props = new Map(home.nodes.filter(node => node.type === "decl").map(node => [node.prop, node.value]));
+  assert.equal(props.get("z-index"), "10042");
+  assert.equal(props.get("transform"), "translate3d(0, -50%, 0)");
+  assert.equal(props.get("will-change"), "transform");
+  sheet.walkRules(rule => {
+    assert.ok(!rule.selector.includes("data-kisara-home-transition"));
+    assert.ok(!rule.selector.includes("is-home-chapters"));
+    if (rule.selector.includes("data-rail-motion") || rule.selector.includes("data-chapter=")) {
+      rule.walkDecls(decl => assert.ok(!["z-index", "width", "height", "top", "display", "font-weight"].includes(decl.prop)));
+    }
+  });
+  const reduced = sheet.nodes.find(node => node.type === "atrule" && node.params === "(prefers-reduced-motion: reduce)") as postcss.AtRule;
+  assert.ok(reduced);
+  reduced.walkRules(rule => {
+    assert.ok(rule.selector.includes('.is-home-rail[data-rail-motion="true"] .kisara-scrollbar-thumb'));
+    rule.walkDecls("transition", decl => assert.equal(decl.value, "none"));
+  });
 });

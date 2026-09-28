@@ -32,6 +32,8 @@ export const initKisaraLayoutRuntime = () => {
   const menu = document.querySelector("[data-kisara-context-menu]");
   const menuStatus = menu?.querySelector("[data-kisara-context-status]");
   const scrollbar = document.querySelector("[data-kisara-scrollbar]");
+  const scrollFill = scrollbar?.querySelector(".kisara-scrollbar-progress");
+  const scrollThumb = scrollbar?.querySelector(".kisara-scrollbar-thumb");
   let returnFocus = null;
   let menuSession = 0;
   let feedbackTimer = 0;
@@ -62,33 +64,38 @@ export const initKisaraLayoutRuntime = () => {
     scrollbarFrame = 0;
     if (!(scrollbar instanceof HTMLElement)) return;
     if (homeRailTransitioning && scrollbarReady) return;
-    const root = document.scrollingElement ?? document.documentElement;
-    const scrollRange = Math.max(0, root.scrollHeight - window.innerHeight);
-    const gateMode = gateRailActive && (window.scrollY <= 2 || gateRailTransitioning);
-    const chapter = gateMode ? null : getHomeChapterProgress(homeStops.map(stop =>
-      Math.min(scrollRange, Math.round(stop.getBoundingClientRect().top + window.scrollY))
-    ), window.scrollY);
-    scrollbar.dataset.chapterMotion = String(Boolean(chapter) && scrollbar.classList.contains("is-home-chapters"));
-    scrollbar.classList.toggle("is-home-chapters", Boolean(chapter));
     const metrics = getScrollbarMetrics();
     if (!metrics) return;
+    const gateMode = gateRailActive && (window.scrollY <= 2 || gateRailTransitioning);
+    const chapter = gateMode ? null : getHomeChapterProgress(homeStops.map(stop =>
+      Math.min(metrics.scrollRange, Math.round(stop.getBoundingClientRect().top + window.scrollY))
+    ), window.scrollY);
     const pageProgress = metrics.scrollRange > 0 ? clamp(window.scrollY / metrics.scrollRange, 0, 1) : 0;
-    const progress = chapter ? chapter.progress : gateMode ? gateRailProgress : pageProgress;
-    const thumbSize = chapter ? 8 : gateMode ? (window.innerWidth <= 600 ? 34 : 46) : metrics.thumbSize;
+    const progress = homeStops.length
+      ? (chapter ? 1 + chapter.progress * (homeStops.length - 1) : gateRailProgress) / homeStops.length
+      : pageProgress;
+    const thumbSize = homeStops.length ? 8 : metrics.thumbSize;
     const thumbTravel = Math.max(0, metrics.trackHeight - thumbSize);
     const thumbY = thumbTravel * progress;
-    scrollbar.classList.toggle("is-idle", !chapter && (metrics.scrollRange <= 1 || metrics.trackHeight <= 0));
+    scrollbar.classList.toggle("is-idle", (!homeStops.length && metrics.scrollRange <= 1) || metrics.trackHeight <= 0);
     scrollbar.classList.toggle("is-gate-progress", gateMode);
-    scrollbar.dataset.stage = chapter ? String(chapter.index) : gateMode ? gateRailStage : "document";
-    scrollbar.style.setProperty("--kisara-scroll-progress", String(progress));
-    scrollbar.style.setProperty("--kisara-scroll-thumb-size", `${thumbSize}px`);
-    scrollbar.style.setProperty("--kisara-scroll-thumb-y", `${thumbY}px`);
-    scrollbar.setAttribute("aria-label", chapter ? "Home 章节进度" : gateMode ? "Kisara 契约演出进度" : "页面滚动进度");
+    scrollbar.dataset.stage = gateMode ? gateRailStage : "document";
+    const fillTransform = "scaleY(" + progress + ")";
+    if (scrollFill && scrollFill.style.transform !== fillTransform) {
+      scrollbar.dataset.railMotion = String(scrollbarReady && (Boolean(chapter) || scrollbar.dataset.chapter !== "0"));
+      scrollFill.style.transform = fillTransform;
+    }
+    scrollbar.dataset.chapter = String(chapter ? chapter.index + 1 : 0);
+    if (scrollThumb) {
+      scrollThumb.style.height = thumbSize + "px";
+      scrollThumb.style.transform = "translate3d(0," + thumbY + "px,0)";
+    }
+    scrollbar.setAttribute("aria-label", homeStops.length ? "Home 导览进度" : "页面滚动进度");
     scrollbar.setAttribute("aria-valuenow", String(Math.round(progress * 100)));
     scrollbar.setAttribute(
       "aria-valuetext",
       chapter ? (chapter.index === homeStops.length - 1 ? "Home 页尾" : "Home 第 " + (chapter.index + 1) + " 章，共 " + (homeStops.length - 1) + " 章") : gateMode
-        ? `${gateStageLabels[gateRailStage] ?? "契约演出"} ${Math.round(progress * 100)}%`
+        ? `${gateStageLabels[gateRailStage] ?? "契约演出"} ${Math.round(gateRailProgress * 100)}%`
         : `页面 ${Math.round(progress * 100)}%`
     );
     scrollbarReady = true;
