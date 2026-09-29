@@ -472,6 +472,19 @@ test("a measured counter owns the right chain's front-to-back passage rather tha
   assert.ok(home.includes("counter: measureTitleChainCounter(chainCounterContext, style, glyphBounds[3])"));
 });
 
+test("the local clasp closes its sides without moving the measured aperture", () => {
+  for (const width of [390, 720, 1200]) {
+    const { scope, box } = geometryFixture(width);
+    const path = scope.resolveTitleChainPath(scope.chainDefinitions[2], 1, 0);
+    const glyphWidth = box.width * (.64 - .47);
+    const counterHandle = path.curves[4][1].x - path.points[4].x;
+    assert.ok(counterHandle > 0 && counterHandle <= glyphWidth * .4);
+    assert.ok(path.points[2].x - path.points[3].x <= glyphWidth * .5, 'The two shoulders must form a compact return');
+    const left = scope.resolveTitleChainPath(scope.chainDefinitions[0], 1, 0);
+    assert.ok(left.points[4].x - (box.left + box.width * .47) <= glyphWidth * .5);
+  }
+});
+
 test("the local clasp tolerates different measured counter positions without growing extra crossings", () => {
   for (const x of [0.515, 0.54, 0.58, 0.6]) {
     for (const y of [0.7, 0.78, 0.82]) {
@@ -583,6 +596,8 @@ test("rendered links keep connected apertures and complementary depth fragments 
       for (const fill of intro === 0 ? [...fills, ...fills.toReversed()] : [1]) {
         records = [];
         scope.drawTitleChains(timestamp += 40, fill);
+        assert.equal((state as any).chainBackCanvas.style.opacity, (state as any).chainFrontCanvas.style.opacity,
+          'The two fragments of one ring must not acquire different layer opacity');
         const links = new Map(records.map(record => [`${record.definition.id}:${record.linkIndex}`, record]));
         const fragments = new Map<string, any[]>();
         for (const record of records) {

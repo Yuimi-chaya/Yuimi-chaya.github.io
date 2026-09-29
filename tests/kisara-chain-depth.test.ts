@@ -138,6 +138,26 @@ test("a depth boundary splits one ring's paint region into complementary local p
   assert.deepEqual(partitionTitleChainRing(path, sample, 36, 1, .1, .2), [{ plane: "front", clip: null }]);
 });
 
+test("glyph cuts share a device-pixel boundary instead of separating two antialiased half-rings", async () => {
+  for (const ratio of [.5, .75, 1, 1.28]) for (const direction of [-1, 1]) for (const horizontal of [false, true]) {
+    const edge = Object.freeze({ ...cut, x: 64.25, y: 64.25, nx: horizontal ? 0 : direction, ny: horizontal ? direction : 0 });
+    const parts = partitionTitleChainRing({ depthCuts: [edge] } as typeof path, sample, 36, 1, .4, .6, ratio);
+    const wire = '<rect x="46" y="54" width="36" height="20" rx="8" fill="none" stroke="#fff" stroke-width="3.6"/>';
+    const masked = parts.map((part, i) => '<defs><clipPath id="p' + i + '"><polygon points="'
+      + part.clip!.map(point => point.x + ',' + point.y).join(' ') + '"/></clipPath></defs><g clip-path="url(#p' + i + ')">' + wire + '</g>').join('');
+    const render = (body: string) => sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128">'
+      + '<g transform="scale(' + ratio + ')">' + body + '</g></svg>')).ensureAlpha().raw().toBuffer();
+    const full = await render(wire), split = await render(masked);
+    let checked = 0;
+    for (let i = 3; i < full.length; i += 4) {
+      if (full[i] < 240) continue;
+      checked++;
+      assert.ok(split[i] >= full[i] - 5, 'A common depth edge must not cut a translucent crack through the wire');
+    }
+    assert.ok(checked > 5);
+  }
+});
+
 test("production arc painting applies the same world-space clip before rotating either wire half", () => {
   const commands: string[] = [];
   const polygons: number[][][] = [];
