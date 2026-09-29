@@ -76,8 +76,13 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
   const letterY = (letter: GlyphBox, ratio: number) => (letter.top - top + (letter.bottom - letter.top) * ratio) / height;
   const letterSlope = (letter: GlyphBox, ratio: number) => (letter.bottom - letter.top) * ratio / height;
   // Let narrow titles keep enough room for both linked crossings.
-  const leftReturnPull = Math.min(.1, Math.max(0,
-    (glyphWidth / Math.max(1, ...linkWidths) - 3.6) * .125));
+  const glyphLinkRoom = glyphWidth / Math.max(1, ...linkWidths) - 3.6;
+  const leftReturnPull = Math.min(.1, Math.max(0, glyphLinkRoom * .125));
+  const wideReturnRoom = Math.max(0, Math.min(1, (.3 - height / width) / .08));
+  const rightShoulderPull = Math.min(.09,
+    Math.min(.045, Math.max(0, glyphLinkRoom * .025))
+      + Math.max(0, glyphLinkRoom - 3.2) * .015 * wideReturnRoom);
+  const rightShoulder = .095 + rightShoulderPull;
   const paths: ChainPath[] = titleChainDefinitions.map(definition => {
     // Each knot includes its own tangent: unequal sweeps, not a repeating wave.
     const knots: Knot[] = definition.route === "left-upper"
@@ -92,8 +97,8 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
         : [[letterX(lastGlyph, .42), letterY(lastGlyph, .33), -.08, letterSlope(lastGlyph, .12)],
           [letterX(rGlyph, .44), letterY(rGlyph, .5), -.07, -letterSlope(rGlyph, .15)],
           [letterX(glyph, .34), letterY(glyph, .08), -.035, -letterSlope(glyph, .018)],
-          [letterX(glyph, .095), letterY(glyph, .32), 0, letterSlope(glyph, .12)],
-          [counterX, counterY, Math.max(.012, Math.min(.032, (counterX - letterX(glyph, .095)) * .55)), .04],
+          [letterX(glyph, rightShoulder), letterY(glyph, .32), 0, letterSlope(glyph, .12 + rightShoulderPull)],
+          [counterX, counterY, Math.max(.012, Math.min(.032, (counterX - letterX(glyph, rightShoulder)) * .55)), .04],
           [1 + box.width * definition.xInset / width, .93, .13, .13]];
     const points = knots.map(([x, y]) => ({ x: textLeft + width * x, y: top + height * y }));
     const curves: Curve[] = knots.slice(0, -1).map((knot, index) => {

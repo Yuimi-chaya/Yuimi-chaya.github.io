@@ -529,6 +529,35 @@ test("the left return pulls toward the right clasp without crowding its two cros
   }
 });
 
+test("the clasp aperture fits one link body instead of leaving a loose vertical pocket", () => {
+  for (const width of [1100, 1200, 1920]) {
+    const { scope, state } = geometryFixture(width, width * (width === 1100 ? 260 / 1100 : .22));
+    const left = scope.resolveTitleChainPath(scope.chainDefinitions[0], 1, 0);
+    const right = scope.resolveTitleChainPath(scope.chainDefinitions[2], 1, 0);
+    const crossings = (state.chainRig as any).crossings
+      .filter((point: any) => point.ids.join(",") === "0,2")
+      .sort((a: any, b: any) => a.y - b.y);
+    assert.equal(crossings.length, 2);
+    const xAtY = (path: typeof left, from: number, to: number, y: number) => {
+      for (let index = 0; index < 28; index++) {
+        const middle = (from + to) * .5;
+        if (sampleTitleChainCurve(path, middle).y < y) from = middle;
+        else to = middle;
+      }
+      return sampleTitleChainCurve(path, (from + to) * .5).x;
+    };
+    let opening = 0;
+    for (let index = 1; index < 50; index++) {
+      const y = crossings[0].y + (crossings[1].y - crossings[0].y) * index / 50;
+      opening = Math.max(opening, xAtY(left, .6, .8, y) - xAtY(right, .6, .8, y));
+    }
+    const linkBody = scope.getChainLinkDimensions(scope.chainDefinitions[0]).width
+      * 1.16 * chainAtlas.linkHeight / chainAtlas.linkWidth;
+    assert.ok(opening >= linkBody && opening <= linkBody * (width === 1100 ? 1.12 : 1.2),
+      `The linked strands must nearly touch without overlapping at ${width}px: opening=${opening}, body=${linkBody}`);
+  }
+});
+
 test("the local clasp tolerates different measured counter positions without growing extra crossings", () => {
   for (const x of [0.515, 0.54, 0.58, 0.6]) {
     for (const y of [0.7, 0.78, 0.82]) {
@@ -584,7 +613,7 @@ test("central shoulders and their control handles follow lowercase glyph bounds,
     }
     assert.ok(right.points[2].y - glyph.top < (glyph.bottom - glyph.top) * .1);
     assert.ok(right.points[2].x > glyph.left && right.points[2].x < glyph.right);
-    assert.ok(Math.abs(right.points[3].x - glyph.left) < (glyph.right - glyph.left) * .1);
+    assert.ok(Math.abs(right.points[3].x - glyph.left) < (glyph.right - glyph.left) * .15);
     const hole = sampleTitleChainCurve(right, right.counterUnit);
     assert.ok(Math.hypot(hole.x - counter.x, hole.y - counter.y) < 1e-8);
   }
