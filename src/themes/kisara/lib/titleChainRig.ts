@@ -102,26 +102,30 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
         points[index + 1]
       ];
     });
-    let counterApproachUnit = .7;
+    let counterDepartureUnit = 1;
     if (definition.route === "right-clasp") {
-      // Move the depth cut back into the letter ink, before the open counter.
+      // Keep the entering clasp in front until it has cleared the counter aperture.
       const probe = { curves, glyphBackZones: [] };
       const distance = (unit: number) => {
         const point = sampleTitleChainCurve(probe, unit);
         return ((point.x - counter.x) / Math.max(1, counter.radiusX)) ** 2
           + ((point.y - counter.y) / Math.max(1, counter.radiusY)) ** 2;
       };
-      let entryUnit = .8;
-      for (let index = 0; index <= 128; index++) {
-        const unit = .6 + index * .2 / 128;
-        if (distance(unit) <= 1) { entryUnit = unit; break; }
-      }
-      const entry = sampleTitleChainCurve(probe, entryUnit);
+      let exitUnit = .8;
       for (let index = 1; index <= 128; index++) {
-        const unit = entryUnit - (entryUnit - .6) * index / 128;
+        const unit = .8 + index * .2 / 128;
+        if (distance(unit) >= 1) { exitUnit = unit; break; }
+      }
+      const exit = sampleTitleChainCurve(probe, exitUnit);
+      for (let index = 1; index <= 128; index++) {
+        const unit = exitUnit + (1 - exitUnit) * index / 128;
         const point = sampleTitleChainCurve(probe, unit);
-        if (Math.hypot(point.x - entry.x, point.y - entry.y) >= Math.max(...linkWidths) * .4) {
-          counterApproachUnit = unit;
+        if (point.x >= glyph.right - 1) {
+          counterDepartureUnit = 1;
+          break;
+        }
+        if (Math.hypot(point.x - exit.x, point.y - exit.y) >= Math.max(...linkWidths) * 1.05) {
+          counterDepartureUnit = unit;
           break;
         }
       }
@@ -132,7 +136,7 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
       : definition.route === "left-lower"
         ? [{ from: 0, to: 1, left: iGlyph.left, right: sGlyph.right }]
         : [{ from: 0, to: .4, left: glyph.right, right: Infinity },
-          { from: counterApproachUnit, to: 1, left: -Infinity, right: glyph.right }];
+          { from: counterDepartureUnit, to: 1, left: -Infinity, right: glyph.right }];
     return {
       type: "weave", curves, points, segmentCount: curves.length,
       route: definition.route, glyphBackZones, depthCuts: [],

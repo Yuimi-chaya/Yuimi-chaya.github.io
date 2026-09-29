@@ -3,7 +3,7 @@ import test from "node:test";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
 import sharp from "sharp";
-import { buildTitleChainRig, partitionTitleChainRing } from "../src/themes/kisara/lib/titleChainRig.ts";
+import { buildTitleChainRig, partitionTitleChainRing, sampleTitleChainCurve } from "../src/themes/kisara/lib/titleChainRig.ts";
 import { chainMaterialCell } from "../src/themes/kisara/lib/titleChainMaterial.ts";
 
 const home = readFileSync(new URL("../src/themes/kisara/pages/HomePage.astro", import.meta.url), "utf8");
@@ -47,7 +47,7 @@ test("production glyph edges use ink bearings and the same baseline as the liqui
   }
 });
 
-test("glyph depth changes at letter edges or before the counter aperture, never at chain crossings", () => {
+test("glyph depth changes at letter edges or after the counter aperture, never at chain crossings", () => {
   const rig = buildTitleChainRig(
     { left: 0, top: 0, width: 1100, height: 260 },
     { textLeft: 0, textRight: 1100, gaps: [], anchorBounds: [] }, [32, 31, 31]
@@ -56,12 +56,12 @@ test("glyph depth changes at letter edges or before the counter aperture, never 
     for (const cut of path.depthCuts) {
       const atEdge = path.glyphBackZones.some(zone =>
         Math.abs(cut.x - zone.left) < .05 || Math.abs(cut.x - zone.right) < .05);
-      const beforeCounter = path.counter && path.counterUnit
-        && cut.frontBefore && !cut.frontAfter && cut.unit < path.counterUnit
-        && cut.unit > path.counterUnit - .15
+      const afterCounter = path.counter && path.counterUnit
+        && cut.frontBefore && !cut.frontAfter && cut.unit > path.counterUnit
+        && cut.unit < path.counterUnit + .15
         && ((cut.x - path.counter.x) / path.counter.radiusX) ** 2
           + ((cut.y - path.counter.y) / path.counter.radiusY) ** 2 > 1;
-      assert.ok(atEdge || beforeCounter, `Unexpected glyph cut at ${cut.x}, ${cut.y}`);
+      assert.ok(atEdge || afterCounter, `Unexpected glyph cut at ${cut.x}, ${cut.y}`);
       if (atEdge) assert.equal(cut.ny, 0);
       for (const crossing of rig.crossings) {
         assert.ok(Math.hypot(cut.x - crossing.x, cut.y - crossing.y) > 2);
@@ -77,7 +77,7 @@ test("glyph depth changes at letter edges or before the counter aperture, never 
   }
 });
 
-test("the right clasp changes depth before entering the a counter, not at its center", () => {
+test("the right clasp remains in front through the a counter and changes depth after leaving it", () => {
   for (const x of [.515, .54, .58, .6]) for (const y of [.7, .78, .82]) {
     const counter = { x: 1100 * x, y: 260 * y, radiusX: 20, radiusY: 25 };
     const rig = buildTitleChainRig(
@@ -86,11 +86,17 @@ test("the right clasp changes depth before entering the a counter, not at its ce
     );
     const clasp = rig.paths[2];
     const cut = clasp.depthCuts.find(part => part.frontBefore && !part.frontAfter);
-    assert.ok(cut);
-    assert.ok(cut.unit < clasp.counterUnit!);
+    assert.equal(sampleTitleChainCurve(clasp, clasp.counterUnit!).plane, "front");
+    if (!cut) {
+      assert.equal(clasp.glyphBackZones[1].from, 1,
+        "A narrow glyph wall must not force a partial depth split");
+      continue;
+    }
+    assert.ok(cut.unit > clasp.counterUnit!);
+    assert.ok(cut.x < clasp.glyphBackZones[1].right);
     const distance = ((cut.x - counter.x) / counter.radiusX) ** 2
       + ((cut.y - counter.y) / counter.radiusY) ** 2;
-    assert.ok(distance > 1, "The split must be hidden by letter ink before the open counter");
+    assert.ok(distance > 1, "The split must be hidden by letter ink after the open counter");
   }
 });
 

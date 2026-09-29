@@ -472,6 +472,7 @@ test("a measured counter owns the right chain's front-to-back passage rather tha
   assert.ok(Math.hypot(center.x - counter.x, center.y - counter.y) < 0.001);
   assert.ok(Math.hypot(hole.x - counter.x, hole.y - counter.y) < Math.min(counter.radiusX, counter.radiusY) * 0.1);
   assert.equal(hole.crossing, false);
+  assert.equal(hole.plane, "front", "The entering ring cannot disappear behind the letter inside its opening");
   assert.equal(path.counterUnit, 4 / 5);
   assert.ok(home.includes("counter: measureTitleChainCounter(chainCounterContext, style, glyphBounds[3])"));
 });
@@ -596,11 +597,14 @@ test("rendered links keep connected apertures and complementary depth fragments 
     });
     let framesWithBothGroups = 0;
     let splitRings = 0;
+    let forwardCounterFrames = 0;
+    let reverseCounterFrames = 0;
     const fills = Array.from({ length: 61 }, (_, index) => index / 60);
     let timestamp = 100;
     for (const intro of [0, 0.08, 0.16, 0.22, 0.35]) {
       Object.assign(state, { chargeIntroProgress: intro });
-      for (const fill of intro === 0 ? [...fills, ...fills.toReversed()] : [1]) {
+      const sequence = intro === 0 ? [...fills, ...fills.toReversed()] : [1];
+      for (const [position, fill] of sequence.entries()) {
         records = [];
         scope.drawTitleChains(timestamp += 40, fill);
         assert.equal((state as any).chainBackCanvas.style.opacity,
@@ -645,6 +649,20 @@ test("rendered links keep connected apertures and complementary depth fragments 
           assert.ok(record.lengthScale >= .5 && record.lengthScale <= 1.16,
             `Connector projection ${record.lengthScale} at fill ${fill}, chain ${record.definition.id}, width ${width}`);
         }
+        const counter = (state.chainRig as any)?.counter;
+        const counterCore = records.filter(record => record.definition.id === 2 && counter
+          && ((record.sample.x - counter.x) / counter.radiusX) ** 2
+            + ((record.sample.y - counter.y) / counter.radiusY) ** 2 < .2);
+        if (counterCore.length) {
+          if (intro === 0) {
+            if (position < fills.length) forwardCounterFrames++;
+            else reverseCounterFrames++;
+          }
+          assert.ok(counterCore.every(record => record.paintPlane === "front"),
+            `Counter ring buried at width=${width}, fill=${fill}, intro=${intro}: `
+              + counterCore.map(record => `${record.linkIndex}/${record.paintPlane}/`
+                + `${record.sample.x.toFixed(1)},${record.sample.y.toFixed(1)}`).join("; "));
+        }
         const left = records.filter(record => record.definition.direction > 0);
         const right = records.filter(record => record.definition.direction < 0);
         if (!left.length || !right.length) continue;
@@ -653,6 +671,8 @@ test("rendered links keep connected apertures and complementary depth fragments 
     }
     assert.ok(framesWithBothGroups > 10);
     assert.ok(splitRings > 10, "Exercise real links spanning both glyph planes, not just center-based ownership");
+    assert.ok(forwardCounterFrames > 2 && reverseCounterFrames > 2,
+      "Exercise the clasp in both scroll directions");
   }
   assert.ok(home.includes("leader.sample.plane === \"back\" ? chainBackContext : chainFrontContext"));
   assert.ok(home.includes("* destinationFade"));
