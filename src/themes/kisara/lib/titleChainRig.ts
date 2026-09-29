@@ -80,17 +80,17 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
     const knots: Knot[] = definition.route === "left-upper"
       ? [[-definition.xInset, .1, .1, .26], [.205, .83, .09, .01],
         [letterX(sGlyph, .68), letterY(sGlyph, .12), .068, -letterSlope(sGlyph, .04)],
-        [letterX(glyph, .28), letterY(glyph, .2), .025, letterSlope(glyph, .11)],
-        [letterX(glyph, .46), letterY(glyph, .6), 0, letterSlope(glyph, .18)],
-        [letterX(sGlyph, .76), letterY(sGlyph, .9), -.045, letterSlope(sGlyph, .025)]]
+        [letterX(glyph, .28), letterY(glyph, .23), .018, letterSlope(glyph, .09)],
+        [letterX(glyph, .34), letterY(glyph, .58), 0, letterSlope(glyph, .12)],
+        [letterX(sGlyph, .7), letterY(sGlyph, .9), -.045, letterSlope(sGlyph, .025)]]
       : definition.route === "left-lower"
         ? [[-definition.xInset, .88, .13, -.1], [.265, .22, .078, .015],
           [.4, .79, .045, .025], [letterX(sGlyph, .9), letterY(sGlyph, .57), .025, -letterSlope(sGlyph, .1)]]
         : [[letterX(lastGlyph, .42), letterY(lastGlyph, .33), -.08, letterSlope(lastGlyph, .12)],
           [letterX(rGlyph, .44), letterY(rGlyph, .5), -.07, -letterSlope(rGlyph, .15)],
-          [letterX(glyph, .48), letterY(glyph, .06), -.06, -letterSlope(glyph, .018)],
-          [letterX(glyph, .06), letterY(glyph, .3), 0, letterSlope(glyph, .17)],
-          [counterX, counterY, Math.max(.012, Math.min(.055, (counterX - letterX(glyph, .06)) * .7)), .05],
+          [letterX(glyph, .34), letterY(glyph, .08), -.035, -letterSlope(glyph, .018)],
+          [letterX(glyph, .095), letterY(glyph, .32), 0, letterSlope(glyph, .12)],
+          [counterX, counterY, Math.max(.012, Math.min(.032, (counterX - letterX(glyph, .095)) * .55)), .04],
           [1 + box.width * definition.xInset / width, .93, .13, .13]];
     const points = knots.map(([x, y]) => ({ x: textLeft + width * x, y: top + height * y }));
     const curves: Curve[] = knots.slice(0, -1).map((knot, index) => {

@@ -289,6 +289,8 @@ function geometryFixture(width: number, height = width * 0.22, customGaps?: numb
     chainLinkUnitCache: new Map(),
     chainRig: null,
     drawChainCrossings() {},
+    composeTitleChains: () => true,
+    gate: { style: { getPropertyValue: () => "1" } },
     buildTitleChainRig, fitTitleChainConnector, orientTitleChainRing, partitionTitleChainRing, sampleTitleChainCurve, titleChainDefinitions,
     mobilePerformance: false,
     velocity: 0, burstVelocity: 0,
@@ -479,7 +481,7 @@ test("the local clasp closes its sides without moving the measured aperture", ()
     const glyphWidth = box.width * (.64 - .47);
     const counterHandle = path.curves[4][1].x - path.points[4].x;
     assert.ok(counterHandle > 0 && counterHandle <= glyphWidth * .4);
-    assert.ok(path.points[2].x - path.points[3].x <= glyphWidth * .5, 'The two shoulders must form a compact return');
+    assert.ok(path.points[2].x - path.points[3].x <= glyphWidth * .25, 'The two shoulders must form a compact return');
     const left = scope.resolveTitleChainPath(scope.chainDefinitions[0], 1, 0);
     assert.ok(left.points[4].x - (box.left + box.width * .47) <= glyphWidth * .5);
   }
@@ -596,8 +598,8 @@ test("rendered links keep connected apertures and complementary depth fragments 
       for (const fill of intro === 0 ? [...fills, ...fills.toReversed()] : [1]) {
         records = [];
         scope.drawTitleChains(timestamp += 40, fill);
-        assert.equal((state as any).chainBackCanvas.style.opacity, (state as any).chainFrontCanvas.style.opacity,
-          'The two fragments of one ring must not acquire different layer opacity');
+        assert.equal((state as any).chainBackCanvas.style.opacity, "0",
+          'Only the combined chain surface may be independently CSS-composited');
         const links = new Map(records.map(record => [`${record.definition.id}:${record.linkIndex}`, record]));
         const fragments = new Map<string, any[]>();
         for (const record of records) {

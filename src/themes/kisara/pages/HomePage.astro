@@ -310,6 +310,7 @@ const gateStyle = [
     import { chainLinkPitch, createTitleChainMaterial } from "../lib/titleChainMaterial";
     import { buildTitleChainRig, fitTitleChainConnector, orientTitleChainRing, partitionTitleChainRing, sampleTitleChainCurve, titleChainDefinitions } from "../lib/titleChainRig";
     import { measureTitleChainCounter } from "../lib/titleChainCounter";
+    import { createTitleChainComposite } from "../lib/titleChainComposite";
     import {
       gateRelease, mapChargeIntroProgress, getChargeIntroClock,
       mapReleaseAutoplayProgress, getReconstructionProgress, getTitleReconstructionFrame,
@@ -806,6 +807,7 @@ const gateStyle = [
       const chainCounterContext = mobilePerformance ? null
         : document.createElement("canvas").getContext("2d", { willReadFrequently: true });
       const chainMaterial = mobilePerformance ? null : createTitleChainMaterial(signal);
+      const composeTitleChains = createTitleChainComposite(signal);
       let chainMaterialVisibility = 0;
       chainMaterial?.prepare();
       let chainGlyphLayout = {
@@ -6685,7 +6687,12 @@ const gateStyle = [
         drawChainRupture(timestamp, intro, ruptureEvents, visibility, isMobile);
         drawContractHeartImprint(timestamp, intro, ruptureEvents, visibility, isMobile);
 
-        chainBackCanvas.style.opacity = Math.min(1, visibility).toFixed(3);
+        const sourceOpacity = Number.parseFloat(gate.style.getPropertyValue("--kisara-title-source-opacity"));
+        const combined = composeTitleChains(
+          chainFrontContext, chainBackContext, chainGlyphLayout, chainPixelRatio,
+          Number.isFinite(sourceOpacity) ? sourceOpacity : 1
+        );
+        chainBackCanvas.style.opacity = combined ? "0" : Math.min(1, visibility).toFixed(3);
         chainFrontCanvas.style.opacity = Math.min(1, visibility).toFixed(3);
         chainLastPaintTimestamp = timestamp;
         chainLastPaintFill = fill;
