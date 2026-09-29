@@ -578,8 +578,11 @@ test("rendered links keep connected apertures and complementary depth fragments 
     const canvas = () => ({ width: width * 1.64, height: box.height + 140, style: { opacity: "0" } });
     Object.assign(state, {
       chainBackCanvas: canvas(), chainFrontCanvas: canvas(),
+      titleDataMaskCanvas: { width: 128, height: 128 },
+      chainMaskBox: { left: box.left, top: box.top, width: box.width, height: box.height },
       chainBackContext: context, chainFrontContext: context,
       chainCanvasWidth: width * 1.64, chainCanvasHeight: box.height + 140,
+      titleDataCanvasWidth: width * 1.16,
       chainPixelRatio: 1, chainMaterial: { visibility: () => 1 }, chainMaterialVisibility: 1,
       chainLastPaintTimestamp: 0, chainLastPaintFill: -1, chainLastPaintIntro: -1,
       chargeIntroProgress: 0, burstProgress: 0,
@@ -600,8 +603,9 @@ test("rendered links keep connected apertures and complementary depth fragments 
       for (const fill of intro === 0 ? [...fills, ...fills.toReversed()] : [1]) {
         records = [];
         scope.drawTitleChains(timestamp += 40, fill);
-        assert.equal((state as any).chainBackCanvas.style.opacity, "0",
-          'Only the combined chain surface may be independently CSS-composited');
+        assert.equal((state as any).chainBackCanvas.style.opacity,
+          (state as any).chainFrontCanvas.style.opacity,
+          "The rear wire must remain below the real title at the same visibility");
         const links = new Map(records.map(record => [`${record.definition.id}:${record.linkIndex}`, record]));
         const fragments = new Map<string, any[]>();
         for (const record of records) {

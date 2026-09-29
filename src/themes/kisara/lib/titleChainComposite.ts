@@ -1,52 +1,57 @@
-type GlyphLayout = { font: string; textLeft: number; baseline: number; widthScale: number };
+type GlyphMask = {
+  canvas: HTMLCanvasElement;
+  left: number; top: number; width: number; height: number;
+};
 
 export function createTitleChainComposite(signal: AbortSignal) {
-  let mask: HTMLCanvasElement | null = null;
-  let maskLayout: GlyphLayout | null = null;
-  let maskRatio = 0;
+  let outside: HTMLCanvasElement | null = null;
   signal.addEventListener("abort", () => {
-    if (mask) mask.width = mask.height = 0;
-    mask = null;
-    maskLayout = null;
+    if (outside) outside.width = outside.height = 0;
+    outside = null;
   }, { once: true });
 
   return (
     front: CanvasRenderingContext2D, back: CanvasRenderingContext2D,
-    layout: GlyphLayout, pixelRatio: number, sourceOpacity: number
+    glyph: GlyphMask, pixelRatio: number, sourceOpacity: number
   ) => {
-    if (signal.aborted || !layout.font || !(layout.widthScale > 0)) return false;
-    mask ??= document.createElement("canvas");
-    const context = mask.getContext("2d", { alpha: true });
-    if (!context) return false;
-    if (maskLayout !== layout || maskRatio !== pixelRatio
-      || mask.width !== back.canvas.width || mask.height !== back.canvas.height) {
-      mask.width = back.canvas.width;
-      mask.height = back.canvas.height;
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      context.translate(layout.textLeft, layout.baseline);
-      context.scale(layout.widthScale, layout.widthScale);
-      context.font = layout.font;
-      context.textBaseline = "alphabetic";
-      context.fillStyle = "#fff";
-      context.fillText("Kisara", 0, 0);
-      maskLayout = layout;
-      maskRatio = pixelRatio;
+    if (signal.aborted || !glyph.canvas.width || !glyph.canvas.height
+      || !(glyph.width > 0) || !(glyph.height > 0) || !(pixelRatio > 0)) return false;
+    outside ??= document.createElement("canvas");
+    if (outside.width !== back.canvas.width || outside.height !== back.canvas.height) {
+      outside.width = back.canvas.width;
+      outside.height = back.canvas.height;
     }
+    const context = outside.getContext("2d", { alpha: true });
+    if (!context) return false;
+    const opacity = Math.max(0, Math.min(1, sourceOpacity));
 
-    // Remove ink-covered back wires while retaining the measured glyph holes.
+    // Use the title's own ink mask; its canvas has a different scale from the chain canvas.
+    context.save();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, outside.width, outside.height);
+    context.globalAlpha = 1;
+    context.globalCompositeOperation = "source-over";
+    context.drawImage(back.canvas, 0, 0);
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.globalAlpha = opacity;
+    context.globalCompositeOperation = "destination-out";
+    context.drawImage(glyph.canvas, glyph.left, glyph.top, glyph.width, glyph.height);
+    context.restore();
+
+    // The ink-covered wire stays on the DOM layer below the real title.
     back.save();
-    back.setTransform(1, 0, 0, 1, 0, 0);
-    back.globalAlpha = Math.max(0, Math.min(1, sourceOpacity));
-    back.globalCompositeOperation = "destination-out";
-    back.drawImage(mask, 0, 0);
+    back.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    back.globalAlpha = opacity;
+    back.globalCompositeOperation = "destination-in";
+    back.drawImage(glyph.canvas, glyph.left, glyph.top, glyph.width, glyph.height);
     back.restore();
 
-    // Resample complementary fragments together, not on two independent CSS layers.
+    // Outside the ink, both depth fragments share one surface before CSS resampling.
     front.save();
     front.setTransform(1, 0, 0, 1, 0, 0);
     front.globalAlpha = 1;
     front.globalCompositeOperation = "destination-over";
-    front.drawImage(back.canvas, 0, 0);
+    front.drawImage(outside, 0, 0);
     front.restore();
     return true;
   };

@@ -102,13 +102,37 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
         points[index + 1]
       ];
     });
+    let counterApproachUnit = .7;
+    if (definition.route === "right-clasp") {
+      // Move the depth cut back into the letter ink, before the open counter.
+      const probe = { curves, glyphBackZones: [] };
+      const distance = (unit: number) => {
+        const point = sampleTitleChainCurve(probe, unit);
+        return ((point.x - counter.x) / Math.max(1, counter.radiusX)) ** 2
+          + ((point.y - counter.y) / Math.max(1, counter.radiusY)) ** 2;
+      };
+      let entryUnit = .8;
+      for (let index = 0; index <= 128; index++) {
+        const unit = .6 + index * .2 / 128;
+        if (distance(unit) <= 1) { entryUnit = unit; break; }
+      }
+      const entry = sampleTitleChainCurve(probe, entryUnit);
+      for (let index = 1; index <= 128; index++) {
+        const unit = entryUnit - (entryUnit - .6) * index / 128;
+        const point = sampleTitleChainCurve(probe, unit);
+        if (Math.hypot(point.x - entry.x, point.y - entry.y) >= Math.max(...linkWidths) * .4) {
+          counterApproachUnit = unit;
+          break;
+        }
+      }
+    }
     const glyphBackZones = definition.route === "left-upper"
       ? [{ from: 0, to: .4, left: kGlyph.left, right: kGlyph.right },
         { from: .78, to: 1, left: -Infinity, right: sGlyph.right }]
       : definition.route === "left-lower"
         ? [{ from: 0, to: 1, left: iGlyph.left, right: sGlyph.right }]
         : [{ from: 0, to: .4, left: glyph.right, right: Infinity },
-          { from: .8, to: 1, left: -Infinity, right: glyph.right }];
+          { from: counterApproachUnit, to: 1, left: -Infinity, right: glyph.right }];
     return {
       type: "weave", curves, points, segmentCount: curves.length,
       route: definition.route, glyphBackZones, depthCuts: [],
@@ -189,7 +213,7 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
   return { paths, counter, crossings };
 }
 
-export function sampleTitleChainCurve(path: ChainPath, unit: number) {
+export function sampleTitleChainCurve(path: Pick<ChainPath, "curves" | "glyphBackZones">, unit: number) {
   const position = Math.max(0, Math.min(1, unit)) * path.curves.length;
   const index = Math.min(path.curves.length - 1, Math.floor(position));
   const u = position - index, v = 1 - u;

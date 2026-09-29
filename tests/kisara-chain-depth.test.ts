@@ -47,7 +47,7 @@ test("production glyph edges use ink bearings and the same baseline as the liqui
   }
 });
 
-test("glyph depth changes only at letter side edges or the measured counter, never at chain crossings", () => {
+test("glyph depth changes at letter edges or before the counter aperture, never at chain crossings", () => {
   const rig = buildTitleChainRig(
     { left: 0, top: 0, width: 1100, height: 260 },
     { textLeft: 0, textRight: 1100, gaps: [], anchorBounds: [] }, [32, 31, 31]
@@ -56,8 +56,12 @@ test("glyph depth changes only at letter side edges or the measured counter, nev
     for (const cut of path.depthCuts) {
       const atEdge = path.glyphBackZones.some(zone =>
         Math.abs(cut.x - zone.left) < .05 || Math.abs(cut.x - zone.right) < .05);
-      const atCounter = path.counter && Math.hypot(cut.x - path.counter.x, cut.y - path.counter.y) < .05;
-      assert.ok(atEdge || atCounter, `Unexpected glyph cut at ${cut.x}, ${cut.y}`);
+      const beforeCounter = path.counter && path.counterUnit
+        && cut.frontBefore && !cut.frontAfter && cut.unit < path.counterUnit
+        && cut.unit > path.counterUnit - .15
+        && ((cut.x - path.counter.x) / path.counter.radiusX) ** 2
+          + ((cut.y - path.counter.y) / path.counter.radiusY) ** 2 > 1;
+      assert.ok(atEdge || beforeCounter, `Unexpected glyph cut at ${cut.x}, ${cut.y}`);
       if (atEdge) assert.equal(cut.ny, 0);
       for (const crossing of rig.crossings) {
         assert.ok(Math.hypot(cut.x - crossing.x, cut.y - crossing.y) > 2);
@@ -70,6 +74,23 @@ test("glyph depth changes only at letter side edges or the measured counter, nev
       assert.ok(Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) > a.radius + b.radius + 1,
         "Local repaint rectangles cannot change a neighboring crossing");
     }
+  }
+});
+
+test("the right clasp changes depth before entering the a counter, not at its center", () => {
+  for (const x of [.515, .54, .58, .6]) for (const y of [.7, .78, .82]) {
+    const counter = { x: 1100 * x, y: 260 * y, radiusX: 20, radiusY: 25 };
+    const rig = buildTitleChainRig(
+      { left: 0, top: 0, width: 1100, height: 260 },
+      { textLeft: 0, textRight: 1100, gaps: [], anchorBounds: [], counter }, [32, 31, 31]
+    );
+    const clasp = rig.paths[2];
+    const cut = clasp.depthCuts.find(part => part.frontBefore && !part.frontAfter);
+    assert.ok(cut);
+    assert.ok(cut.unit < clasp.counterUnit!);
+    const distance = ((cut.x - counter.x) / counter.radiusX) ** 2
+      + ((cut.y - counter.y) / counter.radiusY) ** 2;
+    assert.ok(distance > 1, "The split must be hidden by letter ink before the open counter");
   }
 });
 

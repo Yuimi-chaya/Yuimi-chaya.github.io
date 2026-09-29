@@ -802,6 +802,7 @@ const gateStyle = [
       let chainLastPaintFill = -1;
       let chainLastPaintIntro = -1;
       let chainTitleBox = { left: 0, top: 0, width: 0, height: 0 };
+      let chainMaskBox = { left: 0, top: 0, width: 0, height: 0 };
       const chainLinkUnitCache = new Map();
       let chainRig = null;
       const chainCounterContext = mobilePerformance ? null
@@ -2035,6 +2036,7 @@ const gateStyle = [
         ) return;
         const canvasRect = getKisaraLocalRect(chainBackCanvas);
         const titleRect = getKisaraLocalRect(title);
+        const maskRect = titleAbyssCanvas ? getKisaraLocalRect(titleAbyssCanvas) : null;
         const width = Math.max(1, canvasRect.width);
         const height = Math.max(1, canvasRect.height);
         const deviceScale = Math.min(
@@ -2058,6 +2060,12 @@ const gateStyle = [
           width: titleRect.width,
           height: titleRect.height
         };
+        chainMaskBox = maskRect ? {
+          left: maskRect.left - canvasRect.left,
+          top: maskRect.top - canvasRect.top,
+          width: maskRect.width,
+          height: maskRect.height
+        } : { left: 0, top: 0, width: 0, height: 0 };
         if (changed) {
           chainBackCanvas.width = pixelWidth;
           chainBackCanvas.height = pixelHeight;
@@ -4503,10 +4511,10 @@ const gateStyle = [
         if (nextFontSignature === titleFontSignature) return;
         titleFontSignature = nextFontSignature;
         resizeTitleChains(true);
+        resizeTitleDataCanvas(true);
         if (!titleLensRenderer) return;
         invalidateReleaseWarmupTask("titleLens");
         titleLensRenderer?.refresh();
-        resizeTitleDataCanvas(true);
         scheduleReleaseWarmup();
       });
 
@@ -6687,11 +6695,14 @@ const gateStyle = [
         drawContractHeartImprint(timestamp, intro, ruptureEvents, visibility, isMobile);
 
         const sourceOpacity = Number.parseFloat(gate.style.getPropertyValue("--kisara-title-source-opacity"));
-        const combined = composeTitleChains(
-          chainFrontContext, chainBackContext, chainGlyphLayout, chainPixelRatio,
-          Number.isFinite(sourceOpacity) ? sourceOpacity : 1
-        );
-        chainBackCanvas.style.opacity = combined ? "0" : Math.min(1, visibility).toFixed(3);
+        if (titleDataCanvasWidth > 1) {
+          composeTitleChains(
+            chainFrontContext, chainBackContext,
+            { canvas: titleDataMaskCanvas, ...chainMaskBox }, chainPixelRatio,
+            Number.isFinite(sourceOpacity) ? sourceOpacity : 1
+          );
+        }
+        chainBackCanvas.style.opacity = Math.min(1, visibility).toFixed(3);
         chainFrontCanvas.style.opacity = Math.min(1, visibility).toFixed(3);
         chainLastPaintTimestamp = timestamp;
         chainLastPaintFill = fill;
