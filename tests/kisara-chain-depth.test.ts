@@ -77,7 +77,7 @@ test("glyph depth changes at letter edges or after the counter aperture, never a
   }
 });
 
-test("the right clasp remains in front through the a counter and changes depth after leaving it", () => {
+test("the right clasp keeps its linked return in front through the a counter and lower crossing", () => {
   for (const x of [.515, .54, .58, .6]) for (const y of [.7, .78, .82]) {
     const counter = { x: 1100 * x, y: 260 * y, radiusX: 20, radiusY: 25 };
     const rig = buildTitleChainRig(
@@ -85,18 +85,35 @@ test("the right clasp remains in front through the a counter and changes depth a
       { textLeft: 0, textRight: 1100, gaps: [], anchorBounds: [], counter }, [32, 31, 31]
     );
     const clasp = rig.paths[2];
-    const cut = clasp.depthCuts.find(part => part.frontBefore && !part.frontAfter);
     assert.equal(sampleTitleChainCurve(clasp, clasp.counterUnit!).plane, "front");
-    if (!cut) {
-      assert.equal(clasp.glyphBackZones[1].from, 1,
-        "A narrow glyph wall must not force a partial depth split");
-      continue;
+    for (let unit = clasp.counterUnit!; unit <= 1; unit += .005) {
+      assert.equal(sampleTitleChainCurve(clasp, unit).plane, "front",
+        "The returning clasp cannot split its interlocked links across the glyph wall");
     }
-    assert.ok(cut.unit > clasp.counterUnit!);
-    assert.ok(cut.x < clasp.glyphBackZones[1].right);
-    const distance = ((cut.x - counter.x) / counter.radiusX) ** 2
-      + ((cut.y - counter.y) / counter.radiusY) ** 2;
-    assert.ok(distance > 1, "The split must be hidden by letter ink after the open counter");
+    assert.ok(clasp.depthCuts.every(part => part.unit < clasp.counterUnit!));
+  }
+});
+
+test("the lower clasp has no depth seam inside an interlocked crossing across counter positions", () => {
+  for (const width of [390, 720, 1100, 1200]) {
+    const height = width * .236;
+    const linkWidths = [32, 31, 31].map(value => value * width / 1100);
+    for (const x of [.515, .54, .58, .6]) for (const y of [.7, .78, .82]) {
+      const counter = { x: width * x, y: height * y,
+        radiusX: 20 * width / 1100, radiusY: 25 * width / 1100 };
+      const rig = buildTitleChainRig(
+        { left: 0, top: 0, width, height },
+        { textLeft: 0, textRight: width, gaps: [], anchorBounds: [], counter }, linkWidths
+      );
+      const lower = rig.crossings.find(point => point.ids.join(",") === "0,2" && point.overId === 0);
+      assert.ok(lower, "The lower a crossing must exist");
+      for (const id of lower.ids) {
+        for (const seam of rig.paths[id].depthCuts) {
+          assert.ok(Math.hypot(seam.x - lower.x, seam.y - lower.y) > lower.radius + linkWidths[id],
+            `Chain ${id} changes depth inside the lower crossing's paint footprint at ${width}px, ${x},${y}`);
+        }
+      }
+    }
   }
 });
 

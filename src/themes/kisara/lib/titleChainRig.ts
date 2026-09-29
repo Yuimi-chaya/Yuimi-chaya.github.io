@@ -102,41 +102,11 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
         points[index + 1]
       ];
     });
-    let counterDepartureUnit = 1;
-    if (definition.route === "right-clasp") {
-      // Keep the entering clasp in front until it has cleared the counter aperture.
-      const probe = { curves, glyphBackZones: [] };
-      const distance = (unit: number) => {
-        const point = sampleTitleChainCurve(probe, unit);
-        return ((point.x - counter.x) / Math.max(1, counter.radiusX)) ** 2
-          + ((point.y - counter.y) / Math.max(1, counter.radiusY)) ** 2;
-      };
-      let exitUnit = .8;
-      for (let index = 1; index <= 128; index++) {
-        const unit = .8 + index * .2 / 128;
-        if (distance(unit) >= 1) { exitUnit = unit; break; }
-      }
-      const exit = sampleTitleChainCurve(probe, exitUnit);
-      for (let index = 1; index <= 128; index++) {
-        const unit = exitUnit + (1 - exitUnit) * index / 128;
-        const point = sampleTitleChainCurve(probe, unit);
-        if (point.x >= glyph.right - 1) {
-          counterDepartureUnit = 1;
-          break;
-        }
-        if (Math.hypot(point.x - exit.x, point.y - exit.y) >= Math.max(...linkWidths) * 1.05) {
-          counterDepartureUnit = unit;
-          break;
-        }
-      }
-    }
     const glyphBackZones = definition.route === "left-upper"
-      ? [{ from: 0, to: .4, left: kGlyph.left, right: kGlyph.right },
-        { from: .78, to: 1, left: -Infinity, right: sGlyph.right }]
+      ? [{ from: 0, to: .4, left: kGlyph.left, right: kGlyph.right }]
       : definition.route === "left-lower"
         ? [{ from: 0, to: 1, left: iGlyph.left, right: sGlyph.right }]
-        : [{ from: 0, to: .4, left: glyph.right, right: Infinity },
-          { from: counterDepartureUnit, to: 1, left: -Infinity, right: glyph.right }];
+        : [{ from: 0, to: .4, left: glyph.right, right: Infinity }];
     return {
       type: "weave", curves, points, segmentCount: curves.length,
       route: definition.route, glyphBackZones, depthCuts: [],

@@ -599,6 +599,8 @@ test("rendered links keep connected apertures and complementary depth fragments 
     let splitRings = 0;
     let forwardCounterFrames = 0;
     let reverseCounterFrames = 0;
+    let forwardCrossingFrames = 0;
+    let reverseCrossingFrames = 0;
     const fills = Array.from({ length: 61 }, (_, index) => index / 60);
     let timestamp = 100;
     for (const intro of [0, 0.08, 0.16, 0.22, 0.35]) {
@@ -663,6 +665,20 @@ test("rendered links keep connected apertures and complementary depth fragments 
               + counterCore.map(record => `${record.linkIndex}/${record.paintPlane}/`
                 + `${record.sample.x.toFixed(1)},${record.sample.y.toFixed(1)}`).join("; "));
         }
+        const lowerCrossing = (state.chainRig as any)?.crossings.find((point: any) =>
+          point.ids.join(",") === "0,2" && point.overId === 0);
+        const crossingLinks = records.filter(record => lowerCrossing
+          && lowerCrossing.ids.includes(record.definition.id)
+          && Math.hypot(record.sample.x - lowerCrossing.x, record.sample.y - lowerCrossing.y)
+            < lowerCrossing.radius + scope.getChainLinkDimensions(record.definition).width * .58);
+        if (new Set(crossingLinks.map(record => record.definition.id)).size === 2) {
+          if (intro === 0) {
+            if (position < fills.length) forwardCrossingFrames++;
+            else reverseCrossingFrames++;
+          }
+          assert.ok(crossingLinks.every(record => record.paintPlane === "front"),
+            `Lower clasp loses a linked fragment at width=${width}, fill=${fill}, intro=${intro}`);
+        }
         const left = records.filter(record => record.definition.direction > 0);
         const right = records.filter(record => record.definition.direction < 0);
         if (!left.length || !right.length) continue;
@@ -673,6 +689,8 @@ test("rendered links keep connected apertures and complementary depth fragments 
     assert.ok(splitRings > 10, "Exercise real links spanning both glyph planes, not just center-based ownership");
     assert.ok(forwardCounterFrames > 2 && reverseCounterFrames > 2,
       "Exercise the clasp in both scroll directions");
+    assert.ok(forwardCrossingFrames > 2 && reverseCrossingFrames > 2,
+      "Exercise the interlocked lower crossing in both scroll directions");
   }
   assert.ok(home.includes("leader.sample.plane === \"back\" ? chainBackContext : chainFrontContext"));
   assert.ok(home.includes("* destinationFade"));
