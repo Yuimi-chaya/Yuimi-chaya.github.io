@@ -336,6 +336,8 @@ test("production weave paths keep equal spacing, parity, buried tails, and stabl
 test("chain integration retains motion boundaries without live material construction or layer filters", () => {
   const render = home.slice(home.indexOf("const drawChainLinkArc ="), home.indexOf("const drawChainLayer ="));
   assert.doesNotMatch(render, /createLinearGradient|shadowBlur|context\.ellipse|coldSprite|hotSprite|verticalProfile/);
+  assert.doesNotMatch(render, /variantSeed|41011/);
+  assert.match(render, /const size = scale;/);
   assert.match(home, /mobilePerformance \? null : createTitleChainMaterial\(signal\)/);
   assert.match(home, /const visibility = activation \* introFade \* burstFade;/);
   assert.match(render, /alpha \* chainMaterialVisibility/);
