@@ -450,7 +450,7 @@ test("hand-authored tangents stay continuous while the left sweeps differ in spa
 test("the long left chain turns back into s while the right return stays behind r and the last a", () => {
   const { scope, box } = geometryFixture(1200);
   const left = scope.resolveTitleChainPath(scope.chainDefinitions[0], 1, 0);
-  assert.ok(left.points.at(-1).x < left.points.at(-2).x - box.width * .1);
+  assert.ok(left.points.at(-1).x < left.points.at(-2).x - box.width * .08);
   assert.ok(left.points.at(-1).y > box.top + box.height * .8);
   const right = scope.resolveTitleChainPath(scope.chainDefinitions[2], 1, 0);
   for (let i = 0; i <= 40; i++) {
@@ -490,6 +490,45 @@ test("the local clasp closes its sides without moving the measured aperture", ()
   }
 });
 
+test("the left return pulls toward the right clasp without crowding its two crossings", () => {
+  for (const width of [320, 390, 720, 1200, 1920]) {
+    for (const ratio of [.18, .22, .3]) {
+      const { scope, state, box } = geometryFixture(width, width * ratio);
+      const left = scope.resolveTitleChainPath(scope.chainDefinitions[0], 1, 0);
+      const right = scope.resolveTitleChainPath(scope.chainDefinitions[2], 1, 0);
+      const glyphLeft = box.left + box.width * .47;
+      const glyphWidth = box.width * (.64 - .47);
+      if (width >= 720) {
+        assert.ok(left.points[3].x <= glyphLeft + glyphWidth * .181,
+          "The upper left shoulder must pull away from the loose outer arc");
+        assert.ok(left.points[4].x <= glyphLeft + glyphWidth * .241,
+          "The lower left shoulder must follow the same tightened return");
+      }
+      assert.ok(Math.hypot(right.points[4].x - (state.chainRig as any).counter.x,
+        right.points[4].y - (state.chainRig as any).counter.y) < 1e-8);
+      const clasp = (state.chainRig as any).crossings.filter((point: any) => point.ids.join(",") === "0,2");
+      assert.equal(clasp.length, 2, "Tightening cannot create an extra chain intersection");
+      const linkWidth = Math.max(...scope.chainDefinitions.map((definition: any) => scope.getChainLinkDimensions(definition).width));
+      const spacing = Math.hypot(clasp[1].x - clasp[0].x, clasp[1].y - clasp[0].y);
+      assert.ok(spacing > linkWidth * 1.4, "Separate crossings need room for a complete link");
+      if (width >= 720 && ratio === .22) {
+        assert.ok(spacing < box.height * .37, "The two sides should visibly cinch toward each other");
+      }
+      for (const crossing of clasp) {
+        const a = sampleTitleChainCurve(left, crossing.units[0]);
+        const b = sampleTitleChainCurve(right, crossing.units[1]);
+        const sine = Math.abs(a.tangentX * b.tangentY - a.tangentY * b.tangentX)
+          / (Math.hypot(a.tangentX, a.tangentY) * Math.hypot(b.tangentX, b.tangentY));
+        assert.ok(sine > .55, "The crossing must stay oblique instead of running almost parallel");
+        for (const id of crossing.ids) for (const cut of (state.chainRig as any).paths[id].depthCuts) {
+          assert.ok(Math.hypot(cut.x - crossing.x, cut.y - crossing.y) > crossing.radius + linkWidth,
+            "The clasp cannot meet a depth seam inside its wire footprint");
+        }
+      }
+    }
+  }
+});
+
 test("the local clasp tolerates different measured counter positions without growing extra crossings", () => {
   for (const x of [0.515, 0.54, 0.58, 0.6]) {
     for (const y of [0.7, 0.78, 0.82]) {
@@ -500,6 +539,20 @@ test("the local clasp tolerates different measured counter positions without gro
       const clasp = (state.chainRig as any).crossings.filter((point: any) => point.ids.join(",") === "0,2");
       assert.equal(clasp.length, 2);
       assert.deepEqual(clasp.map((point: any) => point.overId), [2, 0]);
+      const linkWidth = Math.max(...scope.chainDefinitions.map((definition: any) => scope.getChainLinkDimensions(definition).width));
+      assert.ok(Math.hypot(clasp[0].x - clasp[1].x, clasp[0].y - clasp[1].y) > linkWidth * 1.4);
+      const left = scope.resolveTitleChainPath(scope.chainDefinitions[0], 1, 0);
+      for (const crossing of clasp) {
+        const a = sampleTitleChainCurve(left, crossing.units[0]);
+        const b = sampleTitleChainCurve(path, crossing.units[1]);
+        const sine = Math.abs(a.tangentX * b.tangentY - a.tangentY * b.tangentX)
+          / (Math.hypot(a.tangentX, a.tangentY) * Math.hypot(b.tangentX, b.tangentY));
+        assert.ok(sine > .55, `Near-tangent clasp at counter ${x}, ${y}`);
+        for (const id of crossing.ids) for (const cut of (state.chainRig as any).paths[id].depthCuts) {
+          assert.ok(Math.hypot(cut.x - crossing.x, cut.y - crossing.y) > crossing.radius + linkWidth,
+            `Depth seam crowds the clasp at counter ${x}, ${y}`);
+        }
+      }
       assert.ok((state.chainRig as any).crossings.length <= 5);
       const center = sampleTitleChainCurve(path, path.counterUnit);
       assert.ok(Math.hypot(center.x - counter.x, center.y - counter.y) < 1e-8);

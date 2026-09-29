@@ -75,13 +75,16 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
   const letterX = (letter: GlyphBox, ratio: number) => (letter.left - textLeft + (letter.right - letter.left) * ratio) / width;
   const letterY = (letter: GlyphBox, ratio: number) => (letter.top - top + (letter.bottom - letter.top) * ratio) / height;
   const letterSlope = (letter: GlyphBox, ratio: number) => (letter.bottom - letter.top) * ratio / height;
+  // Let narrow titles keep enough room for both linked crossings.
+  const leftReturnPull = Math.min(.1, Math.max(0,
+    (glyphWidth / Math.max(1, ...linkWidths) - 3.6) * .125));
   const paths: ChainPath[] = titleChainDefinitions.map(definition => {
     // Each knot includes its own tangent: unequal sweeps, not a repeating wave.
     const knots: Knot[] = definition.route === "left-upper"
       ? [[-definition.xInset, .1, .1, .26], [.205, .83, .09, .01],
         [letterX(sGlyph, .68), letterY(sGlyph, .12), .068, -letterSlope(sGlyph, .04)],
-        [letterX(glyph, .28), letterY(glyph, .23), .018, letterSlope(glyph, .09)],
-        [letterX(glyph, .34), letterY(glyph, .58), 0, letterSlope(glyph, .12)],
+        [letterX(glyph, .28 - leftReturnPull), letterY(glyph, .23), .018, letterSlope(glyph, .09)],
+        [letterX(glyph, .34 - leftReturnPull), letterY(glyph, .58), 0, letterSlope(glyph, .12)],
         [letterX(sGlyph, .7), letterY(sGlyph, .9), -.045, letterSlope(sGlyph, .025)]]
       : definition.route === "left-lower"
         ? [[-definition.xInset, .88, .13, -.1], [.265, .22, .078, .015],
