@@ -88,6 +88,20 @@ test("the close-up pushes in and closes to black before the kiss, then opens onl
   assert.equal(getMemoryBlackout(0.84, 0, true), 0.3);
 });
 
+test("progress integration follows the same path through uneven frame intervals", () => {
+  const sample = (intervals: number[]) => {
+    let state = { progress: 0, velocity: 0.004 };
+    for (const interval of intervals) state = advanceMemoryProgress(state.progress, .4, state.velocity, interval, .06, .76);
+    return state;
+  };
+  const regular = sample(Array(12).fill(.5));
+  for (const intervals of [Array(6).fill(1), [3, 1, 2], [2, .5, 1.5, 2]]) {
+    assert.ok(Math.abs(sample(intervals).progress - regular.progress) < .00001);
+  }
+  const still = advanceMemoryProgress(.2, .4, .01, 0, .06, .76);
+  assert.equal(still.progress, .2);
+});
+
 test("forward scroll never recoils into a retired shot and deliberate reverse remains available", () => {
   for (const fps of [30, 60, 120]) {
     let progress = 0;

@@ -8,6 +8,42 @@ const ready = () => true;
 const activeShots = (frame: ReturnType<ReturnType<typeof createMemoryEditor>["snapshot"]>) =>
   frame.weights.flatMap((weight, index) => weight > 0 ? [index] : []);
 
+test("a continuous boundary crossing spends only the post-crossing part of its frame", () => {
+  const editor = createMemoryEditor(0.019);
+  const frame = editor.update(0.025, 16, ready);
+  assert.ok(frame.weights[0] > 0, "Starting must not add a blank animation frame");
+  assert.ok(frame.weights[0] < 0.01, "Do not charge the pre-crossing interval to the new shot");
+});
+
+test("fast continued travel never rolls a partly entered shot back to the old shot", () => {
+  for (const [start, enter, latest, incoming] of [[0.49, 0.51, 0.7, 6], [0.51, 0.49, 0.35, 5]]) {
+    const editor = createMemoryEditor(start);
+    editor.update(enter, 0, ready);
+    const before = editor.update(enter, 30, ready);
+    const after = editor.update(latest, 10, ready);
+    assert.ok(after.weights[incoming] >= before.weights[incoming], "Same-direction input cannot cause a visual recoil");
+    let elapsed = 10;
+    while (editor.active && elapsed < 300) { editor.update(latest, 10, ready); elapsed += 10; }
+    assert.equal(editor.active, false);
+    assert.ok(elapsed <= 250, "Do not queue a full obsolete edit before the latest target");
+  }
+});
+
+test("softness settles continuously at either endpoint without a sharpness pulse", () => {
+  const editor = createMemoryEditor(0.49);
+  editor.update(0.51, 0, ready);
+  editor.update(0.51, 40, ready);
+  const almostBack = editor.update(0.49, 39, ready);
+  assert.ok(almostBack.softness[5] < 0.002);
+  editor.update(0.49, 1, ready);
+  assert.ok(editor.snapshot().softness.every(value => value === 0));
+  editor.reset(0.51);
+  editor.update(0.49, 0, ready);
+  for (let i = 0; i < 17; i++) editor.update(0.49, 10, ready);
+  const nearEnd = editor.update(0.49, 9, ready);
+  assert.ok(nearEnd.softness[5] < 0.002, "The dominant plate must not pop sharp at completion");
+});
+
 test("every boundary has a continuous handoff in both directions without threshold flicker", () => {
   for (let index = 0; index < memoryTimeline.length; index++) {
     const start = memoryTimeline[index].start;
@@ -115,6 +151,51 @@ test("reduced motion omits soft layers and never uncovers the blue base", () => 
     }
   }
   assert.equal(editor.snapshot().baseOpacity, 1);
+});
+
+test("irregular bidirectional scrubbing stays continuous, bounded and settles on the latest request", () => {
+  for (const reducedMotion of [false, true]) {
+    for (const intervals of [[1000 / 30], [1000 / 60], [1000 / 120], [7, 13, 28, 9, 43]]) {
+      const editor = createMemoryEditor();
+      const fills = [.004, .019, .032, .12, .135, .14, .29, .42, .33, .16, .49, .68, .52, .85, .69, .03, 0, .51];
+      for (let i = 0; i < 180; i++) {
+        const fill = fills[i % fills.length];
+        const before = editor.snapshot();
+        const interrupted = editor.update(fill, 0, ready, reducedMotion);
+        assert.deepEqual(interrupted.weights, before.weights, "Zero elapsed time cannot replace a visible image");
+        assert.equal(interrupted.baseOpacity, before.baseOpacity);
+        activeShots(before).forEach(index => assert.equal(interrupted.softness[index], before.softness[index]));
+        const frame = editor.update(fill, intervals[i % intervals.length], ready, reducedMotion);
+        assert.ok(activeShots(frame).length <= 2);
+        assert.ok([...frame.weights, ...frame.softness].every(value => Number.isFinite(value) && value >= 0 && value <= 1));
+        const total = frame.weights.reduce((sum, value) => sum + value, 0);
+        assert.ok(frame.baseOpacity === 1 || Math.abs(total - 1) < 1e-9);
+        if (reducedMotion) assert.ok(frame.softness.every(value => value === 0));
+      }
+      for (let time = 0; time < 400; time += 10) editor.update(.51, 10, ready, reducedMotion);
+      assert.equal(editor.active, false);
+      assert.deepEqual(activeShots(editor.snapshot()), [6]);
+      assert.ok(editor.snapshot().softness.every(value => value === 0));
+    }
+  }
+});
+
+test("a fast crossing catches up sooner without accelerating a calm or paused edit", () => {
+  const finish = (fast: boolean) => {
+    const editor = createMemoryEditor(.29);
+    if (fast) editor.update(.323, 8, ready);
+    editor.update(.335, fast ? 8 : 0, ready);
+    let elapsed = 0;
+    while (editor.active && elapsed < 250) {
+      editor.update(fast ? .375 : .335, 10, ready);
+      elapsed += 10;
+    }
+    assert.equal(editor.active, false);
+    assert.deepEqual(activeShots(editor.snapshot()), [3]);
+    return elapsed;
+  };
+  assert.ok(finish(true) < finish(false));
+  assert.equal(finish(false), memoryEdits[3].duration);
 });
 
 test("AUTO retains every authored shot at 30/60/120 Hz without queued edits", () => {

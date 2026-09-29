@@ -151,6 +151,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
     ["handleReleaseInput", "syncHeroAutoplayControl"],
     ["advanceHeroAutoplay", "startHeroAutoplay"],
     ["animate", "startAnimation"],
+    ["startAnimation", "getNextPageTop"],
     ["addProgress", "isFillComplete"],
     ["syncGateProgressRail", "render"],
     ["readPostReleaseTitlePose", "drawPostReleaseTitleLens"],
@@ -264,6 +265,48 @@ test("the real frame loop finishes a reaction edit even when scroll is already s
   assert.equal(f.state.memoryEditor.active, false);
   assert.equal(slots.softness("memory-embrace"), 0);
   assert.deepEqual(slots.snapshot(), [{ id: "memory-embrace", opacity: 1 }]);
+});
+
+test("startup uses the actual frame interval and cannot charge an idle gap to the edit", () => {
+  for (const interval of [0, 1000 / 144, 1000 / 120, 1000 / 60, 1000 / 30]) {
+    const f = fixture({ progress: 0, targetProgress: 0, now: 10000 });
+    attachSceneCompositor(f);
+    f.state.render();
+    f.api.addProgress(120);
+    const target = f.state.targetProgress;
+    const velocity = f.state.velocity;
+    assert.equal(f.state.lastFrameTime, 10000);
+    const expected = advanceMemoryProgress(0, target, velocity, interval / 16.667, .06, .76);
+    f.step(10000 + interval);
+    assert.ok(Math.abs(f.state.progress - expected.progress) < 1e-10);
+    f.advance(700);
+    assert.equal(f.state.memoryEditor.active, false);
+    assert.equal(f.state.presentations[0].opacity, 1);
+  }
+});
+
+test("irregular wheel bursts and reversals converge through the production compositor", () => {
+  for (const interval of [1000 / 30, 1000 / 60, 1000 / 120]) {
+    const f = fixture({ progress: .15, targetProgress: .15 });
+    const slots = attachSceneCompositor(f);
+    f.state.render();
+    for (const delta of [16, 80, 280, -16, -120, 4, 100, -80, 210, -12, 8]) {
+      f.api.addProgress(delta);
+      const direction = Math.sign(delta);
+      for (let i = 0; i < 3; i++) {
+        const before = f.state.progress;
+        f.step(f.state.now + interval);
+        assert.ok((f.state.progress - before) * direction >= -1e-12);
+        assert.ok(slots.snapshot().length <= 2);
+        const visible = memoryScenes.reduce((sum, scene) => sum + slots.contribution("memory-" + scene.id), 0);
+        assert.ok(Math.abs(visible - 1) < .0002, "The handoff must never expose an empty plate");
+      }
+    }
+    f.advance(700, interval);
+    assert.equal(f.state.progress, f.state.targetProgress);
+    assert.equal(f.state.memoryEditor.active, false);
+    assert.equal(slots.snapshot().length, 1);
+  }
 });
 
 test("a late decoded reaction starts on the old plate then completes through the compositor", () => {
@@ -612,6 +655,18 @@ test("AUTO no longer inserts a timed blade stage or bypasses an active heart", (
   active.api.advanceHeroAutoplay(1000);
   assert.equal(active.state.releaseMode, "manual");
   assert.equal(active.state.burstProgress, 0);
+});
+
+test("manual reversal discards old queued travel before moving from the visible progress", () => {
+  for (const inputType of ["wheel", "touch", "keyboard"]) {
+    for (const direction of [-1, 1]) {
+      const f = fixture({ progress: .4, targetProgress: .4 - direction * .2, velocity: -direction * .01 });
+      f.input(direction * 16, inputType);
+      assert.ok((f.state.targetProgress - .4) * direction > 0, "A reversal must not first consume the old input backlog");
+      f.step(f.state.now + 16);
+      assert.ok((f.state.progress - .4) * direction > 0);
+    }
+  }
 });
 
 test("reversing an unfinished heart never starts reconstruction", () => {

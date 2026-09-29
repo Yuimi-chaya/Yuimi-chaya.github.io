@@ -9,11 +9,20 @@ export const memoryFillDuration = 9000;
 export const memoryBrightenDuration = 650;
 
 export function advanceMemoryProgress(progress: number, target: number, velocity: number, frameRatio: number, strength: number, damping: number) {
-  const speed = (velocity + (target - progress) * strength * frameRatio) * Math.pow(damping, frameRatio);
-  const candidate = progress + speed * frameRatio;
-  // Scroll edits may reverse on input, never from spring overshoot or recoil.
-  const next = Math.max(Math.min(progress, target), Math.min(Math.max(progress, target), candidate));
-  return { progress: next, velocity: next === candidate ? speed : 0 };
+  // Integrate at most half a reference frame at a time: dropped frames and
+  // 30/60/120Hz displays follow the same path instead of changing the spring.
+  let remaining = Number.isFinite(frameRatio) ? Math.max(0, Math.min(3, frameRatio)) : 0;
+  while (remaining > 0) {
+    const step = Math.min(0.5, remaining);
+    const speed = (velocity + (target - progress) * strength * step) * Math.pow(damping, step);
+    const candidate = progress + speed * step;
+    // Scroll edits may reverse on input, never from spring overshoot or recoil.
+    const next = Math.max(Math.min(progress, target), Math.min(Math.max(progress, target), candidate));
+    velocity = next === candidate ? speed : 0;
+    progress = next;
+    remaining -= step;
+  }
+  return { progress, velocity };
 }
 
 export function advanceMemoryBlackout(current: number, target: number, elapsed: number, reducedMotion = false) {

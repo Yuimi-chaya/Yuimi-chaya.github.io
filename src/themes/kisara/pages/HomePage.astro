@@ -7677,7 +7677,7 @@ const gateStyle = [
         }
         lastAnimationPaintTimestamp = timestamp;
         const frameRatio = lastFrameTime
-          ? clamp((timestamp - lastFrameTime) / 16.667, 0.5, 3)
+          ? clamp((timestamp - lastFrameTime) / 16.667, 0, 3)
           : 1;
         lastFrameTime = timestamp;
         advanceHeroAutoplay(timestamp);
@@ -7815,7 +7815,8 @@ const gateStyle = [
       const startAnimation = () => {
         if (lovebrainActive || pageMode === "lovebrain") return;
         if (!animationFrame) {
-          lastFrameTime = 0;
+          lastFrameTime = performance.now();
+          memoryEditTimestamp = lastFrameTime;
           lastAnimationPaintTimestamp = 0;
           animationFrame = window.requestAnimationFrame(animate);
         }
@@ -8793,6 +8794,10 @@ const gateStyle = [
         if (delta > 0 && fillComplete && chargeIntroComplete) {
           startReleaseAutoplay(timestamp);
         } else {
+          // A new direction takes over the visible pose, not the queued travel
+          // from the previous gesture. This also applies to touch and keyboard.
+          if (boundedDelta * (targetProgress - progress) < 0) targetProgress = progress;
+          if (boundedDelta * velocity < 0) velocity = 0;
           targetProgress = clamp(targetProgress + boundedDelta / fillDistance, 0, 1);
           velocity += boundedDelta / fillDistance * 0.03;
           if (delta > 0 && targetProgress >= 0.9995 && !chargeIntroComplete) {
