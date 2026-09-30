@@ -78,26 +78,33 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
   // Let narrow titles keep enough room for both linked crossings.
   const glyphLinkRoom = glyphWidth / Math.max(1, ...linkWidths) - 3.6;
   const leftReturnPull = Math.min(.1, Math.max(0, glyphLinkRoom * .125));
-  const wideReturnRoom = Math.max(0, Math.min(1, (.3 - height / width) / .08));
   const rightShoulderPull = Math.min(.09,
     Math.min(.045, Math.max(0, glyphLinkRoom * .025))
-      + Math.max(0, glyphLinkRoom - 3.2) * .015 * wideReturnRoom);
+      + Math.max(0, glyphLinkRoom - 3.2) * .015);
   const rightShoulder = .095 + rightShoulderPull;
+  // Cinch the return and its handles together; a taller glyph must not grow a slack loop.
+  const counterRoom = Math.max(0, (counter.x - glyph.left) / Math.max(1, glyphWidth) - .4);
+  const shortGlyphRoom = Math.max(0, 4 - glyphHeight / Math.max(1, ...linkWidths));
+  const maxClaspScale = Math.max(1, Math.min(1.53, box.width / 420));
+  const claspScale = Math.min(maxClaspScale,
+    Math.max(...linkWidths) * (3.3 + counterRoom * 4 + shortGlyphRoom * .8) / Math.max(1, glyphHeight));
+  const claspY = (ratio: number) => Math.max(.04, .4 + (ratio - .4) * claspScale);
+  const claspSlope = (ratio: number) => letterSlope(glyph, ratio * claspScale);
   const paths: ChainPath[] = titleChainDefinitions.map(definition => {
     // Each knot includes its own tangent: unequal sweeps, not a repeating wave.
     const knots: Knot[] = definition.route === "left-upper"
       ? [[-definition.xInset, .1, .1, .26], [.205, .83, .09, .01],
         [letterX(sGlyph, .68), letterY(sGlyph, .12), .068, -letterSlope(sGlyph, .04)],
-        [letterX(glyph, .28 - leftReturnPull), letterY(glyph, .23), .018, letterSlope(glyph, .09)],
-        [letterX(glyph, .34 - leftReturnPull), letterY(glyph, .58), 0, letterSlope(glyph, .12)],
+        [letterX(glyph, .28 - leftReturnPull), letterY(glyph, claspY(.23)), .018, claspSlope(.09)],
+        [letterX(glyph, .34 - leftReturnPull), letterY(glyph, claspY(.58)), 0, claspSlope(.12)],
         [letterX(sGlyph, .7), letterY(sGlyph, .9), -.045, letterSlope(sGlyph, .025)]]
       : definition.route === "left-lower"
         ? [[-definition.xInset, .88, .13, -.1], [.265, .22, .078, .015],
           [.4, .79, .045, .025], [letterX(sGlyph, .9), letterY(sGlyph, .57), .025, -letterSlope(sGlyph, .1)]]
         : [[letterX(lastGlyph, .42), letterY(lastGlyph, .33), -.08, letterSlope(lastGlyph, .12)],
           [letterX(rGlyph, .44), letterY(rGlyph, .5), -.07, -letterSlope(rGlyph, .15)],
-          [letterX(glyph, .34), letterY(glyph, .08), -.035, -letterSlope(glyph, .018)],
-          [letterX(glyph, rightShoulder), letterY(glyph, .32), 0, letterSlope(glyph, .12 + rightShoulderPull)],
+          [letterX(glyph, .34), letterY(glyph, claspY(.08)), -.035, -claspSlope(.018)],
+          [letterX(glyph, rightShoulder), letterY(glyph, claspY(.32)), 0, claspSlope(.12 + rightShoulderPull)],
           [counterX, counterY, Math.max(.012, Math.min(.032, (counterX - letterX(glyph, rightShoulder)) * .55)), .04],
           [1 + box.width * definition.xInset / width, .93, .13, .13]];
     const points = knots.map(([x, y]) => ({ x: textLeft + width * x, y: top + height * y }));
