@@ -753,10 +753,13 @@ test("rendered links keep connected apertures and complementary depth fragments 
             if (position < fills.length) forwardCounterFrames++;
             else reverseCounterFrames++;
           }
-          assert.ok(counterCore.every(record => record.paintPlane === "front"),
-            `Counter ring buried at width=${width}, fill=${fill}, intro=${intro}: `
-              + counterCore.map(record => `${record.linkIndex}/${record.paintPlane}/`
-                + `${record.sample.x.toFixed(1)},${record.sample.y.toFixed(1)}`).join("; "));
+          assert.ok(counterCore.some(record => record.paintPlane === "front"),
+            "The aperture retains its front-side ring fragment");
+          for (const record of counterCore.filter(record => record.paintPlane === "back")) {
+            assert.ok(record.clip?.every((point: any) =>
+              point.x >= Math.round(counter.x + counter.radiusX) - 1e-6),
+            "Only the wire beyond the counter's right edge may enter the rear glyph plane");
+          }
         }
         const lowerCrossing = (state.chainRig as any)?.crossings.find((point: any) =>
           point.ids.join(",") === "0,2" && point.overId === 0);

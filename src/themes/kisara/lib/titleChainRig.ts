@@ -117,9 +117,9 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
       : definition.route === "left-lower"
         ? [{ from: 0, to: 1, left: iGlyph.left, right: sGlyph.right }]
         : [{ from: 0, to: .4, left: glyph.right, right: Infinity },
-          // Keep the aperture's complete ring in front; bury only the outgoing stem passage.
+          // Split wall-spanning rings at the aperture edge; the real ink mask hides their stem-side wire.
           { from: .8, to: 1,
-            left: Math.max(counter.x + counter.radiusX, counter.x + linkWidths[2] * 1.16 * 1.4),
+            left: counter.x + counter.radiusX,
             right: glyph.right }];
     return {
       type: "weave", curves, points, segmentCount: curves.length,

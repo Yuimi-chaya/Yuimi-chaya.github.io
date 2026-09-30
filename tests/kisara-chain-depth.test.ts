@@ -77,7 +77,7 @@ test("glyph depth changes at letter edges or after the counter aperture, never a
   }
 });
 
-test("the right clasp keeps the counter ring in front and buries only its outgoing a stem passage", () => {
+test("the right clasp buries the outgoing stem at the counter edge, not an extra link-width inset", () => {
   for (const x of [.515, .54, .58, .6]) for (const y of [.7, .78, .82]) {
     const counter = { x: 1100 * x, y: 260 * y, radiusX: 20, radiusY: 25 };
     const rig = buildTitleChainRig(
@@ -86,6 +86,8 @@ test("the right clasp keeps the counter ring in front and buries only its outgoi
     );
     const clasp = rig.paths[2];
     assert.equal(sampleTitleChainCurve(clasp, clasp.counterUnit!).plane, "front");
+    assert.equal(clasp.glyphBackZones[1].left, counter.x + counter.radiusX,
+      "The stem starts immediately outside the aperture, even when a wide ring spans the wall");
     let buried = 0;
     for (let unit = clasp.counterUnit!; unit <= 1; unit += .005) {
       const point = sampleTitleChainCurve(clasp, unit);
@@ -94,12 +96,12 @@ test("the right clasp keeps the counter ring in front and buries only its outgoi
       if (point.plane === "back") buried++;
     }
     const hasStemPassage = clasp.glyphBackZones[1].left < clasp.glyphBackZones[1].right;
-    assert.equal(buried > 0, hasStemPassage, "Bury the stem only when it lies beyond the complete counter ring");
+    assert.equal(buried > 0, hasStemPassage, "Bury the actual stem outside the counter");
     const returnCuts = clasp.depthCuts.filter(part => part.unit > clasp.counterUnit!);
     assert.equal(returnCuts.length, hasStemPassage ? 2 : 0);
     if (hasStemPassage) {
-      assert.ok(returnCuts[0].x - counter.x >= 31 * 1.16 * 1.4 - .05,
-        "The complete aperture ring stays ahead of the new depth cut");
+      assert.ok(Math.abs(returnCuts[0].x - (counter.x + counter.radiusX)) < .05,
+        "Split a wall-spanning ring at the aperture edge instead of leaving it in front of the stem");
     }
   }
 });
