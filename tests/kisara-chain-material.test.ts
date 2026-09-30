@@ -477,7 +477,10 @@ test("the local clasp closes its sides without moving the measured aperture", ()
     const glyphWidth = box.width * (.64 - .47);
     const counterHandle = path.curves[4][1].x - path.points[4].x;
     assert.ok(counterHandle > 0 && counterHandle <= glyphWidth * .4);
-    assert.ok(path.points[2].x - path.points[3].x <= glyphWidth * .25, 'The two shoulders must form a compact return');
+    const thickness = scope.getChainLinkDimensions(scope.chainDefinitions[0]).width
+      * 1.16 * chainAtlas.linkHeight / chainAtlas.linkWidth;
+    assert.ok(path.points[2].x - path.points[3].x <= glyphWidth * .18 + thickness * .5 + 1e-8,
+      "The compact return includes the painted body at its inward bend");
     const left = scope.resolveTitleChainPath(scope.chainDefinitions[0], 1, 0);
     assert.ok(left.points[4].x - (box.left + box.width * .47) <= glyphWidth * .5);
   }
@@ -523,6 +526,28 @@ test("the right return hooks inside the left return and keeps a flat counter exi
     const exit = sampleTitleChainCurve(right, right.counterUnit);
     assert.ok(Math.abs(exit.tangentY / exit.tangentX) < .2,
       "The counter return leaves nearly horizontally instead of dipping into another loose arc");
+  }
+});
+
+test("the hooked bend reserves the painted link thickness instead of just crossing centerlines", () => {
+  for (const width of [320, 390, 720, 1100, 1200, 1920]) {
+    for (const ratio of [.18, .22, .3]) {
+      const { scope, box } = geometryFixture(width, width * ratio);
+      const left = scope.resolveTitleChainPath(scope.chainDefinitions[0], 1, 0);
+      const right = scope.resolveTitleChainPath(scope.chainDefinitions[2], 1, 0);
+      const glyphLeft = box.left + width * .47;
+      const glyphWidth = width * .17;
+      const thickness = Math.max(
+        scope.getChainLinkDimensions(scope.chainDefinitions[0]).width,
+        scope.getChainLinkDimensions(scope.chainDefinitions[2]).width
+      ) * 1.16 * chainAtlas.linkHeight / chainAtlas.linkWidth;
+      const inset = Math.min(thickness * .5, glyphWidth * .095);
+      assert.ok(Math.abs(right.points[3].x - (glyphLeft + glyphWidth * .13 - inset)) < 1e-8,
+        "The inward hook must offset the actual painted half-width, with a narrow-glyph limit");
+      assert.ok(right.points[3].x > glyphLeft);
+      assert.ok(right.points[3].x < left.points[3].x);
+      assert.ok(right.points[3].y > left.points[3].y && right.points[3].y < left.points[4].y);
+    }
   }
 });
 

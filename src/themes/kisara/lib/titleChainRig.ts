@@ -1,4 +1,5 @@
 import type { GlyphBox, GlyphCounter } from "./titleChainCounter.ts";
+import { chainAtlas } from "./titleChainMaterial.ts";
 
 export const titleChainDefinitions = [
   {
@@ -76,7 +77,9 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
   const letterY = (letter: GlyphBox, ratio: number) => (letter.top - top + (letter.bottom - letter.top) * ratio) / height;
   const letterSlope = (letter: GlyphBox, ratio: number) => (letter.bottom - letter.top) * ratio / height;
   const leftReturnPull = .1;
-  const rightShoulder = .13;
+  // Centerline hooks also need room for the atlas's painted body, scaled as in drawChainLinkArc.
+  const claspThickness = Math.max(linkWidths[0], linkWidths[2]) * 1.16 * chainAtlas.linkHeight / chainAtlas.linkWidth;
+  const rightShoulder = .13 - Math.min(.095, claspThickness * .5 / Math.max(1, glyphWidth));
   // The clasp reads as a tight overlap, not two strands surrounding an empty pocket.
   const claspScale = Math.min(1, Math.max(...linkWidths) * 1.9 / Math.max(1, glyphHeight));
   const claspY = (ratio: number) => Math.max(.04, .44 + (ratio - .44) * claspScale);
