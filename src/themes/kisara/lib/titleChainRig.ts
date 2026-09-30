@@ -75,20 +75,11 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
   const letterX = (letter: GlyphBox, ratio: number) => (letter.left - textLeft + (letter.right - letter.left) * ratio) / width;
   const letterY = (letter: GlyphBox, ratio: number) => (letter.top - top + (letter.bottom - letter.top) * ratio) / height;
   const letterSlope = (letter: GlyphBox, ratio: number) => (letter.bottom - letter.top) * ratio / height;
-  // Let narrow titles keep enough room for both linked crossings.
-  const glyphLinkRoom = glyphWidth / Math.max(1, ...linkWidths) - 3.6;
-  const leftReturnPull = Math.min(.1, Math.max(0, glyphLinkRoom * .125));
-  const rightShoulderPull = Math.min(.09,
-    Math.min(.045, Math.max(0, glyphLinkRoom * .025))
-      + Math.max(0, glyphLinkRoom - 3.2) * .015);
-  const rightShoulder = .095 + rightShoulderPull;
-  // Cinch the return and its handles together; a taller glyph must not grow a slack loop.
-  const counterRoom = Math.max(0, (counter.x - glyph.left) / Math.max(1, glyphWidth) - .4);
-  const shortGlyphRoom = Math.max(0, 4 - glyphHeight / Math.max(1, ...linkWidths));
-  const maxClaspScale = Math.max(1, Math.min(1.53, box.width / 420));
-  const claspScale = Math.min(maxClaspScale,
-    Math.max(...linkWidths) * (3.3 + counterRoom * 4 + shortGlyphRoom * .8) / Math.max(1, glyphHeight));
-  const claspY = (ratio: number) => Math.max(.04, .4 + (ratio - .4) * claspScale);
+  const leftReturnPull = .1;
+  const rightShoulder = .195;
+  // The clasp reads as a tight overlap, not two strands surrounding an empty pocket.
+  const claspScale = Math.min(1, Math.max(...linkWidths) * 1.9 / Math.max(1, glyphHeight));
+  const claspY = (ratio: number) => Math.max(.04, .44 + (ratio - .44) * claspScale);
   const claspSlope = (ratio: number) => letterSlope(glyph, ratio * claspScale);
   const paths: ChainPath[] = titleChainDefinitions.map(definition => {
     // Each knot includes its own tangent: unequal sweeps, not a repeating wave.
@@ -103,9 +94,9 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
           [.4, .79, .045, .025], [letterX(sGlyph, .9), letterY(sGlyph, .57), .025, -letterSlope(sGlyph, .1)]]
         : [[letterX(lastGlyph, .42), letterY(lastGlyph, .33), -.08, letterSlope(lastGlyph, .12)],
           [letterX(rGlyph, .44), letterY(rGlyph, .5), -.07, -letterSlope(rGlyph, .15)],
-          [letterX(glyph, .34), letterY(glyph, claspY(.08)), -.035, -claspSlope(.018)],
-          [letterX(glyph, rightShoulder), letterY(glyph, claspY(.32)), 0, claspSlope(.12 + rightShoulderPull)],
-          [counterX, counterY, Math.max(.012, Math.min(.032, (counterX - letterX(glyph, rightShoulder)) * .55)), .04],
+          [letterX(glyph, .31), letterY(glyph, claspY(.08)), -glyphWidth / width * .1, -claspSlope(.018)],
+          [letterX(glyph, rightShoulder), letterY(glyph, claspY(.32)), 0, claspSlope(.11)],
+          [counterX, counterY, Math.max(.009, Math.min(.024, (counterX - letterX(glyph, rightShoulder)) * .45)), letterSlope(glyph, .015)],
           [1 + box.width * definition.xInset / width, .93, .13, .13]];
     const points = knots.map(([x, y]) => ({ x: textLeft + width * x, y: top + height * y }));
     const curves: Curve[] = knots.slice(0, -1).map((knot, index) => {
