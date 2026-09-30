@@ -112,10 +112,15 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
       ];
     });
     const glyphBackZones = definition.route === "left-upper"
-      ? [{ from: 0, to: .4, left: kGlyph.left, right: kGlyph.right }]
+      ? [{ from: 0, to: .4, left: kGlyph.left, right: kGlyph.right },
+        { from: .8, to: 1, left: sGlyph.left, right: sGlyph.right }]
       : definition.route === "left-lower"
         ? [{ from: 0, to: 1, left: iGlyph.left, right: sGlyph.right }]
-        : [{ from: 0, to: .4, left: glyph.right, right: Infinity }];
+        : [{ from: 0, to: .4, left: glyph.right, right: Infinity },
+          // Keep the aperture's complete ring in front; bury only the outgoing stem passage.
+          { from: .8, to: 1,
+            left: Math.max(counter.x + counter.radiusX, counter.x + linkWidths[2] * 1.16 * 1.4),
+            right: glyph.right }];
     return {
       type: "weave", curves, points, segmentCount: curves.length,
       route: definition.route, glyphBackZones, depthCuts: [],

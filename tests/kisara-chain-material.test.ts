@@ -377,6 +377,9 @@ test("asymmetric chains keep a sparse local clasp and the right chain returns to
             assert.ok(ingress[i].x > ingress[i - 1].x && ingress[i].y > ingress[i - 1].y,
               "The source approaches the counter directly, without an extra crest");
           }
+          assert.ok(ingress.some(point => point.plane === "back"),
+            "The outgoing first-a stem passage belongs behind the title");
+          assert.equal(points.at(-1).plane, "front", "The source emerges beyond the first a");
           assert.ok(path.points[2].x > path.points[3].x, "The central path turns back locally");
           assert.ok(path.points[2].x - path.points[3].x < box.width * 0.2, "The return cannot become the whole composition");
           const tail = points[0];
@@ -766,8 +769,24 @@ test("rendered links keep connected apertures and complementary depth fragments 
             if (position < fills.length) forwardCrossingFrames++;
             else reverseCrossingFrames++;
           }
-          assert.ok(crossingLinks.every(record => record.paintPlane === "front"),
-            `Lower clasp loses a linked fragment at width=${width}, fill=${fill}, intro=${intro}`);
+          for (const record of crossingLinks.filter(record => record.paintPlane === "back")) {
+            const paintedWidth = scope.getChainLinkDimensions(record.definition).width * 1.16;
+            const halfLength = paintedWidth * (record.linkIndex % 2 ? record.lengthScale : 1) * .7;
+            const halfHeight = paintedWidth * .5;
+            const polygon = record.clip ?? [
+              [-halfLength, -halfHeight], [halfLength, -halfHeight],
+              [halfLength, halfHeight], [-halfLength, halfHeight]
+            ].map(([x, y]) => ({
+              x: record.sample.x + x * Math.cos(record.sample.angle) - y * Math.sin(record.sample.angle),
+              y: record.sample.y + x * Math.sin(record.sample.angle) + y * Math.cos(record.sample.angle)
+            }));
+            const { x, y, radius } = lowerCrossing;
+            assert.ok(
+              polygon.every((p: any) => p.x <= x - radius) || polygon.every((p: any) => p.x >= x + radius)
+                || polygon.every((p: any) => p.y <= y - radius) || polygon.every((p: any) => p.y >= y + radius),
+              `A rear s-tail fragment cannot enter the front clasp rectangle at width=${width}, fill=${fill}, intro=${intro}`
+            );
+          }
         }
         const left = records.filter(record => record.definition.direction > 0);
         const right = records.filter(record => record.definition.direction < 0);

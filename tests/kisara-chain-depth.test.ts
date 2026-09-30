@@ -77,7 +77,7 @@ test("glyph depth changes at letter edges or after the counter aperture, never a
   }
 });
 
-test("the right clasp keeps its linked return in front through the a counter and lower crossing", () => {
+test("the right clasp keeps the counter ring in front and buries only its outgoing a stem passage", () => {
   for (const x of [.515, .54, .58, .6]) for (const y of [.7, .78, .82]) {
     const counter = { x: 1100 * x, y: 260 * y, radiusX: 20, radiusY: 25 };
     const rig = buildTitleChainRig(
@@ -86,11 +86,42 @@ test("the right clasp keeps its linked return in front through the a counter and
     );
     const clasp = rig.paths[2];
     assert.equal(sampleTitleChainCurve(clasp, clasp.counterUnit!).plane, "front");
+    let buried = 0;
     for (let unit = clasp.counterUnit!; unit <= 1; unit += .005) {
-      assert.equal(sampleTitleChainCurve(clasp, unit).plane, "front",
-        "The returning clasp cannot split its interlocked links across the glyph wall");
+      const point = sampleTitleChainCurve(clasp, unit);
+      const stem = clasp.glyphBackZones[1];
+      assert.equal(point.plane, point.x >= stem.left && point.x <= stem.right ? "back" : "front");
+      if (point.plane === "back") buried++;
     }
-    assert.ok(clasp.depthCuts.every(part => part.unit < clasp.counterUnit!));
+    const hasStemPassage = clasp.glyphBackZones[1].left < clasp.glyphBackZones[1].right;
+    assert.equal(buried > 0, hasStemPassage, "Bury the stem only when it lies beyond the complete counter ring");
+    const returnCuts = clasp.depthCuts.filter(part => part.unit > clasp.counterUnit!);
+    assert.equal(returnCuts.length, hasStemPassage ? 2 : 0);
+    if (hasStemPassage) {
+      assert.ok(returnCuts[0].x - counter.x >= 31 * 1.16 * 1.4 - .05,
+        "The complete aperture ring stays ahead of the new depth cut");
+    }
+  }
+});
+
+test("the s return tail goes behind the glyph without moving the accepted clasp curves", () => {
+  for (const width of [390, 720, 1100, 1200, 1920]) {
+    const rig = buildTitleChainRig(
+      { left: 0, top: 0, width, height: width * .236 },
+      { textLeft: 0, textRight: width, gaps: [], anchorBounds: [] }, [32, 31, 31]
+    );
+    const left = rig.paths[0];
+    const sReturn = left.glyphBackZones[1];
+    assert.equal(sampleTitleChainCurve(left, 1).plane, "back");
+    const cut = left.depthCuts.find(part => part.unit > .8);
+    assert.ok(cut);
+    assert.ok(Math.abs(cut.x - sReturn.right) < .05);
+    assert.equal(cut.ny, 0);
+    for (const crossing of rig.crossings.filter(point => point.ids.join(",") === "0,2")) {
+      for (const [arm, id] of crossing.ids.entries()) {
+        assert.equal(sampleTitleChainCurve(rig.paths[id], crossing.units[arm]).plane, "front");
+      }
+    }
   }
 });
 
@@ -109,8 +140,8 @@ test("the lower clasp has no depth seam inside an interlocked crossing across co
       assert.ok(lower, "The lower a crossing must exist");
       for (const id of lower.ids) {
         for (const seam of rig.paths[id].depthCuts) {
-          assert.ok(Math.hypot(seam.x - lower.x, seam.y - lower.y) > lower.radius + linkWidths[id],
-            `Chain ${id} changes depth inside the lower crossing's paint footprint at ${width}px, ${x},${y}`);
+          assert.ok(Math.max(Math.abs(seam.x - lower.x), Math.abs(seam.y - lower.y)) > lower.radius + 1,
+            `Chain ${id} changes depth inside the lower crossing's repaint rectangle at ${width}px, ${x},${y}`);
         }
       }
     }
