@@ -511,13 +511,15 @@ test("the cinched return keeps its two crossings and front-plane ownership", () 
   }
 });
 
-test("the right return has a compact upper shoulder and a flat counter exit", () => {
+test("the right return hooks inside the left return and keeps a flat counter exit", () => {
   for (const width of [1100, 1200, 1920]) {
-    const { scope, box } = geometryFixture(width);
+    const { scope } = geometryFixture(width);
+    const left = scope.resolveTitleChainPath(scope.chainDefinitions[0], 1, 0);
     const right = scope.resolveTitleChainPath(scope.chainDefinitions[2], 1, 0);
-    const glyphWidth = box.width * (.64 - .47);
-    assert.ok(right.points[2].x - right.points[3].x < glyphWidth * .12,
-      "The upper return cannot flare into a rectangular shoulder");
+    assert.ok(right.points[3].x < left.points[3].x,
+      "The inner bend must enter the left loop instead of touching its outer edge");
+    assert.ok(right.points[3].y > left.points[3].y && right.points[3].y < left.points[4].y,
+      "The right hook folds inside the left loop's vertical opening");
     const exit = sampleTitleChainCurve(right, right.counterUnit);
     assert.ok(Math.abs(exit.tangentY / exit.tangentX) < .2,
       "The counter return leaves nearly horizontally instead of dipping into another loose arc");
@@ -573,7 +575,7 @@ test("central shoulders and their control handles follow lowercase glyph bounds,
     assert.ok(right.points[2].y - glyph.top < (glyph.bottom - glyph.top) * .4,
       "The upper return stays above the local bite instead of being pinned to the loose glyph shoulder");
     assert.ok(right.points[2].x > glyph.left && right.points[2].x < glyph.right);
-    assert.ok(Math.abs(right.points[3].x - glyph.left - (glyph.right - glyph.left) * .195) < 1e-8);
+    assert.ok(right.points[3].x < left.points[3].x && right.points[3].x > glyph.left);
     const hole = sampleTitleChainCurve(right, right.counterUnit);
     assert.ok(Math.hypot(hole.x - counter.x, hole.y - counter.y) < 1e-8);
   }
