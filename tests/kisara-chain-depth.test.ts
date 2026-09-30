@@ -127,6 +127,20 @@ test("the s return tail goes behind the glyph without moving the accepted clasp 
   }
 });
 
+test("the lower left tail ends inside the middle s stroke rather than its lower notch", () => {
+  for (const width of [390, 720, 1100, 1200]) {
+    const rig = buildTitleChainRig(
+      { left: 0, top: 0, width, height: width * .236 },
+      { textLeft: 0, textRight: width, gaps: [], anchorBounds: [] }, [32, 31, 31]
+    );
+    const tail = rig.paths[1];
+    const point = tail.points.at(-1)!;
+    assert.ok(Math.abs(point.x - width * (.31 + .16 * .72)) < 1e-8);
+    assert.ok(Math.abs(point.y - width * .236 * (.28 + .72 * .48)) < 1e-8);
+    assert.equal(sampleTitleChainCurve(tail, 1).plane, "back");
+  }
+});
+
 test("the lower clasp has no depth seam inside an interlocked crossing across counter positions", () => {
   for (const width of [390, 720, 1100, 1200]) {
     const height = width * .236;

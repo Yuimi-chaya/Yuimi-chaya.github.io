@@ -706,6 +706,23 @@ test("rendered links keep connected apertures and complementary depth fragments 
           (state as any).chainFrontCanvas.style.opacity,
           "The rear wire must remain below the real title at the same visibility");
         const links = new Map(records.map(record => [`${record.definition.id}:${record.linkIndex}`, record]));
+        if (intro === 0 && fill === 1) {
+          for (const definition of scope.chainDefinitions.filter((definition: any) => definition.direction > 0)) {
+            const spacing = scope.buildTitleChainLinkUnits(definition, width < 420);
+            const path = scope.resolveTitleChainPath(definition, 1, 0);
+            const tail = records.filter(record => record.definition.id === definition.id
+              && Math.hypot(record.sample.x - path.points.at(-1).x, record.sample.y - path.points.at(-1).y)
+                < scope.getChainLinkDimensions(definition).width * 2);
+            assert.ok(tail.length >= 2, "Paint the complete s tail instead of fading it before the glyph");
+            assert.ok(tail.every(record => Math.abs(record.alpha - 1) < 1e-8),
+              "Both s tails retain solid metal opacity at full tension");
+            assert.ok(tail.some(record => record.paintPlane === "back"),
+              "The solid tail ends behind the s stroke");
+            const terminalIndex = spacing.records.findIndex((record: any) => record.distanceUnit === 1);
+            assert.ok(tail.some(record => record.linkIndex === terminalIndex),
+              "Do not erase the final ring at the exact endpoint");
+          }
+        }
         const fragments = new Map<string, any[]>();
         for (const record of records) {
           const key = `${record.definition.id}:${record.linkIndex}`;
