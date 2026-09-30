@@ -127,7 +127,7 @@ test("the s return tail goes behind the glyph without moving the accepted clasp 
   }
 });
 
-test("the lower left tail ends inside the middle s stroke rather than its lower notch", () => {
+test("the lower left tail bends downward into s without a separately upturned tip", () => {
   for (const width of [390, 720, 1100, 1200]) {
     const rig = buildTitleChainRig(
       { left: 0, top: 0, width, height: width * .236 },
@@ -136,8 +136,12 @@ test("the lower left tail ends inside the middle s stroke rather than its lower 
     const tail = rig.paths[1];
     const point = tail.points.at(-1)!;
     assert.ok(Math.abs(point.x - width * (.31 + .16 * .72)) < 1e-8);
-    assert.ok(Math.abs(point.y - width * .236 * (.28 + .72 * .48)) < 1e-8);
+    assert.ok(Math.abs(point.y - width * .236 * (.28 + .72 * .88)) < 1e-8);
     assert.equal(sampleTitleChainCurve(tail, 1).plane, "back");
+    for (let index = 0; index <= 40; index++) {
+      assert.ok(sampleTitleChainCurve(tail, 2 / 3 + index / 120).tangentY > 0,
+        "The final two links must follow a downward curve, not turn upward at the end");
+    }
   }
 });
 

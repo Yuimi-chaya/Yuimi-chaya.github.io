@@ -6571,9 +6571,10 @@ const gateStyle = [
               ? { ...jointSampleAt(linkIndex) }
               : sampleTitleChainTravel(definition, path, travelUnit, spacing, fill, intro, timestamp);
             const ingressFade = 1 - smootherstep(clamp((outside - 0.04) / 0.36, 0, 1));
+            const destinationEnd = definition.route === "left-upper" ? 1 - spacing.distanceStep * .5 : 1;
             // Left tails end under s: keep their metal solid and let the glyph hide it.
             const destinationFade = definition.direction > 0 && definition.type === "weave"
-              ? Number(travelUnit <= 1)
+              ? Number(travelUnit <= destinationEnd)
               : smootherstep(clamp(
                   (definition.direction > 0 ? 1 - travelUnit : travelUnit) / spacing.terminalFeather,
                   0,

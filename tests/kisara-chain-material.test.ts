@@ -719,8 +719,15 @@ test("rendered links keep connected apertures and complementary depth fragments 
             assert.ok(tail.some(record => record.paintPlane === "back"),
               "The solid tail ends behind the s stroke");
             const terminalIndex = spacing.records.findIndex((record: any) => record.distanceUnit === 1);
-            assert.ok(tail.some(record => record.linkIndex === terminalIndex),
-              "Do not erase the final ring at the exact endpoint");
+            if (definition.route === "left-upper") {
+              assert.ok(!records.some(record => record.definition.id === definition.id && record.linkIndex === terminalIndex),
+                "Hide only the exposed upper-return terminal ring");
+              assert.ok(tail.some(record => record.linkIndex === terminalIndex - 1),
+                "Keep the neighboring connector solid instead of fading the whole tail");
+            } else {
+              assert.ok(tail.some(record => record.linkIndex === terminalIndex),
+                "Keep the lower tail's downward terminal ring");
+            }
           }
         }
         const fragments = new Map<string, any[]>();

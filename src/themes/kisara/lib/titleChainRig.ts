@@ -94,7 +94,7 @@ export function buildTitleChainRig(box: Box, layout: Layout, linkWidths: number[
         [letterX(sGlyph, .7), letterY(sGlyph, .9), -.045, letterSlope(sGlyph, .025)]]
       : definition.route === "left-lower"
         ? [[-definition.xInset, .88, .13, -.1], [.265, .22, .078, .015],
-          [.4, .79, .045, .025], [letterX(sGlyph, .72), letterY(sGlyph, .48), .025, -letterSlope(sGlyph, .1)]]
+          [.4, .79, .045, .025], [letterX(sGlyph, .72), letterY(sGlyph, .88), .025, letterSlope(sGlyph, .065)]]
         : [[letterX(lastGlyph, .42), letterY(lastGlyph, .33), -.08, letterSlope(lastGlyph, .12)],
           [letterX(rGlyph, .44), letterY(rGlyph, .5), -.07, -letterSlope(rGlyph, .15)],
           [letterX(glyph, .31), letterY(glyph, claspY(.08)), -glyphWidth / width * .1, -claspSlope(.018)],
