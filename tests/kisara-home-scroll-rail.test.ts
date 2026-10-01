@@ -30,16 +30,19 @@ function mount({ home = true, y = 900 } = {}) {
   if (home) rail.classes.add("is-home-rail");
   const body = new Node();
   if (home) body.classes.add("kisara-home-page");
-  const root = { scrollHeight: 5500, dataset: { theme: "kisara" } };
+  const root = { scrollHeight: 4900, dataset: { theme: "kisara" } };
   const win = Object.assign(new EventTarget(), { scrollY: y, innerHeight: 900, innerWidth: 1440 });
   let measurements = 0;
-  const stops = [900, 1900, 3200, 4000, 4500].map(top => ({
+  const stops = [900, 1900, 3200, 4000].map(top => ({
     getBoundingClientRect() { measurements++; return { top: top - win.scrollY }; },
   }));
   const doc = Object.assign(new EventTarget(), {
     body, documentElement: root, scrollingElement: root,
     querySelector: (selector: string) => selector === "[data-kisara-scrollbar]" ? rail : null,
-    querySelectorAll: () => stops,
+    querySelectorAll: (selector: string) => {
+      assert.equal(selector, "[data-kisara-home-stop]");
+      return stops;
+    },
   });
   const frames = new Map<number, () => void>();
   let serial = 0;
@@ -66,11 +69,11 @@ function mount({ home = true, y = 900 } = {}) {
 }
 
 test("Unequal chapters occupy equal rail intervals with continuous touch progress", () => {
-  const tops = [900, 1900, 3200, 4000, 4500];
+  const tops = [900, 1900, 3200, 4000];
   assert.equal(getHomeChapterProgress(tops, 0), null);
   assert.equal(getHomeChapterProgress([], 900), null);
-  tops.forEach((y, index) => assert.deepEqual(getHomeChapterProgress(tops, y), { index, progress: index / 4 }));
-  assert.equal(getHomeChapterProgress(tops, 2550)?.progress, .375);
+  tops.forEach((y, index) => assert.deepEqual(getHomeChapterProgress(tops, y), { index, progress: index / 3 }));
+  assert.equal(getHomeChapterProgress(tops, 2550)?.progress, .5);
   assert.equal(getHomeChapterProgress(tops, 9999)?.progress, 1);
   assert.equal(getHomeChapterProgress([900, 1900, 1900], 1900)?.progress, 1);
 });
@@ -87,12 +90,12 @@ test("Covered forward and reverse jumps keep the visible chapter unchanged until
   assert.deepEqual([app.fill.style.transform, app.thumb.style.transform], before);
   assert.equal(app.measured(), reads, "covered frames must not read transient geometry");
   assert.equal(app.rail.classes.has("is-idle"), false);
-  app.root.scrollHeight = 5500;
+  app.root.scrollHeight = 4900;
   app.scroll(3200);
   app.transition(false);
   app.flush();
   assert.equal(app.rail.dataset.chapter, "3");
-  assert.equal(app.fill.style.transform, "scaleY(0.5)");
+  assert.equal(app.fill.style.transform, `scaleY(${2 / 3})`);
   app.transition(true);
   app.scroll(900);
   assert.equal(app.rail.dataset.chapter, "3");
@@ -101,14 +104,23 @@ test("Covered forward and reverse jumps keep the visible chapter unchanged until
   assert.equal(app.rail.dataset.chapter, "1");
 });
 
-test("Reload in a chapter and footer uses local track pixels at ninety percent zoom", () => {
+test("All four chapter stops align the indicator with their label centers at ninety percent zoom", () => {
   const app = mount({ y: 3200 });
   assert.equal(app.rail.attributes.get("aria-valuetext"), "Home 第 3 章，共 4 章");
   assert.equal(app.rail.dataset.chapter, "3");
   assert.equal(app.rail.dataset.railMotion, "false");
-  app.scroll(4500);
+  [900, 1900, 3200, 4000].forEach((y, index) => {
+    app.scroll(y);
+    assert.equal(app.rail.dataset.chapter, String(index + 1));
+    assert.equal(app.rail.attributes.get("aria-valuetext"), `Home 第 ${index + 1} 章，共 4 章`);
+    const thumbTop = Number(app.thumb.style.transform.match(/,([\d.]+)px,/)![1]);
+    // Ten-pixel labels span -1..261; track and thumb centers span 4..256.
+    const labelCenter = -1 + 5 + (260 + 2 - 10) * index / 3;
+    assert.ok(Math.abs((thumbTop + 4 - labelCenter) * .9) < .001);
+    assert.equal(app.fill.style.transform, `scaleY(${index / 3})`);
+  });
   assert.equal(app.rail.dataset.railMotion, "true");
-  assert.equal(app.rail.attributes.get("aria-valuetext"), "Home 页尾");
+  assert.equal(app.rail.attributes.get("aria-valuetext"), "Home 第 4 章，共 4 章");
   assert.equal(app.thumb.style.transform, "translate3d(0,252px,0)");
   assert.equal((252 + 8) * .9, 260 * .9);
 });
@@ -126,7 +138,7 @@ test("Gate hides the chapter rail and other pages keep document scrolling", () =
   app.advanceGate(.45);
   assert.equal(app.rail.attributes.get("aria-hidden"), "true");
   assert.equal(app.fill.style.transform, "scaleY(0)");
-  const other = mount({ home: false, y: 2300 });
+  const other = mount({ home: false, y: 2000 });
   assert.ok(!other.rail.classes.has("is-home-rail"));
   assert.equal(other.rail.attributes.get("aria-label"), "页面滚动进度");
   assert.equal(other.fill.style.transform, "scaleY(0.5)");
@@ -149,10 +161,10 @@ test("Chapter rail begins at 01 and remains absent throughout the opening", () =
   assert.equal(app.fill.style.transform, "scaleY(0)");
   assert.equal(app.rail.dataset.chapter, "1");
   app.scroll(1900);
-  assert.equal(app.fill.style.transform, "scaleY(0.25)");
+  assert.equal(app.fill.style.transform, `scaleY(${1 / 3})`);
   app.transition(true);
   app.scroll(0);
-  assert.equal(app.fill.style.transform, "scaleY(0.25)");
+  assert.equal(app.fill.style.transform, `scaleY(${1 / 3})`);
   app.transition(false);
   app.flush();
   assert.equal(app.thumb.style.transform, "translate3d(0,0px,0)");
@@ -175,8 +187,15 @@ test("Home track geometry and layer ordering are independent of transition and p
   assert.ok(opening);
   assert.equal(opening.nodes.find(node => node.type === "decl" && node.prop === "opacity")?.value, "0");
   const layout = read("src/themes/kisara/layouts/KisaraLayout.astro");
-  assert.match(layout, /\["01", "02", "03", "04", "◇"\]/);
-  assert.doesNotMatch(layout, /\["00", "01", "02", "03", "04", "◇"\]/);
+  assert.match(layout, /\["01", "02", "03", "04"\]/);
+  assert.doesNotMatch(layout, /"◇"|data-chapter="5"/);
+  const markers = sheet.nodes.find(node => node.type === "rule" && node.selector === ".is-home-rail .kisara-scrollbar-chapters") as postcss.Rule;
+  assert.equal(markers.nodes.find(node => node.type === "decl" && node.prop === "inset")?.value, "-1px 0");
+  const label = sheet.nodes.find(node => node.type === "rule" && node.selector === ".kisara-scrollbar-chapters > span") as postcss.Rule;
+  assert.equal(label.nodes.find(node => node.type === "decl" && node.prop === "height")?.value, "10px");
+  const tick = sheet.nodes.find(node => node.type === "rule" && node.selector === ".kisara-scrollbar-chapters > span::after") as postcss.Rule;
+  assert.equal(tick.nodes.find(node => node.type === "decl" && node.prop === "top")?.value, "50%");
+  assert.equal(tick.nodes.find(node => node.type === "decl" && node.prop === "transform")?.value, "translateY(-50%)");
   sheet.walkRules(rule => {
     assert.ok(!rule.selector.includes("data-kisara-home-transition"));
     assert.ok(!rule.selector.includes("is-home-chapters"));

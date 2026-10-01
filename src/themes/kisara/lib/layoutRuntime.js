@@ -27,7 +27,7 @@ export const initKisaraLayoutRuntime = () => {
   let scrollbarFrame = 0;
   let scrollbarResizeObserver = null;
   const homeStops = body.classList.contains("kisara-home-page")
-    ? [...document.querySelectorAll("[data-kisara-home-stop], .kisara-footer")] : [];
+    ? [...document.querySelectorAll("[data-kisara-home-stop]")] : [];
   let homeRailTransitioning = body.dataset.kisaraHomeTransition === "true";
   let scrollbarReady = false;
 
@@ -73,7 +73,7 @@ export const initKisaraLayoutRuntime = () => {
     scrollbar.setAttribute("aria-valuenow", String(Math.round(progress * 100)));
     scrollbar.setAttribute(
       "aria-valuetext",
-      chapter ? (chapter.index === homeStops.length - 1 ? "Home 页尾" : "Home 第 " + (chapter.index + 1) + " 章，共 " + (homeStops.length - 1) + " 章") : `页面 ${Math.round(progress * 100)}%`
+      chapter ? "Home 第 " + (chapter.index + 1) + " 章，共 " + homeStops.length + " 章" : `页面 ${Math.round(progress * 100)}%`
     );
     scrollbarReady = true;
   };
