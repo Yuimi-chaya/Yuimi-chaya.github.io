@@ -1,13 +1,13 @@
 // Coordinates are measured on the 1920 x 1080 final frame, not the viewport.
 export function homePortraitLayout(width: number, height: number) {
-  const scale = Math.max(width / 1920, height / 1080) * (width > 980 ? 1.24 : 1.12);
+  const scale = Math.max(width / 1920, height / 1080) * (width > 980 ? 1.36 : 1.12);
   const mediaWidth = 1920 * scale, mediaHeight = 1080 * scale;
   const desktop = width > 980;
   const size = Math.min(180, Math.max(112, width * .105), desktop ? height * .2 : Infinity);
   const knifeHeight = Math.min(154, Math.max(88, height * .16));
   const tipX = 750 * scale, tipY = 373 * scale;
-  const bubbleWidth = Math.min(width <= 760 ? 316 : desktop ? 430 : 380, width - 40,
-    desktop ? Math.max(240, height * .48) : Infinity);
+  const bubbleWidth = Math.min(width <= 760 ? 316 : desktop ? 480 : 380, width - 40,
+    desktop ? Math.max(240, height * .54) : Infinity);
   const bubbleHalf = bubbleWidth / 2;
   // Reframe the whole shot together so the portrait stays pinned to the knife.
   const desiredTip = width <= 760 ? width * .7 : tipX + (width - mediaWidth) / 2 - (desktop ? Math.min(48, width * .03) : 0);
