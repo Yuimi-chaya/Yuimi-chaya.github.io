@@ -20,6 +20,7 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
   const appleFallback = root.querySelector("[data-chibi-apple-fallback]");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const embedded = root.classList.contains("is-embedded");
+  const homeChapter = embedded ? root.closest('[data-kisara-home-stop="003"]') : null;
   const jealousyBubbleSource = "/themes/kisara/assets/chibi/jealousy-emoji.png";
   const characterOrder = ["kisara", "ayano", "shu", "sharon"];
   const nameMap = { kisara: "木更", ayano: "绫乃", shu: "修", sharon: "莎朗" };
@@ -831,6 +832,11 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
     if (!visibilityObserver) refreshVisibility();
   }, { passive: true, signal: lifecycle.signal });
 
+  const resetArrival = () => {
+    if (!embedded) return;
+    root.removeAttribute("data-entered");
+    nodes.forEach(node => node.removeAttribute("data-arrival-settled"));
+  };
   const suspendStage = () => {
     stageVisible = false;
     root.removeAttribute("data-stage-visible");
@@ -848,6 +854,11 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
   };
   const refreshVisibility = () => {
     const rect = root.getBoundingClientRect();
+    const chapterRect = homeChapter?.getBoundingClientRect() ?? rect;
+    // Rearm only after leaving the chapter, not after scrolling within it or hiding the tab.
+    if (!document.hidden && (chapterRect.bottom <= 0 || chapterRect.top >= window.innerHeight)) {
+      resetArrival();
+    }
     stageVisible = !document.hidden && rect.bottom > 0 && rect.top < window.innerHeight;
     root.toggleAttribute("data-stage-visible", stageVisible);
     revealArrival();
@@ -856,6 +867,7 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
   const visibilityObserver = typeof IntersectionObserver === "function"
     ? new IntersectionObserver(refreshVisibility, { threshold: embedded ? [0, .35, .6, 1] : 0 }) : null;
   visibilityObserver?.observe(root);
+  if (homeChapter) visibilityObserver?.observe(homeChapter);
   document.addEventListener("visibilitychange", refreshVisibility, { signal: lifecycle.signal });
   window.addEventListener("pagehide", suspendStage, { signal: lifecycle.signal });
   window.addEventListener("pageshow", refreshVisibility, { signal: lifecycle.signal });
