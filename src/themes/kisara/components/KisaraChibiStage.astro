@@ -1,6 +1,12 @@
 ---
 import { Icon } from "astro-icon/components";
 
+interface Props {
+  embedded?: boolean;
+}
+
+const { embedded = false } = Astro.props;
+
 const characters = [
   { id: "kisara", src: "/themes/kisara/assets/chibi/kisara.webp", label: "木更", width: 360, height: 458 },
   { id: "ayano", src: "/themes/kisara/assets/chibi/ayano.webp", label: "绫乃", width: 298, height: 472 },
@@ -9,7 +15,7 @@ const characters = [
 ];
 ---
 
-<section class="kisara-chibi-stage" data-kisara-chibi-stage aria-label="Q 版角色互动舞台">
+<section class:list={["kisara-chibi-stage", { "is-embedded": embedded }]} data-kisara-chibi-stage aria-label="Q 版角色互动舞台">
   <header class="kisara-chibi-heading">
     <span>AFTER HOURS / BAYRON CITY</span>
     <h2>散场之后<span>.</span></h2>
@@ -59,10 +65,13 @@ const characters = [
       data-chibi={character.id}
       aria-label={`拖动${character.label}`}
       title={`拖动${character.label}靠近其他角色`}
+      style={`--chibi-order: ${characters.indexOf(character)}`}
     >
       <span class="kisara-chibi-bubble" data-chibi-bubble aria-hidden="true"></span>
-      <span class="kisara-chibi-figure">
-        <img src={character.src} width={character.width} height={character.height} alt="" draggable="false" loading="lazy" decoding="async" />
+      <span class="kisara-chibi-arrival">
+        <span class="kisara-chibi-figure">
+          <img src={character.src} width={character.width} height={character.height} alt="" draggable="false" loading="lazy" decoding="async" />
+        </span>
       </span>
       <span class="kisara-chibi-shadow" aria-hidden="true"></span>
       <span class="kisara-chibi-name" aria-hidden="true">{character.label}</span>
@@ -580,6 +589,8 @@ const characters = [
       transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
       opacity 220ms ease;
   }
+
+  .kisara-chibi-arrival { display: block; width: 100%; height: 100%; }
 
   .kisara-chibi-figure img {
     position: relative;

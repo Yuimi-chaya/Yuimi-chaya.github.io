@@ -383,3 +383,20 @@ test("Cleanup preserves article rules, frame boundaries, current fridge headings
   assert.match(board, /kisara-home-board-first" src="[^"]*home-event-003-new-first\.webp"/);
   assert.doesNotMatch(board, /\sposter=/);
 });
+
+test("Home ends at 004 and embeds one interactive cast in 003; Blog uses its own compact ending", () => {
+  const home = read("pages/HomePage.astro");
+  const stops = home.slice(home.indexOf("const homeSectionStops ="), home.indexOf("let scrollFrame =", home.indexOf("const homeSectionStops =")));
+  assert.match(home, /showFooter=\{false\}/);
+  assert.doesNotMatch(stops, /kisara-footer/);
+  assert.doesNotMatch(home, /is-latest-to-footer/);
+  assert.match(read("components/KisaraLatestNotes.astro"), /<footer class="kisara-latest-footer"><KisaraFooterMeta \/><\/footer>/);
+  assert.match(read("components/KisaraHomeEventVideo.astro"), /<KisaraChibiStage embedded \/>/);
+  const layout = read("layouts/KisaraLayout.astro");
+  assert.match(layout, /pageKey !== "blog" \|\| isArticlePage/);
+  assert.match(read("pages/BlogIndexPage.astro"), /kisara-blog-archive-tail/);
+  const css = read("styles/home-event-video.css");
+  assert.match(css, /\[data-entered\] \.kisara-chibi:not\(\[data-arrival-settled\]\) \.kisara-chibi-arrival/);
+  assert.doesNotMatch(css.slice(css.indexOf("@keyframes kisara-embedded-chibi-pop"), css.indexOf(".kisara-home-video-media {")), /var\(--chibi-[xy]\)/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+});

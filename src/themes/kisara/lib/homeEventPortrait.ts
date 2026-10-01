@@ -6,11 +6,12 @@ export function homePortraitLayout(width: number, height: number) {
   const tipX = 750 * scale, tipY = 373 * scale;
   const bubbleWidth = Math.min(width <= 760 ? 316 : 380, width - 40);
   const bubbleHalf = bubbleWidth / 2;
-  const desiredTip = width <= 760 ? width * .7 : tipX + (width - mediaWidth) / 2;
+  // Reframe the whole shot together so the portrait stays pinned to the knife.
+  const desiredTip = width <= 760 ? width * .7 : tipX + (width - mediaWidth) / 2 + Math.min(72, width * .045);
   const safeTip = Math.max(bubbleHalf + 20 + size * .46,
     Math.min(width - bubbleHalf - 20 + size * .46, desiredTip));
   const x = Math.max(width - mediaWidth, Math.min(0, safeTip - tipX));
-  const y = (height - mediaHeight) / 2;
+  const y = Math.max(height - mediaHeight, (height - mediaHeight) / 2 - (width > 980 ? Math.min(48, height * .05) : 0));
   return {
     mediaWidth, mediaHeight, x, y, size, bubbleWidth,
     portraitX: tipX + x - size * .46,

@@ -241,5 +241,5 @@ test("Playback controls and the scroll rail avoid idle animation; the Blog join 
     assert.ok(rule.selector.startsWith('body[data-kisara-page="blog"]:not([data-yuimi-article-page])'));
     joins++;
   });
-  assert.equal(joins, 2);
+  assert.equal(joins, 3);
 });

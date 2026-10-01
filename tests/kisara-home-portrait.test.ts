@@ -95,6 +95,25 @@ test("003 uses unzoomed local geometry so media still covers the full 90 percent
   } finally { f.destroy(); }
 });
 
+test("003 shifts the desktop shot right and up while mobile leaves room below its caption for the cast", () => {
+  for (const [width, height] of [[1100, 820], [1440, 900], [1920, 1080]]) {
+    const box = homePortraitLayout(width, height);
+    const centeredX = (width - box.mediaWidth) / 2;
+    const centeredY = (height - box.mediaHeight) / 2;
+    assert.ok(box.x > centeredX, `${width}: shot shifts right`);
+    assert.ok(box.y < centeredY, `${width}: shot shifts up`);
+    assert.ok(box.x <= 0 && box.x + box.mediaWidth >= width);
+    assert.ok(box.y <= 0 && box.y + box.mediaHeight >= height);
+  }
+  for (const width of [320, 390, 600, 760]) {
+    const height = 1100;
+    const box = homePortraitLayout(width, height);
+    const captionBottom = box.portraitY + box.size / 2 + 284 + 145;
+    const castTop = height - 8 - 220;
+    assert.ok(castTop - captionBottom >= 32, `${width}: clear space above cast`);
+  }
+});
+
 test("003 expanded reaction and mobile caption have separate space inside the scene", () => {
   for (const [width, height] of [[320, 820], [390, 844], [760, 820], [768, 1200], [1280, 820], [1920, 1080]]) {
     const box = homePortraitLayout(width, height);

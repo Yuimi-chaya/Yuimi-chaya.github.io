@@ -19,6 +19,91 @@
   --portrait-y: 32%;
 }
 
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded {
+  position: absolute;
+  z-index: 6;
+  right: clamp(18px, 3.2%, 54px);
+  bottom: clamp(14px, 3.5%, 38px);
+  width: min(44%, 760px);
+  height: clamp(238px, 38%, 342px);
+  min-height: 238px;
+  margin: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi-heading {
+  display: none;
+}
+
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi-baseline {
+  right: 0;
+  bottom: 8px;
+  left: 0;
+  opacity: .65;
+}
+
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi-reset {
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  pointer-events: auto;
+  opacity: .72;
+}
+
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi {
+  width: clamp(76px, calc(8vw / var(--kisara-scale, 1)), 152px);
+  pointer-events: auto;
+}
+
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi[data-chibi="ayano"],
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi[data-chibi="shu"] {
+  width: clamp(70px, calc(7.2vw / var(--kisara-scale, 1)), 138px);
+}
+
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi[data-chibi="sharon"] {
+  width: clamp(82px, calc(8.6vw / var(--kisara-scale, 1)), 164px);
+}
+
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi-arrival {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+}
+
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded[data-ready]:not([data-entered]) .kisara-chibi-arrival {
+  opacity: 0;
+}
+
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded[data-entered] .kisara-chibi:not([data-arrival-settled]) .kisara-chibi-arrival {
+  animation: kisara-embedded-chibi-pop 500ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation-delay: calc(var(--chibi-order) * 70ms);
+}
+
+body.kisara-home-page:has(> .kisara-chapter-flight) .kisara-chibi-arrival {
+  animation-play-state: paused !important;
+}
+
+@keyframes kisara-embedded-chibi-pop {
+  0% { opacity: 0; transform: translateY(24%) scale(.92, .9); }
+  46% { opacity: 1; transform: translateY(-8%) scale(.97, 1.04); }
+  68% { transform: translateY(2%) scale(1.04, .96); }
+  84% { transform: translateY(-2%) scale(.99, 1.01); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* Before the lazy controller binds, the static cast uses the same one-row layout. */
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded:not([data-ready]) .kisara-chibi {
+  top: auto;
+  bottom: 34px;
+}
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded:not([data-ready]) [data-chibi="kisara"] { left: 1.5%; }
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded:not([data-ready]) [data-chibi="ayano"] { left: 26.5%; }
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded:not([data-ready]) [data-chibi="shu"] { left: 50.5%; }
+.kisara-home-video-stage > .kisara-chibi-stage.is-embedded:not([data-ready]) [data-chibi="sharon"] { left: 74.5%; }
+
 .kisara-home-video-media {
   position: absolute;
   inset: 0;
@@ -72,6 +157,10 @@
   visibility: hidden;
   transition: opacity 200ms ease;
   letter-spacing: 0;
+}
+
+@media (min-width: 981px) {
+  .kisara-home-board-caption { left: 54%; right: 5%; }
 }
 
 .kisara-home-board-folio {
@@ -379,8 +468,12 @@
   .kisara-home-board-caption::after { display: none; }
 }
 
+@media (min-width: 761px) and (max-width: 980px) {
+  .kisara-home-video-stage > .kisara-chibi-stage.is-embedded { width: 48%; }
+}
+
 @media (max-width: 760px) {
-  .kisara-home-video-stage { height: max(820px, calc(100svh / var(--kisara-scale, 1))); }
+  .kisara-home-video-stage { height: max(1100px, calc(100svh / var(--kisara-scale, 1))); }
   .kisara-home-board-caption {
     top: calc(var(--portrait-y) + var(--portrait-size) / 2 + 284px);
     left: 20px;
@@ -392,6 +485,23 @@
   .kisara-home-board-aside { font-size: 18px; }
   .kisara-home-board-caption p { margin: 12px auto 0; padding-top: 8px; font-size: 14px; }
   .kisara-home-board-caption::after { display: none; }
+  .kisara-home-video-stage > .kisara-chibi-stage.is-embedded {
+    right: 14px;
+    bottom: 8px;
+    width: calc(100% - 28px);
+    height: 220px;
+    min-height: 220px;
+  }
+  .kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi {
+    width: clamp(66px, calc(19vw / var(--kisara-scale, 1)), 92px);
+  }
+  .kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi[data-chibi="ayano"],
+  .kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi[data-chibi="shu"] {
+    width: clamp(60px, calc(17vw / var(--kisara-scale, 1)), 82px);
+  }
+  .kisara-home-video-stage > .kisara-chibi-stage.is-embedded .kisara-chibi[data-chibi="sharon"] {
+    width: clamp(70px, calc(20vw / var(--kisara-scale, 1)), 98px);
+  }
   .kisara-home-knife { width: 40px; height: 140px; }
   .kisara-home-knife-label { font-size: 10px; }
   .kisara-home-portrait-photo { padding: 4px; }
@@ -401,4 +511,7 @@
   .kisara-home-portrait, .kisara-home-reaction, .kisara-home-board-caption { transition: none; }
   .kisara-home-portrait-rig[data-impact], .kisara-home-reaction-frame { animation: none; }
   [data-landed] .kisara-home-knife-flight { animation: none; opacity: 1; transform: none; }
+  .kisara-home-video-stage > .kisara-chibi-stage.is-embedded[data-entered] .kisara-chibi:not([data-arrival-settled]) .kisara-chibi-arrival {
+    animation: none;
+  }
 }

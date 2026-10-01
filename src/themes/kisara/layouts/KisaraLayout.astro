@@ -10,11 +10,11 @@ import ThemeLongPressMenu from "@/core/themes/ThemeLongPressMenu.astro";
 import ConsoleEasterEgg from "@/core/ConsoleEasterEgg.astro";
 import PerformanceProfile from "@/core/PerformanceProfile.astro";
 import SeoMeta from "@/core/SeoMeta.astro";
-import { profileIdentity } from "@/core/data/profile";
 import { getCanonicalPath, getThemePath, themes } from "@/core/themes/registry";
 import { site } from "@/lib/site";
 import KisaraAudioControl from "../components/KisaraAudioControl.astro";
 import KisaraChibiStage from "../components/KisaraChibiStage.astro";
+import KisaraFooterMeta from "../components/KisaraFooterMeta.astro";
 import {
   KISARA_AUDIO_LEGACY_STORAGE_KEY,
   KISARA_AUDIO_STORAGE_KEY,
@@ -557,15 +557,8 @@ const themedNotFoundRedirectScript = `(() => {
     </main>
 
     {showFooter && <footer class="kisara-footer">
-      <KisaraChibiStage />
-      <div class="kisara-footer-meta">
-        <span class="kisara-footer-signal">YUIMI LAB / KISARA</span>
-        <div>
-          <a href={profileIdentity.github} target="_blank" rel="noreferrer"><Icon name="tabler:brand-github" aria-hidden="true" />GITHUB</a>
-          <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer"><Icon name="tabler:brand-bilibili" aria-hidden="true" />BILIBILI</a>
-        </div>
-        <span>© 2026 喝益胃 / YUIMI LAB</span>
-      </div>
+      {(pageKey !== "blog" || isArticlePage) && <KisaraChibiStage />}
+      <KisaraFooterMeta />
     </footer>}
 
     <div

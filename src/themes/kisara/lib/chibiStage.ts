@@ -19,6 +19,7 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
   const appleVideo = root.querySelector("[data-chibi-apple-video]");
   const appleFallback = root.querySelector("[data-chibi-apple-fallback]");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const embedded = root.classList.contains("is-embedded");
   const jealousyBubbleSource = "/themes/kisara/assets/chibi/jealousy-emoji.png";
   const characterOrder = ["kisara", "ayano", "shu", "sharon"];
   const nameMap = { kisara: "木更", ayano: "绫乃", shu: "修", sharon: "莎朗" };
@@ -538,7 +539,7 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
     const height = root.clientHeight;
     lastStageSize = { width, height };
     measureCharacters();
-    const compact = width < 620;
+    const compact = !embedded && width < 620;
     lastCompactLayout = compact;
 
     if (compact) {
@@ -554,7 +555,9 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
         setPosition(id, Math.min(width - itemWidth - 10, width * ratioX), height * ratioY, animate);
       });
     } else {
-      const ratios = { kisara: 0.06, ayano: 0.31, shu: 0.58, sharon: 0.79 };
+      const ratios = embedded
+        ? { kisara: 0.015, ayano: 0.265, shu: 0.505, sharon: 0.745 }
+        : { kisara: 0.06, ayano: 0.31, shu: 0.58, sharon: 0.79 };
       characterOrder.forEach((id, index) => {
         const { height: itemHeight } = dimensions(id);
         const y = height - itemHeight - (index % 2 ? 42 : 34);
@@ -564,6 +567,7 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
 
     root.style.setProperty("--scene-accent", "255, 91, 126");
     root.dataset.ready = "true";
+    revealArrival();
     lastStageSize = { width, height };
   };
 
@@ -575,12 +579,13 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
     const maxWidth = Math.max(...items.map((item) => item.width));
     const maxHeight = Math.max(...items.map((item) => item.height));
     const anchor = placement.anchor;
-    const useGrid =
+    const useGrid = !embedded && (
       (stageWidth < 660 && items.length >= 3) ||
-      (stageWidth < 760 && items.length >= 4);
+      (stageWidth < 760 && items.length >= 4));
 
     if (!useGrid) {
-      const gap = 14;
+      const gap = embedded ? Math.max(2, Math.min(14,
+        (stageWidth - 24 - items.reduce((sum, item) => sum + item.width, 0)) / Math.max(1, items.length - 1))) : 14;
       const totalWidth = items.reduce((sum, item) => sum + item.width, 0) + gap * (items.length - 1);
       const preferredStartX = Number.isFinite(placement.startX)
         ? placement.startX
@@ -746,6 +751,17 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
   };
 
   nodes.forEach((node, id) => {
+    const settleArrival = () => {
+      root.setAttribute("data-entered", "");
+      node.setAttribute("data-arrival-settled", "");
+    };
+    if (embedded) {
+      node.addEventListener("focusin", settleArrival, { signal: lifecycle.signal });
+      node.addEventListener("pointerdown", settleArrival, { signal: lifecycle.signal });
+      node.addEventListener("animationend", event => {
+        if (event.animationName === "kisara-embedded-chibi-pop") settleArrival();
+      }, { signal: lifecycle.signal });
+    }
     node.addEventListener("pointerdown", (event) => beginDrag(event, id), { signal: lifecycle.signal });
     node.addEventListener("pointermove", moveDrag, { signal: lifecycle.signal });
     node.addEventListener("pointerup", (event) => endDrag(event), { signal: lifecycle.signal });
@@ -786,7 +802,7 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
     if (!width || !height) return;
     if (drag) endDrag({ pointerId: drag.pointerId }, true);
     measureCharacters();
-    const compact = width < 620;
+    const compact = !embedded && width < 620;
     if (!lastStageSize.width || !lastStageSize.height) {
       initialLayout(false);
       return;
@@ -822,13 +838,23 @@ export const initKisaraChibiStage = (root: HTMLElement) => {
     dragFrame.cancel();
     cancelScene();
   };
+  const revealArrival = () => {
+    if (!embedded || !stageVisible || !root.dataset.ready || root.hasAttribute("data-entered")) return;
+    const rect = root.getBoundingClientRect();
+    const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+    if (visibleHeight >= Math.min(rect.height * .6, window.innerHeight * .35)) {
+      root.setAttribute("data-entered", "");
+    }
+  };
   const refreshVisibility = () => {
     const rect = root.getBoundingClientRect();
     stageVisible = !document.hidden && rect.bottom > 0 && rect.top < window.innerHeight;
     root.toggleAttribute("data-stage-visible", stageVisible);
+    revealArrival();
     if (!stageVisible) suspendStage();
   };
-  const visibilityObserver = typeof IntersectionObserver === "function" ? new IntersectionObserver(refreshVisibility) : null;
+  const visibilityObserver = typeof IntersectionObserver === "function"
+    ? new IntersectionObserver(refreshVisibility, { threshold: embedded ? [0, .35, .6, 1] : 0 }) : null;
   visibilityObserver?.observe(root);
   document.addEventListener("visibilitychange", refreshVisibility, { signal: lifecycle.signal });
   window.addEventListener("pagehide", suspendStage, { signal: lifecycle.signal });
