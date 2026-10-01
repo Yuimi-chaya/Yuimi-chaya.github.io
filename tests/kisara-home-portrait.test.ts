@@ -95,15 +95,18 @@ test("003 uses unzoomed local geometry so media still covers the full 90 percent
   } finally { f.destroy(); }
 });
 
-test("003 shifts the desktop shot right and up while mobile leaves room below its caption for the cast", () => {
-  for (const [width, height] of [[1100, 820], [1440, 900], [1920, 1080]]) {
+test("003 crops left foreground and floor while retaining header clearance and the complete reaction on short desktops", () => {
+  for (const [width, height] of [[1100, 640], [1280, 600], [1440, 720], [1100, 820], [1440, 900], [1920, 1080]]) {
     const box = homePortraitLayout(width, height);
     const centeredX = (width - box.mediaWidth) / 2;
     const centeredY = (height - box.mediaHeight) / 2;
-    assert.ok(box.x > centeredX, `${width}: shot shifts right`);
-    assert.ok(box.y < centeredY, `${width}: shot shifts up`);
+    assert.ok(box.x < centeredX, `${width}: trim left foreground`);
+    assert.ok(box.y > centeredY, `${width}: trim floor`);
     assert.ok(box.x <= 0 && box.x + box.mediaWidth >= width);
     assert.ok(box.y <= 0 && box.y + box.mediaHeight >= height);
+    assert.ok(box.portraitY - box.size * .38 - box.knifeHeight >= 71.99, `${width}: knife clears header`);
+    const bubbleBottom = box.portraitY + box.size / 2 + 24 + 32 + (box.bubbleWidth - 96) * .75 + 12 + 31;
+    assert.ok(bubbleBottom <= height - 8, `${width} × ${height}: reaction stays in view (${bubbleBottom})`);
   }
   for (const width of [320, 390, 600, 760]) {
     const height = 1100;

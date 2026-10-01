@@ -2,18 +2,24 @@
 export function homePortraitLayout(width: number, height: number) {
   const scale = Math.max(width / 1920, height / 1080) * 1.12;
   const mediaWidth = 1920 * scale, mediaHeight = 1080 * scale;
-  const size = Math.min(180, Math.max(112, width * .105));
+  const desktop = width > 980;
+  const size = Math.min(180, Math.max(112, width * .105), desktop ? height * .2 : Infinity);
+  const knifeHeight = Math.min(154, Math.max(88, height * .16));
   const tipX = 750 * scale, tipY = 373 * scale;
-  const bubbleWidth = Math.min(width <= 760 ? 316 : 380, width - 40);
+  const bubbleWidth = Math.min(width <= 760 ? 316 : 380, width - 40,
+    desktop ? Math.max(240, height * .42) : Infinity);
   const bubbleHalf = bubbleWidth / 2;
   // Reframe the whole shot together so the portrait stays pinned to the knife.
-  const desiredTip = width <= 760 ? width * .7 : tipX + (width - mediaWidth) / 2 + Math.min(72, width * .045);
+  const desiredTip = width <= 760 ? width * .7 : tipX + (width - mediaWidth) / 2 - (desktop ? Math.min(48, width * .03) : 0);
   const safeTip = Math.max(bubbleHalf + 20 + size * .46,
     Math.min(width - bubbleHalf - 20 + size * .46, desiredTip));
   const x = Math.max(width - mediaWidth, Math.min(0, safeTip - tipX));
-  const y = Math.max(height - mediaHeight, (height - mediaHeight) / 2 - (width > 980 ? Math.min(48, height * .05) : 0));
+  // Crop more of the left foreground and floor, without putting the knives behind the header.
+  const centeredY = (height - mediaHeight) / 2;
+  const y = desktop ? Math.min(0, Math.max(height - mediaHeight,
+    centeredY + Math.min(32, height * .035), 72 + size * .5 + knifeHeight - tipY)) : centeredY;
   return {
-    mediaWidth, mediaHeight, x, y, size, bubbleWidth,
+    mediaWidth, mediaHeight, x, y, size, bubbleWidth, knifeHeight,
     portraitX: tipX + x - size * .46,
     portraitY: tipY + y - size * .12,
   };
@@ -38,6 +44,7 @@ export function bindHomeEventPortrait(root: HTMLElement) {
       "board-x": box.x, "board-y": box.y, "portrait-size": box.size,
       "portrait-x": box.portraitX, "portrait-y": box.portraitY,
       "bubble-width": box.bubbleWidth,
+      "portrait-knife-height": box.knifeHeight,
     };
     for (const [key, value] of Object.entries(values)) root.style.setProperty(`--${key}`, `${value}px`);
   };
