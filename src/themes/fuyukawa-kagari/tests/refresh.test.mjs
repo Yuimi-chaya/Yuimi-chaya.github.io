@@ -59,7 +59,7 @@ test("home and archive share portrait poster framing and focus-aware crops", () 
   }
 });
 
-test("header stays transparent with symmetric centered navigation", () => {
+test("header restores frosted glass while keeping symmetric centered navigation", () => {
   const rules = new Map();
   postcss.parse(css).walkRules((rule) => {
     if (rule.parent.type !== "root") return;
@@ -67,8 +67,8 @@ test("header stays transparent with symmetric centered navigation", () => {
   });
   const header = rules.get("body[data-fuyukawa] .site-header");
   const nav = rules.get("body[data-fuyukawa] .nav-links");
-  assert.equal(header.background, "transparent");
-  assert.equal(header["backdrop-filter"], "none");
+  assert.equal(header.background, "#ffffffc7");
+  assert.match(header["backdrop-filter"], /blur\(16px\)/);
   assert.equal(header["grid-template-columns"], "minmax(0, 1fr) auto minmax(0, 1fr)");
   assert.equal(nav["grid-column"], "2");
   assert.equal(nav["justify-self"], "center");
