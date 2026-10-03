@@ -59,7 +59,7 @@ test("home and archive share portrait poster framing and focus-aware crops", () 
   }
 });
 
-test("header restores frosted glass while keeping symmetric centered navigation", () => {
+test("header stays transparent while the centered navigation pill owns the frosted glass", () => {
   const rules = new Map();
   postcss.parse(css).walkRules((rule) => {
     if (rule.parent.type !== "root") return;
@@ -67,17 +67,49 @@ test("header restores frosted glass while keeping symmetric centered navigation"
   });
   const header = rules.get("body[data-fuyukawa] .site-header");
   const nav = rules.get("body[data-fuyukawa] .nav-links");
-  assert.equal(header.background, "#ffffffc7");
-  assert.match(header["backdrop-filter"], /blur\(16px\)/);
+  assert.equal(header.background, "transparent");
+  assert.equal(header["border-bottom"], "0");
+  assert.equal(header["box-shadow"], "none");
+  assert.equal(header["backdrop-filter"], "none");
+  assert.equal(header["-webkit-backdrop-filter"], "none");
   assert.equal(header["grid-template-columns"], "minmax(0, 1fr) auto minmax(0, 1fr)");
   assert.equal(nav["grid-column"], "2");
   assert.equal(nav["justify-self"], "center");
+  assert.equal(nav.background, "#ffffff70");
+  assert.equal(nav["backdrop-filter"], "blur(16px) saturate(1.3)");
+  assert.equal(nav["-webkit-backdrop-filter"], nav["backdrop-filter"]);
+  assert.match(nav["box-shadow"], /inset 0 1px 0/);
+  assert.equal(nav["border-radius"], "999px");
   assert.match(css, /max-width: 760px[^]*?\.nav-links \{ grid-column: 1;[^}]*justify-content: center/);
   const innerPages = postcss.parse(read("styles/refresh-pages.css"));
   innerPages.walkRules((rule) => {
     assert.doesNotMatch(rule.selector, /(?:\.site-header|\.nav-links|\.nav-icon|\.nav-label|\.nav-hint)/);
   });
   assert.match(read("layouts/BaseLayout.astro"), /canonicalPath !== "\/" && <link rel="stylesheet" href=\{refreshPagesHref\}/);
+});
+
+test("no later theme or compact-screen rule restores a header band or removes pill glass", () => {
+  const materialProperties = new Set([
+    "background", "background-color", "background-image", "backdrop-filter",
+    "-webkit-backdrop-filter", "border-bottom", "box-shadow"
+  ]);
+  const overrides = postcss.parse(
+    read("styles/refresh.css") + "\n" + read("styles/manga.css") + "\n" +
+    read("styles/refresh-pages.css") + "\n" + read("styles/manga-pages.css")
+  );
+  overrides.walkRules((rule) => {
+    for (const selector of postcss.list.comma(rule.selector)) {
+      const header = selector === "body[data-fuyukawa] .site-header";
+      const nav = selector === "body[data-fuyukawa] .nav-links";
+      if (!header && !nav) continue;
+      if (rule.parent.type === "root") continue;
+      rule.walkDecls((declaration) => {
+        assert.ok(!materialProperties.has(declaration.prop), `${selector}: ${declaration}`);
+      });
+    }
+  });
+  const layout = read("layouts/BaseLayout.astro");
+  assert.ok(layout.indexOf('import "../styles/theme.css"') < layout.indexOf('import "@/themes/fuyukawa-kagari/styles/refresh.css"'));
 });
 
 test("article index sticks to the viewport while the page can still lock for notices", () => {
