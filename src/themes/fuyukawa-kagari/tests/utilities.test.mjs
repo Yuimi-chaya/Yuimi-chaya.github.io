@@ -189,6 +189,19 @@ test("Live2D position and visibility remain defined without any CDN stylesheet",
   assert.match(layout, /astro:before-swap", hideLive2dForRoute/);
 });
 
+test("Live2D initial canvas fade is opacity-only and shortens with reduced motion", () => {
+  assert.equal(declarations(css, "body[data-fuyukawa] #live2d").transition, "opacity 250ms var(--manga-ease)");
+  assert.equal(declarations(css, "body[data-fuyukawa] #waifu.waifu-awaiting-render #live2d").opacity, "0");
+  assert.equal(declarations(css, "body[data-fuyukawa] #waifu.waifu-render-ready #live2d").opacity, "1");
+  const reduced = css.nodes.find((node) => node.type === "atrule" && node.params === "(prefers-reduced-motion: reduce)");
+  const canvas = reduced.nodes.find((node) => node.selector === "body[data-fuyukawa] #live2d");
+  assert.equal(canvas.nodes.find((node) => node.prop === "transition-duration").value, "125ms");
+  assert.equal(canvas.nodes.find((node) => node.prop === "transition-duration").important, true);
+  const starting = css.nodes.find((node) => node.type === "atrule" && node.name === "starting-style");
+  assert.equal(starting.nodes[0].selector, "body[data-fuyukawa] #waifu.waifu-render-ready #live2d");
+  assert.equal(starting.nodes[0].nodes[0].value, "0");
+});
+
 test("Fuyukawa Live2D uses the bundled Chieri model package", () => {
   const config = JSON.parse(readFileSync(
     new URL("../../../../public/themes/fuyukawa-kagari/live2d/waifu-tips.json", import.meta.url),

@@ -140,6 +140,15 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window,
     attachedModel = outer;
     const originalOuterUpdate = outer.update;
     const originalModelUpdate = model.update;
+    const originalDraw = outer.doDraw;
+    const drawnRoot = root;
+    const draw = function (...args) {
+      const result = originalDraw.apply(this, args);
+      if (root === drawnRoot && active() && !root.classList.contains("waifu-render-ready")) {
+        root.classList.add("waifu-render-ready");
+      }
+      return result;
+    };
     const physics = outer._physics;
     const originalPhysics = physics?.evaluate;
     let now = win.performance.now();
@@ -158,11 +167,14 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window,
     };
     outer.update = update;
     model.update = beforeMesh;
+    if (typeof originalDraw === "function") outer.doDraw = draw;
+    else root?.classList.add("waifu-render-ready");
     if (originalPhysics) physics.evaluate = physicsUpdate;
     delegate.subdelegates.at(0).getLive2DManager().onDrag?.(0, 0);
     restoreModel = () => {
       if (outer.update === update) outer.update = originalOuterUpdate;
       if (model.update === beforeMesh) model.update = originalModelUpdate;
+      if (outer.doDraw === draw) outer.doDraw = originalDraw;
       if (originalPhysics && physics.evaluate === physicsUpdate) physics.evaluate = originalPhysics;
       attachedModel = null;
       restoreModel = () => {};
@@ -239,6 +251,7 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window,
       this.stop();
       root = nextRoot;
       canvas = nextCanvas;
+      root?.classList.add("waifu-awaiting-render");
       lastFrame = win.performance.now();
       nextBlink = lastFrame + 3200 + random() * 2600;
       doc.addEventListener("pointermove", onMove, { capture: true, passive: true });
@@ -277,7 +290,9 @@ export function createLive2dReactions(AppDelegate, doc = document, win = window,
       for (const key of Object.keys(reaction.gaze)) reaction.gaze[key] = 0;
     },
     destroy() {
+      const previousRoot = root;
       this.stop();
+      previousRoot?.classList.remove("waifu-awaiting-render");
       restoreInput();
       if (AppDelegate.prototype.run === onRun) AppDelegate.prototype.run = originalRun;
       delegate = null;

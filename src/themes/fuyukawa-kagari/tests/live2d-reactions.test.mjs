@@ -5,7 +5,12 @@ import { createLive2dReactions, live2dGazeTarget } from "../lib/live2d-input.mjs
 class Target {
   events = new Map();
   hidden = false;
-  classList = { contains: () => false };
+  classes = new Set();
+  classList = {
+    contains: (name) => this.classes.has(name),
+    add: (name) => this.classes.add(name),
+    remove: (name) => this.classes.delete(name)
+  };
   addEventListener(name, fn) {
     if (!this.events.has(name)) this.events.set(name, new Set());
     this.events.get(name).add(fn);
@@ -49,6 +54,7 @@ function fixture({ reduced = false, delayed = false } = {}) {
   const physics = { evaluate() { physicsPose = { x: get("ParamAngleX"), z: get("ParamAngleZ") }; } };
   const outer = {
     _model: model, _physics: physics, getModel: () => ready ? model : null,
+    doDraw() { return "drawn"; },
     update() {
       if (!ready) return;
       // Runtime loads saved motion state, breath/drag, physics, then generates the mesh once.
@@ -60,7 +66,7 @@ function fixture({ reduced = false, delayed = false } = {}) {
       model.update();
     }
   };
-  const original = { outer: outer.update, model: model.update, physics: physics.evaluate };
+  const original = { outer: outer.update, model: model.update, physics: physics.evaluate, draw: outer.doDraw };
   class AppDelegate {
     constructor() {
       this.mouseMoveEventListener = () => { throw new Error("legacy coordinates/hitTest ran"); };
@@ -201,6 +207,7 @@ test("late model loading, hide/show and disposal restore only owned hooks and li
   assert.equal(f.model.update, f.original.model);
   assert.equal(f.outer.update, f.original.outer);
   assert.equal(f.physics.evaluate, f.original.physics);
+  assert.equal(f.outer.doDraw, f.original.draw);
   assert.equal(f.timers.size, 0);
   f.controller.start(f.root, f.canvas);
   f.tap(); assert.equal(f.step(350).ParamEyeROpen, 0);
@@ -211,4 +218,58 @@ test("late model loading, hide/show and disposal restore only owned hooks and li
   for (const target of [f.root, f.canvas, f.win]) {
     for (const handlers of target.events.values()) assert.equal(handlers.size, 0);
   }
+});
+
+test("canvas stays hidden through model updates and begins its fade only after the first successful draw", () => {
+  const f = fixture({ delayed: true });
+  assert.equal(f.root.classList.contains("waifu-awaiting-render"), true);
+  assert.equal(f.root.classList.contains("waifu-render-ready"), false);
+  f.setReady(); f.fireTimer(120);
+  f.step();
+  assert.equal(f.root.classList.contains("waifu-render-ready"), false, "mesh update is not texture-ready drawing");
+  assert.equal(f.outer.doDraw(), "drawn");
+  assert.equal(f.root.classList.contains("waifu-render-ready"), true);
+  f.controller.stop();
+  f.controller.start(f.root, f.canvas);
+  assert.equal(f.root.classList.contains("waifu-render-ready"), true, "a loaded model does not replay its initial canvas fade");
+  f.controller.destroy();
+  assert.equal(f.outer.doDraw, f.original.draw);
+  assert.equal(f.root.classList.contains("waifu-awaiting-render"), false);
+});
+
+test("failed rendering and a stale drawing callback cannot reveal the canvas", () => {
+  const f = fixture();
+  const detachedDraw = f.outer.doDraw;
+  f.controller.stop();
+  f.outer.doDraw = () => { throw new Error("texture not ready"); };
+  f.controller.start(f.root, f.canvas);
+  const staleDraw = f.outer.doDraw;
+  assert.throws(() => staleDraw(), /texture not ready/);
+  assert.equal(f.root.classList.contains("waifu-render-ready"), false);
+  f.controller.stop();
+  const otherRoot = new Target();
+  f.outer.doDraw = f.original.draw;
+  f.controller.start(otherRoot, f.canvas);
+  assert.equal(detachedDraw(), "drawn");
+  assert.equal(otherRoot.classList.contains("waifu-render-ready"), false, "the old root's successful draw is stale");
+  assert.throws(() => staleDraw(), /texture not ready/);
+  assert.equal(otherRoot.classList.contains("waifu-render-ready"), false);
+  assert.equal(f.outer.doDraw(), "drawn");
+  assert.equal(otherRoot.classList.contains("waifu-render-ready"), true);
+  f.controller.destroy();
+});
+
+test("a late frame cannot reveal a hidden model or replay the fade when the document is hidden", () => {
+  const f = fixture();
+  f.root.classList.add("waifu-hidden");
+  f.outer.doDraw();
+  assert.equal(f.root.classList.contains("waifu-render-ready"), false);
+  f.root.classList.remove("waifu-hidden");
+  f.doc.hidden = true;
+  f.outer.doDraw();
+  assert.equal(f.root.classList.contains("waifu-render-ready"), false);
+  f.doc.hidden = false;
+  f.outer.doDraw();
+  assert.equal(f.root.classList.contains("waifu-render-ready"), true);
+  f.controller.destroy();
 });

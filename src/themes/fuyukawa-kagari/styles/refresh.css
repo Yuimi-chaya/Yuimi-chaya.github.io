@@ -401,11 +401,17 @@ body[data-fuyukawa] #waifu-canvas { width: var(--waifu-size); height: var(--waif
 body[data-fuyukawa] #live2d {
   display: block; width: var(--waifu-size) !important; height: var(--waifu-size) !important;
   touch-action: none; cursor: grab;
+  transition: opacity 250ms var(--manga-ease);
   /* The source cut ends at the ankles; dissolve only the final strip into the hero. */
   -webkit-mask-image: linear-gradient(to bottom, #000 0 78%, #000000f5 84%, #000000a8 92%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0 78%, #000000f5 84%, #000000a8 92%, transparent 100%);
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+}
+body[data-fuyukawa] #waifu.waifu-awaiting-render #live2d { opacity: 0; }
+body[data-fuyukawa] #waifu.waifu-render-ready #live2d { opacity: 1; }
+@starting-style {
+  body[data-fuyukawa] #waifu.waifu-render-ready #live2d { opacity: 0; }
 }
 body[data-fuyukawa] .is-waifu-dragging #live2d { cursor: grabbing; }
 body[data-fuyukawa] .waifu-local-fallback { left: 48px; width: var(--waifu-size); }
@@ -581,4 +587,5 @@ html:has(body[data-fuyukawa])[data-yuimi-visibility="hidden"] :is(.sakura-rain s
     animation-duration: .01ms !important; animation-iteration-count: 1 !important;
     transition-duration: .01ms !important; scroll-behavior: auto !important;
   }
+  body[data-fuyukawa] #live2d { transition-duration: 125ms !important; }
 }
