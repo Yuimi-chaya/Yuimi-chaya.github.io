@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import vm from "node:vm";
 import { createStoryImageLoader } from "../src/themes/kisara/lib/storyImageLoader.ts";
+import { createMemoryEditor } from "../src/themes/kisara/lib/gateMemoryEdit.ts";
+import { memoryScenes, transformationScenes } from "../src/themes/kisara/lib/gateStory.ts";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const home = read("src/themes/kisara/pages/HomePage.astro");
@@ -72,12 +74,13 @@ test("Story stays cold until requested, caps concurrency and promotes the immine
   } finally { f.restore(); }
 });
 
-test("Story actual failures retry once while long hangs cannot starve later shots", async () => {
+test("Story actual failures retry once without declaring the shot skippable during backoff", async () => {
   const f = imagesFixture();
   try {
     f.request(f.scenes[0]);
     f.image(0).dispatchEvent(new Event("error"));
     assert.equal(f.records.get("0")!.attempts, 1);
+    assert.equal(f.ready(f.scenes[0]), false);
     f.fire(800);
     const retry = f.image(0);
     retry.dispatchEvent(new Event("error"));
@@ -85,10 +88,107 @@ test("Story actual failures retry once while long hangs cannot starve later shot
     assert.equal(f.timers.size, 0);
     f.scenes.slice(1).forEach(scene => f.request(scene));
     f.fire(15000);
-    assert.equal(f.image(1).src, "");
+    assert.equal(f.image(1).src, "/1.webp", "A slow download must not be restarted");
     assert.equal(f.image(3).src, "/3.webp");
     assert.equal([...f.records.values()].filter(record => record.status === "decoding").length, 2);
   } finally { f.restore(); }
+});
+
+test("Slow story downloads free queue slots but retain their late loaded frame", async () => {
+  const f = imagesFixture();
+  try {
+    f.scenes.forEach(scene => f.request(scene, 0));
+    const slow = f.image(0);
+    f.fire(15000);
+    assert.equal(f.records.get("0")!.status, "timed-out");
+    assert.equal(f.image(2).src, "/2.webp");
+    assert.equal(slow.src, "/0.webp");
+    slow.load(); slow.resolve();
+    await flush();
+    assert.equal(f.records.get("0")!.status, "ready");
+    assert.equal(f.records.get("0")!.attempts, 1);
+    assert.equal(f.image(3).src, "", "Late completion must not release the queue slot twice");
+  } finally { f.restore(); }
+});
+
+test("Hung story requests have a bounded extra connection budget and a final retry deadline", () => {
+  const f = imagesFixture();
+  try {
+    f.scenes.forEach(scene => f.request(scene, 0));
+    for (let i = 0; i < 4; i++) f.fire(15000);
+    assert.equal([...f.records.values()].filter(record => record.image.src).length, 4);
+    assert.equal(f.image(4).src, "");
+    f.fire(60000);
+    assert.equal(f.image(0).src, "");
+    assert.equal(f.image(4).src, "/4.webp");
+    f.fire(800);
+    assert.equal(f.records.get("0")!.attempts, 1, "Retry stays queued behind active downloads");
+  } finally { f.restore(); }
+});
+
+test("A usable story bitmap is retained when decode never settles", async () => {
+  const f = imagesFixture();
+  try {
+    f.request(f.scenes[0]);
+    f.image(0).load();
+    f.fire(15000);
+    assert.equal(f.records.get("0")!.status, "ready");
+    assert.equal(f.timers.size, 0);
+    const notifications = f.notifications();
+    f.image(0).resolve();
+    await flush();
+    assert.equal(f.notifications(), notifications);
+  } finally { f.restore(); }
+});
+
+test("A successful retry remains drawable and late callbacks from the failed image are ignored", async () => {
+  const f = imagesFixture();
+  try {
+    f.request(f.scenes[0]);
+    const old = f.image(0);
+    old.load();
+    old.dispatchEvent(new Event("error"));
+    assert.equal(f.ready(f.scenes[0]), false);
+    f.fire(800);
+    const retry = f.image(0);
+    assert.notEqual(retry, old);
+    old.resolve();
+    await flush();
+    assert.equal(f.records.get("0")!.status, "decoding");
+    retry.load(); retry.resolve();
+    await flush();
+    assert.equal(f.records.get("0")!.status, "ready");
+    assert.equal(f.records.get("0")!.attempts, 2);
+  } finally { f.restore(); }
+});
+
+test("Slow requests cannot resume queued work while hidden or after leaving the gate", async () => {
+  for (const mode of ["hidden", "inactive", "aborted"]) {
+    const f = imagesFixture();
+    try {
+      f.scenes.forEach(scene => f.request(scene, 0));
+      f.fire(15000);
+      const slow = f.image(0);
+      if (mode === "hidden") f.doc.hidden = true;
+      if (mode === "inactive") f.setActive(false);
+      if (mode === "aborted") f.controller.abort();
+      const notifications = f.notifications();
+      slow.load();
+      if (mode !== "aborted") {
+        slow.resolve();
+        f.image(1).load(); f.image(1).resolve();
+      }
+      await flush();
+      assert.equal(f.image(3).src, "");
+      if (mode === "aborted") assert.equal(f.notifications(), notifications);
+      else {
+        assert.equal(f.records.get("0")!.status, "ready");
+        if (mode === "hidden") { f.doc.hidden = false; f.doc.dispatchEvent(new Event("visibilitychange")); }
+        else f.setActive(true);
+        assert.equal(f.image(3).src, "/3.webp");
+      }
+    } finally { f.restore(); }
+  }
 });
 
 test("Late story loads remain usable; rejected or missing decode retains a valid bitmap", async () => {
@@ -97,7 +197,7 @@ test("Late story loads remain usable; rejected or missing decode retains a valid
     try {
       if (mode === "missing") (f.image(0) as any).decode = undefined;
       f.request(f.scenes[0]);
-      assert.deepEqual([...f.timers.values()].map(timer => timer.delay), [15000]);
+      assert.deepEqual([...f.timers.values()].map(timer => timer.delay).sort((a, b) => a - b), [15000, 60000]);
       f.image(0).load();
       if (mode === "decode") f.image(0).resolve();
       if (mode === "rejected") f.image(0).reject();
@@ -139,13 +239,38 @@ test("Leaving the gate suspends the remaining story queue without cancelling use
   } finally { f.restore(); }
 });
 
-test("Home requests the rest of the story only after engagement and warms destinations before covers", () => {
-  assert.match(home, /if \(fill > 0\.01 \|\| intro > 0\) sceneManifest\.forEach/);
+test("Home queues the complete small story on entry and warms destinations before covers", () => {
+  const initialization = home.slice(home.indexOf("if (!foundSelfEntryRequested)"), home.indexOf("const isStoryFrameReady ="));
+  assert.match(initialization, /memorySceneRecords\.slice\(0, 2\)\.forEach\(scene => warmSceneImage\(scene, 2\)\)/);
+  assert.match(initialization, /sceneManifest\.forEach\(scene => warmSceneImage\(scene, 0\)\)/);
+  assert.doesNotMatch(home, /if \(fill > 0\.01 \|\| intro > 0\)/);
+  const bytes = [...memoryScenes, ...transformationScenes].reduce((total, scene) =>
+    total + readFileSync(new URL(`../public${scene.image}`, import.meta.url)).byteLength, 0);
+  assert.ok(bytes < 850_000, "Entry prefetch is restricted to the existing small story image set");
   assert.match(home, /fill >= 0\.55[^]*transformationSceneRecords\.forEach/);
   const navigation = home.slice(home.indexOf("const smoothScrollToHomeSection ="));
   assert.ok(navigation.indexOf("nextMedia?.preloadPresentation") < navigation.indexOf("runComicHandoff"));
   assert.match(fridge, /preloadPresentation\(\)/);
   assert.match(read("src/themes/kisara/components/KisaraHomeEventVideo.astro"), /preloadPresentation\(\)/);
+});
+
+test("A cold third shot keeps the second plate, then catches up after a slow successful load", async () => {
+  const f = imagesFixture();
+  try {
+    f.scenes.forEach(scene => f.request(scene, 0));
+    for (const index of [0, 1]) { f.image(index).load(); f.image(index).resolve(); }
+    await flush();
+    const editor = createMemoryEditor(0.2);
+    const ready = (index: number) => f.records.get(String(index))?.status === "ready";
+    assert.equal(editor.update(0.3, 16, ready).weights[1], 1);
+    f.fire(15000);
+    assert.equal(editor.update(0.3, 16, ready).weights[1], 1);
+    f.image(2).load(); f.image(2).resolve();
+    await flush();
+    for (let i = 0; i < 20; i++) editor.update(0.3, 16, ready);
+    assert.equal(editor.snapshot().weights[2], 1);
+    assert.equal(editor.active, false);
+  } finally { f.restore(); }
 });
 
 test("Fridge buffering does not reload or finish the scene on its short watchdog", () => {

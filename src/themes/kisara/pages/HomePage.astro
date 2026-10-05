@@ -474,11 +474,14 @@ const gateStyle = [
         if (!active || document.hidden) return;
         getMemoryWarmIndices(fill).forEach(index => warmSceneImage(memorySceneRecords[index], 2));
         if (fill >= 0.55 || intro > 0.001) transformationSceneRecords.forEach(scene => warmSceneImage(scene, 2));
-        // Once the user engages the story, trickle the remaining sub-1MB sequence
-        // through the same two-slot queue instead of discovering fast cuts too late.
-        if (fill > 0.01 || intro > 0) sceneManifest.forEach(scene => warmSceneImage(scene, 0));
+        // Resume entry prefetch after returning from another scene, without waiting for input.
+        sceneManifest.forEach(scene => warmSceneImage(scene, 0));
       };
-      if (!foundSelfEntryRequested) memorySceneRecords.slice(0, 2).forEach(scene => warmSceneImage(scene, 2));
+      if (!foundSelfEntryRequested) {
+        memorySceneRecords.slice(0, 2).forEach(scene => warmSceneImage(scene, 2));
+        // Keep the first pair ahead of the small, low-priority story queue on a cold visit.
+        sceneManifest.forEach(scene => warmSceneImage(scene, 0));
+      }
       const isStoryFrameReady = (fill, intro) => {
         let ready = true;
         memorySceneRecords.forEach((record, index) => {

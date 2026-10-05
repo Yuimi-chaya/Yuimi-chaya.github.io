@@ -1,5 +1,5 @@
 type Scene = { id: string; image: string };
-type Status = "idle" | "queued" | "decoding" | "ready" | "failed" | "timed-out";
+type Status = "idle" | "queued" | "decoding" | "ready" | "retrying" | "failed" | "timed-out";
 type Record = {
   image: HTMLImageElement;
   source: string;
@@ -9,7 +9,7 @@ type Record = {
   cancel: (() => void) | null;
 };
 
-// Only two requests compete with the visible scene. A slow request is not restarted.
+// Normally two requests; at most two slow downloads can linger without blocking the queue.
 export function createStoryImageLoader(
   scenes: Scene[],
   signal: AbortSignal,
@@ -19,12 +19,13 @@ export function createStoryImageLoader(
     image: new Image(), source: scene.image, status: "idle", priority: 0, attempts: 0, cancel: null,
   }]));
   let active = 0;
+  let outstanding = 0;
   let enabled = true;
   let stopped = false;
   const retries = new Set<ReturnType<typeof setTimeout>>();
   const pump = () => {
     if (stopped || signal.aborted || document.hidden || !enabled) return;
-    while (active < 2) {
+    while (active < 2 && outstanding < 4) {
       const record = [...records.values()].filter(item => item.status === "queued")
         .sort((a, b) => b.priority - a.priority)[0];
       if (!record) break;
@@ -33,6 +34,7 @@ export function createStoryImageLoader(
   };
   const start = (record: Record) => {
     active++;
+    outstanding++;
     record.status = "decoding";
     record.attempts++;
     const image = record.image;
@@ -48,6 +50,7 @@ export function createStoryImageLoader(
     };
     const cleanup = () => {
       clearTimeout(timer);
+      clearTimeout(deadline);
       image.removeEventListener("load", loaded);
       image.removeEventListener("error", failed);
       record.cancel = null;
@@ -57,9 +60,11 @@ export function createStoryImageLoader(
       finished = true;
       cleanup();
       release();
+      outstanding--;
       if (cancelled || stopped || signal.aborted) return;
       record.status = ready ? "ready" : "failed";
       if (!ready && record.attempts < 2) {
+        record.status = "retrying";
         // Retry an actual failure once, not a download still in flight.
         const retry = setTimeout(() => {
           retries.delete(retry);
@@ -85,11 +90,20 @@ export function createStoryImageLoader(
     };
     const timer = setTimeout(() => {
       if (finished || stopped || signal.aborted) return;
-      // Bound truly hung requests too; a queued shot must never wait forever
-      // behind two broken connections. The single retry still uses this queue.
-      finish(false);
-      image.removeAttribute("src");
+      if (image.complete && image.naturalWidth > 0) { finish(true); return; }
+      // Let the next shot download, but still accept this slow response when it arrives.
+      record.status = "timed-out";
+      release();
+      onChange();
+      pump();
     }, 15000);
+    const deadline = setTimeout(() => {
+      if (finished || stopped || signal.aborted) return;
+      if (image.complete && image.naturalWidth > 0) { finish(true); return; }
+      // Only a truly hung connection is cancelled and retried, with a bounded budget.
+      image.removeAttribute("src");
+      finish(false);
+    }, 60000);
     record.cancel = () => finish(false, true);
     image.addEventListener("load", loaded);
     image.addEventListener("error", failed);
@@ -100,7 +114,7 @@ export function createStoryImageLoader(
     const record = scene && records.get(scene.id);
     if (!record || stopped || signal.aborted) return;
     record.priority = Math.max(record.priority, priority);
-    if (record.status === "decoding" && priority >= 2) record.image.fetchPriority = "high";
+    if (["decoding", "timed-out"].includes(record.status) && priority >= 2) record.image.fetchPriority = "high";
     if (record.status === "idle") record.status = "queued";
     pump();
   };
