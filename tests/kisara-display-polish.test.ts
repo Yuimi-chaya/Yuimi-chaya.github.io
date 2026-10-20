@@ -10,6 +10,7 @@ const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.ur
 const home = read("src/themes/kisara/pages/HomePage.astro");
 const layout = read("src/themes/kisara/lib/layoutRuntime.js");
 const range = (source: string, start: string, end: string) => {
+  source = source.replace(/\r\n/g, "\n");
   const a = source.indexOf(start), b = source.indexOf(end, a);
   assert.ok(a >= 0 && b > a);
   return source.slice(a, b);

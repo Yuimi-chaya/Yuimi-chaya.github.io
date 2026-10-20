@@ -81,24 +81,20 @@ const declarations = (path: string, selector: string) => {
 test("One-shot media overlays decoded terminal stills atomically and leaves the video underneath", () => {
   for (const [path, selector] of [
     ["styles/home.css", ".kisara-fridge-last-frame"],
-    ["styles/projects.css", ".kisara-works-intro-media .kisara-works-intro-last-frame"],
   ]) {
     assert.equal(declarations(path, selector).transition, "none");
     assert.equal(declarations(path, selector)["z-index"], "1");
   }
   assert.equal(declarations("styles/home.css",
     ".kisara-fridge-scene.is-fridge-open .kisara-fridge-last-frame[data-video-still-ready]").opacity, "1");
-  assert.equal(declarations("styles/projects.css",
-    '.kisara-works-intro[data-video-state="complete"] .kisara-works-intro-last-frame[data-video-still-ready]').opacity, "1");
   assert.equal(declarations("styles/home-event-video.css", ".kisara-home-board-still")["z-index"], "1");
   assert.equal(declarations("styles/home-event-video.css", ".kisara-home-video-media::after")["z-index"], "2");
-  for (const path of ["styles/projects.css", "styles/home-event-video.css"]) {
+  for (const path of ["styles/home-event-video.css"]) {
     postcss.parse(read(path)).walkRules(rule => {
       if (!rule.selector.includes('"complete"')) return;
       rule.walkDecls("visibility", decl => assert.notEqual(decl.value, "hidden", rule.selector));
     });
   }
-  assert.match(read("lib/worksPage.js"), /bindVideoStill\(heroVideo/);
   assert.match(read("lib/homeEvent.ts"), /bindVideoStill\(video/);
   assert.match(read("components/KisaraFridgeScene.astro"), /bindVideoStill\(video/);
 });

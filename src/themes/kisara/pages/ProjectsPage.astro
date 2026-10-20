@@ -1,434 +1,196 @@
 ---
 import KisaraLayout from "../layouts/KisaraLayout.astro";
-import KisaraIngredientSymbols from "../components/KisaraIngredientSymbols.astro";
 import projectsStylesheet from "../styles/projects.css?url";
 import { Icon } from "astro-icon/components";
-import { projectEntries } from "@/core/data/projects";
+import { projectEntries, projectTechLines } from "@/core/data/projects";
 
-const getProject = (id: string) => projectEntries.find((project) => project.id === id)!;
+const covers = [
+  "/themes/kisara/assets/works-index/work-01.webp",
+  "/themes/kisara/assets/works-index/work-02.webp",
+  "/themes/kisara/assets/works-index/work-03.webp",
+  "/themes/kisara/assets/works-index/work-04.webp"
+];
+const coverHeights = [1051, 874, 1051, 1051];
 
-const kitchenIngredients = [
-  {
-    id: "unity",
-    code: "U3D",
-    name: "碰撞果冻",
-    english: "COLLIDER JELLY",
-    icon: "simple-icons:unity",
-    shape: "cube",
-    color: "#625e71",
-    soft: "#dedbe6",
-    note: "交互手感 / 状态机",
-    project: getProject("unity-toys")
-  },
-  {
-    id: "ue5",
-    code: "UE5",
-    name: "流明冰块",
-    english: "LUMEN ICE",
-    icon: "simple-icons:unrealengine",
-    shape: "ice",
-    color: "#665b91",
-    soft: "#ded9ef",
-    note: "蓝图 / 光照 / 材质",
-    project: getProject("ue5-room")
-  },
-  {
-    id: "blender",
-    code: "BLD",
-    name: "网格橙片",
-    english: "MESH ORANGE",
-    icon: "simple-icons:blender",
-    shape: "orange",
-    color: "#e48039",
-    soft: "#f8dfc4",
-    note: "建模 / 材质 / 小道具",
-    project: getProject("blender-props")
-  },
-  {
-    id: "astrbot",
-    code: "ASTR",
-    name: "提示词星糖",
-    english: "PROMPT CANDY",
-    icon: "tabler:terminal-2",
-    shape: "star",
-    color: "#d95e9b",
-    soft: "#f5d7e7",
-    note: "插件 / 部署 / Bot",
-    project: getProject("astrbot-lab")
-  },
-  {
-    id: "blog",
-    code: "BLOG",
-    name: "样式薄荷叶",
-    english: "LAYOUT MINT",
-    icon: "tabler:book-2",
-    shape: "leaf",
-    color: "#57a48d",
-    soft: "#d6eee7",
-    note: "设计 / 页面 / 小机关",
-    project: getProject("yuimi-web-lab")
-  },
-  {
-    id: "mmd",
-    code: "MMD",
-    name: "关键帧樱桃",
-    english: "KEYFRAME CHERRY",
-    icon: "tabler:movie",
-    shape: "cherry",
-    color: "#cf587b",
-    soft: "#f4d7df",
-    note: "动作 / 镜头 / 舞台",
-    project: getProject("mmd-camera")
-  }
-] as const;
-
-const kitchenRecipes = [
-  {
-    ingredients: ["blender", "unity"],
-    title: "碰撞体橙昔",
-    english: "COLLIDER SMOOTHIE",
-    description: "入口先弹一下，再在舌尖烘焙成低模余味。适合给状态机补充一点不讲道理的手感。",
-    effect: "副作用：杯子掉到桌下时，可能穿过地板。"
-  },
-  {
-    ingredients: ["blender", "ue5"],
-    title: "流明烘焙拿铁",
-    english: "LUMEN BAKE LATTE",
-    description: "每颗冰都在实时计算间接光。看起来很电影，喝完以后显卡会开始替你叹气。",
-    effect: "副作用：夜里关灯后仍会自动补一盏轮廓光。"
-  },
-  {
-    ingredients: ["astrbot", "blog"],
-    title: "提示词薄荷汽水",
-    english: "PROMPT MINT SODA",
-    description: "第一口是文档，第二口是插件，第三口开始自动回答你根本没有问过的问题。",
-    effect: "副作用：会把一句话拆成三个可配置项。"
-  },
-  {
-    ingredients: ["blog", "mmd"],
-    title: "关键帧樱桃苏打",
-    english: "KEYFRAME CHERRY FIZZ",
-    description: "摇匀后自带 24fps 的青春感，杯中气泡会严格按照镜头节奏依次破裂。",
-    effect: "副作用：喝快了会忍不住给空气打关键帧。"
-  },
-  {
-    ingredients: ["ue5", "unity"],
-    title: "引擎内战双拼",
-    english: "ENGINE DUEL FLOAT",
-    description: "两套坐标系在杯底吵得很凶，杯口却意外拥有不错的互动手感和电影感。",
-    effect: "副作用：配方文件会同时出现两个 Content 文件夹。"
-  },
-  {
-    ingredients: ["blender", "mmd"],
-    title: "骨骼绑定奶昔",
-    english: "RIGGED MILKSHAKE",
-    description: "杯身有一百多根骨骼，吸管只要稍微动一下，整杯饮料就会跟着做表情。",
-    effect: "副作用：偶尔穿模，但镜头拍不到就算没有。"
-  },
-  {
-    ingredients: ["astrbot", "blog", "unity"],
-    title: "会回消息的交互汽水",
-    english: "RESPONSIVE BOT POP",
-    description: "你只是戳了一下杯沿，它却给你生成了按钮反馈、插件日志和一朵小红花。",
-    effect: "副作用：凌晨三点仍会显示在线。"
-  },
-  {
-    ingredients: ["blender", "mmd", "ue5"],
-    title: "电影感老婆特调",
-    english: "CINEMATIC WAIFU MIX",
-    description: "灯光、模型、镜头和动作全部超标，唯一没通过审核的是电脑风扇的音量。",
-    effect: "副作用：任何普通房间都会被自动改造成舞台。"
-  },
-  {
-    ingredients: ["astrbot", "blender", "blog", "mmd", "ue5", "unity"],
-    title: "Yuimi Lab 厨房核心",
-    english: "YUIMI LAB CORE FLOAT",
-    description: "把交互、模型、镜头、机器人和页面设计全部压进同一杯。入口像刚过构建，后味像凌晨才发现依赖装错版本。",
-    effect: "副作用：会在脑内自动新建三个没做完的项目。"
-  }
-] as const;
-
-const kitchenCatalog = {
-  ingredients: kitchenIngredients.map(({ id, code, name, english, shape, color, soft, project }) => ({
-    id,
-    code,
-    name,
-    english,
-    shape,
-    color,
-    soft,
-    project: project.title
-  })),
-  recipes: kitchenRecipes
-};
+const lineLabels = Object.fromEntries(projectTechLines.map((line) => [line.key, line.label]));
+const projects = projectEntries.map((project, index) => ({
+  ...project,
+  cover: covers[index % covers.length],
+  coverHeight: coverHeights[index % covers.length],
+  index: String(index + 1).padStart(2, "0")
+}));
+const featured = projects[0];
+const archive = projects;
+const distinctLanguages = new Set(projects.map((project) => project.language)).size;
 ---
 
-<KisaraLayout title="Works | Kisara" description="Yuimi Lab 的项目与实验记录。" stylesheets={[projectsStylesheet]} showFooter={false}>
-  <KisaraIngredientSymbols />
-  <div class="kisara-works-stage-track" data-works-stage-track>
-  <div class="kisara-works-stage" data-works-stage>
-  <section class="kisara-works-intro" data-kisara-works-hero data-intro-state="idle" data-video-state="idle" aria-labelledby="kisara-works-title">
-    <div class="kisara-works-intro-media">
-      <video
-        class="kisara-works-intro-video"
-        data-works-hero-video
-        src="/themes/kisara/assets/works-opening.mp4"
-        poster="/themes/kisara/assets/works-opening-first.webp"
-        width="1920"
-        height="1080"
-        preload="auto"
-        muted
-        playsinline
-        disablepictureinpicture
-        aria-label="木更的 Works 页面入场动画"
-      ></video>
-      <img
-        class="kisara-works-intro-last-frame"
-        src="/themes/kisara/assets/works-opening-last.webp"
-        alt=""
-        width="1920"
-        height="1080"
-        loading="eager"
-        decoding="async"
-        aria-hidden="true"
-      />
-    </div>
+<KisaraLayout
+  title="Works | Kisara"
+  description="Yuimi Lab 的项目档案：博客、AstrBot 插件、Codex 工具与文档。"
+  stylesheets={[projectsStylesheet]}
+  priorityImages={[featured.cover]}
+  showFooter={false}
+>
+  <div class="kisara-index" data-kisara-works-index data-works-album aria-labelledby="kisara-works-title">
+    <header class="kisara-index-hero" id="kisara-works-title">
+      <div class="kisara-index-hero-copy">
+        <p class="kisara-index-kicker"><span>WORKS / INDEX</span><i aria-hidden="true"></i>Yuimi Lab · 2026</p>
+        <h1 aria-label="Works, built in layers.">
+          <span>WORKS</span>
+          <em>built in <b>layers.</b></em>
+        </h1>
+        <p class="kisara-index-lede">
+          不是作品集封面墙，是一张摊开的工作台：博客、机器人插件、桌面工具，和那些终于被写下来的方法。
+        </p>
+        <div class="kisara-index-actions">
+          <a href="#kisara-archive" class="kisara-index-primary">
+            <Icon name="tabler:arrow-down" aria-hidden="true" />
+            翻到档案
+          </a>
+          <a href="https://github.com/Yuimi-chaya" target="_blank" rel="noopener noreferrer" class="kisara-index-secondary">
+            <Icon name="simple-icons:github" aria-hidden="true" />
+            Yuimi-chaya
+          </a>
+        </div>
+      </div>
 
-    <div class="kisara-works-slice-field" data-works-slice-field aria-hidden="true">
-      <div class="kisara-works-slice-trails" data-works-slice-trails></div>
-      {kitchenIngredients.map((ingredient) => (
-          <span
-            class="kisara-works-slice-fruit kisara-ingredient"
-            data-works-slice-fruit
-            data-shape={ingredient.shape}
-            data-fruit-id={ingredient.id}
-            style={`--ingredient: ${ingredient.color}; --ingredient-soft: ${ingredient.soft};`}
-          >
-            {["whole", "left", "right"].map(piece => (
-              <span class={`kisara-works-slice-fruit-piece is-${piece}`}>
-                <svg class="kisara-works-fruit-art" viewBox="0 0 76 76" aria-hidden="true">
-                  <use href={`#kisara-fruit-${ingredient.shape}`} />
-                </svg>
-              </span>
-            ))}
-          </span>
-      ))}
-      <span
-        class="kisara-works-slice-fruit kisara-works-slice-pig"
-        data-works-slice-fruit
-        data-fruit-kind="pig"
-      >
+      <figure class="kisara-index-cover">
+        <span class="kisara-index-cover-tape" aria-hidden="true"></span>
         <img
-          src="/themes/fuyukawa-kagari/assets/mini-pig-scroll.webp"
+          src={featured.cover}
           alt=""
-          width="1899"
-          height="1625"
+          width="720"
+          height={featured.coverHeight}
           loading="eager"
+          fetchpriority="high"
           decoding="async"
         />
-      </span>
-    </div>
+        <figcaption>
+          <span>FILE 01 / FEATURED</span>
+          <strong>{featured.title}</strong>
+          <small>{featured.language} · {featured.stars} stars</small>
+        </figcaption>
+      </figure>
 
-    <div class="kisara-works-editorial-exit" data-works-editorial-exit>
-    <div class="kisara-works-editorial">
-      <h1 id="kisara-works-title" data-works-title>
-        <span class="kisara-works-title-primary">WORKS<sup aria-hidden="true">,</sup></span>
-        <em class="kisara-works-title-secondary">one layer <b>at a time.</b></em>
-      </h1>
-      <p class="kisara-works-editorial-copy">
-        <span>把零散的灵感，放进一张清晰的工作台。</span>
-        <span>从备料到成品，每一步都留下自己的节奏。</span>
-      </p>
-    </div>
-    </div>
-    <a class="kisara-works-enter" href="#kisara-kitchen-lab" data-works-enter><Icon name="tabler:arrow-right" aria-hidden="true" /><span>进入工作台</span></a>
-  </section>
-
-  <div class="kisara-works-stage-scrim" data-works-stage-scrim aria-hidden="true"></div>
-  <section id="kisara-kitchen-lab" class="kisara-kitchen-lab" data-kisara-kitchen aria-label="料理工作台">
-    <script
-      type="application/json"
-      data-kitchen-catalog
-      set:html={JSON.stringify(kitchenCatalog).replace(/</g, "\\u003c")}
-    ></script>
-
-    <div class="kisara-kitchen-workspace">
-    <header class="kisara-kitchen-toolbar">
-      <button type="button" class="kisara-kitchen-back" data-works-return aria-label="返回 Works 首屏" title="返回首屏"><Icon name="tabler:arrow-left" aria-hidden="true" /></button>
-      <span class="kisara-kitchen-toolbar-label">YUIMI / KITCHEN</span>
-      <div class="kisara-kitchen-tabs" role="tablist" aria-label="工作台">
-        <button type="button" role="tab" id="kisara-prep-tab" aria-controls="kisara-prep-panel" aria-selected="true" data-kitchen-tab="prep"><Icon name="tabler:tools-kitchen-2" aria-hidden="true" />备料</button>
-        <button type="button" role="tab" id="kisara-result-tab" aria-controls="kisara-result-panel" aria-selected="false" tabindex="-1" data-kitchen-tab="result"><Icon name="tabler:glass-full" aria-hidden="true" />成品<span data-kitchen-result-badge aria-label="已有成品" hidden></span></button>
-      </div>
+      <dl class="kisara-index-stats" aria-label="档案概览">
+        <div><dt>PROJECTS</dt><dd>{String(projects.length).padStart(2, "0")}</dd></div>
+        <div><dt>LANGUAGES</dt><dd>{String(distinctLanguages).padStart(2, "0")}</dd></div>
+        <div><dt>THEMES</dt><dd>03</dd></div>
+        <div><dt>STATUS</dt><dd>LIVE</dd></div>
+      </dl>
     </header>
 
-    <div class="kisara-kitchen-panel" id="kisara-prep-panel" role="tabpanel" aria-labelledby="kisara-prep-tab" tabindex="0" data-kitchen-panel="prep">
-    <div class="kisara-kitchen-counter">
-      <aside class="kisara-kitchen-pantry" aria-labelledby="kisara-pantry-title">
-        <header>
-          <div>
-            <Icon name="tabler:chef-hat" aria-hidden="true" />
-            <span><small>TECH PANTRY</small><strong id="kisara-pantry-title">今日食材</strong></span>
-          </div>
-          <output data-pantry-count>{String(kitchenIngredients.length).padStart(2, "0")}</output>
-        </header>
-
-        <div class="kisara-ingredient-rack">
-          {kitchenIngredients.map((ingredient, index) => (
-            <button
-              type="button"
-              class="kisara-ingredient"
-              data-kitchen-ingredient={ingredient.id}
-              data-shape={ingredient.shape}
-              style={`--ingredient: ${ingredient.color}; --ingredient-soft: ${ingredient.soft}; --ingredient-order: ${index};`}
-              aria-label={`将 ${ingredient.name} 放到砧板`}
-            >
-              <span class="kisara-ingredient-visual" aria-hidden="true">
-                <svg class="kisara-works-pantry-art" viewBox="0 0 76 76"><use href={`#kisara-fruit-${ingredient.shape}`} /></svg>
-              </span>
-              <span class="kisara-ingredient-copy">
-                <small>{ingredient.english}</small>
-                <strong>{ingredient.name}</strong>
-                <span>{ingredient.code} · {ingredient.note}</span>
-              </span>
-              <span class="kisara-ingredient-project">
-                <i aria-hidden="true"></i>{ingredient.project.title}
-              </span>
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      <div class="kisara-kitchen-prep">
-        <div class="kisara-cutting-board" data-drop-zone="board" data-cutting-board>
-          <span class="kisara-board-handle" aria-hidden="true"></span>
-          <div class="kisara-board-brand" aria-hidden="true">
-            <span>KISARA</span><strong>PREP BOARD</strong><small>HANDLE WITH QUESTIONABLE CARE</small>
-          </div>
-          <div class="kisara-board-items" data-board-items></div>
-          <div class="kisara-board-empty" data-board-empty>
-            <Icon name="tabler:tools-kitchen-2" aria-hidden="true" />
-            <strong>砧板还是空的</strong>
-            <span>从旁边拿点技术食材过来</span>
-          </div>
-          <span class="kisara-board-juice-mark" aria-hidden="true"></span>
-        </div>
-
-        <div class="kisara-board-actions">
-          <button type="button" data-chop-all disabled>
-            <Icon name="tabler:blade" aria-hidden="true" />
-            <span><strong>切一刀</strong><small>CHOP THE BOARD</small></span>
+    <nav class="kisara-index-filters" aria-label="按方向筛选项目">
+      <span class="kisara-index-filters-label">FILTER BY LINE</span>
+      <div role="group" aria-label="项目方向">
+        <button type="button" data-works-filter="all" aria-pressed="true" class="is-active">
+          全部<span>ALL</span>
+        </button>
+        {projectTechLines.map((line) => (
+          <button type="button" data-works-filter={line.key} aria-pressed="false">
+            {line.label.split(" / ")[0]}<span>{line.key.toUpperCase()}</span>
           </button>
-          <button type="button" data-load-blender disabled>
-            <Icon name="tabler:arrow-right" aria-hidden="true" />
-            <span><strong>倒进榨汁机</strong><small>LOAD PREPPED ITEMS</small></span>
-          </button>
-        </div>
-
-        <div class="kisara-kitchen-status" role="status" aria-live="polite">
-          <span aria-hidden="true"></span>
-          <p data-kitchen-status>厨房已开火，食材正在假装自己很专业。</p>
-        </div>
+        ))}
       </div>
+      <output class="kisara-index-count" aria-live="polite" aria-atomic="true">
+        <strong data-works-count>{String(projects.length).padStart(2, "0")}</strong>
+        <span>FILES SHOWN</span>
+      </output>
+    </nav>
 
-      <aside class="kisara-appliance-deck" aria-label="厨房设备">
-        <section class="kisara-blender-station" data-drop-zone="blender" data-blender-station>
-          <header><span>APPLIANCE / 01</span><strong>实验榨汁机</strong></header>
-          <div class="kisara-blender-machine" aria-hidden="true">
-            <span class="kisara-blender-lid"></span>
-            <div class="kisara-blender-jar">
-              <span class="kisara-blender-handle"></span>
-              <div class="kisara-blender-liquid" data-blender-liquid>
-                <div data-blender-pieces></div>
-                <i></i><i></i><i></i>
+    <section class="kisara-index-archive" id="kisara-archive" aria-labelledby="kisara-archive-title">
+      <header class="kisara-index-section-head">
+        <p><span>01</span> ARCHIVE</p>
+        <h2 id="kisara-archive-title">把做过的事，按线索归档。</h2>
+        <p>从博客主题到对话记忆，从桌面补丁到经验文档。把喜欢的东西做好一点，再把方法留下来。</p>
+      </header>
+
+      <div class="kisara-index-grid" role="list" aria-label="项目档案">
+        {archive.map((project) => (
+          <article
+            class="kisara-index-card"
+            role="listitem"
+            data-project-id={project.id}
+            data-project-line={project.line}
+          >
+            <div class="kisara-index-card-art" aria-hidden="true">
+              <img src={project.cover} alt="" width="720" height={project.coverHeight} loading="lazy" decoding="async" />
+              <span>{project.index}</span>
+            </div>
+            <div class="kisara-index-card-body">
+              <p class="kisara-index-card-line">
+                <span>{lineLabels[project.line]}</span>
+                <time>{project.year}</time>
+              </p>
+              <h3>{project.title}</h3>
+              <p class="kisara-index-card-summary">{project.summary}</p>
+              <ul class="kisara-index-card-tags">
+                {project.details.map((detail) => <li>{detail}</li>)}
+              </ul>
+              <div class="kisara-index-card-meta">
+                <span><i aria-hidden="true"></i>{project.language}</span>
+                <span>{project.stars} stars</span>
+                <span>{project.status}</span>
               </div>
-              <span class="kisara-blender-blade"></span>
+              <a class="kisara-index-card-link" href={project.href} target="_blank" rel="noopener noreferrer">
+                <Icon name="simple-icons:github" aria-hidden="true" />
+                <span>{project.repo}</span>
+                <Icon name="tabler:external-link" aria-hidden="true" />
+              </a>
+              <details class="kisara-index-card-reveal">
+                <summary>
+                  项目手记
+                  <Icon name="tabler:chevron-down" aria-hidden="true" />
+                </summary>
+                <div>
+                  <p>{project.note}</p>
+                  <p class="kisara-index-card-role">{project.role}</p>
+                </div>
+              </details>
             </div>
-            <div class="kisara-blender-base">
-              <span></span>
-              <i></i><i></i><i></i>
-            </div>
-          </div>
-          <div class="kisara-blender-readout">
-            <span>JAR CONTENT</span><output data-blender-count>00 / 06</output>
-          </div>
-          <button type="button" class="kisara-blend-button" data-blend disabled>
-            <Icon name="tabler:blender" aria-hidden="true" />
-            <span><strong>开始乱炖</strong><small>BLEND THIS BUILD</small></span>
-          </button>
-        </section>
-
-        <button type="button" class="kisara-kitchen-trash" data-drop-zone="trash" data-trash-button>
-          <span class="kisara-trash-can" aria-hidden="true">
-            <span class="kisara-trash-lid"></span>
-            <span class="kisara-trash-body"><Icon name="tabler:trash" /></span>
-          </span>
-          <span><strong>回收站</strong><small>RESET THE COUNTER</small></span>
-        </button>
-      </aside>
-    </div>
-    </div>
-
-    <div class="kisara-kitchen-panel" id="kisara-result-panel" role="tabpanel" aria-labelledby="kisara-result-tab" tabindex="0" data-kitchen-panel="result">
-    <section class="kisara-drink-result" data-drink-result data-state="idle" aria-labelledby="kisara-drink-title">
-      <div class="kisara-drink-stage" aria-hidden="true">
-        <span class="kisara-drink-shadow"></span>
-        <div class="kisara-drink-glass">
-          <span class="kisara-drink-straw"></span>
-          <span class="kisara-drink-garnish"></span>
-          <div class="kisara-drink-liquid">
-            <i></i><i></i><i></i><i></i><i></i>
-          </div>
-          <span class="kisara-drink-label">Y</span>
-        </div>
-        <span class="kisara-drink-spark spark-a"></span>
-        <span class="kisara-drink-spark spark-b"></span>
-        <span class="kisara-drink-spark spark-c"></span>
+          </article>
+        ))}
       </div>
-      <div class="kisara-drink-copy">
-        <p><span>RESULT / 00</span><strong data-result-english>NO ORDER YET</strong></p>
-        <h2 id="kisara-drink-title" data-result-title>今晚还没有出杯。</h2>
-        <p data-result-description>砧板、榨汁机和垃圾桶都已经就位，只差一份稍微离谱一点的技术配方。</p>
-        <div class="kisara-drink-meta">
-          <div><span>INGREDIENTS</span><output data-result-ingredients>WAITING</output></div>
-          <div><span>TASTE NOTE</span><output data-result-effect>尚未检测到副作用。</output></div>
-        </div>
-        <div class="kisara-drink-actions">
-        <button type="button" data-return-prep>
-          <Icon name="tabler:arrow-left" aria-hidden="true" />
-          <span>返回备料</span>
-        </button>
-        <button type="button" data-remix disabled>
-          <Icon name="tabler:refresh" aria-hidden="true" />
-          <span>再开一局</span>
-        </button>
-        </div>
+
+      <div class="kisara-index-empty" data-works-empty hidden>
+        <Icon name="tabler:archive" aria-hidden="true" />
+        <p>这条线上暂时没有档案。</p>
+        <button type="button" data-works-filter="all">回到全部</button>
       </div>
     </section>
-    </div>
-    </div>
 
-    <div class="kisara-kitchen-pointer" data-kitchen-pointer aria-hidden="true">
-      <span data-pointer-mode="hand"><Icon name="tabler:hand-finger" /></span>
-      <span data-pointer-mode="grab"><Icon name="tabler:hand-grab" /></span>
-      <span data-pointer-mode="blade"><Icon name="tabler:blade" /></span>
-    </div>
-  </section>
-  </div>
+    <aside class="kisara-index-feature" aria-labelledby="kisara-feature-title">
+      <span class="kisara-index-feature-no" aria-hidden="true">01</span>
+      <div>
+        <p class="kisara-index-kicker"><span>FEATURED FILE</span><i aria-hidden="true"></i>{featured.repo}</p>
+        <h2 id="kisara-feature-title">{featured.title}</h2>
+        <p>{featured.summary}</p>
+        <p class="kisara-index-feature-note">{featured.note}</p>
+      </div>
+      <div class="kisara-index-feature-links">
+        <a href={featured.href} target="_blank" rel="noopener noreferrer">
+          <Icon name="simple-icons:github" aria-hidden="true" />Repository
+        </a>
+        {featured.demo && (
+          <a href={featured.demo} target="_blank" rel="noopener noreferrer">
+            <Icon name="tabler:link" aria-hidden="true" />Live site
+          </a>
+        )}
+      </div>
+    </aside>
   </div>
 
   <script>
     document.addEventListener("astro:page-load", () => {
-      const root = document.querySelector<HTMLElement>("[data-kisara-works-hero]");
+      const root = document.querySelector<HTMLElement>("[data-kisara-works-index]");
       if (!root) return;
-      // Keep dependencies in Vite's module graph, including the terminal still helper.
-      import("../lib/worksPage.js").then(({ bindWorksPage }) => {
-        if (root.isConnected) bindWorksPage();
-      }).catch(error => {
+      import("../lib/worksIndex.js").then(({ bindWorksIndex }) => {
         if (!root.isConnected) return;
-        root.dataset.introState = "complete";
-        root.dataset.videoState = "fallback";
-        console.error("Kisara page interaction failed to load", error);
+        window.__yuimiKisaraInnerCleanup?.();
+        window.__yuimiKisaraInnerCleanup = bindWorksIndex(root);
+      }).catch((error) => {
+        if (!root.isConnected) return;
+        console.error("Kisara Works index failed to load", error);
       });
     });
   </script>

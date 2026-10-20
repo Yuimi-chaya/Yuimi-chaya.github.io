@@ -33,11 +33,11 @@ export const routeBranches = [
     ],
   },
   {
-    id: "projects", label: "WORKS", href: getThemePath("kisara", "/projects/"), detail: "创作现场",
+    id: "projects", label: "WORKS", href: getThemePath("kisara", "/projects/"), detail: "项目档案",
     routes: [
-      { id: "works-cut", kind: "feature", label: "刀切测试", href: `${getThemePath("kisara", "/projects/")}#kisara-works-title`, icon: "tabler:blade" },
-      { id: "works-kitchen", kind: "feature", label: "技术食材", href: `${getThemePath("kisara", "/projects/")}#kisara-kitchen-lab`, icon: "tabler:flask-2" },
-      { id: "works-result", kind: "feature", label: "实验配方", href: `${getThemePath("kisara", "/projects/")}#kisara-drink-title`, icon: "tabler:flask-2" },
+      { id: "works-featured", kind: "feature", label: "精选项目", href: `${getThemePath("kisara", "/projects/")}#kisara-works-title`, icon: "tabler:sparkles" },
+      { id: "works-archive", kind: "feature", label: "项目档案", href: `${getThemePath("kisara", "/projects/")}#kisara-archive`, icon: "tabler:archive" },
+      { id: "works-feature-note", kind: "feature", label: "站点主案", href: `${getThemePath("kisara", "/projects/")}#kisara-feature-title`, icon: "tabler:link" },
     ],
   },
   {

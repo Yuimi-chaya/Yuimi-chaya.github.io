@@ -164,8 +164,10 @@ test("navigation, mobile article index and native project controls expose their 
   assert.match(read("layouts/BaseLayout.astro"), /aria-current=/);
   assert.match(read("layouts/BaseLayout.astro"), /href="#page-content"/);
   assert.match(read("layouts/ArticleLayout.astro"), /<details class="article-mobile-toc"/);
-  assert.match(read("pages/ProjectsPage.astro"), /data-card-panel hidden/);
-  assert.match(read("pages/ProjectsPage.astro"), /aria-controls=/);
+  const projects = read("pages/ProjectsPage.astro");
+  assert.match(projects, /<details>/);
+  assert.match(projects, /aria-pressed=/);
+  assert.match(projects, /data-works-chapter=/);
 });
 
 test("closed tool drawer hides its whole panel at every width", () => {
@@ -303,35 +305,13 @@ test("search failure renders a usable empty fallback", async () => {
   assert.doesNotMatch(fixture.output.innerHTML, /正在翻页/);
 });
 
-test("project filters and status disclosure update their accessible state on reentry", () => {
-  const filters = [node({ filter: "all" }), node({ filter: "unity" })];
-  const cards = [node({ projectLine: "unity" }), node({ projectLine: "astrbot" })];
-  const lines = [node({ lineCard: "unity" }), node({ lineCard: "astrbot" })];
-  const panel = node();
-  const toggle = node();
-  toggle.closest = () => cards[0];
-  cards[0].querySelector = () => panel;
-  const context = vm.createContext({
-    document: {
-      querySelector: () => ({ querySelectorAll: () => filters }),
-      querySelectorAll: (selector) => ({
-        "[data-project-line]": cards, "[data-line-card]": lines, "[data-card-toggle]": [toggle]
-      })[selector]
-    }
-  });
-  const script = inlineScript("pages/ProjectsPage.astro");
-  vm.runInContext(script, context);
-  filters[1].events.get("click")();
-  assert.equal(filters[1].attributes["aria-pressed"], "true");
-  assert.equal(filters[0].attributes["aria-pressed"], "false");
-  assert.equal(cards[0].classList.contains("is-dimmed"), false);
-  assert.equal(cards[1].classList.contains("is-dimmed"), true);
-  toggle.events.get("click")();
-  assert.equal(toggle.attributes["aria-expanded"], "true");
-  assert.equal(panel.hidden, false);
-  toggle.events.get("click")();
-  assert.equal(panel.hidden, true);
-  assert.doesNotThrow(() => vm.runInContext(script, context));
-  filters[0].events.get("click")();
-  assert.equal(cards[1].classList.contains("is-dimmed"), false);
+test("project chapters are native controls and expose their state without hiding links", () => {
+  const projects = read("pages/ProjectsPage.astro");
+  assert.match(projects, /data-works-chapter=\{group\.key\}/);
+  assert.match(projects, /aria-pressed=\{index === 0 \? "true" : "false"\}/);
+  assert.match(projects, /entry\.hidden = !matches/);
+  assert.match(projects, /querySelector<HTMLElement>\("\[data-yuimi-works\]"\)/);
+  assert.match(projects, /root\.dataset\.worksBound === "true"/);
+  assert.match(projects, /href=\{project\.href\}/);
+  assert.doesNotMatch(projects, /works-card-panel|data-card-toggle/);
 });

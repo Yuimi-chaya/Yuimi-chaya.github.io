@@ -1,391 +1,273 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import worksStylesheet from "../styles/works.css?url";
 import { Icon } from "astro-icon/components";
-import { projectEntries, projectTechLines } from "@/core/data/projects";
-import MangaArt from "../components/MangaArt.astro";
+import { projectEntries } from "@/core/data/projects";
 
-const techIcons = {
-  unity: "simple-icons:unity",
-  blender: "simple-icons:blender",
-  ue5: "simple-icons:unrealengine",
-  mmd: "tabler:sparkles",
-  astrbot: "tabler:terminal-2"
-} as const;
-const techLines = projectTechLines.map((item) => ({ ...item, icon: techIcons[item.key] }));
-const projectPresentation = {
-  "astrbot-lab": { icon: "tabler:terminal-2", accent: "mint" },
-  "unity-toys": { icon: "simple-icons:unity", accent: "blue" },
-  "blender-props": { icon: "simple-icons:blender", accent: "orange" },
-  "ue5-room": { icon: "simple-icons:unrealengine", accent: "ink" },
-  "mmd-camera": { icon: "tabler:sparkles", accent: "pink" },
-  "yuimi-web-lab": { icon: "tabler:flower", accent: "lavender" }
-} as const;
-const projectCards = projectEntries.map((project) => ({
+const chapters = [
+  {
+    id: "01",
+    key: "blog",
+    label: "站点手记",
+    english: "SITE JOURNAL",
+    lines: ["blog"],
+    cover: "/themes/fuyukawa-kagari/assets/works-index/work-01.webp",
+    note: "主题、页面结构与那些小到不值得单独写文章的交互。"
+  },
+  {
+    id: "02",
+    key: "astrbot",
+    label: "机器人便签",
+    english: "BOT NOTES",
+    lines: ["astrbot"],
+    cover: "/themes/fuyukawa-kagari/assets/works-index/work-02.webp",
+    note: "对话回合、记忆迁移与语音，让机器人更像在和你聊天。"
+  },
+  {
+    id: "03",
+    key: "codex",
+    label: "工具夹层",
+    english: "TOOLING",
+    lines: ["codex"],
+    cover: "/themes/fuyukawa-kagari/assets/works-index/work-03.webp",
+    note: "开发流程、桌面补丁和可以安全撤回的安装方式。"
+  },
+  {
+    id: "04",
+    key: "notes",
+    label: "经验页",
+    english: "FIELD NOTES",
+    lines: ["guide", "web"],
+    cover: "/themes/fuyukawa-kagari/assets/works-index/work-04.webp",
+    note: "踩过的坑、整理过的方法，以及从电脑走到手机的那一步。"
+  }
+] as const;
+
+const chapterForLine: Record<string, string> = {};
+for (const chapter of chapters) {
+  for (const line of chapter.lines) chapterForLine[line] = chapter.key;
+}
+
+const projects = projectEntries.map((project, index) => ({
   ...project,
-  ...projectPresentation[project.id]
+  no: String(index + 1).padStart(2, "0"),
+  chapter: chapterForLine[project.line] ?? "notes"
 }));
 
+const groups = [
+  {
+    id: "00",
+    key: "all",
+    label: "全部条目",
+    english: "ALL ENTRIES",
+    cover: "/themes/fuyukawa-kagari/assets/works-index/work-04.webp",
+    note: "从第一页开始翻，也可以直接跳到想看的章节。"
+  },
+  ...chapters
+];
 ---
 
-<BaseLayout title="Projects | Yuimi Lab" description="Yuimi Lab 的项目、技术线和个人实验收藏架。">
-  <section class="works-shell" aria-labelledby="works-title">
-    <div class="works-hero">
-      <div>
-        <p class="section-kicker">02 / The atelier</p>
-        <h1 id="works-title">灵感工坊<span class="page-title-en">Projects</span></h1>
-        <p>
-          从一个小念头开始，让喜欢的技术慢慢长成作品。这里收着正在做的实验，也留着下一次继续的线索。
-        </p>
-      </div>
-      <div class="workshop-scene" aria-hidden="true">
-        <MangaArt image="workshop-strip" class="workshop-panel" eager />
-        <MangaArt image="haruto-gift" class="workshop-character" eager />
-        <span class="manga-handwritten">Made of little ideas.</span>
+<BaseLayout
+  title="Works | Yuimi Lab"
+  description="Yuimi Lab 的项目手帐：博客、AstrBot 插件、Codex 工具与经验记录。"
+  stylesheets={[worksStylesheet]}
+>
+  <section class="yuimi-works" data-yuimi-works aria-labelledby="works-title">
+    <header class="yuimi-works-heading">
+      <p class="yuimi-works-kicker">02 / THE NOTEBOOK <span>·</span> PROJECTS</p>
+      <h1 id="works-title">作品手帐<span>Works &amp; little systems</span></h1>
+      <p class="yuimi-works-lede">
+        喜欢让机器人聊得自然，也喜欢把日常的不顺手改成工具。这里记着站点、插件、桌面小改动，以及一路写下来的经验。
+      </p>
+      <a class="yuimi-works-github" href="https://github.com/Yuimi-chaya" target="_blank" rel="noopener noreferrer">
+        <Icon name="simple-icons:github" aria-hidden="true" />
+        在 GitHub 看全部仓库
+        <Icon name="tabler:external-link" aria-hidden="true" />
+      </a>
+    </header>
+
+    <div class="yuimi-works-desk">
+      <aside class="yuimi-works-photo" aria-hidden="true">
+        <span class="yuimi-works-tape"></span>
+        <div class="yuimi-works-photo-stack">
+          {groups.map((group, index) => (
+            <img
+              src={group.cover}
+              alt=""
+              width="720"
+              height="1017"
+              loading={index === 0 ? "eager" : "lazy"}
+              decoding="async"
+              data-photo={group.key}
+              class:list={{ "is-current": index === 0 }}
+            />
+          ))}
+        </div>
+        <span class="yuimi-works-photo-caption" data-photo-caption>00 / 整本手帐</span>
+        <span class="yuimi-works-photo-note" data-photo-note>从第一页开始翻，也可以直接跳到想看的章节。</span>
+      </aside>
+
+      <div class="yuimi-works-body">
+        <nav class="yuimi-works-chapters" aria-label="手帐章节">
+          {groups.map((group, index) => (
+            <button
+              type="button"
+              data-works-chapter={group.key}
+              aria-pressed={index === 0 ? "true" : "false"}
+              class:list={{ "is-active": index === 0 }}
+            >
+              <span>{group.id}</span>
+              <strong>{group.label}</strong>
+              <small>{group.english}</small>
+            </button>
+          ))}
+        </nav>
+
+        <div class="yuimi-works-ribbon">
+          <span data-works-ribbon>ALL ENTRIES</span>
+          <i aria-hidden="true"></i>
+          <span aria-live="polite" aria-atomic="true">
+            <b data-works-total>{projects.length}</b> entries
+          </span>
+        </div>
+
+        <div class="yuimi-works-list" role="list">
+          {projects.map((project) => (
+            <article
+              class="yuimi-works-entry"
+              role="listitem"
+              data-project-chapter={project.chapter}
+            >
+              <details>
+                <summary>
+                  <span class="yuimi-works-entry-no">{project.no}</span>
+                  <span class="yuimi-works-entry-main">
+                    <span class="yuimi-works-entry-type">{project.type}</span>
+                    <strong>{project.title}</strong>
+                  </span>
+                  <span class="yuimi-works-entry-status">{project.status}</span>
+                  <span class="yuimi-works-entry-more" aria-hidden="true">
+                    <Icon name="tabler:chevron-down" />
+                  </span>
+                </summary>
+                <div class="yuimi-works-entry-body">
+                  <p>{project.summary}</p>
+                  <div class="yuimi-works-entry-grid">
+                    <div>
+                      <span>我的部分</span>
+                      <p>{project.role}</p>
+                    </div>
+                    <div>
+                      <span>留下的东西</span>
+                      <ul>
+                        {project.details.map((detail) => <li>{detail}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                  <p class="yuimi-works-entry-note">{project.note}</p>
+                  <footer>
+                    <span>{project.language}</span>
+                    <span>{project.stars} stars</span>
+                    <a href={project.href} target="_blank" rel="noopener noreferrer">
+                      <Icon name="simple-icons:github" aria-hidden="true" />
+                      <span>{project.repo}</span>
+                      <Icon name="tabler:external-link" aria-hidden="true" />
+                    </a>
+                  </footer>
+                </div>
+              </details>
+            </article>
+          ))}
+        </div>
+
+        <p class="yuimi-works-empty" data-works-empty hidden>这一章还没有写满，先从其他页翻起吧。</p>
       </div>
     </div>
 
-    <div class="works-filter" data-works-filter aria-label="Project filters">
-      <button type="button" class="is-active" data-filter="all" aria-pressed="true">全部</button>
-      {techLines.map((item) => (
-        <button type="button" data-filter={item.key} aria-pressed="false">
-          <Icon name={item.icon} aria-hidden="true" />
-          {item.label}
-        </button>
-      ))}
-    </div>
-
-    <section class="works-tech-board" aria-label="Tech lines">
-      {techLines.map((item) => (
-        <article data-line-card={item.key}>
-          <Icon name={item.icon} aria-hidden="true" />
-          <strong>{item.label}</strong>
-          <span>{item.note}</span>
-        </article>
-      ))}
-    </section>
-
-    <section class="works-grid" aria-label="Project cards">
-      {projectCards.map((project, index) => (
-        <article class={`works-card works-card--${project.accent}`} data-project-line={project.line}>
-          <span class="works-page-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-          <div class="works-card-head">
-            <span class="works-card-icon" aria-hidden="true">
-              <Icon name={project.icon} />
-            </span>
-            <div>
-              <p>{project.type}</p>
-              <h2>{project.title}</h2>
-            </div>
-          </div>
-          <p class="works-card-summary">{project.summary}</p>
-          <div class="works-card-tags">
-            {project.details.map((detail) => (
-              <span>{detail}</span>
-            ))}
-          </div>
-          <button type="button" class="works-card-toggle" data-card-toggle aria-expanded="false" aria-controls={`project-status-${project.id}`}>
-            <Icon name="tabler:chevron-down" aria-hidden="true" />
-            查看状态
-          </button>
-          <div class="works-card-panel" id={`project-status-${project.id}`} data-card-panel hidden>
-            <strong>{project.status}</strong>
-            <p>下一步会把相关笔记、截图或可玩的 demo 慢慢补到这里。</p>
-          </div>
-          {index === 0 && <MangaArt image="kagari-thinking" class="works-card-companion" />}
-        </article>
-      ))}
-    </section>
-
+    <footer class="yuimi-works-foot">
+      <p>手帐还没有写完。<span>下一批想做的，会把“记录”和“工具”再缝得紧一点。</span></p>
+      <a href="https://github.com/Yuimi-chaya?tab=repositories" target="_blank" rel="noopener noreferrer">
+        <Icon name="tabler:book-2" aria-hidden="true" />
+        All repositories
+      </a>
+    </footer>
   </section>
 
-  <script is:inline data-astro-rerun>
-    (() => {
-    const filterRoot = document.querySelector("[data-works-filter]");
-    const filterButtons = filterRoot ? Array.from(filterRoot.querySelectorAll("button")) : [];
-    const cards = Array.from(document.querySelectorAll("[data-project-line]"));
-    const lineCards = Array.from(document.querySelectorAll("[data-line-card]"));
+  <script>
+    document.addEventListener("astro:page-load", () => {
+      const root = document.querySelector<HTMLElement>("[data-yuimi-works]");
+      if (!root || root.dataset.worksBound === "true") return;
+      root.dataset.worksBound = "true";
 
-    filterButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        const filter = button.dataset.filter || "all";
+      const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-works-chapter]"));
+      const entries = Array.from(root.querySelectorAll<HTMLElement>("[data-project-chapter]"));
+      const photos = Array.from(root.querySelectorAll<HTMLImageElement>("[data-photo]"));
+      const caption = root.querySelector<HTMLElement>("[data-photo-caption]");
+      const note = root.querySelector<HTMLElement>("[data-photo-note]");
+      const ribbon = root.querySelector<HTMLElement>("[data-works-ribbon]");
+      const total = root.querySelector<HTMLElement>("[data-works-total]");
+      const empty = root.querySelector<HTMLElement>("[data-works-empty]");
+      const chapterData = new Map(buttons.map((button) => [
+        button.dataset.worksChapter ?? "all",
+        {
+          label: button.querySelector("strong")?.textContent?.trim() ?? "",
+          id: button.querySelector("span")?.textContent?.trim() ?? "00",
+          english: button.querySelector("small")?.textContent?.trim() ?? ""
+        }
+      ]));
+      const chapterNotes: Record<string, string> = {
+        all: "从第一页开始翻，也可以直接跳到想看的章节。",
+        blog: "站点不是一次做完的，更多是每次想改一点时留下的痕迹。",
+        astrbot: "机器人的问题，很多时候要回到“它到底听到了什么”去找。",
+        codex: "工具做得好不好，看它出问题时能不能干净地退回去。",
+        notes: "写下来不是总结，是让下一次的自己少绕一圈。"
+      };
 
-        filterButtons.forEach((item) => {
-          item.classList.toggle("is-active", item === button);
-          item.setAttribute("aria-pressed", String(item === button));
+      const apply = (key: string) => {
+        const button = buttons.find((item) => item.dataset.worksChapter === key) ?? buttons[0];
+        const data = chapterData.get(key) ?? chapterData.get("all")!;
+        buttons.forEach((item) => {
+          const active = item === button;
+          item.classList.toggle("is-active", active);
+          item.setAttribute("aria-pressed", String(active));
         });
-        cards.forEach((card) => {
-          const isMatch = filter === "all" || card.dataset.projectLine === filter;
-          card.classList.toggle("is-dimmed", !isMatch);
-          card.hidden = !isMatch;
+
+        let shown = 0;
+        entries.forEach((entry) => {
+          const matches = key === "all" || entry.dataset.projectChapter === key;
+          entry.hidden = !matches;
+          if (!matches) entry.querySelector("details")?.removeAttribute("open");
+          else shown += 1;
         });
-        lineCards.forEach((card) => {
-          const isMatch = filter === "all" || card.dataset.lineCard === filter;
-          card.classList.toggle("is-highlighted", isMatch && filter !== "all");
+
+        photos.forEach((photo) => {
+          photo.classList.toggle("is-current", photo.dataset.photo === key);
         });
-      });
+        if (caption) caption.textContent = `${data.id} / ${data.label}`;
+        if (note) note.textContent = chapterNotes[key] ?? chapterNotes.all;
+        if (ribbon) ribbon.textContent = data.english;
+        if (total) total.textContent = String(shown);
+        if (empty) empty.hidden = shown !== 0;
+        root.dataset.chapter = key;
+      };
+
+      const onClick = (event: Event) => {
+        const button = event.target instanceof Element
+          ? event.target.closest<HTMLButtonElement>("[data-works-chapter]")
+          : null;
+        if (!button || !root.contains(button)) return;
+        apply(button.dataset.worksChapter ?? "all");
+      };
+
+      root.addEventListener("click", onClick);
+      const cleanup = () => {
+        root.removeEventListener("click", onClick);
+        document.removeEventListener("astro:before-swap", cleanup);
+        delete root.dataset.worksBound;
+      };
+      document.addEventListener("astro:before-swap", cleanup, { once: true });
+      const preset = new URLSearchParams(window.location.search).get("chapter");
+      apply(preset && chapterData.has(preset) ? preset : "all");
     });
-
-    document.querySelectorAll("[data-card-toggle]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const card = button.closest(".works-card");
-        if (!card) return;
-
-        const isOpen = card.classList.toggle("is-open");
-        button.setAttribute("aria-expanded", String(isOpen));
-        const panel = card.querySelector("[data-card-panel]");
-        if (panel) panel.hidden = !isOpen;
-      });
-    });
-    })();
   </script>
-
-  <style>
-    .works-shell {
-      margin: 0 auto;
-      display: grid;
-    }
-
-    :global(.waifu-local-fallback) {
-      left: 6px !important;
-      width: 112px !important;
-      opacity: 0.72 !important;
-    }
-
-    :global(.waifu-local-bubble) {
-      display: none !important;
-    }
-
-    :global(.waifu-local-character) {
-      width: 92px !important;
-      height: 92px !important;
-      margin-left: 0 !important;
-    }
-
-    :global(.waifu-local-character img) {
-      width: 72px !important;
-      height: 72px !important;
-    }
-
-    .works-hero {
-      position: relative;
-      isolation: isolate;
-      overflow: visible;
-    }
-
-    .works-filter,
-.works-tech-board {
-      position: relative;
-      isolation: isolate;
-      overflow: visible;
-      -webkit-backdrop-filter: blur(2px) saturate(1.03);
-    }
-
-    .works-card,
-.works-card {
-      position: relative;
-      isolation: isolate;
-      overflow: visible;
-      border-radius: 8px;
-      -webkit-backdrop-filter: blur(2px) saturate(1.03);
-    }
-
-    .works-hero {
-      display: grid;
-      gap: 24px;
-      align-items: center;
-    }
-
-    .works-hero h1 {
-      color: var(--ink);
-      letter-spacing: 0;
-    }
-
-    .works-hero p:not(.section-kicker) {
-      line-height: 1.9;
-    }
-
-    .works-hero-orbit {
-      position: relative;
-      justify-self: center;
-    }
-
-    .works-hero-orbit span {
-      display: grid;
-      place-items: center;
-    }
-
-    .works-hero-orbit span:nth-child(1) { top: -4px; left: 68px; }
-    .works-hero-orbit span:nth-child(2) { top: 68px; right: -4px; color: #e2762d; }
-    .works-hero-orbit span:nth-child(3) { bottom: -4px; left: 68px; color: #fffaf1; background: #31425f; }
-    .works-hero-orbit span:nth-child(4) { top: 68px; left: -4px; color: #c85278; }
-
-    .works-hero-orbit svg,
-    .works-card-icon svg,
-    .works-tech-board svg {
-      width: 1.35em;
-      height: 1.35em;
-    }
-
-    .works-filter {
-      display: flex;
-      flex-wrap: wrap;
-    }
-
-    .works-filter button,
-.works-card-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 13px;
-      color: var(--ink);
-      font: inherit;
-      cursor: pointer;
-      transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
-    }
-
-    .works-filter button:hover,
-    .works-card-toggle:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--paper-shadow);
-    }
-
-    .works-tech-board {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-    }
-
-    .works-tech-board article {
-      display: grid;
-      gap: 8px;
-      color: var(--ink);
-      transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
-    }
-
-    .works-tech-board strong {
-      color: var(--ink);
-    }
-
-    .works-tech-board span {
-      color: var(--ink-soft);
-      line-height: 1.55;
-    }
-
-    .works-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .works-card {
-      display: grid;
-      align-content: start;
-      transition: transform 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
-    }
-
-    .works-card.is-dimmed {
-      opacity: 0.38;
-      transform: scale(0.98);
-    }
-
-    .works-card-head {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .works-card-icon {
-      display: grid;
-      flex: 0 0 auto;
-      place-items: center;
-      width: 48px;
-      height: 48px;
-      color: var(--ink);
-      background: var(--blue-soft);
-      border-radius: 8px;
-    }
-
-    .works-card--orange .works-card-icon { color: #e2762d; background: #ffe8cf; }
-    .works-card--ink .works-card-icon { color: #fffaf1; background: #31425f; }
-    .works-card--pink .works-card-icon { color: #c85278; background: var(--pink-soft); }
-    .works-card--mint .works-card-icon { color: #3c8067; background: rgba(184, 219, 201, 0.58); }
-    .works-card--lavender .works-card-icon { color: #6d63a8; background: rgba(201, 194, 238, 0.52); }
-
-    .works-card-head p {
-      margin: 0;
-      font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
-      font-weight: 850;
-      letter-spacing: 0;
-      text-transform: uppercase;
-    }
-
-    .works-card h2 {
-      margin: 4px 0 0;
-      color: var(--ink);
-      line-height: 1.32;
-      letter-spacing: 0;
-    }
-
-    .works-card-summary,
-    .works-card-panel p {
-      margin: 0;
-      color: var(--ink-soft);
-      line-height: 1.78;
-    }
-
-    .works-card-tags {
-      display: flex;
-      flex-wrap: wrap;
-    }
-
-    .works-card-tags span {
-      font-weight: 800;
-    }
-
-    .works-card-toggle {
-      justify-self: start;
-      margin-top: auto;
-    }
-
-    .works-card-toggle svg {
-      transition: transform 180ms ease;
-    }
-
-    .works-card.is-open .works-card-toggle svg {
-      transform: rotate(180deg);
-    }
-
-    .works-card-panel {
-      display: grid;
-      grid-template-rows: 0fr;
-      opacity: 0;
-      transition: grid-template-rows 220ms ease, opacity 180ms ease;
-    }
-
-    .works-card-panel > * {
-      overflow: hidden;
-    }
-
-    .works-card.is-open .works-card-panel {
-      grid-template-rows: 1fr;
-      opacity: 1;
-    }
-
-    @media (max-width: 1080px) {
-      .works-tech-board,
-.works-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
-
-    @media (max-width: 720px) {
-
-      .works-tech-board,
-.works-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .works-hero-orbit {
-        justify-self: start;
-      }
-    }
-  </style>
 </BaseLayout>

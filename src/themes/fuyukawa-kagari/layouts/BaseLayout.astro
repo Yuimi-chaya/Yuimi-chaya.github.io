@@ -25,6 +25,7 @@ interface Props {
   redirectThemedNotFound?: boolean;
   isArticlePage?: boolean;
   article?: BlogPost["data"];
+  stylesheets?: string[];
 }
 
 const {
@@ -33,7 +34,8 @@ const {
   honorThemePreference = true,
   redirectThemedNotFound = false,
   isArticlePage = false,
-  article
+  article,
+  stylesheets = []
 } = Astro.props;
 const canonicalPath = getCanonicalPath(Astro.url.pathname);
 const canonical = new URL(canonicalPath, Astro.site ?? Astro.url);
@@ -75,6 +77,7 @@ const themedNotFoundRedirectScript = `(() => {
     <title>{title}</title>
     {canonicalPath !== "/" && <link rel="stylesheet" href={refreshPagesHref} />}
     {canonicalPath !== "/" && <link rel="stylesheet" href={mangaPagesHref} />}
+    {stylesheets.map((stylesheet) => <link rel="stylesheet" href={stylesheet} />)}
     <ClientRouter />
     <ConsoleEasterEgg />
   </head>

@@ -11,7 +11,6 @@ const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "u
 const home = read("src/themes/kisara/pages/HomePage.astro");
 const event = read("src/themes/kisara/lib/homeEvent.ts");
 const fridge = read("src/themes/kisara/components/KisaraFridgeScene.astro");
-const works = read("src/themes/kisara/lib/worksPage.js");
 const flush = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
 
 function imagesFixture() {
@@ -292,36 +291,6 @@ test("Fridge buffering does not reload or finish the scene on its short watchdog
   video.readyState = 4;
   timers.shift()!();
   assert.equal(recoveries, 1);
-});
-
-test("Works starts content independently, initializes unready route media and recovers late video", () => {
-  const prep = works.slice(works.indexOf("const prepareHeroVideo ="), works.indexOf("const playHeroIntro ="));
-  assert.doesNotMatch(prep, /if \(heroVideo\.networkState === 0\)/);
-  assert.match(prep, /heroVideo\.load\(\)/);
-  assert.match(prep, /removeEventListener\("loadeddata", loaded\)/);
-  const intro = works.slice(works.indexOf("const playHeroIntro ="), works.indexOf("const syncHeroScroll ="));
-  assert.doesNotMatch(intro, /await prepareHeroVideo/);
-  assert.match(works, /addEventListener\("canplay", startPreparedHeroVideo/);
-  const helper = works.slice(works.indexOf("const startPreparedHeroVideo ="), works.indexOf("const retryHeroVideo ="));
-  class Element { dataset = { introState: "complete", videoState: "idle" }; }
-  class Video { error = null; readyState = 1; }
-  const hero = new Element(), video = new Video();
-  const state = {
-    signal: { aborted: false }, heroReducedMotion: false, document: { hidden: false },
-    fruitPhysicsVisible: true, hero, heroVideo: video, HTMLElement: Element, HTMLVideoElement: Video,
-    heroVideoStarted: false, resumeHeroVideo: false, syncWorksActivity() {},
-  };
-  const start = vm.runInNewContext(helper + "\nstartPreparedHeroVideo", state);
-  start();
-  assert.equal(state.heroVideoStarted, true, "Playback itself must drive cold media loading");
-  video.readyState = 3;
-  start();
-  assert.equal(state.resumeHeroVideo, true);
-  assert.equal(hero.dataset.videoState, "playing");
-  state.heroVideoStarted = false;
-  hero.dataset.videoState = "complete";
-  start();
-  assert.equal(state.heroVideoStarted, false, "Finished one-shot must not replay");
 });
 
 test("003 fallback is recoverable and retries are finite rather than declaring completion", () => {

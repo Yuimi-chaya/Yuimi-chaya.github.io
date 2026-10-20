@@ -22,21 +22,21 @@ function check(files: Record<string, string>) {
   }
 }
 
-test("Production modules reject the raw TypeScript import that broke Works", () => {
-  const result = check({ "worksPage.hash.js": 'import { bindVideoStill } from "./videoStill.ts";' });
+test("Production modules reject raw TypeScript imports", () => {
+  const result = check({ "worksIndex.hash.js": 'import { bindVideoStill } from "./videoStill.ts";' });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /invalid browser module .\/videoStill.ts/);
 });
 
 test("Production modules reject missing JavaScript dependencies", () => {
-  const result = check({ "worksPage.hash.js": 'import "./missing.js";' });
+  const result = check({ "worksIndex.hash.js": 'import "./missing.js";' });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /missing module .\/missing.js/);
 });
 
 test("Production modules resolve hashed dependencies without evaluating browser code", () => {
   const result = check({
-    "worksPage.hash.js": 'import "./still.hash.js"; window.addEventListener("load", () => {});',
+    "worksIndex.hash.js": 'import "./still.hash.js"; window.addEventListener("load", () => {});',
     "still.hash.js": 'export const value = document.hidden;',
   });
   assert.equal(result.status, 0, result.stderr);
@@ -45,25 +45,29 @@ test("Production modules resolve hashed dependencies without evaluating browser 
 
 test("Works uses a processed Astro script with a bundled lazy import on every page load", () => {
   const page = readFileSync(new URL("../src/themes/kisara/pages/ProjectsPage.astro", import.meta.url), "utf8");
-  assert.doesNotMatch(page, /worksPage\.js\?url|KisaraPageRuntime/);
+  assert.doesNotMatch(page, /worksIndex\.js\?url|KisaraPageRuntime/);
   assert.match(page, /<script>\s*document\.addEventListener\("astro:page-load"/);
-  assert.match(page, /import\("\.\.\/lib\/worksPage\.js"\)/);
-  assert.match(page, /if \(root\.isConnected\) bindWorksPage\(\)/);
+  assert.match(page, /import\("\.\.\/lib\/worksIndex\.js"\)/);
+  assert.match(page, /if \(!root\.isConnected\) return/);
+  assert.match(page, /bindWorksIndex\(root\)/);
 });
 
 function pageFixture() {
   const page = readFileSync(new URL("../src/themes/kisara/pages/ProjectsPage.astro", import.meta.url), "utf8");
   const script = page.match(/<script>([\s\S]*?)<\/script>/)![1]
     .replace("querySelector<HTMLElement>", "querySelector")
-    .replace('import("../lib/worksPage.js")', "loadWorks()");
-  let root: { isConnected: boolean; dataset: Record<string, string> } | null = null;
+    .replace('import("../lib/worksIndex.js")', "loadWorks()");
+  type Root = { isConnected: boolean; dataset: Record<string, string> };
+  let root: Root | null = null;
   let binds = 0;
   const pending: { resolve: Function; reject: Function }[] = [];
   const document = Object.assign(new EventTarget(), { querySelector: () => root });
   vm.runInNewContext(script, {
-    document, console: { error() {} },
+    document,
+    console: { error() {} },
+    window: {},
     loadWorks: () => new Promise((resolve, reject) => pending.push({
-      resolve: () => resolve({ bindWorksPage: () => binds++ }), reject,
+      resolve: () => resolve({ bindWorksIndex: () => { binds++; return () => {}; } }), reject,
     })),
   });
   return {
@@ -114,6 +118,5 @@ test("Works loader settles a failed import without changing a later page", async
   await Promise.resolve();
   await Promise.resolve();
   assert.deepEqual(old.dataset, {});
-  assert.equal(current.dataset.videoState, "fallback");
-  assert.equal(current.dataset.introState, "complete");
+  assert.deepEqual(current.dataset, {});
 });
