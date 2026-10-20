@@ -23,6 +23,8 @@ const images = {
   "kagari-schoolbag": [288, 519],
   "kagari-soba": [361, 429],
   "kagari-sleeve": [477, 449],
+  "kagari-cozy": [269, 460],
+  "kagari-rest": [533, 377],
   "hero-character": [1920, 1080],
   "hero-manga": [1920, 1080]
 } as const;

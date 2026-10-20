@@ -4,10 +4,10 @@ import { getThemePath } from "@/core/themes/registry";
 import MangaArt from "./MangaArt.astro";
 import type { MangaImage } from "../data/mangaArt";
 const chapters: { route: string; label: string; title: string; note: string; image: MangaImage; sticker: MangaImage }[] = [
-  { route: "/blog/", label: "01 / Notebook", title: "写下来的日子", note: "技术、随笔与忽然冒出的念头", image: "reading-strip", sticker: "haruto-reading" },
-  { route: "/projects/", label: "02 / Atelier", title: "还在生长的作品", note: "把灵感变成可以触碰的小东西", image: "workshop-strip", sticker: "haruto-gift" },
-  { route: "/games/", label: "03 / After school", title: "今天也要玩一会儿", note: "给认真生活留一段课后时间", image: "playroom-strip", sticker: "haruto-cat" },
-  { route: "/about/", label: "04 / Dear reader", title: "关于这里的我", note: "喜欢的故事，总想与你聊聊", image: "hand-note", sticker: "kagari-schoolbag" }
+  { route: "/blog/", label: "01 / Notebook", title: "写下来的日子", note: "技术、随笔与忽然冒出的念头", image: "reading-strip", sticker: "kagari-schoolbag" },
+  { route: "/projects/", label: "02 / Atelier", title: "还在生长的作品", note: "把灵感变成可以触碰的小东西", image: "workshop-strip", sticker: "haruto-reading" },
+  { route: "/games/", label: "03 / After school", title: "课后，放松一下", note: "放下待办，留一点时间玩耍或小憩", image: "playroom-strip", sticker: "kagari-rest" },
+  { route: "/about/", label: "04 / Dear reader", title: "关于这里的我", note: "喜欢的故事，总想与你聊聊", image: "hand-note", sticker: "kagari-cozy" }
 ];
 ---
 <section class="chapter-rail" data-manga-rail aria-labelledby="chapter-rail-title">
@@ -22,10 +22,10 @@ const chapters: { route: string; label: string; title: string; note: string; ima
     </header>
     <div class="chapter-track" id="home-chapters" data-rail-track tabindex="0" aria-label="手帖章节">
       {chapters.map((chapter, index) => (
-        <a class="chapter-leaf" data-rail-active={index === 0 ? "true" : undefined} href={getThemePath("fuyukawa-kagari", chapter.route)}>
+        <a class="chapter-leaf" data-sticker-shape={chapter.sticker === "kagari-rest" ? "wide" : undefined} data-rail-active={index === 0 ? "true" : undefined} href={getThemePath("fuyukawa-kagari", chapter.route)}>
           <span class="chapter-number">{chapter.label}</span>
           <div class="chapter-picture"><MangaArt image={chapter.image} /></div>
-          <MangaArt image={chapter.sticker} class="chapter-sticker" />
+          <MangaArt image={chapter.sticker} class={chapter.sticker === "kagari-rest" ? "chapter-sticker chapter-sticker--wide" : "chapter-sticker"} />
           <div class="chapter-caption"><h3>{chapter.title}</h3><p>{chapter.note}</p></div>
           <Icon name="tabler:arrow-up" class="chapter-arrow" aria-hidden="true" />
         </a>

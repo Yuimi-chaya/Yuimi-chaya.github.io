@@ -15,7 +15,7 @@ const manifest = JSON.parse(await fs.readFile(path.join(assets, "chibi-manifest.
 
 test("chibi derivatives have transparent paper, true intrinsic sizes and traceable unchanged sources", async () => {
   const registry = await read("data/mangaArt.ts");
-  assert.equal(manifest.outputs.length, 5);
+  assert.equal(manifest.outputs.length, 7);
   let total = 0;
   for (const output of manifest.outputs) {
     const buffer = await fs.readFile(path.join(assets, output.file));
@@ -27,6 +27,7 @@ test("chibi derivatives have transparent paper, true intrinsic sizes and traceab
     assert.equal(hash(buffer), output.sha256);
     assert.ok(registry.includes(`"${output.file.replace(".webp", "")}": [${output.width}, ${output.height}]`));
     assert.equal(hash(await fs.readFile(path.join(root, output.source))), output.sourceSha256);
+    if (output.protectedMask) assert.equal(hash(await fs.readFile(path.join(root, output.protectedMask))), output.protectedMaskSha256);
     const alpha = await sharp(buffer).ensureAlpha().extractChannel(3).raw().toBuffer();
     assert.ok(alpha.filter((value) => value === 0).length > alpha.length * .2, output.file);
     for (let x = 0; x < output.width; x++) {
@@ -39,7 +40,7 @@ test("chibi derivatives have transparent paper, true intrinsic sizes and traceab
     }
     total += buffer.length;
   }
-  assert.ok(total < 250_000, `five stickers total ${total} bytes`);
+  assert.ok(total < 350_000, `seven stickers total ${total} bytes`);
 });
 
 test("paper removal preserves enclosed white artwork instead of globally keying white", () => {
@@ -74,22 +75,55 @@ test("pale hair stays opaque and detached captions are removed on the two light-
 
 test("page-specific chibi choices follow reading, leisure, everyday life and welcome contexts", async () => {
   const rail = await read("components/ChapterRail.astro");
-  assert.match(rail, /route: "\/blog\/"[^]*?sticker: "haruto-reading"/);
-  assert.match(rail, /route: "\/games\/"[^]*?sticker: "haruto-cat"/);
-  assert.match(rail, /route: "\/about\/"[^]*?sticker: "kagari-schoolbag"/);
+  assert.match(rail, /route: "\/blog\/"[^]*?sticker: "kagari-schoolbag"/);
+  assert.match(rail, /route: "\/projects\/"[^]*?sticker: "haruto-reading"/);
+  assert.match(rail, /route: "\/games\/"[^]*?sticker: "kagari-rest"/);
+  assert.match(rail, /route: "\/about\/"[^]*?sticker: "kagari-cozy"/);
+  assert.match(rail, /title: "课后，放松一下", note: "放下待办，留一点时间玩耍或小憩"/);
   assert.match(await read("pages/HomePage.astro"), /journal-margin-note[^]*?<MangaArt image="kagari-soba"/);
-  assert.match(await read("pages/BlogIndexPage.astro"), /image="haruto-reading" class="blog-opening-character"/);
-  assert.match(await read("layouts/ArticleLayout.astro"), /image="haruto-reading" class="article-margin-character"/);
+  assert.match(await read("pages/BlogIndexPage.astro"), /image="kagari-tea" class="blog-opening-character"/);
+  assert.doesNotMatch(await read("layouts/ArticleLayout.astro"), /article-margin-character/);
   assert.match(await read("pages/GamesPage.astro"), /image="haruto-cat" class="playroom-companions"/);
   assert.match(await read("pages/AboutPage.astro"), /image="kagari-sleeve" class="about-side-character"/);
 });
 
-test("matching summer-night, thinking and work-delivery illustrations remain unchanged", async () => {
+test("matching summer-night and thinking illustrations remain while redundant decorations are removed", async () => {
   const album = await read("components/MemoryAlbum.astro");
   assert.match(album, /image: "festival-cover"[^]*?title: "把夏夜夹进书里"/);
   assert.match(album, /image="festival-pair" class="album-companion"/);
-  assert.match(await read("components/ChapterRail.astro"), /route: "\/projects\/"[^]*?sticker: "haruto-gift"/);
   assert.match(await read("pages/BlogIndexPage.astro"), /image="kagari-thinking" class="archive-companion"/);
-  assert.match(await read("pages/GamesPage.astro"), /image="haruto-thinking" class="game-note-character"/);
+  assert.doesNotMatch(await read("pages/GamesPage.astro"), /game-note-character/);
   assert.match(await read("pages/NotFoundPage.astro"), /image="haruto-thinking" class="lost-page-character"/);
+});
+
+test("all seven new artworks are used once and the chapter rail does not repeat or group male characters", async () => {
+  const files = ["components/ChapterRail.astro", "components/MemoryAlbum.astro", "pages/HomePage.astro", "pages/BlogIndexPage.astro", "pages/GamesPage.astro", "pages/AboutPage.astro", "pages/NotFoundPage.astro", "layouts/ArticleLayout.astro"];
+  const source = (await Promise.all(files.map(read))).join("\n");
+  const assigned = [...source.matchAll(/(?:image=|sticker: )"((?:kagari-|haruto-|festival-pair)[\w-]*)"/g)].map((match) => match[1]);
+  assert.equal(assigned.length, 11);
+  assert.equal(new Set(assigned).size, assigned.length, "no chibi artwork repeats between theme positions");
+  assert.deepEqual(manifest.outputs.map((output) => output.source.split("/").at(-1)).sort(), (await fs.readdir(path.join(root, "fuyukawa/chibi"))).filter((name) => name.endsWith(".jpg")).sort());
+  for (const output of manifest.outputs) {
+    const name = output.file.replace(".webp", "");
+    assert.equal(assigned.filter((value) => value === name).length, 1, `${name} must be used exactly once`);
+  }
+  const rail = [...(await read("components/ChapterRail.astro")).matchAll(/sticker: "([^"]+)"/g)].map((match) => match[1]);
+  assert.equal(new Set(rail).size, 4);
+  for (let i = 1; i < rail.length; i++) assert.ok(!(rail[i - 1].startsWith("haruto-") && rail[i].startsWith("haruto-")), "no adjacent male-only stickers");
+});
+
+test("the rest sticker preserves the white floral blanket without keeping surrounding paper", async () => {
+  const selection = selections.find((item) => item.name === "kagari-rest");
+  const { data, info } = await sharp(path.join(root, "fuyukawa/chibi", selection.source)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const protectedAlpha = await sharp(path.join(root, selection.protectedMask)).ensureAlpha().extractChannel(3).blur(2).raw().toBuffer();
+  const rgba = removePaper(data, info.width, info.height, selection.exclusions, selection.paperThreshold, protectedAlpha);
+  for (const [x, y] of [[340, 330], [450, 350], [530, 315]]) {
+    assert.equal(rgba[(y * info.width + x) * 4 + 3], 255, `blanket at ${x},${y}`);
+    assert.deepEqual(rgba.subarray((y * info.width + x) * 4, (y * info.width + x) * 4 + 3), data.subarray((y * info.width + x) * 3, (y * info.width + x) * 3 + 3));
+  }
+  for (const [x, y] of [[25, 25], [650, 450], [80, 100]]) assert.equal(rgba[(y * info.width + x) * 4 + 3], 0, `outside paper at ${x},${y}`);
+  const css = await read("styles/manga.css");
+  assert.match(css, /\.chapter-sticker--wide \{[^}]*grid-area: 2 \/ 1;[^}]*width: 170px;[^}]*transform-origin: right bottom;/);
+  assert.match(css, /\.chapter-leaf\[data-sticker-shape="wide"\] \.chapter-caption \{ grid-area: 3 \/ 1; padding-right: 8px; \}/);
+  assert.match(css, /@media \(max-width: 480px\) \{[^]*?\.chapter-sticker--wide \{ right: auto; width: 104px; \}/);
 });
