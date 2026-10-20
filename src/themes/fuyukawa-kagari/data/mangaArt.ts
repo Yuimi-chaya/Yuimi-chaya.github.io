@@ -18,6 +18,11 @@ const images = {
   "festival-pair": [490, 569],
   "kagari-thinking": [328, 512],
   "haruto-thinking": [263, 596],
+  "haruto-reading": [284, 588],
+  "haruto-cat": [369, 503],
+  "kagari-schoolbag": [288, 519],
+  "kagari-soba": [361, 429],
+  "kagari-sleeve": [477, 449],
   "hero-character": [1920, 1080],
   "hero-manga": [1920, 1080]
 } as const;
