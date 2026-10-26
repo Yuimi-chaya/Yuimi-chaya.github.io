@@ -45,21 +45,27 @@ test("Production modules resolve hashed dependencies without evaluating browser 
 
 test("Works uses a processed Astro script with a bundled lazy import on every page load", () => {
   const page = readFileSync(new URL("../src/themes/kisara/pages/ProjectsPage.astro", import.meta.url), "utf8");
-  assert.doesNotMatch(page, /worksIndex\.js\?url|KisaraPageRuntime/);
-  assert.match(page, /<script>\s*document\.addEventListener\("astro:page-load"/);
+  assert.doesNotMatch(page, /(?:worksIndex\.js|worksHero)\?url|KisaraPageRuntime/);
+  assert.match(page, /<script>\s*let generation = 0;\s*document\.addEventListener\("astro:page-load"/);
   assert.match(page, /import\("\.\.\/lib\/worksIndex\.js"\)/);
-  assert.match(page, /if \(!root\.isConnected\) return/);
+  assert.match(page, /import\("\.\.\/lib\/worksHero"\)/);
+  assert.match(page, /if \(!root\.isConnected \|\| entry !== generation\) return/);
   assert.match(page, /bindWorksIndex\(root\)/);
+  assert.match(page, /bindWorksHero\(root\)/);
 });
 
 function pageFixture() {
   const page = readFileSync(new URL("../src/themes/kisara/pages/ProjectsPage.astro", import.meta.url), "utf8");
   const script = page.match(/<script>([\s\S]*?)<\/script>/)![1]
     .replace("querySelector<HTMLElement>", "querySelector")
-    .replace('import("../lib/worksIndex.js")', "loadWorks()");
+    .replace('import("../lib/worksIndex.js")', "loadWorks()")
+    .replace('import("../lib/worksHero")', "loadHero()");
   type Root = { isConnected: boolean; dataset: Record<string, string> };
   let root: Root | null = null;
   let binds = 0;
+  let heroBinds = 0;
+  let releases = 0;
+  let heroReleases = 0;
   const pending: { resolve: Function; reject: Function }[] = [];
   const document = Object.assign(new EventTarget(), { querySelector: () => root });
   vm.runInNewContext(script, {
@@ -67,12 +73,17 @@ function pageFixture() {
     console: { error() {} },
     window: {},
     loadWorks: () => new Promise((resolve, reject) => pending.push({
-      resolve: () => resolve({ bindWorksIndex: () => { binds++; return () => {}; } }), reject,
+      resolve: () => resolve({ bindWorksIndex: () => { binds++; return () => { releases++; }; } }), reject,
     })),
+    loadHero: () => Promise.resolve({ bindWorksHero: () => { heroBinds++; return () => { heroReleases++; }; } }),
   });
   return {
     pending,
     get binds() { return binds; },
+    get heroBinds() { return heroBinds; },
+    get releases() { return releases; },
+    get heroReleases() { return heroReleases; },
+    leave() { document.dispatchEvent(new Event("astro:before-swap")); },
     enter(works = true) {
       if (root) root.isConnected = false;
       root = works ? { isConnected: true, dataset: {} } : null;
@@ -82,18 +93,25 @@ function pageFixture() {
   };
 }
 
+const settleImports = async () => { for (let index = 0; index < 8; index++) await Promise.resolve(); };
+
 test("Works loader runs on direct entry and later route entries, but not other pages", async () => {
   const f = pageFixture();
   f.enter();
   f.pending[0].resolve();
-  await Promise.resolve();
+  await settleImports();
   assert.equal(f.binds, 1);
+  assert.equal(f.heroBinds, 1);
+  f.leave();
+  assert.equal(f.releases, 1);
+  assert.equal(f.heroReleases, 1);
   f.enter(false);
   assert.equal(f.pending.length, 1);
   f.enter();
   f.pending[1].resolve();
-  await Promise.resolve();
+  await settleImports();
   assert.equal(f.binds, 2);
+  assert.equal(f.heroBinds, 2);
 });
 
 test("Works loader ignores a module resolved after leaving the captured page", async () => {
@@ -101,11 +119,11 @@ test("Works loader ignores a module resolved after leaving the captured page", a
   const old = f.enter()!;
   f.enter();
   f.pending[0].resolve();
-  await Promise.resolve();
+  await settleImports();
   assert.equal(f.binds, 0);
   assert.equal(old.isConnected, false);
   f.pending[1].resolve();
-  await Promise.resolve();
+  await settleImports();
   assert.equal(f.binds, 1);
 });
 
@@ -115,8 +133,7 @@ test("Works loader settles a failed import without changing a later page", async
   const current = f.enter()!;
   f.pending[0].reject(new Error("offline"));
   f.pending[1].reject(new Error("offline"));
-  await Promise.resolve();
-  await Promise.resolve();
+  await settleImports();
   assert.deepEqual(old.dataset, {});
   assert.deepEqual(current.dataset, {});
 });

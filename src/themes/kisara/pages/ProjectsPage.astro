@@ -28,11 +28,43 @@ const distinctLanguages = new Set(projects.map((project) => project.language)).s
   title="Works | Kisara"
   description="Yuimi Lab 的项目档案：博客、AstrBot 插件、Codex 工具与文档。"
   stylesheets={[projectsStylesheet]}
-  priorityImages={[featured.cover]}
+  priorityImages={["/themes/kisara/assets/works-opening-first.webp"]}
   showFooter={false}
 >
   <div class="kisara-index" data-kisara-works-index data-works-album aria-labelledby="kisara-works-title">
-    <header class="kisara-index-hero" id="kisara-works-title">
+    <header class="kisara-index-hero" id="kisara-works-title" data-works-intro data-video-state="idle">
+      <div class="kisara-index-film" aria-hidden="true">
+        <img
+          class="kisara-index-film-poster"
+          src="/themes/kisara/assets/works-opening-first.webp"
+          alt=""
+          width="1920"
+          height="1080"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+        />
+        <video
+          data-works-intro-video
+          data-src="/themes/kisara/assets/works-opening.mp4"
+          poster="/themes/kisara/assets/works-opening-first.webp"
+          width="1920"
+          height="1080"
+          preload="none"
+          muted
+          playsinline
+          disablepictureinpicture
+        ></video>
+        <img
+          class="kisara-index-film-still"
+          src="/themes/kisara/assets/works-opening-last.webp"
+          alt=""
+          width="1920"
+          height="1080"
+          loading="eager"
+          decoding="async"
+        />
+      </div>
       <div class="kisara-index-hero-copy">
         <p class="kisara-index-kicker"><span>WORKS / INDEX</span><i aria-hidden="true"></i>Yuimi Lab · 2026</p>
         <h1 aria-label="Works, built in layers.">
@@ -51,26 +83,11 @@ const distinctLanguages = new Set(projects.map((project) => project.language)).s
             <Icon name="simple-icons:github" aria-hidden="true" />
             Yuimi-chaya
           </a>
+          <button type="button" data-works-intro-replay aria-label="重播首屏动画" title="重播首屏动画" hidden>
+            <Icon name="tabler:refresh" aria-hidden="true" />
+          </button>
         </div>
       </div>
-
-      <figure class="kisara-index-cover">
-        <span class="kisara-index-cover-tape" aria-hidden="true"></span>
-        <img
-          src={featured.cover}
-          alt=""
-          width="720"
-          height={featured.coverHeight}
-          loading="eager"
-          fetchpriority="high"
-          decoding="async"
-        />
-        <figcaption>
-          <span>FILE 01 / FEATURED</span>
-          <strong>{featured.title}</strong>
-          <small>{featured.language} · {featured.stars} stars</small>
-        </figcaption>
-      </figure>
 
       <dl class="kisara-index-stats" aria-label="档案概览">
         <div><dt>PROJECTS</dt><dd>{String(projects.length).padStart(2, "0")}</dd></div>
@@ -184,13 +201,24 @@ const distinctLanguages = new Set(projects.map((project) => project.language)).s
   </div>
 
   <script>
+    let generation = 0;
     document.addEventListener("astro:page-load", () => {
+      const entry = ++generation;
       const root = document.querySelector<HTMLElement>("[data-kisara-works-index]");
       if (!root) return;
-      import("../lib/worksIndex.js").then(({ bindWorksIndex }) => {
-        if (!root.isConnected) return;
+      Promise.all([import("../lib/worksIndex.js"), import("../lib/worksHero")]).then(([{ bindWorksIndex }, { bindWorksHero }]) => {
+        if (!root.isConnected || entry !== generation) return;
         window.__yuimiKisaraInnerCleanup?.();
-        window.__yuimiKisaraInnerCleanup = bindWorksIndex(root);
+        const releaseIndex = bindWorksIndex(root);
+        const releaseHero = bindWorksHero(root);
+        const cleanup = () => {
+          releaseIndex();
+          releaseHero();
+          document.removeEventListener("astro:before-swap", cleanup);
+          if (window.__yuimiKisaraInnerCleanup === cleanup) window.__yuimiKisaraInnerCleanup = null;
+        };
+        window.__yuimiKisaraInnerCleanup = cleanup;
+        document.addEventListener("astro:before-swap", cleanup, { once: true });
       }).catch((error) => {
         if (!root.isConnected) return;
         console.error("Kisara Works index failed to load", error);

@@ -1,7 +1,7 @@
 /*
  * Kisara Works: an editorial archive built from paper, ink and four covers.
- * The page is intentionally static first; JavaScript only adds filtering and
- * selection, so the complete project list remains readable without it.
+ * A one-shot film opens into the paged archive. All projects and the opening
+ * poster remain readable without JavaScript.
  */
 
 html[data-theme="kisara"] body[data-kisara-page="projects"] {
@@ -17,7 +17,7 @@ html[data-theme="kisara"] body[data-kisara-page="projects"]::before {
 body[data-kisara-page="projects"] .kisara-header.is-inner-header {
   color: #3f343d;
   border-bottom-color: rgba(86, 62, 74, 0.14);
-  background: rgba(244, 237, 226, 0.9);
+  background: rgba(250, 247, 250, 0.9);
   box-shadow: 0 12px 30px rgba(54, 39, 47, 0.08);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -62,11 +62,12 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   --index-rose: #c65082;
   --index-plum: #6d3f57;
   --index-gold: #b78455;
+  --index-ease: cubic-bezier(.23, 1, .32, 1);
   position: relative;
   isolation: isolate;
   width: min(1440px, calc(100% - 80px));
   margin: 0 auto;
-  padding: 100px 0 40px;
+  padding: 0 0 40px;
   color: var(--index-ink);
 }
 
@@ -95,12 +96,85 @@ body[data-kisara-page="projects"] .kisara-index::after {
 }
 
 .kisara-index-hero {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px;
-  gap: 20px 36px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  gap: 24px;
   align-items: center;
-  padding-bottom: 20px;
+  min-height: min(620px, calc(78svh / var(--kisara-scale, 1)));
+  padding: 112px 0 20px;
   border-bottom: 1px solid var(--index-rule);
+}
+
+.kisara-index-film {
+  position: absolute;
+  z-index: -1;
+  inset: 0 calc(50% - 50vw / var(--kisara-scale, 1));
+  overflow: hidden;
+  pointer-events: none;
+  background: #faf7fa;
+}
+
+.kisara-index-film video,
+.kisara-index-film-poster,
+.kisara-index-film-still {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: right center;
+}
+
+.kisara-index-film video {
+  opacity: 0;
+}
+
+.kisara-index-hero[data-frame-ready] .kisara-index-film video {
+  opacity: 1;
+}
+
+.kisara-index-film-still {
+  opacity: 0;
+  transition: none;
+}
+
+.kisara-index-hero[data-video-state="static"] .kisara-index-film-still,
+.kisara-index-hero[data-video-state="complete"] .kisara-index-film-still[data-video-still-ready] {
+  opacity: 1;
+}
+
+.kisara-index-film::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(0deg, #f5f2f6, transparent 24%),
+    linear-gradient(90deg, #faf7fa 5%, rgba(250, 247, 250, .98) 27%, rgba(250, 247, 250, .78) 39%, transparent 66%);
+}
+
+.kisara-index-hero-copy {
+  max-width: 31rem;
+  padding-block: 16px;
+}
+
+.kisara-index-hero .kisara-index-kicker,
+.kisara-index-hero h1,
+.kisara-index-hero .kisara-index-lede,
+.kisara-index-hero .kisara-index-actions {
+  animation: kisara-index-enter 240ms var(--index-ease) both;
+}
+
+.kisara-index-hero h1 { animation-delay: 40ms; }
+.kisara-index-hero .kisara-index-lede { animation-delay: 80ms; }
+.kisara-index-hero .kisara-index-actions { animation-delay: 120ms; }
+
+@keyframes kisara-index-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
 
 .kisara-index-kicker {
@@ -182,6 +256,25 @@ body[data-kisara-page="projects"] .kisara-index::after {
   transition: background 160ms ease, color 160ms ease;
 }
 
+.kisara-index-actions button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--index-plum);
+  border: 1px solid var(--index-rule);
+  border-radius: 4px;
+  background: rgba(255, 250, 252, .8);
+  cursor: pointer;
+  transition: transform 160ms var(--index-ease);
+}
+
+.kisara-index-actions button[hidden] { display: none; }
+.kisara-index-actions button:active { transform: scale(.97); }
+.kisara-index-actions button:focus-visible { outline: 2px solid var(--index-rose); outline-offset: 3px; }
+
 .kisara-index-actions svg {
   width: 17px;
   height: 17px;
@@ -201,67 +294,6 @@ body[data-kisara-page="projects"] .kisara-index::after {
 .kisara-index-secondary {
   color: var(--index-plum);
   background: rgba(255, 250, 241, 0.55);
-}
-
-.kisara-index-cover {
-  position: relative;
-  justify-self: end;
-  width: 180px;
-  margin: 0;
-  padding: 7px 7px 0;
-  background: #fbf5ea;
-  box-shadow: 0 22px 52px rgba(68, 46, 57, 0.2), 0 2px 0 rgba(255, 255, 255, 0.8) inset;
-  transform: rotate(1deg);
-}
-
-.kisara-index-cover::after {
-  content: "";
-  position: absolute;
-  inset: 12px 12px auto;
-  height: 44%;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent);
-}
-
-.kisara-index-cover img {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 720 / 1051;
-  object-fit: cover;
-  filter: saturate(0.92) contrast(1.02);
-}
-
-.kisara-index-cover-tape {
-  position: absolute;
-  z-index: 2;
-  top: -13px;
-  left: 50%;
-  width: 92px;
-  height: 28px;
-  background: rgba(213, 191, 165, 0.78);
-  box-shadow: 0 1px 2px rgba(62, 44, 52, 0.12);
-  transform: translateX(-50%) rotate(-3deg);
-}
-
-.kisara-index-cover figcaption {
-  display: grid;
-  gap: 3px;
-  padding: 8px 3px;
-}
-
-.kisara-index-cover figcaption span,
-.kisara-index-cover figcaption small {
-  color: var(--index-soft);
-  font: 600 0.62rem/1.5 "Cascadia Code", Consolas, monospace;
-}
-
-.kisara-index-cover figcaption strong {
-  color: var(--index-ink);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 0.82rem;
-  font-weight: 400;
-  line-height: 1.4;
 }
 
 .kisara-index-stats {
@@ -792,7 +824,17 @@ body[data-kisara-page="projects"] .kisara-index::after {
   }
 
   .kisara-index-hero {
-    grid-template-columns: minmax(0, 1fr) 160px;
+    min-height: min(560px, calc(78svh / var(--kisara-scale, 1)));
+  }
+
+  .kisara-index-hero-copy {
+    max-width: 25rem;
+  }
+
+  .kisara-index-film::after {
+    background:
+      linear-gradient(0deg, #f5f2f6, transparent 30%),
+      linear-gradient(90deg, #faf7fa, rgba(250, 247, 250, .9) 30%, transparent 74%);
   }
 
   .kisara-index-card {
@@ -811,17 +853,30 @@ body[data-kisara-page="projects"] .kisara-index::after {
 @media (max-width: 860px) {
   .kisara-index {
     width: calc(100% - 36px);
-    padding-top: 104px;
   }
 
   .kisara-index-hero {
-    grid-template-columns: minmax(0, 1fr) 140px;
-    align-items: start;
+    min-height: 0;
+    gap: 16px;
+    padding-top: calc(80px + min(56.25vw / var(--kisara-scale, 1), 350px));
   }
 
-  .kisara-index-cover {
-    justify-self: end;
-    width: 140px;
+  .kisara-index-film video,
+  .kisara-index-film-poster,
+  .kisara-index-film-still {
+    top: 64px;
+    height: min(56.25vw / var(--kisara-scale, 1), 350px);
+    aspect-ratio: 16 / 9;
+    object-position: center top;
+  }
+
+  .kisara-index-film::after {
+    background: none;
+  }
+
+  .kisara-index-hero-copy {
+    max-width: 36rem;
+    padding-block: 0;
   }
 
   .kisara-index-stats {
@@ -870,7 +925,6 @@ body[data-kisara-page="projects"] .kisara-index::after {
 @media (max-width: 560px) {
   .kisara-index {
     width: calc(100% - 28px);
-    padding-top: 88px;
     padding-bottom: 32px;
   }
 
@@ -889,13 +943,13 @@ body[data-kisara-page="projects"] .kisara-index::after {
   }
 
   .kisara-index-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
   }
 
   .kisara-index-actions a {
     justify-content: center;
     padding-inline: 10px;
+    flex: 1;
   }
 
   .kisara-index-stats dd {
@@ -963,7 +1017,6 @@ body[data-kisara-page="projects"] .kisara-index::after {
   .kisara-index-grid { grid-template-columns: 1fr; }
   .kisara-index-card { grid-template-columns: 96px minmax(0, 1fr); }
   .kisara-index-hero { grid-template-columns: 1fr; gap: 16px; }
-  .kisara-index-cover { display: none; }
   .kisara-index-hero h1 { font-size: 3.2rem; }
   .kisara-index-stats div:nth-child(n + 3) { display: none; }
   .kisara-index-section-head > p:last-child { display: none; }
@@ -971,6 +1024,10 @@ body[data-kisara-page="projects"] .kisara-index::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .kisara-index-hero :is(.kisara-index-kicker, h1, .kisara-index-lede, .kisara-index-actions) {
+    animation: none;
+  }
+  .kisara-index-actions button { transition: none; transform: none; }
   .kisara-index-pagination button { transition: none; transform: none; }
   .kisara-index-card,
   .kisara-index-card-art img,
