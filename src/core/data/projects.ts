@@ -1,6 +1,6 @@
 export const projectTechLines = [
   { key: "blog", label: "Blog / Astro", note: "主题、页面的小机关与交互实验" },
-  { key: "astrbot", label: "AstrBot", note: "QQ 机器人插件、记忆与提示词" },
+  { key: "astrbot", label: "AstrBot", note: "QQ 机器人插件与对话回合" },
   { key: "codex", label: "Codex / Tooling", note: "开发流程、桌面工具与使用体验" },
   { key: "web", label: "Web / Mobile", note: "浏览器里的远程入口与视觉页面" },
   { key: "guide", label: "Notes / Guides", note: "把踩过的坑整理成可复用的文档" }
@@ -39,22 +39,6 @@ export const projectEntries = [
     role: "独立完成需求拆解、插件实现与行为测试。",
     details: ["消息防抖", "动态撤回", "历史回滚"],
     note: "做这个插件的原因是：聊天机器人的问题往往不在模型，而在它把一句话当成了三次独立的请求。"
-  },
-  {
-    id: "memory-bridge",
-    title: "续忆桥",
-    type: "AstrBot Plugin",
-    line: "astrbot",
-    status: "自用工具",
-    year: "2026.05",
-    repo: "astrbot_plugin_memory_bridge",
-    href: "https://github.com/Yuimi-chaya/astrbot_plugin_memory_bridge",
-    language: "Python",
-    stars: 0,
-    summary: "会话记忆的迁移与备份插件。换机器、重装或重建人格时，至少别让那些聊过的东西一起消失。",
-    role: "从自己的迁移需求出发，做成可复用的插件。",
-    details: ["会话迁移", "记忆备份", "数据恢复"],
-    note: "它处理的是“连续性”这种很抽象、但用久了会舍不得丢的东西。"
   },
   {
     id: "qqbot-guide",
@@ -105,22 +89,6 @@ export const projectEntries = [
     note: "它更像工作习惯的版本控制：把“上次怎么想通的”留下来，下一次不用从零解释。"
   },
   {
-    id: "codex-browser-patch",
-    title: "Codex 浏览器补丁",
-    type: "Desktop Tooling",
-    line: "codex",
-    status: "可回滚",
-    year: "2026",
-    repo: "codex-windows-apikey-browser",
-    href: "https://github.com/Yuimi-chaya/codex-windows-apikey-browser",
-    language: "Python",
-    stars: 0,
-    summary: "给 Windows 版 Codex 的 Edge / Chrome 浏览器入口做修复与还原，尽量把改动限制在可检查、可撤销的范围内。",
-    role: "补丁脚本、安装流程与回滚文档。",
-    details: ["本地补丁", "安装脚本", "安全回滚"],
-    note: "这类工具最需要的不是“能用”，而是出问题时能干净地退回去。"
-  },
-  {
     id: "codex-pet-patch",
     title: "Codex 桌宠鼠标跟随",
     type: "Desktop Tooling",
@@ -151,22 +119,6 @@ export const projectEntries = [
     role: "远程访问、认证复用与移动端界面。",
     details: ["局域网访问", "线程复用", "移动端入口"],
     note: "目标很具体：离开电脑以后，还能看一眼正在跑的线程，而不是重新开一份上下文。"
-  },
-  {
-    id: "jp-tts",
-    title: "Volcano 日语 TTS",
-    type: "AstrBot Plugin",
-    line: "astrbot",
-    status: "实验插件",
-    year: "2026",
-    repo: "astrbot_plugin_volcano_jp_tts",
-    href: "https://github.com/Yuimi-chaya/astrbot_plugin_volcano_jp_tts",
-    language: "Python",
-    stars: 0,
-    summary: "给 AstrBot 接入火山引擎的日语语音合成，让回复除了文字之外，也能有一点声音上的角色感。",
-    role: "接口接入与插件封装。",
-    details: ["TTS 接入", "日语语音", "插件配置"],
-    note: "还在比较克制地试验阶段，重点是稳定出声，而不是先做一堆音色选项。"
   }
 ] as const;
 

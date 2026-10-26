@@ -165,7 +165,7 @@ test("navigation, mobile article index and native project controls expose their 
   assert.match(read("layouts/BaseLayout.astro"), /href="#page-content"/);
   assert.match(read("layouts/ArticleLayout.astro"), /<details class="article-mobile-toc"/);
   const projects = read("pages/ProjectsPage.astro");
-  assert.match(projects, /<details>/);
+  assert.match(projects, /<details name="fuyukawa-project-notes">/);
   assert.match(projects, /aria-pressed=/);
   assert.match(projects, /data-works-chapter=/);
 });

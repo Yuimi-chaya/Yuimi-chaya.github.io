@@ -8,17 +8,17 @@ body[data-fuyukawa] .yuimi-works {
   --works-ink: #3c4a5c;
   --works-soft: #73808f;
   --works-rule: rgba(93, 114, 134, 0.2);
-  --works-paper: #fffdf8;
-  --works-wash: #f4ece1;
+  --works-paper: #fffdfd;
+  --works-wash: #eef2f5;
   --works-rose: #b76a86;
   --works-rose-soft: #f7e6ec;
   --works-mint: #77a998;
   --works-blue: #7e9fbe;
   position: relative;
   isolation: isolate;
-  width: min(1144px, calc(100% - 80px));
+  width: min(1280px, calc(100% - 80px));
   margin: 0 auto;
-  padding: 104px 0 72px;
+  padding: 96px 0 36px;
   color: var(--works-ink);
 }
 
@@ -28,15 +28,15 @@ body[data-fuyukawa] .yuimi-works::before {
   inset: 0 calc(50% - 50vw);
   pointer-events: none;
   content: "";
-  background:
-    radial-gradient(circle at 88% 4%, rgba(247, 230, 236, 0.66), transparent 34%),
-    radial-gradient(circle at 6% 22%, rgba(222, 238, 246, 0.58), transparent 38%),
-    linear-gradient(180deg, #fdf8ef 0, #f9f2e8 58%, #f6ede2 100%);
+  background: linear-gradient(180deg, #f8fbfe, #f9f5f8);
 }
 
 .yuimi-works-heading {
   position: relative;
-  padding: 0 0 34px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 28px;
+  padding: 0 0 22px;
   border-bottom: 1px solid var(--works-rule);
 }
 
@@ -55,7 +55,8 @@ body[data-fuyukawa] .yuimi-works::before {
   flex-wrap: wrap;
   align-items: center;
   gap: 9px;
-  margin: 0 0 14px;
+  grid-column: 1 / -1;
+  margin: 0 0 8px;
   color: var(--works-rose);
   font: 700 0.68rem/1.5 "Cascadia Code", Consolas, monospace;
   letter-spacing: 0;
@@ -69,7 +70,7 @@ body[data-fuyukawa] .yuimi-works::before {
   margin: 0;
   color: #344356;
   font-family: "Segoe Print", "KaiTi", "Microsoft YaHei", serif;
-  font-size: 3.2rem;
+  font-size: 2.5rem;
   font-weight: 400;
   line-height: 1.25;
   letter-spacing: 0;
@@ -86,10 +87,11 @@ body[data-fuyukawa] .yuimi-works::before {
 
 .yuimi-works-lede {
   max-width: 660px;
-  margin: 18px 0 0;
+  grid-column: 1;
+  margin: 12px 0 0;
   color: #65717e;
   font-size: 0.9rem;
-  line-height: 2;
+  line-height: 1.8;
 }
 
 .yuimi-works-github {
@@ -97,7 +99,10 @@ body[data-fuyukawa] .yuimi-works::before {
   align-items: center;
   gap: 7px;
   min-height: 40px;
-  margin-top: 16px;
+  grid-column: 2;
+  grid-row: 2 / 4;
+  align-self: center;
+  margin-top: 0;
   padding: 8px 13px;
   color: #5f7186;
   border: 1px solid #d9e0e6;
@@ -127,15 +132,15 @@ body[data-fuyukawa] .yuimi-works::before {
 
 .yuimi-works-desk {
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
-  gap: clamp(28px, 4vw, 52px);
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 28px;
   align-items: start;
-  padding: 34px 0 0;
+  padding: 26px 0 0;
 }
 
 .yuimi-works-photo {
-  position: sticky;
-  top: 96px;
+  position: relative;
+  top: auto;
   margin: 0;
   padding: 16px 16px 18px;
   color: #6c7885;
@@ -144,7 +149,7 @@ body[data-fuyukawa] .yuimi-works::before {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 18px 36px rgba(90, 76, 63, 0.1);
-  transform: rotate(-0.8deg);
+  transform: none;
 }
 
 .yuimi-works-tape {
@@ -174,15 +179,14 @@ body[data-fuyukawa] .yuimi-works::before {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: 50% 24%;
+  object-fit: contain;
+  object-position: center;
   opacity: 0;
-  transition: opacity 380ms cubic-bezier(0.2, 0.7, 0.2, 1), transform 620ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: opacity 200ms var(--manga-ease);
 }
 
 .yuimi-works-photo-stack img.is-current {
   opacity: 1;
-  transform: scale(1.012);
 }
 
 .yuimi-works-photo-caption {
@@ -218,8 +222,8 @@ body[data-fuyukawa] .yuimi-works::before {
   display: grid;
   gap: 1px;
   min-width: 0;
-  min-height: 74px;
-  padding: 10px 9px 12px;
+  min-height: 58px;
+  padding: 7px 8px;
   color: #7d8895;
   text-align: left;
   border: 1px solid transparent;
@@ -266,11 +270,9 @@ body[data-fuyukawa] .yuimi-works::before {
 }
 
 .yuimi-works-chapters strong {
-  overflow: hidden;
   font-size: 0.79rem;
   font-weight: 700;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .yuimi-works-chapters small {
@@ -319,8 +321,37 @@ body[data-fuyukawa] .yuimi-works::before {
 
 .yuimi-works-list {
   display: grid;
-  gap: 9px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
 }
+
+.yuimi-works-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+.yuimi-works-pagination[hidden] { display: none; }
+.yuimi-works-pagination output { min-width: 100px; text-align: center; color: var(--works-soft); font: .75rem Consolas, monospace; }
+.yuimi-works-pagination button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: #7d6070;
+  border: 1px solid var(--works-rule);
+  border-radius: 4px;
+  background: #fffdfd;
+  cursor: pointer;
+  transition: transform 160ms var(--manga-ease);
+}
+.yuimi-works-pagination button svg { width: 18px; height: 18px; }
+.yuimi-works-pagination button:disabled { opacity: .35; cursor: default; }
+.yuimi-works-pagination button:not(:disabled):active { transform: scale(.97); }
+.yuimi-works-pagination button:focus-visible { outline: 2px solid var(--works-blue); outline-offset: 3px; }
+.yuimi-works[data-works-input="keyboard"] .yuimi-works-photo-stack img { transition: none; }
 
 .yuimi-works-entry {
   position: relative;
@@ -329,7 +360,7 @@ body[data-fuyukawa] .yuimi-works::before {
   background:
     linear-gradient(90deg, rgba(183, 106, 134, 0.08), transparent 92px),
     repeating-linear-gradient(180deg, transparent 0 35px, rgba(111, 132, 152, 0.075) 35px 36px),
-    #fffdf8;
+    #fffdfd;
   box-shadow: 0 3px 0 rgba(231, 224, 214, 0.6);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
@@ -350,11 +381,11 @@ body[data-fuyukawa] .yuimi-works::before {
 
 .yuimi-works-entry summary {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto 28px;
-  gap: 12px;
+  grid-template-columns: 24px minmax(0, 1fr) 24px;
+  gap: 6px 10px;
   align-items: center;
-  min-height: 76px;
-  padding: 12px 16px 12px 8px;
+  min-height: 144px;
+  padding: 14px 12px 12px 8px;
   cursor: pointer;
   list-style: none;
 }
@@ -383,6 +414,16 @@ body[data-fuyukawa] .yuimi-works::before {
   min-width: 0;
 }
 
+.yuimi-works-entry-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--works-soft);
+  font-size: .76rem;
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .yuimi-works-entry-type {
   color: #9c8580;
   font: 0.58rem/1.4 "Cascadia Code", Consolas, monospace;
@@ -403,7 +444,9 @@ body[data-fuyukawa] .yuimi-works::before {
 }
 
 .yuimi-works-entry-status {
-  justify-self: end;
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: start;
   padding: 3px 7px;
   color: #6f8f83;
   border: 1px solid #d2e3dc;
@@ -415,6 +458,8 @@ body[data-fuyukawa] .yuimi-works::before {
 }
 
 .yuimi-works-entry-more {
+  grid-column: 3;
+  grid-row: 1;
   display: grid;
   place-items: center;
   width: 26px;
@@ -423,7 +468,7 @@ body[data-fuyukawa] .yuimi-works::before {
   border: 1px solid #e2e6e9;
   border-radius: 50%;
   background: #fff;
-  transition: color 180ms ease, transform 200ms ease, border-color 160ms ease;
+  transition: color 160ms ease, border-color 160ms ease;
 }
 
 .yuimi-works-entry-more svg {
@@ -440,7 +485,7 @@ body[data-fuyukawa] .yuimi-works::before {
 .yuimi-works-entry-body {
   display: grid;
   gap: 16px;
-  margin: 0 16px 0 58px;
+  margin: 0 14px;
   padding: 0 0 20px;
   border-top: 1px dashed #e2d5cd;
 }
@@ -454,15 +499,12 @@ body[data-fuyukawa] .yuimi-works::before {
 
 .yuimi-works-entry-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 22px;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
 .yuimi-works-entry-grid > div {
-  padding: 12px 14px;
-  border: 1px solid #ece3d9;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.6);
+  padding: 0;
 }
 
 .yuimi-works-entry-grid span {
@@ -567,8 +609,8 @@ body[data-fuyukawa] .yuimi-works::before {
   align-items: center;
   justify-content: space-between;
   gap: 18px 28px;
-  margin-top: 30px;
-  padding: 22px 0 0;
+  margin-top: 22px;
+  padding: 16px 0 0;
   border-top: 1px solid var(--works-rule);
 }
 
@@ -612,12 +654,12 @@ body[data-fuyukawa] .yuimi-works::before {
   }
 
   .yuimi-works-desk {
-    grid-template-columns: 262px minmax(0, 1fr);
-    gap: 26px;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 20px;
   }
 
   .yuimi-works-chapters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 4px;
   }
 
@@ -626,15 +668,11 @@ body[data-fuyukawa] .yuimi-works::before {
   }
 
   .yuimi-works-chapters button:first-child {
-    grid-column: 1 / -1;
-    min-height: 48px;
-    grid-template-columns: 28px auto 1fr;
-    align-items: center;
-    gap: 8px;
+    min-height: 62px;
   }
 
   .yuimi-works-chapters small {
-    justify-self: end;
+    display: none;
   }
 
   .yuimi-works-entry-grid {
@@ -649,22 +687,33 @@ body[data-fuyukawa] .yuimi-works::before {
   }
 
   .yuimi-works-github {
-    position: static;
-    margin-top: 16px;
+    margin-top: 12px;
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
   }
 
   .yuimi-works-desk {
     grid-template-columns: 1fr;
-    gap: 26px;
+    gap: 18px;
   }
 
   .yuimi-works-photo {
     position: relative;
     top: auto;
-    width: min(100%, 300px);
-    justify-self: center;
-    transform: rotate(-0.6deg);
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 4px 16px;
+    align-items: center;
+    width: 100%;
+    padding: 10px;
+    transform: none;
   }
+
+  .yuimi-works-photo-stack { grid-row: 1 / 3; }
+  .yuimi-works-photo-caption, .yuimi-works-photo-note { margin: 0; min-height: 0; }
+  .yuimi-works-tape { display: none; }
+  .yuimi-works-heading { grid-template-columns: 1fr; }
 
   .yuimi-works-entry-body {
     margin-left: 16px;
@@ -675,7 +724,7 @@ body[data-fuyukawa] .yuimi-works::before {
   body[data-fuyukawa] .yuimi-works {
     width: calc(100% - 28px);
     padding-top: 82px;
-    padding-bottom: 52px;
+    padding-bottom: 32px;
   }
 
   .yuimi-works-heading h1 {
@@ -687,11 +736,11 @@ body[data-fuyukawa] .yuimi-works::before {
   }
 
   .yuimi-works-chapters {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .yuimi-works-chapters button {
-    padding-inline: 8px;
+    padding-inline: 4px;
   }
 
   .yuimi-works-chapters strong {
@@ -708,13 +757,13 @@ body[data-fuyukawa] .yuimi-works::before {
   }
 
   .yuimi-works-entry summary {
-    grid-template-columns: 34px minmax(0, 1fr) 26px;
+    grid-template-columns: 24px minmax(0, 1fr) 24px;
     gap: 9px;
     padding-right: 10px;
   }
 
   .yuimi-works-entry-status {
-    display: none;
+    display: inline-block;
   }
 
   .yuimi-works-entry-main strong {
@@ -737,7 +786,13 @@ body[data-fuyukawa] .yuimi-works::before {
   }
 }
 
+@media (max-width: 640px) {
+  .yuimi-works-list { grid-template-columns: 1fr; }
+  .yuimi-works-entry summary { min-height: 124px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .yuimi-works-pagination button { transition: none; transform: none; }
   .yuimi-works-photo-stack img,
   .yuimi-works-chapters button,
   .yuimi-works-entry,

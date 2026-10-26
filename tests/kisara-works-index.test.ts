@@ -11,8 +11,11 @@ const styles = read("src/themes/kisara/styles/projects.css");
 const runtime = read("src/themes/kisara/lib/worksIndex.js");
 
 test("Kisara Works presents the real repository archive and keeps every link in the page", () => {
-  assert.equal(projectEntries.length, 10);
-  assert.equal(new Set(projectEntries.map((project) => project.id)).size, 10);
+  assert.equal(projectEntries.length, 7);
+  assert.equal(new Set(projectEntries.map((project) => project.id)).size, 7);
+  for (const removed of ["jp-tts", "memory-bridge", "codex-browser-patch"]) {
+    assert.ok(!projectEntries.some((project) => project.id === removed));
+  }
   for (const project of projectEntries) {
     assert.match(project.href, /^https:\/\/github\.com\/Yuimi-chaya\//);
     assert.ok(project.summary.length > 20, project.id);
@@ -61,7 +64,7 @@ test("Kisara Works keeps the four supplied covers with compact local assets", as
 
 test("Kisara Works keeps filters and selection usable without hover-only content", () => {
   assert.match(styles, /\.kisara-index-card-reveal \{/);
-  assert.match(page, /<details class="kisara-index-card-reveal">/);
+  assert.match(page, /<details class="kisara-index-card-reveal" name="kisara-project-notes">/);
   assert.match(page, /<summary>/);
   assert.match(styles, /\.kisara-index-card-reveal\[open\] summary svg/);
   assert.match(styles, /\.kisara-index-card\[hidden\]/);

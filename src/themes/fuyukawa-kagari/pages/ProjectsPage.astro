@@ -21,7 +21,7 @@ const chapters = [
     english: "BOT NOTES",
     lines: ["astrbot"],
     cover: "/themes/fuyukawa-kagari/assets/works-index/work-02.webp",
-    note: "对话回合、记忆迁移与语音，让机器人更像在和你聊天。"
+    note: "消息合并、回合管理与回复节奏，让机器人更像在和你聊天。"
   },
   {
     id: "03",
@@ -90,16 +90,16 @@ const groups = [
       <aside class="yuimi-works-photo" aria-hidden="true">
         <span class="yuimi-works-tape"></span>
         <div class="yuimi-works-photo-stack">
-          {groups.map((group, index) => (
+          {chapters.map((group) => (
             <img
               src={group.cover}
               alt=""
               width="720"
               height="1017"
-              loading={index === 0 ? "eager" : "lazy"}
+              loading={group.key === "notes" ? "eager" : "lazy"}
               decoding="async"
               data-photo={group.key}
-              class:list={{ "is-current": index === 0 }}
+              class:list={{ "is-current": group.key === "notes" }}
             />
           ))}
         </div>
@@ -138,12 +138,13 @@ const groups = [
               role="listitem"
               data-project-chapter={project.chapter}
             >
-              <details>
+              <details name="fuyukawa-project-notes">
                 <summary>
                   <span class="yuimi-works-entry-no">{project.no}</span>
                   <span class="yuimi-works-entry-main">
                     <span class="yuimi-works-entry-type">{project.type}</span>
                     <strong>{project.title}</strong>
+                    <span class="yuimi-works-entry-preview">{project.summary}</span>
                   </span>
                   <span class="yuimi-works-entry-status">{project.status}</span>
                   <span class="yuimi-works-entry-more" aria-hidden="true">
@@ -180,6 +181,12 @@ const groups = [
           ))}
         </div>
 
+        <nav class="yuimi-works-pagination" data-works-pagination aria-label="项目分页" hidden>
+          <button type="button" data-works-page="prev" aria-label="上一页项目" disabled><Icon name="tabler:arrow-left" aria-hidden="true" /></button>
+          <output data-works-range aria-live="polite" aria-atomic="true"></output>
+          <button type="button" data-works-page="next" aria-label="下一页项目"><Icon name="tabler:arrow-right" aria-hidden="true" /></button>
+        </nav>
+
         <p class="yuimi-works-empty" data-works-empty hidden>这一章还没有写满，先从其他页翻起吧。</p>
       </div>
     </div>
@@ -207,6 +214,15 @@ const groups = [
       const ribbon = root.querySelector<HTMLElement>("[data-works-ribbon]");
       const total = root.querySelector<HTMLElement>("[data-works-total]");
       const empty = root.querySelector<HTMLElement>("[data-works-empty]");
+      const pager = root.querySelector<HTMLElement>("[data-works-pagination]");
+      const range = root.querySelector<HTMLElement>("[data-works-range]");
+      const previous = root.querySelector<HTMLButtonElement>('[data-works-page="prev"]');
+      const next = root.querySelector<HTMLButtonElement>('[data-works-page="next"]');
+      const compact = window.matchMedia("(max-width: 640px)");
+      let page = 0;
+      let pageSize = compact.matches ? 2 : 4;
+      let activeKey = "all";
+      const focusFirst = () => entries.find((entry) => !entry.hidden)?.querySelector<HTMLElement>("summary")?.focus();
       const chapterData = new Map(buttons.map((button) => [
         button.dataset.worksChapter ?? "all",
         {
@@ -223,7 +239,8 @@ const groups = [
         notes: "写下来不是总结，是让下一次的自己少绕一圈。"
       };
 
-      const apply = (key: string) => {
+      const apply = (key: string, targetPage = 0) => {
+        activeKey = key;
         const button = buttons.find((item) => item.dataset.worksChapter === key) ?? buttons[0];
         const data = chapterData.get(key) ?? chapterData.get("all")!;
         buttons.forEach((item) => {
@@ -232,16 +249,19 @@ const groups = [
           item.setAttribute("aria-pressed", String(active));
         });
 
-        let shown = 0;
+        const matching = entries.filter((entry) => key === "all" || entry.dataset.projectChapter === key);
+        const shown = matching.length;
+        page = Math.max(0, Math.min(targetPage, Math.ceil(shown / pageSize) - 1));
+        const start = page * pageSize;
+        const visible = matching.slice(start, start + pageSize);
         entries.forEach((entry) => {
-          const matches = key === "all" || entry.dataset.projectChapter === key;
+          const matches = visible.includes(entry);
           entry.hidden = !matches;
           if (!matches) entry.querySelector("details")?.removeAttribute("open");
-          else shown += 1;
         });
 
         photos.forEach((photo) => {
-          photo.classList.toggle("is-current", photo.dataset.photo === key);
+          photo.classList.toggle("is-current", photo.dataset.photo === (key === "all" ? "notes" : key));
         });
         if (caption) caption.textContent = `${data.id} / ${data.label}`;
         if (note) note.textContent = chapterNotes[key] ?? chapterNotes.all;
@@ -249,9 +269,20 @@ const groups = [
         if (total) total.textContent = String(shown);
         if (empty) empty.hidden = shown !== 0;
         root.dataset.chapter = key;
+        if (pager) pager.hidden = shown <= pageSize;
+        if (previous) previous.disabled = page === 0;
+        if (next) next.disabled = start + pageSize >= shown;
+        if (range) range.textContent = shown ? `${start + 1}–${Math.min(start + pageSize, shown)} / ${shown}` : "0 / 0";
       };
 
       const onClick = (event: Event) => {
+        root.dataset.worksInput = (event as MouseEvent).detail === 0 ? "keyboard" : "pointer";
+        const pageButton = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-works-page]") : null;
+        if (pageButton && root.contains(pageButton) && !pageButton.disabled) {
+          apply(activeKey, page + (pageButton.dataset.worksPage === "next" ? 1 : -1));
+          if ((event as MouseEvent).detail === 0) focusFirst();
+          return;
+        }
         const button = event.target instanceof Element
           ? event.target.closest<HTMLButtonElement>("[data-works-chapter]")
           : null;
@@ -260,8 +291,17 @@ const groups = [
       };
 
       root.addEventListener("click", onClick);
+      const onResize = () => {
+        const focusedEntry = document.activeElement ? entries.find((entry) => entry.contains(document.activeElement)) : null;
+        const first = page * pageSize;
+        pageSize = compact.matches ? 2 : 4;
+        apply(activeKey, Math.floor(first / pageSize));
+        if (focusedEntry?.hidden) focusFirst();
+      };
+      compact.addEventListener("change", onResize);
       const cleanup = () => {
         root.removeEventListener("click", onClick);
+        compact.removeEventListener("change", onResize);
         document.removeEventListener("astro:before-swap", cleanup);
         delete root.dataset.worksBound;
       };

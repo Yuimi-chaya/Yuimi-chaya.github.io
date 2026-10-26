@@ -19,20 +19,20 @@ test("Fuyukawa Works groups all projects into four photographed chapters", () =>
   for (const project of projectEntries) {
     assert.match(project.href, /^https:\/\/github\.com\/Yuimi-chaya\//);
   }
-  assert.equal(projectEntries.length, 10);
+  assert.equal(projectEntries.length, 7);
 });
 
 test("Fuyukawa chapters filter entries and swap the active photograph", () => {
   assert.match(page, /data-works-chapter=\{group\.key\}/);
   assert.match(page, /entry\.hidden = !matches/);
-  assert.match(page, /photo\.classList\.toggle\("is-current", photo\.dataset\.photo === key\)/);
+  assert.match(page, /photo\.dataset\.photo === \(key === "all" \? "notes" : key\)/);
   assert.match(page, /if \(total\) total\.textContent = String\(shown\)/);
   assert.match(page, /root\.dataset\.worksBound === "true"/);
   assert.match(page, /const preset = new URLSearchParams\(window\.location\.search\)\.get\("chapter"\)/);
 });
 
 test("Fuyukawa entries are native details with visible repository links", () => {
-  assert.match(page, /<details>/);
+  assert.match(page, /<details name="fuyukawa-project-notes">/);
   assert.match(page, /<summary>/);
   assert.match(page, /href=\{project\.href\}/);
   assert.match(page, /rel="noopener noreferrer"/);
