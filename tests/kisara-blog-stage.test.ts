@@ -56,6 +56,17 @@ test("The phrase has one filled glyph per letter, separate pen paths, and no com
   }
 });
 
+test("Handwritten glyph definitions ship with the page and never depend on an external SVG request", () => {
+  const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
+  const svg = page.slice(page.indexOf('<svg class="kisara-blog-trace-script"'), page.indexOf("</svg>"));
+  assert.doesNotMatch(svg, /trace-glyphs\.svg|href=["'](?:\/|https?:)/);
+  assert.match(svg, /href=\{`#blog-g-/);
+  assert.match(svg, /id=\{`blog-g-/);
+  assert.match(svg, /d=\{outline\}/);
+  assert.ok(svg.indexOf("d={outline}") < svg.indexOf('id="blog-script-ink"'));
+  assert.match(svg, /id="blog-script-ink"[^>]*fill="white"/);
+});
+
 test("Blog cast entry keeps production-compressed seconds as milliseconds", () => {
   assert.equal(parseCssTimeMs("780ms"), 780);
   assert.equal(parseCssTimeMs(".78s"), 780);
@@ -218,14 +229,20 @@ test("Ambient title motion is independent of the intro and stops before the arch
 });
 
 test("The foil uses the original single ink mask and cannot paint beyond the handwritten phrase", async () => {
-  const glyphs = blogLettering.map((letter, index) => {
+  const definitions = [...new Map(blogLettering.map(letter => [letter.character, letter.outline]))]
+    .map(([character, outline]) => `<path id="blog-g-${character === "." ? "dot" : character}" d="${outline}"/>`).join("");
+  const pens = blogLettering.map((letter, index) => {
     const strokes = letter.strokes.map(stroke => `<path d="${stroke.d}" fill="none" stroke="white" stroke-width="310" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
-    return `<g transform="translate(${letter.x} 94) scale(.046875 -.046875)"><defs><mask id="p${index}" maskUnits="userSpaceOnUse" x="-200" y="-300" width="1700" height="2100">${strokes}</mask></defs><path d="${letter.outline}" fill="white" mask="url(#p${index})"/></g>`;
+    return `<mask id="p${index}" maskUnits="userSpaceOnUse" x="-200" y="-300" width="1700" height="2100">${strokes}</mask>`;
   }).join("");
+  const glyphs = blogLettering.map((letter, index) =>
+    `<use href="#blog-g-${letter.character === "." ? "dot" : letter.character}" transform="translate(${letter.x} 94) scale(.046875 -.046875)" mask="url(#p${index})"/>`).join("");
+  const fullGlyphs = blogLettering.map(letter =>
+    `<path d="${letter.outline}" transform="translate(${letter.x} 94) scale(.046875 -.046875)" fill="white"/>`).join("");
   const start = '<svg xmlns="http://www.w3.org/2000/svg" width="1252" height="188" viewBox="0 12 626 94">';
   const render = (body: string) => sharp(Buffer.from(start + body + "</svg>")).ensureAlpha().raw().toBuffer();
-  const full = await render(glyphs);
-  const foil = await render(`<defs><mask id="ink" maskUnits="userSpaceOnUse" x="0" y="0" width="626" height="120">${glyphs}</mask></defs><g mask="url(#ink)"><path d="M0 0H626V120H0Z" fill="#ff6688"/><path d="M0 0H70L110 120H40Z" transform="translate(200 0)" fill="white"/></g>`);
+  const full = await render(fullGlyphs);
+  const foil = await render(`<defs>${definitions}${pens}<mask id="ink" maskUnits="userSpaceOnUse" x="0" y="0" width="626" height="120" fill="white">${glyphs}</mask></defs><g mask="url(#ink)"><path d="M0 0H626V120H0Z" fill="#ff6688"/><path d="M0 0H70L110 120H40Z" transform="translate(200 0)" fill="white"/></g>`);
   let alpha = 0, loss = 0;
   for (let i = 3; i < full.length; i += 4) {
     alpha += full[i];

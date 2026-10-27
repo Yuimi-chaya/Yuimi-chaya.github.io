@@ -30,6 +30,7 @@ const timelineYears = posts.reduce((groups, post) => {
 const coverPresentation = await getKisaraCoverPresentation(posts);
 const archiveCoverSizes = "(max-width: 760px) 112px, (max-width: 1100px) 45vw, 380px";
 const signalTitle = "Every signal";
+const blogGlyphs = [...new Map(blogLettering.map(letter => [letter.character, letter.outline] as const))];
 const pickupIds = ["is-it-strange-to-feel-for-ai", "vibe-coding-blog-notes", "anime-tech-notes"];
 const pickupPosts = pickupIds.flatMap(id => posts.filter(post => post.id === id));
 const pickupTones = ["rose", "mint", "blue"];
@@ -77,16 +78,20 @@ const pickupTones = ["rose", "mint", "blue"];
         </span>
         <svg class="kisara-blog-trace-script" viewBox="0 12 626 94" role="presentation" aria-hidden="true">
           <defs>
-          <mask id="blog-script-ink" maskUnits="userSpaceOnUse" x="0" y="0" width="626" height="120">
+          {blogGlyphs.map(([character, outline]) => (
+            <path id={`blog-g-${character === "." ? "dot" : character}`} d={outline} />
+          ))}
           {blogLettering.map((letter, index) => (
-            <g transform={`translate(${letter.x} 94) scale(.046875 -.046875)`}>
-              <defs>
-                <mask id={`blog-pen-${index}`} maskUnits="userSpaceOnUse" x="-200" y="-300" width="1700" height="2100">
-                  {letter.strokes.map((stroke) => <path data-blog-pen data-pen-order={stroke.order} d={stroke.d} pathLength="1" />)}
-                </mask>
-              </defs>
-              <use class="kisara-blog-trace-glyph" href={`/themes/kisara/assets/blog/trace-glyphs.svg#${letter.character === "." ? "dot" : letter.character}`} mask={`url(#blog-pen-${index})`} fill="white" />
-            </g>
+            <mask id={`blog-pen-${index}`} maskUnits="userSpaceOnUse" x="-200" y="-300" width="1700" height="2100">
+              {letter.strokes.map((stroke) => <path data-blog-pen data-pen-order={stroke.order} d={stroke.d} pathLength="1" />)}
+            </mask>
+          ))}
+          <mask id="blog-script-ink" maskUnits="userSpaceOnUse" x="0" y="0" width="626" height="120" fill="white">
+          {blogLettering.map((letter, index) => (
+            <use class="kisara-blog-trace-glyph"
+              transform={`translate(${letter.x} 94) scale(.046875 -.046875)`}
+              href={`#blog-g-${letter.character === "." ? "dot" : letter.character}`}
+              mask={`url(#blog-pen-${index})`} />
           ))}
           </mask>
           <linearGradient id="blog-ink-foil">
