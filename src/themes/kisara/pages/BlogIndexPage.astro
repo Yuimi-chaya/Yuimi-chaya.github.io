@@ -42,6 +42,7 @@ const pickupTones = ["rose", "mint", "blue"];
   <section class="kisara-blog-hero" data-kisara-blog-hero data-intro-state="idle" data-cast-focus="all" aria-labelledby="kisara-blog-hero-title">
     <noscript><style>
       .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-cast-slot,
+      .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-poster-logo,
       .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-trace-signal,
       .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-trace-script,
       .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-hero-meta,
@@ -52,7 +53,7 @@ const pickupTones = ["rose", "mint", "blue"];
     <div class="kisara-blog-scene" aria-hidden="true">
       <img
         class="kisara-blog-scene-bg"
-        src="/themes/kisara/assets/blog/engage-kiss-poster-ambient.webp"
+        src="/themes/kisara/assets/blog/engage-kiss-poster-ambient-v2.webp"
         alt=""
         width="1440"
         height="975"
@@ -63,7 +64,9 @@ const pickupTones = ["rose", "mint", "blue"];
         <div class="kisara-blog-cast-slot is-sharon"><img class="kisara-blog-character" data-blog-character="sharon" src="/themes/kisara/assets/blog/sharon-back-art-v2.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" /></div>
         <div class="kisara-blog-cast-slot is-ayano"><img class="kisara-blog-character" data-blog-character="ayano" src="/themes/kisara/assets/blog/ayano-middle-art-v2.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="low" /></div>
         <div class="kisara-blog-cast-slot is-shu"><img class="kisara-blog-character" data-blog-character="shu" src="/themes/kisara/assets/blog/shu-middle-art-v2.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="auto" /></div>
+        <img class="kisara-blog-poster-logo is-white" src="/themes/kisara/assets/blog/engage-kiss-wordmark-white.webp" alt="" width="1280" height="544" decoding="async" fetchpriority="auto" />
         <div class="kisara-blog-cast-slot is-kisara"><img class="kisara-blog-character" data-blog-character="kisara" src="/themes/kisara/assets/blog/kisara-front-blade-v6.webp" alt="" width="1440" height="975" decoding="async" fetchpriority="high" /></div>
+        <img class="kisara-blog-poster-logo is-script" src="/themes/kisara/assets/blog/engage-kiss-wordmark-script.webp" alt="" width="1280" height="544" decoding="async" fetchpriority="auto" />
       </div>
       <div class="kisara-blog-scene-veil"></div>
     </div>
@@ -72,8 +75,23 @@ const pickupTones = ["rose", "mint", "blue"];
       <div class="kisara-blog-hero-lettering">
       <p class="kisara-blog-hero-meta"><span>BLOG / JOURNAL</span><span>{posts.length} 篇记录</span></p>
       <h1 id="kisara-blog-hero-title" aria-label="Every signal leaves a trace.">
-        <span class="kisara-blog-signal-frame" data-signal-text={signalTitle}>
-          <span class="kisara-blog-trace-signal" data-trace-line>{signalTitle}</span>
+        <span class="kisara-blog-signal-frame">
+          <svg class="kisara-blog-trace-signal" data-trace-line aria-hidden="true">
+            <defs>
+              <mask id="blog-signal-ink" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%" mask-type="alpha">
+                <text x="0" y=".86em" fill="white">{signalTitle}</text>
+              </mask>
+              <linearGradient id="blog-signal-foil">
+                <stop offset="0" stop-color="#ffb9d0" stop-opacity="0" />
+                <stop offset=".5" stop-color="#ffb9d0" />
+                <stop offset="1" stop-color="#ffb9d0" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            <g mask="url(#blog-signal-ink)">
+              <rect width="100%" height="100%" fill="currentColor" />
+              <rect class="kisara-blog-signal-shine" x="-24%" width="20%" height="100%" fill="url(#blog-signal-foil)" />
+            </g>
+          </svg>
           <span class="kisara-blog-signal-fragment" data-title-fragment aria-hidden="true">{signalTitle}</span>
         </span>
         <svg class="kisara-blog-trace-script" viewBox="0 12 626 94" role="presentation" aria-hidden="true">
@@ -120,7 +138,7 @@ const pickupTones = ["rose", "mint", "blue"];
             const cover = coverPresentation.get(post.id);
             return (
               <a class="kisara-blog-flashcard" data-blog-flashcard data-flashcard-tone={pickupTones[index]}
-                data-flashcard-title={post.data.title} href={getThemePath("kisara", `/blog/${post.id}/`)}
+                href={getThemePath("kisara", `/blog/${post.id}/`)}
                 hidden={index !== 0} aria-label={`阅读：${post.data.title}`}>
                 <figure>
                   <img src={post.data.cover} {...getCoverSources(post.data.cover, "120px")} alt=""
@@ -140,13 +158,7 @@ const pickupTones = ["rose", "mint", "blue"];
         </div>
         <div class="kisara-blog-pickup-footer">
           <span><i aria-hidden="true"></i><span data-flashcard-count aria-live="off">01 / {String(pickupPosts.length).padStart(2, "0")}</span></span>
-          <div data-flashcard-controls hidden>
-            <button type="button" data-flashcard-prev aria-label="上一篇精选文章" title="上一篇"><Icon name="tabler:arrow-left" aria-hidden="true" /></button>
-            <button type="button" data-flashcard-pause data-paused="false" aria-label="暂停自动轮换" aria-pressed="false" title="暂停 / 继续轮换"><Icon class="is-pause" name="tabler:player-pause" aria-hidden="true" /><Icon class="is-play" name="tabler:player-play" aria-hidden="true" /></button>
-            <button type="button" data-flashcard-next aria-label="下一篇精选文章" title="下一篇"><Icon name="tabler:arrow-right" aria-hidden="true" /></button>
-          </div>
         </div>
-        <span class="kisara-blog-pickup-status" data-flashcard-status role="status" aria-live="polite"></span>
       </aside>
     </div>
 

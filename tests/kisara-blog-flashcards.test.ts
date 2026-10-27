@@ -15,7 +15,6 @@ function fixture(size = 3, reduced = false, initial: { focused?: boolean; hoveri
     style = { zIndex: "" };
     hidden = false;
     inert = false;
-    disabled = false;
     textContent = "";
     setAttribute(name: string, value: string) { this.attributes.set(name, value); }
     removeAttribute(name: string) { this.attributes.delete(name); }
@@ -37,9 +36,9 @@ function fixture(size = 3, reduced = false, initial: { focused?: boolean; hoveri
   }
   const root = new Node();
   const cards = Array.from({ length: size }, (_, i) => Object.assign(new Node(), {
-    dataset: { flashcardTone: ["rose", "mint", "blue"][i % 3], flashcardTitle: `Article ${i + 1}` },
+    dataset: { flashcardTone: ["rose", "mint", "blue"][i % 3] },
   }));
-  const nodes = new Map(["prev", "next", "pause", "count", "status", "controls"].map(name => [name, new Node()]));
+  const nodes = new Map([["count", new Node()]]);
   const wrappedRoot = Object.assign(root, {
     querySelectorAll: () => cards,
     querySelector: (selector: string) => nodes.get(selector.replace("[data-flashcard-", "").replace("]", "")) ?? null,
@@ -75,7 +74,7 @@ test("Flashcards start static, rotate on one timer, and preserve the outgoing ca
   f.controller.setActive(true);
   f.fire();
   assert.equal(f.nodes.get("count")!.textContent, "02 / 03");
-  assert.equal(f.nodes.get("status")!.textContent, "", "automatic changes are not live announcements");
+  assert.equal(f.nodes.size, 1, "only the count is needed; rotation has no manual controls");
   assert.equal(f.cards.filter(card => !card.hidden).length, 2);
   assert.equal(f.cards.filter(card => !card.inert).length, 1);
   assert.equal(f.cards[0].attributes.get("aria-hidden"), "true");
@@ -95,7 +94,7 @@ test("Hover and focus pause rotation independently without replacing the focused
   f.emit(f.root, "focusin");
   f.emit(f.root, "pointerleave");
   assert.equal(f.timers.size, 0);
-  f.emit(f.root, "focusout", { relatedTarget: f.nodes.get("next") });
+  f.emit(f.root, "focusout", { relatedTarget: f.cards[0] });
   assert.equal(f.timers.size, 0);
   f.emit(f.root, "focusout", { relatedTarget: null });
   assert.equal(f.timers.size, 1);
@@ -118,20 +117,13 @@ test("Focus or hover already present before the async runtime binds prevents aut
   }
 });
 
-test("Keyboard navigation switches instantly and announces the chosen article; pause persists", () => {
+test("Automatic selection wraps around with no manual controls or live announcement", () => {
   const f = fixture();
   f.controller.setActive(true);
-  f.emit(f.nodes.get("prev")!, "click", { detail: 0 });
-  assert.equal(f.nodes.get("count")!.textContent, "03 / 03");
-  assert.equal(f.animations.length, 0);
-  assert.match(f.nodes.get("status")!.textContent, /第 3 篇.*Article 3/);
-  f.emit(f.nodes.get("pause")!, "click");
-  assert.equal(f.timers.size, 0);
-  f.controller.setActive(false);
-  f.controller.setActive(true);
-  assert.equal(f.timers.size, 0);
-  assert.equal(f.nodes.get("pause")!.attributes.get("aria-pressed"), "true");
-  f.emit(f.nodes.get("pause")!, "click");
+  for (let i = 0; i < 3; i++) f.fire();
+  assert.equal(f.nodes.get("count")!.textContent, "01 / 03");
+  assert.equal(f.cards[0].inert, false);
+  assert.doesNotMatch(source, /data-flashcard-(?:prev|next|pause|controls|status)/);
   assert.equal(f.timers.size, 1);
   f.controller.cleanup();
 });
@@ -162,13 +154,11 @@ test("Hidden documents, archive coverage and pagehide stop timers; cleanup rejec
   assert.equal(f.cards[0].hidden, false);
 });
 
-test("Reduced motion keeps manual navigation, and changing the preference settles an in-flight swap", () => {
+test("Reduced motion keeps a static article, and changing the preference settles an in-flight swap", () => {
   const f = fixture(3, true);
   f.controller.setActive(true);
   assert.equal(f.timers.size, 0);
-  assert.equal(f.nodes.get("pause")!.disabled, true);
-  f.emit(f.nodes.get("next")!, "click", { detail: 1 });
-  assert.equal(f.cards[1].hidden, false);
+  assert.equal(f.cards[0].hidden, false);
   assert.equal(f.animations.length, 0);
   f.motion.matches = false;
   f.emit(f.motion, "change");
@@ -182,11 +172,11 @@ test("Reduced motion keeps manual navigation, and changing the preference settle
   f.controller.cleanup();
 });
 
-test("Rapid manual swaps ignore a stale animation completion and deactivate to one visible card", async () => {
+test("Overlapping timer swaps ignore a stale animation completion and deactivate to one visible card", async () => {
   const f = fixture();
   f.controller.setActive(true);
-  f.emit(f.nodes.get("next")!, "click", { detail: 1 });
-  f.emit(f.nodes.get("next")!, "click", { detail: 1 });
+  f.fire();
+  f.fire();
   assert.equal(f.animations[0].cancelled, true);
   f.animations[0].finish();
   await Promise.resolve();
@@ -204,9 +194,7 @@ test("Empty and single-card selections never schedule an auto rotation", () => {
     const f = fixture(size);
     f.controller.setActive(true);
     assert.equal(f.timers.size, 0);
-    assert.equal(f.nodes.get("prev")!.disabled, true);
-    assert.equal(f.nodes.get("next")!.disabled, true);
-    assert.equal(f.nodes.get("controls")!.hidden, true);
+    assert.equal(f.cards.filter(card => !card.hidden).length, size);
     f.controller.cleanup();
   }
 });

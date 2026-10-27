@@ -154,10 +154,19 @@ export function bindBlogPage() {
       ], duration, delay, "cubic-bezier(0.23, 1, 0.32, 1)");
     });
     addMotion(introAnimations, hero?.querySelector(".kisara-blog-trace-signal"), [
-      { opacity: 0, transform: "translate3d(-18px, 8px, 0) skewX(-4deg)", clipPath: "inset(0 100% 0 0)" },
-      { opacity: 1, transform: "translate3d(3px, 0, 0) skewX(0deg)", clipPath: "inset(0 8% 0 0)", offset: .55 },
-      { opacity: 1, transform: "translateY(0)", clipPath: "inset(0 0 0 0)" },
+      { opacity: 0, transform: "translate3d(-18px, 8px, 0) skewX(-4deg)", clipPath: "inset(-.2em 100% -.2em -.1em)" },
+      { opacity: 1, transform: "translate3d(3px, 0, 0) skewX(0deg)", clipPath: "inset(-.2em 8% -.2em -.1em)", offset: .55 },
+      { opacity: 1, transform: "translateY(0)", clipPath: "inset(-.2em 0 -.2em -.1em)" },
     ], 620, 80, "cubic-bezier(0.23, 1, 0.32, 1)");
+    addMotion(introAnimations, hero?.querySelector(".kisara-blog-poster-logo.is-white"), [
+      { opacity: 0, transform: "translate3d(-18px, 4px, 0)", clipPath: "inset(0 100% 0 0)" },
+      { opacity: 1, transform: "translate3d(3px, 0, 0)", clipPath: "inset(0 12% 0 0)", offset: .6 },
+      { opacity: 1, transform: "none", clipPath: "inset(0)" },
+    ], 620, 500, "cubic-bezier(0.23, 1, 0.32, 1)");
+    addMotion(introAnimations, hero?.querySelector(".kisara-blog-poster-logo.is-script"), [
+      { opacity: 0, clipPath: "inset(0 100% 0 0)" },
+      { opacity: 1, clipPath: "inset(0)" },
+    ], 620, 850, "cubic-bezier(0.23, 1, 0.32, 1)");
     addMotion(introAnimations, hero?.querySelector("[data-title-fragment]"), [
       { opacity: 0, transform: "translateX(-24px)", offset: 0 },
       { opacity: .9, transform: "translateX(18px)", offset: .12 },
@@ -209,7 +218,7 @@ export function bindBlogPage() {
     setCastFocus("all");
     lockedCastFocus = "all";
     hoveredCastFocus = "all";
-    const images = Array.from(hero.querySelectorAll(".kisara-blog-scene-bg, .kisara-blog-character"));
+    const images = Array.from(hero.querySelectorAll(".kisara-blog-scene-bg, .kisara-blog-character, .kisara-blog-poster-logo"));
     await Promise.race([
       Promise.all(images.map((image) => {
         if (!(image instanceof HTMLImageElement) || image.complete) return Promise.resolve();

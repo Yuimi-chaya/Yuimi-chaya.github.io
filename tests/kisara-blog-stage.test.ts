@@ -85,7 +85,7 @@ test("Blog's server-rendered idle frame cannot reveal the completed cast or lett
       }
     });
   });
-  for (const part of [".kisara-blog-cast-slot", ".kisara-blog-trace-signal", ".kisara-blog-trace-script", ".kisara-blog-hero-meta", ".kisara-blog-description", ".kisara-blog-enter", ".kisara-blog-pickup"]) {
+  for (const part of [".kisara-blog-cast-slot", ".kisara-blog-poster-logo", ".kisara-blog-trace-signal", ".kisara-blog-trace-script", ".kisara-blog-hero-meta", ".kisara-blog-description", ".kisara-blog-enter", ".kisara-blog-pickup"]) {
     assert.ok(hidden.has(`${selector} ${part}`), `${part} must not flash its final frame`);
   }
   assert.equal(reduced, true);
@@ -96,7 +96,8 @@ test("The phrase paints real pen paths clipped to one silhouette per letter, wit
   const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
   assert.equal(blogLettering.map(letter => letter.character).join(""), "leavesatrace.");
   assert.equal((page.match(/class="kisara-blog-trace-glyph"/g) || []).length, 1);
-  const svg = page.slice(page.indexOf('<svg class="kisara-blog-trace-script"'), page.indexOf("</svg>"));
+  const start = page.indexOf('<svg class="kisara-blog-trace-script"');
+  const svg = page.slice(start, page.indexOf("</svg>", start));
   assert.equal(svg.includes("<text"), false);
   assert.ok(svg.includes("clip-path={`url(#blog-g-"));
   assert.ok(svg.includes("data-blog-pen"));
@@ -112,7 +113,8 @@ test("The phrase paints real pen paths clipped to one silhouette per letter, wit
 
 test("Handwritten glyph definitions ship with the page and never depend on an external SVG request", () => {
   const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
-  const svg = page.slice(page.indexOf('<svg class="kisara-blog-trace-script"'), page.indexOf("</svg>"));
+  const start = page.indexOf('<svg class="kisara-blog-trace-script"');
+  const svg = page.slice(start, page.indexOf("</svg>", start));
   assert.doesNotMatch(svg, /trace-glyphs\.svg|href=["'](?:\/|https?:)/);
   assert.match(svg, /clip-path=\{`url\(#blog-g-/);
   assert.doesNotMatch(svg, /<use\b|pathLength=/);
@@ -322,7 +324,7 @@ test("Ambient title motion is independent of the intro and stops before the arch
   state.motionPreference.matches = true;
   sync();
   assert.equal(state.hero.attributes.has("data-title-loop"), false);
-  assert.equal(activity.at(-1), true, "reduced motion keeps manual article navigation available");
+  assert.equal(activity.at(-1), true, "the reduced-motion controller keeps its first article visible");
   state.motionPreference.matches = false;
   sync();
   assert.equal(state.hero.attributes.has("data-title-loop"), true);
@@ -353,6 +355,111 @@ test("The foil uses the original single ink mask and cannot paint beyond the han
   }
   assert.ok(loss / alpha < .005, "the complete ink mask keeps every letter");
   assert.ok(gain / alpha < .005, "clipped brush overlap changes only subpixel antialiasing");
+});
+
+test("White title and its passing pink light share one ink mask with room for descenders", async () => {
+  const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
+  const start = page.indexOf('<svg class="kisara-blog-trace-signal"');
+  const markup = page.slice(start, page.indexOf("</svg>", start) + 6)
+    .replace("{signalTitle}", "Every signal").replace(" data-trace-line", "");
+  assert.match(markup, /<g mask="url\(#blog-signal-ink\)">[\s\S]*fill="currentColor"[\s\S]*class="kisara-blog-signal-shine"/);
+  assert.doesNotMatch(page, /data-signal-text/);
+  assert.doesNotMatch(read("src/themes/kisara/styles/blog.css"), /signal-frame::after/);
+  const motions: any[] = [];
+  const prepare = vm.runInNewContext(`${extract("  const addMotion =", "  const playIntro =")}; prepareMotion`, {
+    reducedMotion: false, introAnimations: motions, archiveAnimations: [], archive: null,
+    hero: {
+      querySelectorAll: () => [],
+      querySelector: (selector: string) => selector === ".kisara-blog-trace-signal"
+        ? { animate: (frames: unknown, timing: unknown) => ({ frames, timing, pause() {} }) } : null,
+    },
+  });
+  prepare();
+  for (const frame of motions[0].frames) assert.match(frame.clipPath, /^inset\(-\.2em .+ -\.2em -\.1em\)$/);
+  for (const [fontSize, width] of [[42.4, 320], [49.6, 350], [64, 560], [72, 600], [99.2, 780]]) {
+    const height = Math.ceil(fontSize * 1.18);
+    const styled = markup.replace("<svg", `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"`)
+      .replace(">", `><style>svg,text{font:400 ${fontSize}px Georgia,serif;color:#f7f4ff}</style>`);
+    const render = (opacity: number, offset = 0) => sharp(Buffer.from(styled.replace('class="kisara-blog-signal-shine"',
+      `opacity="${opacity}" transform="translate(${offset} 0)"`)))
+      .ensureAlpha().raw().toBuffer();
+    const base = await render(0);
+    const foil = await render(1, width * .5);
+    let bottom = 0, visible = 0, changed = 0;
+    for (let i = 3; i < base.length; i += 4) {
+      assert.equal(base[i], foil[i], "foil cannot add pixels outside the actual glyph shape");
+      if (base[i]) { bottom = Math.max(bottom, Math.floor(i / 4 / width)); visible++; }
+      if (base[i - 3] !== foil[i - 3]) changed++;
+    }
+    assert.ok(visible > 500);
+    assert.ok(changed > 10, "test must sample the light while it actually crosses the glyphs");
+    assert.ok(bottom < height - 2, "y/g descenders must have transparent space below them");
+    const direct = styled.replace(/<g mask="url\(#blog-signal-ink\)">[\s\S]*?<\/g>/,
+      '<text x="0" y=".86em" fill="currentColor">Every signal</text>');
+    const reference = await sharp(Buffer.from(direct)).ensureAlpha().raw().toBuffer();
+    for (let i = 3; i < base.length; i += 4) assert.equal(base[i], reference[i], "ink mask keeps the complete text");
+  }
+});
+
+test("Original video wordmark layers share coordinates and enter on the same reversible clock as the cast", async () => {
+  const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
+  const stage = page.slice(page.indexOf('<div class="kisara-blog-character-stage">'), page.indexOf('<div class="kisara-blog-scene-veil">'));
+  assert.equal((stage.match(/data-blog-character=/g) ?? []).length, 4);
+  assert.equal((stage.match(/class="kisara-blog-poster-logo /g) ?? []).length, 2);
+  assert.ok(stage.indexOf("is-shu") < stage.indexOf('poster-logo is-white'));
+  assert.ok(stage.indexOf('poster-logo is-white') < stage.indexOf("is-kisara"));
+  assert.ok(stage.indexOf("is-kisara") < stage.indexOf('poster-logo is-script'));
+  const properties = new Map<string, string>();
+  postcss.parse(read("src/themes/kisara/styles/blog.css")).walkRules(rule => {
+    if (rule.selector === ".kisara-blog-poster-logo") rule.walkDecls(decl => { properties.set(decl.prop, decl.value); });
+  });
+  assert.equal(properties.get("aspect-ratio"), "40 / 17");
+  assert.equal(properties.get("pointer-events"), "none");
+  const motions: any[] = [];
+  const prepare = vm.runInNewContext(`${extract("  const addMotion =", "  const playIntro =")}; prepareMotion`, {
+    reducedMotion: false, introAnimations: motions, archiveAnimations: [], archive: null,
+    hero: {
+      querySelectorAll: () => [],
+      querySelector: (selector: string) => selector.startsWith(".kisara-blog-poster-logo.")
+        ? { animate: (frames: unknown, timing: unknown) => ({ frames, timing, pause() {} }) } : null,
+    },
+  });
+  prepare();
+  assert.equal(motions.length, 2);
+  for (const motion of motions) {
+    assert.ok(motion.timing.duration + motion.timing.delay <= 1700);
+    assert.equal(motion.frames[0].opacity, 0);
+    assert.equal(motion.frames.at(-1).opacity, 1);
+  }
+  for (const name of ["white", "script"]) {
+    const image = readFileSync(new URL(`../public/themes/kisara/assets/blog/engage-kiss-wordmark-${name}.webp`, import.meta.url));
+    const meta = await sharp(image).metadata();
+    assert.equal(meta.width, 1280);
+    assert.equal(meta.height, 544);
+    assert.equal(meta.hasAlpha, true);
+    assert.ok(image.length < 50000);
+  }
+});
+
+test("Blog uses the gentler baked background and ticket edge softening without manual controls", async () => {
+  const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
+  assert.match(page, /engage-kiss-poster-ambient-v2\.webp/);
+  assert.match(read("scripts/prepare-kisara-blog-ambient.mjs"), /\.blur\(22\)/);
+  assert.doesNotMatch(page, /data-flashcard-(?:prev|next|pause|controls|status)/);
+  const css = postcss.parse(read("src/themes/kisara/styles/blog.css"));
+  let imageMask = false, pearl = false;
+  css.walkRules(rule => {
+    if (rule.selector === ".kisara-blog-flashcard figure img") {
+      rule.walkDecls("mask-image", decl => { imageMask = decl.value.includes("transparent"); });
+    }
+    if (rule.selector === ".kisara-blog-flashcard") {
+      rule.walkDecls("background", decl => { pearl = decl.value.includes("rgba(202, 238, 244, .28)"); });
+    }
+    if (rule.selector === ".kisara-blog-flashcard-copy") {
+      rule.walkDecls(/mask/, () => assert.fail("softening must not mask the article text"));
+    }
+  });
+  assert.ok(imageMask && pearl);
 });
 
 test("Hover settles without another pointermove and alternation at a seam never commits", () => {
