@@ -8,7 +8,7 @@ import { getHomeChapterProgress } from "../src/themes/kisara/lib/homeScrollRail.
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const runtime = read("src/themes/kisara/lib/layoutRuntime.js");
 
-function mount({ home = true, y = 900 } = {}) {
+function mount({ home = true, y = 900, page = "home" } = {}) {
   class Node extends EventTarget {
     dataset: Record<string, string> = {};
     classes = new Set<string>();
@@ -29,6 +29,7 @@ function mount({ home = true, y = 900 } = {}) {
   const rail = new Node();
   if (home) rail.classes.add("is-home-rail");
   const body = new Node();
+  body.dataset.kisaraPage = page;
   if (home) body.classes.add("kisara-home-page");
   const root = { scrollHeight: 4900, dataset: { theme: "kisara" } };
   const win = Object.assign(new EventTarget(), { scrollY: y, innerHeight: 900, innerWidth: 1440 });
@@ -65,8 +66,26 @@ function mount({ home = true, y = 900 } = {}) {
     win.dispatchEvent(new CustomEvent("kisara:gate-progress", { detail: { active: true, progress: value, stage: "awakening" } }));
     flush();
   };
-  return { rail, fill, thumb, root, win, scroll, transition, flush, advanceGate, resize: () => { resize(); flush(); }, measured: () => measurements };
+  return { body, rail, fill, thumb, root, win, scroll, transition, flush, advanceGate, resize: () => { resize(); flush(); }, measured: () => measurements };
 }
+
+test("Works header follows scroll restoration and returning to the top without changing other pages", () => {
+  const app = mount({ home: false, page: "projects", y: 0 });
+  assert.equal(app.body.dataset.worksHeaderScrolled, "false");
+  app.scroll(100);
+  assert.equal(app.body.dataset.worksHeaderScrolled, "true");
+  app.scroll(0);
+  assert.equal(app.body.dataset.worksHeaderScrolled, "false");
+  app.scroll(-10);
+  assert.equal(app.body.dataset.worksHeaderScrolled, "false");
+  app.win.scrollY = 200;
+  app.win.dispatchEvent(new Event("pageshow"));
+  app.flush();
+  assert.equal(app.body.dataset.worksHeaderScrolled, "true");
+  assert.equal(mount({ home: false, page: "projects", y: 80 }).body.dataset.worksHeaderScrolled, "true");
+  assert.equal(mount({ home: false, page: "blog", y: 80 }).body.dataset.worksHeaderScrolled, undefined);
+  assert.equal(mount().body.dataset.worksHeaderScrolled, undefined);
+});
 
 test("Unequal chapters occupy equal rail intervals with continuous touch progress", () => {
   const tops = [900, 1900, 3200, 4000];

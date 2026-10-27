@@ -15,12 +15,32 @@ html[data-theme="kisara"] body[data-kisara-page="projects"]::before {
 }
 
 body[data-kisara-page="projects"] .kisara-header.is-inner-header {
+  isolation: isolate;
   color: #3f343d;
-  border-bottom-color: rgba(86, 62, 74, 0.14);
+  border-bottom-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+body[data-kisara-page="projects"] .kisara-header.is-inner-header::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  border-bottom: 1px solid rgba(86, 62, 74, 0.14);
   background: rgba(250, 247, 250, 0.9);
   box-shadow: 0 12px 30px rgba(54, 39, 47, 0.08);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  opacity: 0;
+  transition: opacity 180ms cubic-bezier(.23, 1, .32, 1);
+}
+
+body[data-kisara-page="projects"][data-works-header-scrolled="true"] .kisara-header.is-inner-header::before {
+  opacity: 1;
 }
 
 body[data-kisara-page="projects"] .kisara-brand-mark {
@@ -1006,6 +1026,7 @@ body[data-kisara-page="projects"] .kisara-index::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  body[data-kisara-page="projects"] .kisara-header.is-inner-header::before { transition: none; }
   .kisara-index-hero :is(.kisara-index-kicker, h1, .kisara-index-lede, .kisara-index-actions) {
     animation: none;
   }
