@@ -172,12 +172,14 @@ export function bindBlogPage() {
     addMotion(introAnimations, hero?.querySelector(".kisara-blog-description"), [
       { opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" },
     ], 240, 620, "cubic-bezier(0.23, 1, 0.32, 1)");
-    // Each pen stroke reveals the one filled glyph; no second text/outline layer.
+    // Animate the paths painted into the ink mask, without a cloned glyph or nested mask.
     hero?.querySelectorAll("[data-blog-pen]").forEach(pen => {
+      const length = Math.max(1, pen.getTotalLength());
+      const dash = `${length} ${length}`;
       addMotion(introAnimations, pen, [
-        { opacity: 0, strokeDasharray: "1 1", strokeDashoffset: "1", offset: 0 },
-        { opacity: 1, strokeDasharray: "1 1", strokeDashoffset: "1", offset: .001 },
-        { opacity: 1, strokeDasharray: "1 1", strokeDashoffset: "0", offset: 1 },
+        { opacity: 0, strokeDasharray: dash, strokeDashoffset: String(length), offset: 0 },
+        { opacity: 1, strokeDasharray: dash, strokeDashoffset: String(length), offset: .001 },
+        { opacity: 1, strokeDasharray: dash, strokeDashoffset: "0", offset: 1 },
       ], 84, 330 + Number(pen.dataset.penOrder) * 72);
     });
     addMotion(introAnimations, hero?.querySelector(".kisara-blog-enter"), [

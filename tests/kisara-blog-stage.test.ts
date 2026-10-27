@@ -12,6 +12,58 @@ const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.ur
 const source = read("src/themes/kisara/lib/blogPage.js");
 const extract = (start: string, end: string) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
 
+// Approximate only the M/L/Q/C centerlines in this fixed lettering fixture.
+const penLength = (d: string) => {
+  const tokens = d.match(/[MLQC]|-?(?:\d+\.?\d*|\.\d+)/g) ?? [];
+  let index = 0, x = 0, y = 0, length = 0;
+  const number = () => Number(tokens[index++]);
+  while (index < tokens.length) {
+    const command = tokens[index++];
+    if (command === "M") { x = number(); y = number(); continue; }
+    if (command === "L") {
+      const nx = number(), ny = number();
+      length += Math.hypot(nx - x, ny - y);
+      x = nx; y = ny;
+      continue;
+    }
+    assert.ok(command === "Q" || command === "C", `unsupported fixture command: ${command}`);
+    const startX = x, startY = y, cx = number(), cy = number();
+    const dx = command === "C" ? number() : 0, dy = command === "C" ? number() : 0;
+    const nx = number(), ny = number();
+    for (let step = 1; step <= 64; step++) {
+      const t = step / 64, u = 1 - t;
+      const px = command === "Q" ? u * u * startX + 2 * u * t * cx + t * t * nx
+        : u ** 3 * startX + 3 * u * u * t * cx + 3 * u * t * t * dx + t ** 3 * nx;
+      const py = command === "Q" ? u * u * startY + 2 * u * t * cy + t * t * ny
+        : u ** 3 * startY + 3 * u * u * t * cy + 3 * u * t * t * dy + t ** 3 * ny;
+      length += Math.hypot(px - x, py - y);
+      x = px; y = py;
+    }
+  }
+  return length;
+};
+
+const preparePenMotions = () => {
+  const motions: any[] = [];
+  const pens = blogLettering.flatMap(letter => letter.strokes.map(stroke => ({
+    dataset: { penOrder: String(stroke.order) },
+    getTotalLength: () => penLength(stroke.d),
+    animate(frames: unknown, timing: unknown) {
+      return { frames, timing, currentTime: 0, pause() {} };
+    },
+  })));
+  const prepare = vm.runInNewContext(
+    `${extract("  const addMotion =", "  const playIntro =")}; prepareMotion`,
+    {
+      reducedMotion: false, introAnimations: motions, archiveAnimations: [], archive: null,
+      hero: { querySelectorAll: (selector: string) => selector === "[data-blog-pen]" ? pens : [], querySelector: () => null },
+      parseCssTimeMs,
+    },
+  );
+  prepare();
+  return motions;
+};
+
 test("Blog's server-rendered idle frame cannot reveal the completed cast or lettering", () => {
   const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
   assert.match(page, /data-intro-state="idle"/);
@@ -40,14 +92,16 @@ test("Blog's server-rendered idle frame cannot reveal the completed cast or lett
   assert.match(page, /root\.dataset\.introState = "complete"/);
 });
 
-test("The phrase has one filled glyph per letter, separate pen paths, and no competing text layer", () => {
+test("The phrase paints real pen paths clipped to one silhouette per letter, without a cloned text layer", () => {
   const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
   assert.equal(blogLettering.map(letter => letter.character).join(""), "leavesatrace.");
   assert.equal((page.match(/class="kisara-blog-trace-glyph"/g) || []).length, 1);
   const svg = page.slice(page.indexOf('<svg class="kisara-blog-trace-script"'), page.indexOf("</svg>"));
   assert.equal(svg.includes("<text"), false);
-  assert.ok(svg.includes("mask={`url(#blog-pen-"));
+  assert.ok(svg.includes("clip-path={`url(#blog-g-"));
   assert.ok(svg.includes("data-blog-pen"));
+  assert.doesNotMatch(svg, /<use\b|id=\{`blog-pen-/);
+  assert.ok(svg.indexOf("data-blog-pen") > svg.indexOf('id="blog-script-ink"'));
   assert.equal(page.includes("kisara-blog-intro-controls"), false);
   assert.equal(page.includes("kisara-blog-cast-index"), false);
   const sprite = read("public/themes/kisara/assets/blog/trace-glyphs.svg");
@@ -60,7 +114,8 @@ test("Handwritten glyph definitions ship with the page and never depend on an ex
   const page = read("src/themes/kisara/pages/BlogIndexPage.astro");
   const svg = page.slice(page.indexOf('<svg class="kisara-blog-trace-script"'), page.indexOf("</svg>"));
   assert.doesNotMatch(svg, /trace-glyphs\.svg|href=["'](?:\/|https?:)/);
-  assert.match(svg, /href=\{`#blog-g-/);
+  assert.match(svg, /clip-path=\{`url\(#blog-g-/);
+  assert.doesNotMatch(svg, /<use\b|pathLength=/);
   assert.match(svg, /id=\{`blog-g-/);
   assert.match(svg, /d=\{outline\}/);
   assert.ok(svg.indexOf("d={outline}") < svg.indexOf('id="blog-script-ink"'));
@@ -74,6 +129,52 @@ test("Blog cast entry keeps production-compressed seconds as milliseconds", () =
   assert.equal(parseCssTimeMs("40"), 40);
   assert.match(source, /parseCssTimeMs\(css\.getPropertyValue\("--cast-delay"\)\)/);
   assert.match(source, /parseCssTimeMs\(css\.getPropertyValue\("--cast-duration"\)\)/);
+});
+
+test("Every live pen path gets its own measured dash animation on the shared intro clock", () => {
+  const strokes = blogLettering.flatMap(letter => letter.strokes);
+  const motions = preparePenMotions();
+  assert.equal(motions.length, strokes.length);
+  motions.forEach((motion, index) => {
+    const length = penLength(strokes[index].d);
+    assert.equal(motion.timing.duration, 84);
+    assert.equal(motion.timing.delay, 330 + strokes[index].order * 72);
+    assert.equal(motion.currentTime, 0);
+    assert.equal(motion.frames[0].opacity, 0);
+    assert.equal(motion.frames[0].strokeDasharray, `${length} ${length}`);
+    assert.equal(Number(motion.frames[0].strokeDashoffset), length);
+    assert.equal(motion.frames.at(-1).strokeDashoffset, "0");
+    assert.ok(length > 1, "SVG path length cannot collapse to a one-unit dash");
+  });
+});
+
+test("The real pen keyframes reveal a partial first stroke, then accumulate the phrase instead of showing it at once", async () => {
+  const motions = preparePenMotions();
+  const definitions = [...new Map(blogLettering.map(letter => [letter.character, letter.outline]))]
+    .map(([character, outline]) => `<clipPath id="g-${character === "." ? "dot" : character}" clipPathUnits="userSpaceOnUse"><path d="${outline}"/></clipPath>`).join("");
+  const samples: number[] = [];
+  for (const time of [0, 330, 370, 414, 700, 1000, 1400, 1700]) {
+    const groups = blogLettering.map(letter => {
+      const paths = letter.strokes.map(stroke => {
+        const { frames, timing } = motions[stroke.order];
+        const progress = Math.max(0, Math.min(1, ((time - timing.delay) / timing.duration - .001) / .999));
+        const length = Number(frames[0].strokeDashoffset);
+        const opacity = time <= timing.delay ? frames[0].opacity : frames.at(-1).opacity;
+        return `<path d="${stroke.d}" fill="none" stroke="white" stroke-width="310" stroke-linecap="round" stroke-linejoin="round" opacity="${opacity}" stroke-dasharray="${frames[0].strokeDasharray}" stroke-dashoffset="${length * (1 - progress)}"/>`;
+      }).join("");
+      return `<g transform="translate(${letter.x} 94) scale(.046875 -.046875)" clip-path="url(#g-${letter.character === "." ? "dot" : letter.character})">${paths}</g>`;
+    }).join("");
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1252" height="188" viewBox="0 12 626 94"><defs>${definitions}<mask id="ink" maskUnits="userSpaceOnUse" x="0" y="0" width="626" height="120">${groups}</mask></defs><path d="M0 0H626V120H0Z" fill="#ff6688" mask="url(#ink)"/></svg>`;
+    const pixels = await sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer();
+    let alpha = 0;
+    for (let index = 3; index < pixels.length; index += 4) alpha += pixels[index];
+    samples.push(alpha);
+  }
+  assert.equal(samples[0], 0);
+  assert.equal(samples[1], 0, "writing waits for the intro's pen cue");
+  assert.ok(samples[2] > 0 && samples[2] < samples[3], "the first stroke grows along its centerline");
+  assert.ok(samples.at(-1)! > 1_000_000, "the complete phrase remains visible");
+  for (let index = 3; index < samples.length; index++) assert.ok(samples[index] > samples[index - 1]);
 });
 
 test("Minified production CSS creates four staggered cast animations on the full intro timeline", async () => {
@@ -230,26 +331,28 @@ test("Ambient title motion is independent of the intro and stops before the arch
 
 test("The foil uses the original single ink mask and cannot paint beyond the handwritten phrase", async () => {
   const definitions = [...new Map(blogLettering.map(letter => [letter.character, letter.outline]))]
-    .map(([character, outline]) => `<path id="blog-g-${character === "." ? "dot" : character}" d="${outline}"/>`).join("");
-  const pens = blogLettering.map((letter, index) => {
+    .map(([character, outline]) => `<clipPath id="blog-g-${character === "." ? "dot" : character}" clipPathUnits="userSpaceOnUse"><path d="${outline}"/></clipPath>`).join("");
+  const glyphs = blogLettering.map((letter) => {
     const strokes = letter.strokes.map(stroke => `<path d="${stroke.d}" fill="none" stroke="white" stroke-width="310" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
-    return `<mask id="p${index}" maskUnits="userSpaceOnUse" x="-200" y="-300" width="1700" height="2100">${strokes}</mask>`;
+    return `<g transform="translate(${letter.x} 94) scale(.046875 -.046875)" clip-path="url(#blog-g-${letter.character === "." ? "dot" : letter.character})">${strokes}</g>`;
   }).join("");
-  const glyphs = blogLettering.map((letter, index) =>
-    `<use href="#blog-g-${letter.character === "." ? "dot" : letter.character}" transform="translate(${letter.x} 94) scale(.046875 -.046875)" mask="url(#p${index})"/>`).join("");
   const fullGlyphs = blogLettering.map(letter =>
-    `<path d="${letter.outline}" transform="translate(${letter.x} 94) scale(.046875 -.046875)" fill="white"/>`).join("");
+    `<g transform="translate(${letter.x} 94) scale(.046875 -.046875)" clip-path="url(#blog-g-${letter.character === "." ? "dot" : letter.character})"><path d="M-200 -300H1500V1800H-200Z" fill="white"/></g>`).join("");
   const start = '<svg xmlns="http://www.w3.org/2000/svg" width="1252" height="188" viewBox="0 12 626 94">';
   const render = (body: string) => sharp(Buffer.from(start + body + "</svg>")).ensureAlpha().raw().toBuffer();
-  const full = await render(fullGlyphs);
-  const foil = await render(`<defs>${definitions}${pens}<mask id="ink" maskUnits="userSpaceOnUse" x="0" y="0" width="626" height="120" fill="white">${glyphs}</mask></defs><g mask="url(#ink)"><path d="M0 0H626V120H0Z" fill="#ff6688"/><path d="M0 0H70L110 120H40Z" transform="translate(200 0)" fill="white"/></g>`);
-  let alpha = 0, loss = 0;
+  const full = await render(`<defs>${definitions}</defs>${fullGlyphs}`);
+  const ink = `<defs>${definitions}<mask id="ink" maskUnits="userSpaceOnUse" x="0" y="0" width="626" height="120" fill="white">${glyphs}</mask></defs>`;
+  const base = await render(`${ink}<g mask="url(#ink)"><path d="M0 0H626V120H0Z" fill="#ff6688"/></g>`);
+  const foil = await render(`${ink}<g mask="url(#ink)"><path d="M0 0H626V120H0Z" fill="#ff6688"/><path d="M0 0H70L110 120H40Z" transform="translate(200 0)" fill="white"/></g>`);
+  let alpha = 0, loss = 0, gain = 0;
   for (let i = 3; i < full.length; i += 4) {
     alpha += full[i];
-    loss += Math.max(0, full[i] - foil[i]);
-    assert.ok(foil[i] <= full[i], "foil cannot become a second silhouette");
+    loss += Math.max(0, full[i] - base[i]);
+    gain += Math.max(0, base[i] - full[i]);
+    assert.equal(foil[i], base[i], "the foil cannot change the ink silhouette at any pixel");
   }
   assert.ok(loss / alpha < .005, "the complete ink mask keeps every letter");
+  assert.ok(gain / alpha < .005, "clipped brush overlap changes only subpixel antialiasing");
 });
 
 test("Hover settles without another pointermove and alternation at a seam never commits", () => {

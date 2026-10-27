@@ -79,19 +79,17 @@ const pickupTones = ["rose", "mint", "blue"];
         <svg class="kisara-blog-trace-script" viewBox="0 12 626 94" role="presentation" aria-hidden="true">
           <defs>
           {blogGlyphs.map(([character, outline]) => (
-            <path id={`blog-g-${character === "." ? "dot" : character}`} d={outline} />
-          ))}
-          {blogLettering.map((letter, index) => (
-            <mask id={`blog-pen-${index}`} maskUnits="userSpaceOnUse" x="-200" y="-300" width="1700" height="2100">
-              {letter.strokes.map((stroke) => <path data-blog-pen data-pen-order={stroke.order} d={stroke.d} pathLength="1" />)}
-            </mask>
+            <clipPath id={`blog-g-${character === "." ? "dot" : character}`} clipPathUnits="userSpaceOnUse">
+              <path d={outline} />
+            </clipPath>
           ))}
           <mask id="blog-script-ink" maskUnits="userSpaceOnUse" x="0" y="0" width="626" height="120" fill="white">
-          {blogLettering.map((letter, index) => (
-            <use class="kisara-blog-trace-glyph"
+          {blogLettering.map((letter) => (
+            <g class="kisara-blog-trace-glyph"
               transform={`translate(${letter.x} 94) scale(.046875 -.046875)`}
-              href={`#blog-g-${letter.character === "." ? "dot" : letter.character}`}
-              mask={`url(#blog-pen-${index})`} />
+              clip-path={`url(#blog-g-${letter.character === "." ? "dot" : letter.character})`}>
+              {letter.strokes.map((stroke) => <path data-blog-pen data-pen-order={stroke.order} d={stroke.d} />)}
+            </g>
           ))}
           </mask>
           <linearGradient id="blog-ink-foil">
