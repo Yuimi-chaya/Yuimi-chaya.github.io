@@ -1,3 +1,5 @@
+import { bindBlogFlashcards } from "./blogFlashcards.js";
+
 export const parseCssTimeMs = (raw) => {
   const value = String(raw ?? "").trim().toLowerCase();
   const number = Number.parseFloat(value);
@@ -13,7 +15,9 @@ export function bindBlogPage() {
   const archive = document.querySelector("[data-kisara-archive]");
   const track = document.querySelector("[data-blog-stage-track]");
   const stage = document.querySelector("[data-blog-stage]");
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const reducedMotion = motionPreference.matches;
+  const flashcards = bindBlogFlashcards(hero?.querySelector("[data-blog-flashcards]"));
   const introDuration = 1700;
   let introElapsed = 0;
   let lastIntroTime = 0;
@@ -45,6 +49,7 @@ export function bindBlogPage() {
   let castPointerActive = false;
   let castHitMasks = [];
   let castMaskPromise = null;
+  let castNoteAnimation = null;
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const fineCastPointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -59,6 +64,9 @@ export function bindBlogPage() {
     stageResizeObserver?.disconnect();
     introAnimations.forEach(animation => animation.cancel());
     archiveAnimations.forEach(animation => animation.cancel());
+    castNoteAnimation?.cancel();
+    flashcards.cleanup();
+    hero?.removeAttribute("data-title-loop");
     scrim?.remove();
     hero?.removeAttribute("inert");
     hero?.style.removeProperty("visibility");
@@ -89,10 +97,19 @@ export function bindBlogPage() {
     if (castPointerActive) scheduleCastHit();
   };
 
+  const syncAmbient = () => {
+    if (!(hero instanceof HTMLElement) || signal.aborted) return;
+    const active = heroVisible && !document.hidden
+      && hero.dataset.introState === "complete" && scrollProgress <= .015;
+    hero.toggleAttribute("data-title-loop", active && !motionPreference.matches);
+    flashcards.setActive(active);
+  };
+
   const syncHeroActivity = () => {
     if (!(hero instanceof HTMLElement) || signal.aborted) return;
     const active = heroVisible && !document.hidden;
     hero.toggleAttribute("data-hero-active", active);
+    syncAmbient();
     if (!active) {
       window.cancelAnimationFrame(introFrame);
       introFrame = 0;
@@ -137,9 +154,18 @@ export function bindBlogPage() {
       ], duration, delay, "cubic-bezier(0.23, 1, 0.32, 1)");
     });
     addMotion(introAnimations, hero?.querySelector(".kisara-blog-trace-signal"), [
-      { opacity: 0, transform: "translateY(20px)" },
-      { opacity: 1, transform: "translateY(0)" },
-    ], 520, 100, "cubic-bezier(0.23, 1, 0.32, 1)");
+      { opacity: 0, transform: "translate3d(-18px, 8px, 0) skewX(-4deg)", clipPath: "inset(0 100% 0 0)" },
+      { opacity: 1, transform: "translate3d(3px, 0, 0) skewX(0deg)", clipPath: "inset(0 8% 0 0)", offset: .55 },
+      { opacity: 1, transform: "translateY(0)", clipPath: "inset(0 0 0 0)" },
+    ], 620, 80, "cubic-bezier(0.23, 1, 0.32, 1)");
+    addMotion(introAnimations, hero?.querySelector("[data-title-fragment]"), [
+      { opacity: 0, transform: "translateX(-24px)", offset: 0 },
+      { opacity: .9, transform: "translateX(18px)", offset: .12 },
+      { opacity: .8, transform: "translateX(-12px)", offset: .28 },
+      { opacity: .6, transform: "translateX(7px)", offset: .46 },
+      { opacity: 0, transform: "translateX(0)", offset: .7 },
+      { opacity: 0, transform: "translateX(0)", offset: 1 },
+    ], 700, 60);
     addMotion(introAnimations, hero?.querySelector(".kisara-blog-hero-meta"), [
       { opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" },
     ], 240, 30, "cubic-bezier(0.23, 1, 0.32, 1)");
@@ -157,6 +183,9 @@ export function bindBlogPage() {
     addMotion(introAnimations, hero?.querySelector(".kisara-blog-enter"), [
       { opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" },
     ], 240, 1400);
+    addMotion(introAnimations, hero?.querySelector(".kisara-blog-pickup"), [
+      { opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" },
+    ], 240, 1360, "cubic-bezier(0.23, 1, 0.32, 1)");
     const parts = archive?.querySelectorAll(":scope > .kisara-blog-archive-heading, :scope > .kisara-blog-view-switch, :scope > .kisara-blog-toolbar, :scope > .kisara-blog-view-panel, :scope > .kisara-blog-empty") || [];
     parts.forEach((part, index) => addMotion(archiveAnimations, part, [
       { opacity: 0, transform: `translateY(${index < 3 ? 28 : 64}px)` },
@@ -231,6 +260,7 @@ export function bindBlogPage() {
       setCastFocus("all");
       castPointerActive = false;
     }
+    syncAmbient();
   };
 
   const scheduleScrollSync = () => {
@@ -241,15 +271,17 @@ export function bindBlogPage() {
   window.addEventListener("resize", measureStage, { passive: true, signal });
 
   const castVoices = {
-    all: ["", ""],
-    kisara: ["木更 / KISARA", "记得太多，反而最像被留下的人。"],
-    shu: ["修 / SHU", "靠遗忘继续前进，却总在别人的记忆里出现。"],
-    ayano: ["绫乃 / AYANO", "想把过去说清楚的人，往往最晚收到回复。"],
-    sharon: ["莎朗 / SHARON", "从旧契约里追来，也把局面重新写了一遍。"]
+    all: {},
+    kisara: { name: "木更", label: "KISARA", index: "01", copy: "记得太多，反而最像被留下的人。" },
+    shu: { name: "绪方 修", label: "SHU OGATA", index: "02", copy: "靠遗忘继续前进，却总在别人的记忆里出现。" },
+    ayano: { name: "夕桐 绫乃", label: "AYANO YUGIRI", index: "03", copy: "想把过去说清楚的人，往往最晚收到回复。" },
+    sharon: { name: "莎朗", label: "SHARON", index: "04", copy: "从旧契约里追来，也把局面重新写了一遍。" }
   };
   const castNote = hero?.querySelector("[data-blog-cast-note]");
   const castLabel = hero?.querySelector("[data-blog-cast-label]");
   const castCopy = hero?.querySelector("[data-blog-cast-copy]");
+  const castName = hero?.querySelector("[data-blog-cast-name]");
+  const castIndex = hero?.querySelector("[data-blog-cast-index]");
   const characterImages = Array.from(hero?.querySelectorAll("[data-blog-character]") || []);
   const setCastFocus = (id) => {
     if (!(hero instanceof HTMLElement) || !castVoices[id]) return;
@@ -257,9 +289,19 @@ export function bindBlogPage() {
     if (id !== "all" && hero.dataset.introState !== "complete") finishIntro();
     hero.dataset.castFocus = id;
     if (castNote instanceof HTMLElement) castNote.dataset.castNoteFor = id;
-    const [label, copy] = castVoices[id];
+    castNoteAnimation?.cancel();
+    if (id === "all") return;
+    const { label, copy, name, index } = castVoices[id];
     if (castLabel) castLabel.textContent = label;
     if (castCopy) castCopy.textContent = copy;
+    if (castName) castName.textContent = name;
+    if (castIndex) castIndex.textContent = index;
+    if (!motionPreference.matches && castNote?.animate) {
+      castNoteAnimation = castNote.animate([
+        { opacity: 0, transform: "translate3d(-8px, 4px, 0) scale(.97)" },
+        { opacity: 1, transform: "none" },
+      ], { duration: 160, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+    }
   };
 
   // Hit geometry stays at the settled pose; focus magnification must not move its own hit target.
@@ -426,6 +468,11 @@ export function bindBlogPage() {
   }
   window.addEventListener("resize", cacheCastGeometry, { passive: true, signal });
   document.addEventListener("visibilitychange", syncHeroActivity, { signal });
+  motionPreference.addEventListener("change", syncAmbient, { signal });
+  window.addEventListener("pagehide", () => {
+    hero?.removeAttribute("data-title-loop");
+    flashcards.setActive(false);
+  }, { signal });
   if (track instanceof HTMLElement && stage instanceof HTMLElement && archive instanceof HTMLElement) {
     track.setAttribute("data-stage-ready", "");
     scrim = document.createElement("div");

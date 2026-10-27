@@ -33,7 +33,7 @@ test("Blog's server-rendered idle frame cannot reveal the completed cast or lett
       }
     });
   });
-  for (const part of [".kisara-blog-cast-slot", ".kisara-blog-trace-signal", ".kisara-blog-trace-script", ".kisara-blog-hero-meta", ".kisara-blog-description", ".kisara-blog-enter"]) {
+  for (const part of [".kisara-blog-cast-slot", ".kisara-blog-trace-signal", ".kisara-blog-trace-script", ".kisara-blog-hero-meta", ".kisara-blog-description", ".kisara-blog-enter", ".kisara-blog-pickup"]) {
     assert.ok(hidden.has(`${selector} ${part}`), `${part} must not flash its final frame`);
   }
   assert.equal(reduced, true);
@@ -141,7 +141,7 @@ test("Native scroll rewinds the same intro clock and reveals separate archive pa
     introElapsed: 1700, introDuration: 1700, stageTop: 0, stageScale: .9,
     entryDistance: 500, archiveOverflow: 2000, scrollProgress: 0, scrollFrame: 0,
     reducedMotion: false, focusArchive: false, hoveredCastFocus: "all", lockedCastFocus: "all",
-    castPointerActive: false, setCastFocus() {}, window: { scrollY: 0 },
+    castPointerActive: false, setCastFocus() {}, syncAmbient() {}, window: { scrollY: 0 },
     clamp: (n: number, a: number, b: number) => Math.max(a, Math.min(b, n)),
   };
   const sync = vm.runInNewContext(`${extract("  const syncScroll =", "  const scheduleScrollSync =")}; syncScroll`, state);
@@ -170,6 +170,69 @@ test("Native scroll rewinds the same intro clock and reveals separate archive pa
   state.window.scrollY = 10;
   sync();
   assert.equal(introAnimations[0].currentTime, 600, "scroll cannot advance an unfinished intro");
+});
+
+test("Ambient title motion is independent of the intro and stops before the archive handoff", () => {
+  class Element {
+    dataset = { introState: "playing" };
+    attributes = new Set<string>();
+    toggleAttribute(name: string, value: boolean) {
+      if (value) this.attributes.add(name);
+      else this.attributes.delete(name);
+    }
+  }
+  const activity: boolean[] = [];
+  const state: any = {
+    HTMLElement: Element, hero: new Element(), signal: { aborted: false },
+    heroVisible: true, document: { hidden: false }, scrollProgress: 0,
+    motionPreference: { matches: false },
+    flashcards: { setActive: (value: boolean) => activity.push(value) },
+  };
+  const sync = vm.runInNewContext(`${extract("  const syncAmbient =", "  const syncHeroActivity =")}; syncAmbient`, state);
+  sync();
+  assert.equal(state.hero.attributes.has("data-title-loop"), false);
+  state.hero.dataset.introState = "complete";
+  sync();
+  assert.equal(state.hero.attributes.has("data-title-loop"), true);
+  state.scrollProgress = .02;
+  sync();
+  assert.equal(state.hero.attributes.has("data-title-loop"), false);
+  assert.equal(activity.at(-1), false);
+  state.scrollProgress = 0;
+  state.document.hidden = true;
+  sync();
+  assert.equal(state.hero.attributes.has("data-title-loop"), false);
+  state.document.hidden = false;
+  state.heroVisible = false;
+  sync();
+  assert.equal(state.hero.attributes.has("data-title-loop"), false);
+  state.heroVisible = true;
+  state.motionPreference.matches = true;
+  sync();
+  assert.equal(state.hero.attributes.has("data-title-loop"), false);
+  assert.equal(activity.at(-1), true, "reduced motion keeps manual article navigation available");
+  state.motionPreference.matches = false;
+  sync();
+  assert.equal(state.hero.attributes.has("data-title-loop"), true);
+  assert.doesNotMatch(extract("  const prepareMotion =", "  const playIntro ="), /ink-shine|signal-frame/);
+});
+
+test("The foil uses the original single ink mask and cannot paint beyond the handwritten phrase", async () => {
+  const glyphs = blogLettering.map((letter, index) => {
+    const strokes = letter.strokes.map(stroke => `<path d="${stroke.d}" fill="none" stroke="white" stroke-width="310" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
+    return `<g transform="translate(${letter.x} 94) scale(.046875 -.046875)"><defs><mask id="p${index}" maskUnits="userSpaceOnUse" x="-200" y="-300" width="1700" height="2100">${strokes}</mask></defs><path d="${letter.outline}" fill="white" mask="url(#p${index})"/></g>`;
+  }).join("");
+  const start = '<svg xmlns="http://www.w3.org/2000/svg" width="1252" height="188" viewBox="0 12 626 94">';
+  const render = (body: string) => sharp(Buffer.from(start + body + "</svg>")).ensureAlpha().raw().toBuffer();
+  const full = await render(glyphs);
+  const foil = await render(`<defs><mask id="ink" maskUnits="userSpaceOnUse" x="0" y="0" width="626" height="120">${glyphs}</mask></defs><g mask="url(#ink)"><path d="M0 0H626V120H0Z" fill="#ff6688"/><path d="M0 0H70L110 120H40Z" transform="translate(200 0)" fill="white"/></g>`);
+  let alpha = 0, loss = 0;
+  for (let i = 3; i < full.length; i += 4) {
+    alpha += full[i];
+    loss += Math.max(0, full[i] - foil[i]);
+    assert.ok(foil[i] <= full[i], "foil cannot become a second silhouette");
+  }
+  assert.ok(loss / alpha < .005, "the complete ink mask keeps every letter");
 });
 
 test("Hover settles without another pointermove and alternation at a seam never commits", () => {

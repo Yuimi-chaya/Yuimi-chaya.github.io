@@ -29,6 +29,10 @@ const timelineYears = posts.reduce((groups, post) => {
 
 const coverPresentation = await getKisaraCoverPresentation(posts);
 const archiveCoverSizes = "(max-width: 760px) 112px, (max-width: 1100px) 45vw, 380px";
+const signalTitle = "Every signal";
+const pickupIds = ["is-it-strange-to-feel-for-ai", "vibe-coding-blog-notes", "anime-tech-notes"];
+const pickupPosts = pickupIds.flatMap(id => posts.filter(post => post.id === id));
+const pickupTones = ["rose", "mint", "blue"];
 ---
 
 <KisaraLayout title="Blog | Kisara" description="Yuimi Lab 的文章记录。" stylesheets={[blogStylesheet]}>
@@ -41,12 +45,13 @@ const archiveCoverSizes = "(max-width: 760px) 112px, (max-width: 1100px) 45vw, 3
       .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-trace-script,
       .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-hero-meta,
       .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-description,
+      .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-pickup,
       .kisara-blog-hero[data-intro-state="idle"] .kisara-blog-enter { opacity: 1; }
     </style></noscript>
     <div class="kisara-blog-scene" aria-hidden="true">
       <img
         class="kisara-blog-scene-bg"
-        src="/themes/kisara/assets/blog/engage-kiss-scene.webp"
+        src="/themes/kisara/assets/blog/engage-kiss-poster-ambient.webp"
         alt=""
         width="1440"
         height="975"
@@ -63,10 +68,16 @@ const archiveCoverSizes = "(max-width: 760px) 112px, (max-width: 1100px) 45vw, 3
     </div>
 
     <div class="kisara-blog-hero-copy">
+      <div class="kisara-blog-hero-lettering">
       <p class="kisara-blog-hero-meta"><span>BLOG / JOURNAL</span><span>{posts.length} 篇记录</span></p>
       <h1 id="kisara-blog-hero-title" aria-label="Every signal leaves a trace.">
-        <span class="kisara-blog-trace-signal" data-trace-line>Every signal</span>
+        <span class="kisara-blog-signal-frame" data-signal-text={signalTitle}>
+          <span class="kisara-blog-trace-signal" data-trace-line>{signalTitle}</span>
+          <span class="kisara-blog-signal-fragment" data-title-fragment aria-hidden="true">{signalTitle}</span>
+        </span>
         <svg class="kisara-blog-trace-script" viewBox="0 12 626 94" role="presentation" aria-hidden="true">
+          <defs>
+          <mask id="blog-script-ink" maskUnits="userSpaceOnUse" x="0" y="0" width="626" height="120">
           {blogLettering.map((letter, index) => (
             <g transform={`translate(${letter.x} 94) scale(.046875 -.046875)`}>
               <defs>
@@ -74,9 +85,20 @@ const archiveCoverSizes = "(max-width: 760px) 112px, (max-width: 1100px) 45vw, 3
                   {letter.strokes.map((stroke) => <path data-blog-pen data-pen-order={stroke.order} d={stroke.d} pathLength="1" />)}
                 </mask>
               </defs>
-              <use class="kisara-blog-trace-glyph" href={`/themes/kisara/assets/blog/trace-glyphs.svg#${letter.character === "." ? "dot" : letter.character}`} mask={`url(#blog-pen-${index})`} fill="currentColor" />
+              <use class="kisara-blog-trace-glyph" href={`/themes/kisara/assets/blog/trace-glyphs.svg#${letter.character === "." ? "dot" : letter.character}`} mask={`url(#blog-pen-${index})`} fill="white" />
             </g>
           ))}
+          </mask>
+          <linearGradient id="blog-ink-foil">
+            <stop offset="0" stop-color="white" stop-opacity="0" />
+            <stop offset=".5" stop-color="#fff4f8" stop-opacity=".9" />
+            <stop offset="1" stop-color="white" stop-opacity="0" />
+          </linearGradient>
+          </defs>
+          <g mask="url(#blog-script-ink)">
+            <path d="M0 0H626V120H0Z" fill="currentColor" />
+            <path class="kisara-blog-ink-shine" d="M0 0H70L110 120H40Z" fill="url(#blog-ink-foil)" />
+          </g>
         </svg>
       </h1>
       <p class="kisara-blog-description">写下开发中的推敲，也收藏日常里的灵感。</p>
@@ -84,11 +106,50 @@ const archiveCoverSizes = "(max-width: 760px) 112px, (max-width: 1100px) 45vw, 3
         <span><small>{String(categories.length).padStart(2, "0")} CHANNELS</small><strong>进入文章归档</strong></span>
         <Icon name="tabler:chevron-down" aria-hidden="true" />
       </a>
+      </div>
+      <aside class="kisara-blog-pickup" data-blog-flashcards data-flashcard-tone="rose" aria-label="精选文章" aria-roledescription="轮播">
+        <div class="kisara-blog-pickup-heading">
+          <p><span>特集</span> READING SELECTION</p>
+          <small>{String(pickupPosts.length).padStart(2, "0")} ARTICLES</small>
+        </div>
+        <div class="kisara-blog-pickup-stack">
+          {pickupPosts.map((post, index) => {
+            const cover = coverPresentation.get(post.id);
+            return (
+              <a class="kisara-blog-flashcard" data-blog-flashcard data-flashcard-tone={pickupTones[index]}
+                data-flashcard-title={post.data.title} href={getThemePath("kisara", `/blog/${post.id}/`)}
+                hidden={index !== 0} aria-label={`阅读：${post.data.title}`}>
+                <figure>
+                  <img src={post.data.cover} {...getCoverSources(post.data.cover, "120px")} alt=""
+                    width={cover?.width ?? 700} height={cover?.height ?? 990}
+                    loading="eager" decoding="async" fetchpriority="low" />
+                  <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                </figure>
+                <div class="kisara-blog-flashcard-copy">
+                  <p><span>{categoryLabel[post.data.category]}</span><small>YUIMI / SELECT</small></p>
+                  <h2>{post.data.title}</h2>
+                  <div><time datetime={(post.data.updatedDate ?? post.data.pubDate).toISOString()}>{dateFormatter.format(post.data.updatedDate ?? post.data.pubDate)}</time><span>阅读全文 <Icon name="tabler:arrow-right" aria-hidden="true" /></span></div>
+                </div>
+                <span class="kisara-blog-flashcard-stamp" aria-hidden="true">PICK<br />UP</span>
+              </a>
+            );
+          })}
+        </div>
+        <div class="kisara-blog-pickup-footer">
+          <span><i aria-hidden="true"></i><span data-flashcard-count aria-live="off">01 / {String(pickupPosts.length).padStart(2, "0")}</span></span>
+          <div data-flashcard-controls hidden>
+            <button type="button" data-flashcard-prev aria-label="上一篇精选文章" title="上一篇"><Icon name="tabler:arrow-left" aria-hidden="true" /></button>
+            <button type="button" data-flashcard-pause data-paused="false" aria-label="暂停自动轮换" aria-pressed="false" title="暂停 / 继续轮换"><Icon class="is-pause" name="tabler:player-pause" aria-hidden="true" /><Icon class="is-play" name="tabler:player-play" aria-hidden="true" /></button>
+            <button type="button" data-flashcard-next aria-label="下一篇精选文章" title="下一篇"><Icon name="tabler:arrow-right" aria-hidden="true" /></button>
+          </div>
+        </div>
+        <span class="kisara-blog-pickup-status" data-flashcard-status role="status" aria-live="polite"></span>
+      </aside>
     </div>
 
     <div class="kisara-blog-cast-note" data-blog-cast-note data-cast-note-for="all" aria-live="polite">
-      <small data-blog-cast-label></small>
-      <strong data-blog-cast-copy></strong>
+      <span class="kisara-blog-cast-number" data-blog-cast-index aria-hidden="true"></span>
+      <div><small data-blog-cast-label></small><strong data-blog-cast-name></strong><p data-blog-cast-copy></p></div>
     </div>
 
   </section>
