@@ -48,6 +48,9 @@ export const initKisaraLayoutRuntime = () => {
     if (body.dataset.kisaraPage === "projects") {
       body.dataset.worksHeaderScrolled = String(window.scrollY > 8);
     }
+    if (body.dataset.kisaraPage === "blog" && !("yuimiArticlePage" in body.dataset)) {
+      body.dataset.blogHeaderScrolled = String(window.scrollY > 8);
+    }
     if (!(scrollbar instanceof HTMLElement)) return;
     if (homeRailTransitioning && scrollbarReady) return;
     const metrics = getScrollbarMetrics();

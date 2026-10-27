@@ -140,6 +140,12 @@ export function bindBlogPage() {
       { opacity: 0, transform: "translateY(20px)" },
       { opacity: 1, transform: "translateY(0)" },
     ], 520, 100, "cubic-bezier(0.23, 1, 0.32, 1)");
+    addMotion(introAnimations, hero?.querySelector(".kisara-blog-hero-meta"), [
+      { opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" },
+    ], 240, 30, "cubic-bezier(0.23, 1, 0.32, 1)");
+    addMotion(introAnimations, hero?.querySelector(".kisara-blog-description"), [
+      { opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" },
+    ], 240, 620, "cubic-bezier(0.23, 1, 0.32, 1)");
     // Each pen stroke reveals the one filled glyph; no second text/outline layer.
     hero?.querySelectorAll("[data-blog-pen]").forEach(pen => {
       addMotion(introAnimations, pen, [

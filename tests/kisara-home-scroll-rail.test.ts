@@ -8,7 +8,7 @@ import { getHomeChapterProgress } from "../src/themes/kisara/lib/homeScrollRail.
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const runtime = read("src/themes/kisara/lib/layoutRuntime.js");
 
-function mount({ home = true, y = 900, page = "home" } = {}) {
+function mount({ home = true, y = 900, page = "home", article = false } = {}) {
   class Node extends EventTarget {
     dataset: Record<string, string> = {};
     classes = new Set<string>();
@@ -30,6 +30,7 @@ function mount({ home = true, y = 900, page = "home" } = {}) {
   if (home) rail.classes.add("is-home-rail");
   const body = new Node();
   body.dataset.kisaraPage = page;
+  if (article) body.dataset.yuimiArticlePage = "true";
   if (home) body.classes.add("kisara-home-page");
   const root = { scrollHeight: 4900, dataset: { theme: "kisara" } };
   const win = Object.assign(new EventTarget(), { scrollY: y, innerHeight: 900, innerWidth: 1440 });
@@ -85,6 +86,21 @@ test("Works header follows scroll restoration and returning to the top without c
   assert.equal(mount({ home: false, page: "projects", y: 80 }).body.dataset.worksHeaderScrolled, "true");
   assert.equal(mount({ home: false, page: "blog", y: 80 }).body.dataset.worksHeaderScrolled, undefined);
   assert.equal(mount().body.dataset.worksHeaderScrolled, undefined);
+});
+
+test("Blog index header shares the scroll behavior while article headers retain their reading background", () => {
+  const app = mount({ home: false, page: "blog", y: 0 });
+  assert.equal(app.body.dataset.blogHeaderScrolled, "false");
+  app.scroll(100);
+  assert.equal(app.body.dataset.blogHeaderScrolled, "true");
+  app.scroll(0);
+  assert.equal(app.body.dataset.blogHeaderScrolled, "false");
+  app.win.scrollY = 200;
+  app.win.dispatchEvent(new Event("pageshow"));
+  app.flush();
+  assert.equal(app.body.dataset.blogHeaderScrolled, "true");
+  assert.equal(mount({ home: false, page: "blog", y: 80, article: true }).body.dataset.blogHeaderScrolled, undefined);
+  assert.equal(mount({ home: false, page: "projects", y: 80 }).body.dataset.blogHeaderScrolled, undefined);
 });
 
 test("Unequal chapters occupy equal rail intervals with continuous touch progress", () => {

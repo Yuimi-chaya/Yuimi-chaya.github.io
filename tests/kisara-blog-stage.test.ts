@@ -33,7 +33,7 @@ test("Blog's server-rendered idle frame cannot reveal the completed cast or lett
       }
     });
   });
-  for (const part of [".kisara-blog-cast-slot", ".kisara-blog-trace-signal", ".kisara-blog-trace-script", ".kisara-blog-enter"]) {
+  for (const part of [".kisara-blog-cast-slot", ".kisara-blog-trace-signal", ".kisara-blog-trace-script", ".kisara-blog-hero-meta", ".kisara-blog-description", ".kisara-blog-enter"]) {
     assert.ok(hidden.has(`${selector} ${part}`), `${part} must not flash its final frame`);
   }
   assert.equal(reduced, true);
