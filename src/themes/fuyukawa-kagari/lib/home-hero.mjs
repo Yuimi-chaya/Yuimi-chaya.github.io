@@ -1,4 +1,4 @@
-export function mountHomeHero() {
+export function mountHomeHero(transitions = null) {
     window.__yuimiHeroCleanup?.();
     const heroCleanupTasks = [];
     window.__yuimiHeroCleanup = () => {
@@ -169,6 +169,7 @@ export function mountHomeHero() {
     const handleHeroWheel = (event) => {
       if (!stage || !hero) return;
       if (document.documentElement.classList.contains("is-notice-open")) return;
+      if (event.defaultPrevented || transitions?.isRunning()) return;
 
       const stageRect = stage.getBoundingClientRect();
       const atHeroTop = window.scrollY <= 2 && stageRect.top >= -2;
@@ -209,7 +210,10 @@ export function mountHomeHero() {
       }
 
       reversePull = 0;
-      if (state === "passed") return;
+      if (state === "passed") {
+        transitions?.enterContents(event);
+        return;
+      }
       if (state === "docked") {
         event.preventDefault();
         return;

@@ -860,6 +860,7 @@ const fallingTags = [
       };
 
       const startRain = () => {
+        if (document.documentElement.classList.contains("is-fuyukawa-transition-locked")) return;
         if (state.started || state.done || labels.length === 0) return;
         resize();
         prepareQueue();
@@ -1108,9 +1109,11 @@ const fallingTags = [
           : null;
         observer?.observe(stage);
         window.addEventListener("scroll", onScroll, { passive: true });
+        document.addEventListener("fuyukawa:home-scene-ready", onScroll);
         cleanupTasks.push(() => {
           observer?.disconnect();
           window.removeEventListener("scroll", onScroll);
+          document.removeEventListener("fuyukawa:home-scene-ready", onScroll);
         });
         onScroll();
       }

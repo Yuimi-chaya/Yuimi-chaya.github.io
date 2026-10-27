@@ -1,10 +1,15 @@
 <script>
   import { mountHomeHero } from "../lib/home-hero.mjs";
+  import { mountHomeTransitions } from "../lib/home-transitions.mjs";
   let cleanup: (() => void) | undefined;
   const dispose = () => { cleanup?.(); cleanup = undefined; };
   document.addEventListener("astro:before-swap", dispose);
   document.addEventListener("astro:page-load", () => {
     dispose();
-    if (document.body.hasAttribute("data-fuyukawa") && document.querySelector("[data-hero-stage]")) cleanup = mountHomeHero();
+    if (document.body.hasAttribute("data-fuyukawa") && document.querySelector("[data-hero-stage]")) {
+      const transitions = mountHomeTransitions();
+      const stopHero = mountHomeHero(transitions);
+      cleanup = () => { stopHero(); transitions.cleanup(); };
+    }
   });
 </script>
