@@ -146,6 +146,60 @@ test("the last active card is not the exit boundary and oversized wheels stop at
   f.controller.cleanup();
 });
 
+test("native scroll displacement beyond a wheel's prediction cannot expose both sections", async () => {
+  for (const displaced of [2368, 2700, 3380]) {
+    const f = fixture();
+    f.window.scrollY = 2320;
+    f.window.emit("scroll");
+    assert.equal(f.wheel(20).defaultPrevented, false);
+    f.window.scrollY = displaced;
+    f.window.emit("scroll");
+    assert.equal(f.window.scrollY, 2360, "actual displacement must return to the rail's settled endpoint");
+    assert.equal(f.controller.isRunning(), true);
+    await f.complete();
+    assert.equal(f.window.scrollY, 3160);
+    assert.equal(f.controller.isRunning(), false);
+    f.window.scrollY = 3450;
+    f.window.emit("scroll");
+    assert.equal(f.controller.isRunning(), false, "later article scrolling stays native");
+    f.controller.cleanup();
+  }
+});
+
+test("a wheel arriving after the native scroll already entered the section gap still uses the cover", async () => {
+  const f = fixture();
+  f.window.scrollY = 2710;
+  assert.equal(f.wheel(80).defaultPrevented, true);
+  assert.equal(f.window.scrollY, 2360);
+  assert.equal(f.controller.isRunning(), true);
+  await f.complete();
+  assert.equal(f.window.scrollY, 3160);
+  f.controller.cleanup();
+});
+
+test("reverse native displacement crosses the same covered boundary while explicit navigation stays available", async () => {
+  const f = fixture();
+  f.document.emit("keydown", { key: "End" });
+  f.window.scrollY = 3300;
+  f.window.emit("scroll");
+  f.wheel(-10);
+  f.window.scrollY = 2800;
+  f.window.emit("scroll");
+  assert.equal(f.window.scrollY, 3160);
+  assert.equal(f.controller.isRunning(), true);
+  await f.complete();
+  assert.equal(f.window.scrollY, 2360);
+  f.document.emit("keydown", { key: "End" });
+  f.window.scrollY = 4500;
+  f.window.emit("scroll");
+  assert.equal(f.controller.isRunning(), false);
+  f.document.emit("click", { target: { closest: () => true } });
+  f.window.scrollY = 3160;
+  f.window.emit("scroll");
+  assert.equal(f.controller.isRunning(), false);
+  f.controller.cleanup();
+});
+
 test("reverse boundaries use the same cover and never reuse the hero's zero-position lock", async () => {
   const f = fixture();
   f.window.scrollY = 3300;

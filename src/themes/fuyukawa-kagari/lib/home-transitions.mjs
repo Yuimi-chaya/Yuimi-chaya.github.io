@@ -21,6 +21,7 @@ export function mountHomeTransitions(win = window, doc = document) {
   const removers = [];
   let running = false, disposed = false, generation = 0, lockedY = 0;
   let direction = 1, reversePull = 0, reverse = null;
+  let previousY = win.scrollY, nativeNavigation = false;
   const listen = (node, type, callback, options) => {
     node.addEventListener(type, callback, options);
     removers.push(() => node.removeEventListener(type, callback, options));
@@ -46,6 +47,7 @@ export function mountHomeTransitions(win = window, doc = document) {
     clearAnimations();
     screen.hidden = true;
     root.classList.remove(lockClass);
+    previousY = win.scrollY;
     if (notify && wasRunning && !disposed && !doc.hidden && !reduced.matches) sceneReady();
   };
   const cancel = () => {
@@ -125,6 +127,13 @@ export function mountHomeTransitions(win = window, doc = document) {
     event.preventDefault();
     transition(from, target, kind, travelDirection, destination, returnTo);
   };
+  const coverRailBoundary = (travelDirection) => {
+    const boundary = travelDirection > 0 ? railEnd() : top(nextScene);
+    previousY = boundary;
+    win.scrollTo({ top: boundary, behavior: "instant" });
+    if (travelDirection > 0) transition(rail, nextScene, "wipe", 1, () => top(nextScene), railEnd);
+    else transition(nextScene, rail, "wipe", -1, railEnd, () => top(nextScene));
+  };
   const enterContents = event => {
     if (!allowed() || running || event.defaultPrevented || ignoresWheel(event) || event.deltaY <= 0
       || win.scrollY > 2 || rail.dataset.railMode !== "scroll") return;
@@ -143,6 +152,13 @@ export function mountHomeTransitions(win = window, doc = document) {
     if (event.defaultPrevented || rail.dataset.railMode !== "scroll"
       || root.classList.contains("is-fuyukawa-hero-locked")) return;
     const start = railStart(), end = railEnd(), next = top(nextScene), y = win.scrollY;
+    nativeNavigation = false;
+    previousY = y;
+    if (y > end + 2 && y < next - 2) {
+      event.preventDefault();
+      coverRailBoundary(movement > 0 ? 1 : -1);
+      return;
+    }
     if (movement > 0 && y >= start - 2 && y <= end + 2) {
       if (y >= end - 2) consume(event, rail, nextScene, "wipe", 1, () => top(nextScene), railEnd);
       else if (y + movement > end) { event.preventDefault(); win.scrollTo({ top: end, behavior: "instant" }); }
@@ -157,25 +173,43 @@ export function mountHomeTransitions(win = window, doc = document) {
     }
   };
   const onScroll = () => {
+    const y = win.scrollY, before = previousY;
+    previousY = y;
     if (running && Math.abs(win.scrollY - lockedY) > 2 && !root.classList.contains("is-notice-open")) {
+      previousY = lockedY;
       win.scrollTo({ top: lockedY, behavior: "instant" });
+      return;
     }
+    if (running || nativeNavigation || !allowed() || rail.dataset.railMode !== "scroll"
+      || root.classList.contains("is-fuyukawa-hero-locked")) return;
+    const start = railStart(), end = railEnd(), next = top(nextScene);
+    // Actual browser displacement can exceed a wheel delta or arrive without a cancelable wheel.
+    if (y > end + 2 && ((before <= end + 2 && before >= start - 2) || (y < next - 2 && y >= before))) {
+      coverRailBoundary(1);
+    } else if (y < next - 2 && y >= start - 2 && ((before >= next - 2) || (y > end + 2 && y < before))) {
+      coverRailBoundary(-1);
+    }
+  };
+  const navigate = () => {
+    nativeNavigation = true;
+    previousY = win.scrollY;
+    cancel();
   };
   listen(win, "wheel", onWheel, { passive: false });
   listen(win, "scroll", onScroll, { passive: true });
   listen(win, "resize", cancel, { passive: true });
   listen(win, "pagehide", cancel);
-  listen(win, "hashchange", cancel);
+  listen(win, "hashchange", navigate);
   listen(reduced, "change", cancel);
   listen(fine, "change", cancel);
   listen(doc, "visibilitychange", () => { if (doc.hidden) cancel(); });
   listen(doc, "keydown", event => {
-    if (running && ["Tab", "Escape", "Home", "End", "PageUp", "PageDown", "ArrowUp", "ArrowDown", " "].includes(event.key)) cancel();
+    if (["Tab", "Escape", "Home", "End", "PageUp", "PageDown", "ArrowUp", "ArrowDown", " "].includes(event.key)) navigate();
   });
   listen(doc, "click", event => {
-    if (running && event.target?.closest?.("a[href], [data-notice-open]")) cancel();
+    if (event.target?.closest?.("a[href], [data-notice-open]")) navigate();
   }, true);
-  listen(doc, "focusin", () => { if (running) cancel(); });
+  listen(doc, "focusin", navigate);
   return {
     enterContents,
     isRunning: () => running,

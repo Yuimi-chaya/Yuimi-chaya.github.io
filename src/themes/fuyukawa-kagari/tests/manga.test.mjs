@@ -311,6 +311,11 @@ test("vertical chapter runway advances, reverses and releases scrolling without 
   assert.equal(win.scrollY, 500 + 1040);
   assert.equal(win.lastBehavior, "instant");
   assert.equal(items[2].attributes["data-rail-active"], "true");
+  items[3].offsetLeft = 1950;
+  next.dispatch("click"); step();
+  assert.equal(win.scrollY, 500 + 1560, "the last card offset must not scroll past the sticky runway");
+  track.dispatch("focusin", { target: items[3] }); step();
+  assert.equal(win.scrollY, 500 + 1560, "focus navigation obeys the same bounded travel");
   reduced.matches = true; reduced.dispatch("change");
   assert.equal(root.dataset.railMode, "native");
   assert.equal(track.tabIndex, 0);

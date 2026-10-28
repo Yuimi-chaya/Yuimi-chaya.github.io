@@ -177,14 +177,14 @@ export function mountChapterRail(root, win = window) {
     const positions = offsets();
     const current = scrollMode ? active : nearestRailIndex(positions, track.scrollLeft);
     const index = clamp(current + direction, 0, items.length - 1);
-    if (scrollMode) win.scrollTo({ top: top() + positions[index], behavior: "smooth" });
+    if (scrollMode) win.scrollTo({ top: top() + clamp(positions[index], 0, travel), behavior: "smooth" });
     else track.scrollTo({ left: positions[index], behavior: reduced.matches ? "auto" : "smooth" });
   };
   const prevClick = () => move(-1), nextClick = () => move(1);
   const focusIn = (event) => {
     const index = items.indexOf(event.target);
     if (index < 0 || !scrollMode) return;
-    win.scrollTo({ top: top() + offsets()[index], behavior: "instant" });
+    win.scrollTo({ top: top() + clamp(offsets()[index], 0, travel), behavior: "instant" });
     schedule();
   };
   const onScroll = () => { if (scrollMode) schedule(); };
