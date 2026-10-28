@@ -6,7 +6,7 @@ import { mountHomeTransitions } from "../lib/home-transitions.mjs";
 
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const lock = "is-fuyukawa-transition-locked";
-function fixture({ fine = true, reduce = false } = {}) {
+function fixture({ fine = true, reduce = false, synchronousScroll = false, initialHash = "" } = {}) {
   const animations = [], calls = [], timers = new Map();
   let serial = 0;
   class Node {
@@ -47,10 +47,14 @@ function fixture({ fine = true, reduce = false } = {}) {
     }
   }
   const window = Object.assign(new Node(), {
-    scrollY: 0, innerHeight: 800,
+    scrollY: 0, innerHeight: 800, location: { hash: initialHash },
     Event: class { constructor(type) { this.type = type; } },
     getComputedStyle: () => ({ transform: "none" }),
-    scrollTo({ top, behavior }) { calls.push({ top, behavior }); this.scrollY = top; },
+    scrollTo({ top, behavior }) {
+      calls.push({ top, behavior });
+      this.scrollY = top;
+      if (synchronousScroll) this.emit("scroll");
+    },
     setTimeout(callback, duration) { const id = ++serial; timers.set(id, { callback, duration }); return id; },
     clearTimeout: id => timers.delete(id),
     requestAnimationFrame: () => 1, cancelAnimationFrame() {},
@@ -79,6 +83,7 @@ function fixture({ fine = true, reduce = false } = {}) {
     "[data-hero-stage]": hero, "[data-manga-rail]": rail, ".home-content-bg": next,
   })[selector] ?? null;
   const controller = mountHomeTransitions(window, document);
+  controller.setHeroReady(true);
   const wheel = (deltaY, extra = {}) => {
     const event = {
       type: "wheel", deltaY, deltaX: 0, deltaMode: 0, defaultPrevented: false,
@@ -146,9 +151,152 @@ test("the last active card is not the exit boundary and oversized wheels stop at
   f.controller.cleanup();
 });
 
+test("a wheel anywhere between the expanded hero and contents recovers into the white cover", async () => {
+  for (const y of [3, 90, 440, 797]) {
+    const f = fixture();
+    f.window.scrollY = y;
+    assert.equal(f.wheel(80).defaultPrevented, true);
+    assert.equal(f.window.scrollY, 0);
+    assert.equal(f.controller.isRunning(), true);
+    assert.equal(f.animations[0].frames[0].opacity, 0);
+    await f.complete();
+    assert.equal(f.window.scrollY, 800);
+    f.controller.cleanup();
+  }
+});
+
+test("native displacement after profile release cannot scroll the hero into the contents", async () => {
+  for (const displaced of [6, 350, 900]) {
+    const f = fixture();
+    f.window.scrollY = displaced;
+    f.window.emit("scroll");
+    assert.equal(f.window.scrollY, 0);
+    assert.equal(f.controller.isRunning(), true);
+    await f.complete();
+    assert.equal(f.window.scrollY, 800);
+    f.controller.cleanup();
+  }
+});
+
+test("reverse native displacement from the first chapter is covered all the way back to the hero", async () => {
+  const f = fixture();
+  f.enter();
+  await f.complete();
+  f.window.scrollY = 420;
+  f.window.emit("scroll");
+  assert.equal(f.window.scrollY, 800);
+  assert.equal(f.controller.isRunning(), true);
+  await f.complete();
+  assert.equal(f.window.scrollY, 0);
+  f.controller.cleanup();
+});
+
+test("both boundaries survive repeated forward and backward trips with real scroll callbacks", async () => {
+  const f = fixture({ synchronousScroll: true });
+  for (let turn = 0; turn < 3; turn++) {
+    f.enter();
+    await f.complete();
+    assert.equal(f.window.scrollY, 800);
+    f.window.scrollTo({ top: 2320, behavior: "instant" });
+    f.wheel(120);
+    assert.equal(f.window.scrollY, 2360);
+    f.wheel(60);
+    await f.complete();
+    assert.equal(f.window.scrollY, 3160);
+    f.wheel(-60);
+    await f.complete();
+    assert.equal(f.window.scrollY, 2360);
+    f.window.scrollTo({ top: 820, behavior: "instant" });
+    f.wheel(-60);
+    assert.equal(f.window.scrollY, 800);
+    f.wheel(-60);
+    await f.complete();
+    assert.equal(f.window.scrollY, 0);
+    assert.equal(f.controller.isRunning(), false);
+    assert.equal(f.root.classList.contains(lock), false);
+  }
+  f.controller.cleanup();
+});
+
+test("forward entry waits for the avatar gate to finish", async () => {
+  const f = fixture();
+  f.controller.setHeroReady(false);
+  assert.notEqual(f.enter().defaultPrevented, true);
+  f.window.scrollY = 120;
+  f.window.emit("scroll");
+  assert.equal(f.controller.isRunning(), false);
+  f.controller.setHeroReady(true);
+  f.window.emit("scroll");
+  assert.equal(f.window.scrollY, 0);
+  await f.complete();
+  assert.equal(f.window.scrollY, 800);
+  f.controller.cleanup();
+});
+
+test("a wheel delivered before the pending scroll callback cannot erase native crossing evidence", async () => {
+  for (const [from, displaced, destination] of [[0, 900, 800], [2320, 3400, 3160]]) {
+    const f = fixture();
+    if (from) {
+      f.document.emit("keydown", { key: "End" });
+      f.window.scrollY = from;
+      f.window.emit("scroll");
+      f.wheel(10);
+    }
+    f.window.scrollY = displaced;
+    f.wheel(20);
+    f.window.emit("scroll");
+    assert.equal(f.controller.isRunning(), true);
+    assert.equal(f.window.scrollY, from ? 2360 : 0);
+    await f.complete();
+    assert.equal(f.window.scrollY, destination);
+    f.controller.cleanup();
+  }
+});
+
+test("an initial hash retains explicit navigation until the next pointer scroll", async () => {
+  const f = fixture({ initialHash: "#main-content" });
+  f.window.scrollY = 3000;
+  f.window.emit("scroll");
+  assert.equal(f.controller.isRunning(), false);
+  f.wheel(60);
+  assert.equal(f.controller.isRunning(), true);
+  await f.complete();
+  assert.equal(f.window.scrollY, 3160);
+  f.controller.cleanup();
+});
+
+test("returning from hash navigation uses the cover even when the avatar was never expanded", async () => {
+  const f = fixture({ initialHash: "#home-chapters", synchronousScroll: true });
+  f.controller.setHeroReady(false);
+  f.window.scrollTo({ top: 900, behavior: "instant" });
+  assert.equal(f.controller.isRunning(), false);
+  f.wheel(-10);
+  f.window.scrollTo({ top: 420, behavior: "instant" });
+  assert.equal(f.window.scrollY, 800);
+  assert.equal(f.controller.isRunning(), true);
+  await f.complete();
+  assert.equal(f.window.scrollY, 0);
+  f.controller.cleanup();
+});
+
+test("large reverse inertia returns through the nearest boundary without skipping the contents", async () => {
+  const f = fixture({ synchronousScroll: true });
+  f.document.emit("keydown", { key: "End" });
+  f.window.scrollTo({ top: 3300, behavior: "instant" });
+  f.wheel(-10);
+  f.window.scrollTo({ top: 420, behavior: "instant" });
+  assert.equal(f.window.scrollY, 3160);
+  assert.equal(f.animations[0].frames[0].clipPath, "inset(0 100% 0 0)");
+  await f.complete();
+  assert.equal(f.window.scrollY, 2360);
+  assert.equal(f.controller.isRunning(), false);
+  f.controller.cleanup();
+});
+
 test("native scroll displacement beyond a wheel's prediction cannot expose both sections", async () => {
   for (const displaced of [2368, 2700, 3380]) {
     const f = fixture();
+    f.document.emit("keydown", { key: "End" });
     f.window.scrollY = 2320;
     f.window.emit("scroll");
     assert.equal(f.wheel(20).defaultPrevented, false);
@@ -314,6 +462,19 @@ test("hero calls the cover only on a new downward wheel after the profile transf
   f.wheel(80);
   assert.equal(f.controller.isRunning(), true);
   assert.equal(f.window.scrollY, 0);
+  await f.complete();
+  assert.equal(f.window.scrollY, 800);
+  f.wheel(-60);
+  await f.complete();
+  assert.equal(f.window.scrollY, 0);
+  f.wheel(-60);
+  assert.equal(f.heroScene.values.has("is-docked"), false);
+  f.wheel(200);
+  [...f.timers.values()].find(timer => timer.duration === 260).callback();
+  f.profile.emit("transitionend", { target: f.profile, propertyName: "transform" });
+  f.wheel(80);
+  await f.complete();
+  assert.equal(f.window.scrollY, 800, "a collapsed avatar can reopen and enter the contents again");
   context.stopHero();
   f.controller.cleanup();
   await settle();

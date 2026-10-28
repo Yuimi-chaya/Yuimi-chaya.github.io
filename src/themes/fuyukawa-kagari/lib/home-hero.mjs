@@ -101,6 +101,7 @@ export function mountHomeHero(transitions = null) {
       if (!hero) return;
 
       const value = clamp(progress);
+      if (value < 1) transitions?.setHeroReady(false);
       hero.style.setProperty("--avatar-y", `${(1 - value) * 56}vh`);
       hero.style.setProperty("--avatar-scale", `${0.78 + value * 0.22}`);
       hero.style.setProperty("--profile-opacity", `${clamp((value - 0.08) / 0.48)}`);
@@ -140,6 +141,7 @@ export function mountHomeHero(transitions = null) {
       window.clearTimeout(releaseTimer);
       releaseTimer = 0;
       state = "passed";
+      transitions?.setHeroReady(true);
       if (scrollRoot.classList.contains(scrollLockClass) && window.scrollY > 2) {
         window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       }

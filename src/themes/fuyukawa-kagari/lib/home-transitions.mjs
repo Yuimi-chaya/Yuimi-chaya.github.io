@@ -7,7 +7,7 @@ export function mountHomeTransitions(win = window, doc = document) {
   const rail = doc.querySelector("[data-manga-rail]");
   const railStage = rail?.querySelector(".chapter-rail-stage");
   const nextScene = doc.querySelector(".home-content-bg");
-  if (!hero || !railStage || !nextScene) return { enterContents() {}, isRunning: () => false, cleanup() {} };
+  if (!hero || !railStage || !nextScene) return { enterContents() {}, setHeroReady() {}, isRunning: () => false, cleanup() {} };
   const reduced = win.matchMedia("(prefers-reduced-motion: reduce)");
   const fine = win.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 761px)");
   const root = doc.documentElement;
@@ -21,7 +21,8 @@ export function mountHomeTransitions(win = window, doc = document) {
   const removers = [];
   let running = false, disposed = false, generation = 0, lockedY = 0;
   let direction = 1, reversePull = 0, reverse = null;
-  let previousY = win.scrollY, nativeNavigation = false;
+  let previousY = win.scrollY, nativeNavigation = Boolean(win.location?.hash);
+  let heroReady = false;
   const listen = (node, type, callback, options) => {
     node.addEventListener(type, callback, options);
     removers.push(() => node.removeEventListener(type, callback, options));
@@ -134,10 +135,18 @@ export function mountHomeTransitions(win = window, doc = document) {
     if (travelDirection > 0) transition(rail, nextScene, "wipe", 1, () => top(nextScene), railEnd);
     else transition(nextScene, rail, "wipe", -1, railEnd, () => top(nextScene));
   };
+  const coverHeroBoundary = (travelDirection) => {
+    const boundary = travelDirection > 0 ? 0 : railStart();
+    previousY = boundary;
+    win.scrollTo({ top: boundary, behavior: "instant" });
+    if (travelDirection > 0) transition(hero, rail, "fade", 1, railStart, () => 0);
+    else transition(rail, hero, "fade", -1, () => 0, railStart);
+  };
   const enterContents = event => {
     if (!allowed() || running || event.defaultPrevented || ignoresWheel(event) || event.deltaY <= 0
-      || win.scrollY > 2 || rail.dataset.railMode !== "scroll") return;
-    consume(event, hero, rail, "fade", 1, railStart, () => 0);
+      || !heroReady || win.scrollY >= railStart() - 2 || rail.dataset.railMode !== "scroll") return;
+    event.preventDefault();
+    coverHeroBoundary(1);
   };
   const onWheel = event => {
     if (!allowed() || ignoresWheel(event)) return;
@@ -153,7 +162,11 @@ export function mountHomeTransitions(win = window, doc = document) {
       || root.classList.contains("is-fuyukawa-hero-locked")) return;
     const start = railStart(), end = railEnd(), next = top(nextScene), y = win.scrollY;
     nativeNavigation = false;
-    previousY = y;
+    if ((heroReady || movement < 0) && y > 2 && y < start - 2) {
+      event.preventDefault();
+      coverHeroBoundary(movement > 0 ? 1 : -1);
+      return;
+    }
     if (y > end + 2 && y < next - 2) {
       event.preventDefault();
       coverRailBoundary(movement > 0 ? 1 : -1);
@@ -184,7 +197,13 @@ export function mountHomeTransitions(win = window, doc = document) {
       || root.classList.contains("is-fuyukawa-hero-locked")) return;
     const start = railStart(), end = railEnd(), next = top(nextScene);
     // Actual browser displacement can exceed a wheel delta or arrive without a cancelable wheel.
-    if (y > end + 2 && ((before <= end + 2 && before >= start - 2) || (y < next - 2 && y >= before))) {
+    if (before >= next - 2 && y < next - 2) {
+      coverRailBoundary(-1);
+    } else if (heroReady && y > 2 && ((before <= 2) || (y < start - 2 && y >= before))) {
+      coverHeroBoundary(1);
+    } else if (y < start - 2 && y >= 0 && ((before >= start - 2) || (y > 2 && y < before))) {
+      coverHeroBoundary(-1);
+    } else if (y > end + 2 && ((before <= end + 2 && before >= start - 2) || (y < next - 2 && y >= before))) {
       coverRailBoundary(1);
     } else if (y < next - 2 && y >= start - 2 && ((before >= next - 2) || (y > end + 2 && y < before))) {
       coverRailBoundary(-1);
@@ -212,6 +231,7 @@ export function mountHomeTransitions(win = window, doc = document) {
   listen(doc, "focusin", navigate);
   return {
     enterContents,
+    setHeroReady(value) { heroReady = Boolean(value); },
     isRunning: () => running,
     cleanup() {
       disposed = true;
