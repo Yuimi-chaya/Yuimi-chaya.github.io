@@ -4,6 +4,7 @@ import { Icon } from "astro-icon/components";
 import { kagariAsset, kagariAssets } from "../assets";
 import MangaArt from "../components/MangaArt.astro";
 import MemoryAlbum from "../components/MemoryAlbum.astro";
+import aboutHref from "../styles/about.css?url";
 import {
   animeFavorites,
   currentSignals,
@@ -14,7 +15,6 @@ import {
   xpFavorites
 } from "@/core/data/profile";
 
-const statusItems = profileStatus;
 const techPresentation = {
   unity: { icon: "simple-icons:unity", tone: "blue" },
   blender: { icon: "simple-icons:blender", tone: "orange" },
@@ -23,629 +23,124 @@ const techPresentation = {
   astrbot: { icon: "tabler:terminal-2", tone: "mint" }
 } as const;
 const techStack = profileTech.map((tech) => ({ ...tech, ...techPresentation[tech.key] }));
-const animeShelf = animeFavorites.map((item) => ({
-  ...item,
-  image: kagariAsset(`about/${item.key}.webp`)
-}));
-const xpTags = xpFavorites.map((item) => ({
-  ...item,
-  image: kagariAsset(`about/xp-${item.key}.webp`)
-}));
-const gameIcons = {
-  "cyberpunk-2077": "simple-icons:steam",
-  "the-finals": "simple-icons:thefinals",
-  kovaaks: "tabler:device-gamepad",
-  aimlabs: "tabler:device-gamepad"
-} as const;
-const gameShelf = favoriteGames.map((item) => ({
-  ...item,
-  image: kagariAsset(`about/${item.key}.webp`),
-  icon: gameIcons[item.key]
-}));
-const nowDoing = currentSignals;
+const animeShelf = animeFavorites.map((item) => ({ ...item, image: kagariAsset(`about/${item.key}.webp`) }));
+const xpTags = xpFavorites.map((item) => ({ ...item, image: kagariAsset(`about/xp-${item.key}.webp`) }));
+const gameShelf = favoriteGames.map((item) => ({ ...item, image: kagariAsset(`about/${item.key}.webp`) }));
+const bookmarks = [
+  { href: "#tech-line-title", icon: "tabler:code", label: "技术" },
+  { href: "#anime-shelf-title", icon: "tabler:movie", label: "番剧" },
+  { href: "#xp-shelf-title", icon: "tabler:heart", label: "偏好" },
+  { href: "#game-shelf-title", icon: "tabler:device-gamepad", label: "游戏" },
+  { href: "#memory-album-title", icon: "tabler:book-2", label: "片刻" },
+  { href: "#now-doing-title", icon: "tabler:flower", label: "近况" }
+];
 ---
 
-<BaseLayout title="About | Yuimi Lab" description="关于喝益胃 / Yuimi-chaya 的技术线、二次元兴趣与个人资料。">
-  <section class="about-profile-shell" aria-labelledby="about-title">
-    <aside class="about-sidebar" aria-label="Yuimi profile card">
-      <div class="about-avatar-card">
-        <span class="about-tape about-tape--left" aria-hidden="true"></span>
-        <img src={kagariAssets.profile} alt="喝益胃 / Yuimi-chaya 的头像" width="220" height="220" />
-        <span class="about-avatar-flower" aria-hidden="true">✦</span>
-      </div>
-
-      <div class="about-id-card">
-        <p class="about-kicker">Behind the notebook</p>
-        <h1 id="about-title">{profileIdentity.displayName}</h1>
-        <p class="about-handle">{profileIdentity.handle} · {profileIdentity.siteName}</p>
-        <p class="about-bio">{profileIdentity.bio}</p>
-
-        <div class="about-link-row" aria-label="profile links">
+<BaseLayout title="About | Yuimi Lab" description="关于喝益胃 / Yuimi-chaya 的技术线、二次元兴趣与个人资料。" stylesheets={[aboutHref]}>
+  <div class="me-page">
+    <header class="me-opening" aria-labelledby="about-title">
+      <div class="me-opening-copy">
+        <p class="me-eyebrow"><span>04 / Dear reader</span><span>Yuimi's notebook</span></p>
+        <div class="me-identity">
+          <div class="me-portrait">
+            <img src={kagariAssets.profile} alt="喝益胃 / Yuimi-chaya 的头像" width="640" height="640" decoding="async" fetchpriority="high" />
+          </div>
+          <div>
+            <h1 id="about-title">{profileIdentity.displayName}</h1>
+            <p class="me-handle">{profileIdentity.handle}<span aria-hidden="true"> / </span>{profileIdentity.siteName}</p>
+          </div>
+        </div>
+        <p class="me-bio">{profileIdentity.bio}</p>
+        <h2 class="me-greeting">很高兴，在这里遇见你。</h2>
+        <p class="me-introduction">这里放着我的技术笔记、二次元兴趣、小游戏和看板娘机关，也放着那些想认真记录下来的小事。</p>
+        <div class="me-socials" aria-label="我的社交主页">
           <a href={profileIdentity.github} target="_blank" rel="noreferrer">
-            <Icon name="simple-icons:github" aria-hidden="true" />
-            GitHub
+            <Icon name="simple-icons:github" aria-hidden="true" /><span>GitHub</span><Icon name="tabler:external-link" aria-hidden="true" />
           </a>
           <a href={profileIdentity.bilibili} target="_blank" rel="noreferrer">
-            <Icon name="simple-icons:bilibili" aria-hidden="true" />
-            Bilibili
+            <Icon name="simple-icons:bilibili" aria-hidden="true" /><span>Bilibili</span><Icon name="tabler:external-link" aria-hidden="true" />
           </a>
         </div>
+        <ul class="me-status" aria-label="现在的状态">
+          {profileStatus.map((item) => <li><Icon name="tabler:pin" aria-hidden="true" /><span>{item}</span></li>)}
+        </ul>
       </div>
+      <figure class="me-opening-art">
+        <MangaArt image="letter-page" class="me-letter-art" alt="葉佐乃绘制的日常漫画书页" eager />
+        <figcaption>葉佐乃 · 儚いキミは猛攻をはじめる</figcaption>
+      </figure>
+      <MangaArt image="kagari-sleeve" class="about-side-character" />
+    </header>
 
-      <div class="about-status-card">
-        <p class="about-mini-title">Now status</p>
-        <ul>
-          {statusItems.map((item) => (
-            <li>
-              <Icon name="tabler:pin" aria-hidden="true" />
-              <span>{item}</span>
+    <nav class="me-bookmarks" aria-label="个人手帖章节">
+      <span class="me-index-label" aria-hidden="true">INDEX</span>
+      {bookmarks.map((item) => <a href={item.href}><Icon name={item.icon} aria-hidden="true" /><span>{item.label}</span></a>)}
+    </nav>
+
+    <section class="me-section" aria-labelledby="tech-line-title">
+      <header class="me-section-heading">
+        <div><p class="me-eyebrow">01 / Work in progress</p><h2 id="tech-line-title">技术线</h2></div>
+        <span class="me-section-note">实践、记录，再做点小东西。</span>
+      </header>
+      <div class="me-workbench">
+        <ul class="me-tech-list">
+          {techStack.map((tech) => (
+            <li class={`me-tech-entry me-tech-entry--${tech.tone}`}>
+              <span class="me-tech-icon" aria-hidden="true"><Icon name={tech.icon} /></span>
+              <div><h3>{tech.name}</h3><p>{tech.note}</p></div>
             </li>
           ))}
         </ul>
+        <aside class="me-signals" aria-labelledby="now-doing-title">
+          <h3 id="now-doing-title"><Icon name="tabler:activity-heartbeat" aria-hidden="true" />最近的电波</h3>
+          <dl>{currentSignals.map((signal) => <div><dt>{signal.label}</dt><dd>{signal.text}</dd></div>)}</dl>
+        </aside>
       </div>
-      <MangaArt image="kagari-sleeve" class="about-side-character" />
-    </aside>
-
-    <section class="about-readme" aria-label="Yuimi README">
-      <div class="about-readme-hero">
-        <div>
-          <p class="section-kicker">04 / Dear reader</p>
-          <h2>很高兴，在这里遇见你。</h2>
-          <p>
-            这里是一间把技术笔记、二次元兴趣、小游戏和看板娘机关放在一起的小房间。
-            我会记录 AstrBot、插件开发、部署踩坑，也会把喜欢的番剧、游戏和角色审美认真摆上架。
-          </p>
-        </div>
-        <MangaArt image="letter-page" class="about-letter-art" eager />
-      </div>
-
-      <nav class="about-bookmarks" aria-label="个人手帐章节">
-        <a href="#memory-album-title"><Icon name="tabler:heart" aria-hidden="true" />片刻</a>
-        <a href="#tech-line-title"><Icon name="tabler:code" aria-hidden="true" />技术</a>
-        <a href="#anime-shelf-title"><Icon name="tabler:movie" aria-hidden="true" />番剧</a>
-        <a href="#now-doing-title"><Icon name="tabler:flower" aria-hidden="true" />近况</a>
-      </nav>
-      <MemoryAlbum />
-
-      <section class="about-section" aria-labelledby="tech-line-title">
-        <div class="about-section-heading">
-          <Icon name="tabler:terminal-2" aria-hidden="true" />
-          <div>
-            <p>Tech line</p>
-            <h2 id="tech-line-title">技术线</h2>
-          </div>
-        </div>
-
-        <div class="about-tech-grid">
-          {techStack.map((tech) => (
-            <article class={`about-tech-card about-tech-card--${tech.tone}`}>
-              <span class="about-tech-icon" aria-hidden="true">
-                <Icon name={tech.icon} />
-              </span>
-              <div>
-                <h3>{tech.name}</h3>
-                <p>{tech.note}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section class="about-section" aria-labelledby="anime-shelf-title">
-        <div class="about-section-heading">
-          <Icon name="tabler:movie" aria-hidden="true" />
-          <div>
-            <p>Anime shelf</p>
-            <h2 id="anime-shelf-title">喜欢看的番剧</h2>
-          </div>
-        </div>
-
-        <div class="about-media-grid about-media-grid--anime">
-          {animeShelf.map((item) => (
-            <article class="about-media-card">
-              <img src={item.image} alt={`${item.title} 官方视觉缩略图`} loading="lazy" width="900" height="506" />
-              <div>
-                <h3>{item.title}</h3>
-                <p>{item.subtitle}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section class="about-section about-section--split" aria-label="XP and games">
-        <div>
-          <div class="about-section-heading">
-            <Icon name="tabler:heart" aria-hidden="true" />
-            <div>
-              <p>XP tags</p>
-              <h2>XP</h2>
-            </div>
-          </div>
-
-          <div class="about-xp-grid">
-            {xpTags.map((item) => (
-              <article class="about-xp-card">
-                <img src={item.image} alt={`${item.title} 泛化视觉贴纸`} loading="lazy" width="900" height="506" />
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.subtitle}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div class="about-section-heading">
-            <Icon name="tabler:device-gamepad" aria-hidden="true" />
-            <div>
-              <p>Game shelf</p>
-              <h2>喜欢的游戏</h2>
-            </div>
-          </div>
-
-          <div class="about-game-list">
-            {gameShelf.map((item) => (
-              <article class="about-game-card">
-                <img src={item.image} alt={`${item.title} 官方视觉缩略图`} loading="lazy" width="900" height="506" />
-                <div>
-                  <span aria-hidden="true">
-                    <Icon name={item.icon} />
-                  </span>
-                  <h3>{item.title}</h3>
-                  <p>{item.subtitle}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section class="about-section" aria-labelledby="now-doing-title">
-        <div class="about-section-heading">
-          <Icon name="tabler:flower" aria-hidden="true" />
-          <div>
-            <p>Light activity</p>
-            <h2 id="now-doing-title">最近的电波</h2>
-          </div>
-        </div>
-
-        <div class="about-activity-grid">
-          {nowDoing.map((item) => (
-            <article>
-              <span>{item.label}</span>
-              <p>{item.text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
     </section>
-  </section>
 
-  <style>
-    .about-profile-shell {
-      margin: 0 auto;
-      display: grid;
-      align-items: start;
-    }
-
-    :global(.waifu-local-fallback) {
-      left: 6px;
-      width: 112px;
-      opacity: 0.72;
-    }
-
-    :global(.waifu-local-bubble) {
-      display: none;
-    }
-
-    :global(.waifu-local-character) {
-      width: 92px;
-      height: 92px;
-      margin-left: 0;
-    }
-
-    :global(.waifu-local-character img) {
-      width: 72px;
-      height: 72px;
-    }
-
-    .about-sidebar {
-      position: sticky;
-      display: grid;
-    }
-
-    .about-avatar-card,
-.about-id-card,
-.about-status-card,
-.about-readme-hero,
-.about-section {
-      position: relative;
-      isolation: isolate;
-      overflow: visible;
-    }
-
-    .about-avatar-card {
-      display: grid;
-      place-items: center;
-      min-height: 250px;
-    }
-
-    .about-avatar-card img {
-      aspect-ratio: 1;
-      object-fit: cover;
-      border-radius: 50%;
-    }
-
-    .about-avatar-flower {
-      position: absolute;
-      display: grid;
-      place-items: center;
-      color: #fffaf1;
-      border: 2px solid rgba(255, 255, 255, 0.82);
-      border-radius: 50%;
-    }
-
-    .about-kicker,
-.about-mini-title,
-.about-section-heading p {
-      margin: 0;
-      font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
-      font-weight: 800;
-      letter-spacing: 0;
-      text-transform: uppercase;
-    }
-
-    .about-id-card h1,
-    .about-readme-hero h2,
-    .about-section-heading h2 {
-      margin: 6px 0 0;
-      color: var(--ink);
-      letter-spacing: 0;
-    }
-
-    .about-handle {
-      margin: 8px 0 0;
-    }
-
-    .about-bio,
-    .about-readme-hero p,
-    .about-activity-grid p {
-      color: var(--ink-soft);
-      line-height: 1.85;
-    }
-
-    .about-link-row {
-      display: flex;
-      flex-wrap: wrap;
-      margin-top: 18px;
-    }
-
-    .about-link-row a {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--ink);
-      font-weight: 800;
-      text-decoration: none;
-      border: 1px solid rgba(93, 113, 145, 0.18);
-    }
-
-    .about-link-row svg,
-    .about-section-heading svg,
-    .about-tech-icon svg,
-    .about-game-card span svg {
-      width: 1.2em;
-      height: 1.2em;
-    }
-
-    .about-status-card ul {
-      display: grid;
-      gap: 10px;
-      padding: 0;
-      margin: 14px 0 0;
-      list-style: none;
-    }
-
-    .about-status-card li {
-      display: grid;
-      grid-template-columns: 20px minmax(0, 1fr);
-      gap: 8px;
-      align-items: start;
-      color: var(--ink);
-      font-size: 0.94rem;
-      font-weight: 700;
-      line-height: 1.55;
-    }
-
-    .about-status-card svg {
-      width: 18px;
-      height: 18px;
-      margin-top: 2px;
-      color: var(--pink);
-    }
-
-    .about-readme {
-      display: grid;
-    }
-
-    .about-readme-hero {
-      display: grid;
-      align-items: center;
-    }
-
-    .about-readme-badge {
-      display: grid;
-      place-items: center;
-      align-content: center;
-      color: var(--ink);
-      text-align: center;
-    }
-
-    .about-readme-badge span {
-      margin-top: 8px;
-      font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
-      font-weight: 800;
-      line-height: 1.3;
-    }
-
-    .about-section {
-      display: grid;
-    }
-
-    .about-section-heading {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .about-section-heading > svg {
-      flex: 0 0 auto;
-      width: 38px;
-      height: 38px;
-      padding: 8px;
-      border-radius: 8px;
-    }
-
-    .about-tech-grid {
-      display: grid;
-    }
-
-    .about-tech-card {
-      display: grid;
-      color: var(--ink);
-      border-radius: 8px;
-    }
-
-    .about-tech-icon {
-      display: grid;
-      place-items: center;
-      background: var(--blue-soft);
-    }
-
-    .about-tech-card--orange .about-tech-icon {
-      color: #e2762d;
-      background: #ffe8cf;
-    }
-
-    .about-tech-card--ink .about-tech-icon {
-      color: #fffaf1;
-      background: #31425f;
-    }
-
-    .about-tech-card--pink .about-tech-icon {
-      color: #c85278;
-      background: var(--pink-soft);
-    }
-
-    .about-tech-card--mint .about-tech-icon {
-      color: #3c8067;
-      background: rgba(184, 219, 201, 0.58);
-    }
-
-    .about-tech-card h3,
-    .about-media-card h3,
-    .about-xp-card h3,
-    .about-game-card h3 {
-      margin: 0;
-      color: var(--ink);
-      font-size: 1rem;
-      line-height: 1.35;
-    }
-
-    .about-media-card h3,
-    .about-xp-card h3,
-    .about-game-card h3 {
-      font-size: 0.96rem;
-    }
-
-    .about-tech-card p,
-    .about-media-card p,
-    .about-xp-card p,
-    .about-game-card p {
-      margin: 5px 0 0;
-      color: var(--ink-soft);
-      font-size: 0.82rem;
-      line-height: 1.45;
-    }
-
-    .about-media-grid {
-      display: grid;
-    }
-
-    .about-media-card,
-.about-xp-card,
-.about-game-card {
-      overflow: hidden;
-      border-radius: 8px;
-    }
-
-    .about-media-card img {
-      display: block;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      object-fit: cover;
-    }
-
-    .about-xp-card img {
-      display: block;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      object-fit: cover;
-      background: var(--paper-soft);
-    }
-
-    .about-game-card img {
-      display: block;
-      width: 92px;
-      height: 64px;
-      min-height: 0;
-      aspect-ratio: 23 / 16;
-      object-fit: contain;
-      background: #f0f5fa;
-      border-radius: 4px;
-    }
-
-    .about-media-card img {
-      height: auto;
-      object-fit: contain;
-    }
-
-    .about-xp-card img {
-      aspect-ratio: 4 / 3;
-      height: auto;
-      object-fit: cover;
-    }
-
-    .about-media-card div,
-    .about-xp-card div {
-      padding: 12px;
-    }
-
-    .about-media-card div {
-      min-height: 72px;
-      padding: 10px 12px 12px;
-    }
-
-    .about-section--split > div {
-      min-width: 0;
-      display: grid;
-      align-content: start;
-      gap: 14px;
-    }
-
-    .about-xp-grid {
-      display: grid;
-    }
-
-    .about-game-card {
-      display: grid;
-      grid-template-columns: 92px minmax(0, 1fr);
-      align-items: center;
-      min-width: 0;
-      min-height: 0;
-      gap: 12px;
-      padding: 12px;
-    }
-
-    .about-game-card div {
-      display: grid;
-      grid-template-columns: 22px minmax(0, 1fr);
-      gap: 4px 6px;
-      align-items: start;
-      min-width: 0;
-      min-height: 0;
-      padding: 0;
-    }
-
-    .about-game-card span {
-      display: inline-grid;
-      place-items: center;
-      width: 22px;
-      height: 22px;
-      grid-row: span 2;
-      margin-bottom: 0;
-      color: var(--ink);
-      background: var(--blue-soft);
-      border-radius: 4px;
-    }
-
-    .about-game-card span svg {
-      width: 14px;
-      height: 14px;
-    }
-
-    .about-game-card h3 {
-      margin: 0;
-      font-size: 0.9rem;
-      line-height: 1.5;
-    }
-
-    .about-game-card p {
-      margin: 0;
-      font-size: 0.72rem;
-      line-height: 1.6;
-    }
-
-    .about-activity-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .about-activity-grid article {
-      min-height: 132px;
-    }
-
-    .about-activity-grid span {
-      display: inline-flex;
-      padding: 5px 10px;
-      color: var(--ink);
-      font-size: 0.78rem;
-      font-weight: 800;
-      background: var(--pink-soft);
-      border-radius: 999px;
-    }
-
-    @media (max-width: 1080px) {
-
-      .about-sidebar {
-        position: static;
-        grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1fr);
-        align-items: stretch;
-      }
-
-      .about-status-card {
-        grid-column: 1 / -1;
-      }
-
-      .about-status-card ul {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 760px) {
-
-      .about-sidebar,
-.about-status-card ul,
-.about-activity-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .about-readme-badge {
-        justify-self: start;
-      }
-
-      .about-readme-hero h2 {
-        overflow-wrap: anywhere;
-      }
-    }
-
-    @media (max-width: 520px) {
-
-      .about-media-card {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+    <section class="me-section" aria-labelledby="anime-shelf-title">
+      <header class="me-section-heading">
+        <div><p class="me-eyebrow">02 / On my shelf</p><h2 id="anime-shelf-title">喜欢的故事</h2></div>
+        <span class="me-section-note">{String(animeShelf.length).padStart(2, "0")} 部番剧</span>
+      </header>
+      <div class="me-anime-shelf">
+        {animeShelf.map((anime, i) => (
+          <figure class="me-anime-item">
+            <div class="me-anime-image"><img src={anime.image} alt={anime.title} loading="lazy" decoding="async" width="900" height="506" /></div>
+            <figcaption><span class="me-item-number" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span><div><h3>{anime.title}</h3><p>{anime.subtitle}</p></div></figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+
+    <div class="me-interests">
+      <section class="me-section" aria-labelledby="xp-shelf-title">
+        <header class="me-section-heading"><div><p class="me-eyebrow">03 / Soft spot</p><h2 id="xp-shelf-title">一点点角色偏好</h2></div><Icon name="tabler:heart" aria-hidden="true" /></header>
+        <div class="me-xp-shelf">
+          {xpTags.map((tag) => (
+            <figure class="me-xp-item">
+              <div class="me-xp-image"><img src={tag.image} alt={tag.title} loading="lazy" decoding="async" width="900" height="675" /></div>
+              <figcaption><h3>{tag.title}</h3><p>{tag.subtitle}</p></figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+      <section class="me-section" aria-labelledby="game-shelf-title">
+        <header class="me-section-heading"><div><p class="me-eyebrow">04 / After hours</p><h2 id="game-shelf-title">课后存档</h2></div><Icon name="tabler:device-gamepad" aria-hidden="true" /></header>
+        <ul class="me-game-list">
+          {gameShelf.map((game) => (
+            <li class="about-game-card"><img src={game.image} alt={game.title} loading="lazy" decoding="async" width="900" height="506" /><div><h3>{game.title}</h3><p>{game.subtitle}</p></div></li>
+          ))}
+        </ul>
+      </section>
+    </div>
+
+    <MemoryAlbum />
+
+    <footer class="me-colophon">
+      <Icon name="tabler:heart" aria-hidden="true" />
+      <p>喜欢的故事，总想与你聊聊。</p>
+      <a href="#about-title" aria-label="回到个人资料开篇"><Icon name="tabler:arrow-up" aria-hidden="true" /></a>
+    </footer>
+  </div>
 </BaseLayout>

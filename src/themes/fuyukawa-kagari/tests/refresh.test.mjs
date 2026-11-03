@@ -7,7 +7,7 @@ import { parse } from "@astrojs/compiler";
 import { getCoverStyle } from "../data/coverFocus.ts";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
-const css = read("styles/refresh.css") + "\n" + read("styles/refresh-pages.css");
+const css = read("styles/refresh.css") + "\n" + read("styles/refresh-pages.css") + "\n" + read("styles/about.css");
 const inlineScript = (file) => read(file).match(/<script is:inline data-astro-rerun>([\s\S]*?)<\/script>/)?.[1];
 
 test("refresh selectors cannot style another theme", () => {
@@ -81,7 +81,7 @@ test("header stays transparent while the centered navigation pill owns the frost
   assert.match(nav["box-shadow"], /inset 0 1px 0/);
   assert.equal(nav["border-radius"], "999px");
   assert.match(css, /max-width: 760px[^]*?\.nav-links \{ grid-column: 1;[^}]*justify-content: center/);
-  const innerPages = postcss.parse(read("styles/refresh-pages.css"));
+  const innerPages = postcss.parse(read("styles/refresh-pages.css") + "\n" + read("styles/about.css"));
   innerPages.walkRules((rule) => {
     assert.doesNotMatch(rule.selector, /(?:\.site-header|\.nav-links|\.nav-icon|\.nav-label|\.nav-hint)/);
   });
@@ -95,7 +95,8 @@ test("no later theme or compact-screen rule restores a header band or removes pi
   ]);
   const overrides = postcss.parse(
     read("styles/refresh.css") + "\n" + read("styles/manga.css") + "\n" +
-    read("styles/refresh-pages.css") + "\n" + read("styles/manga-pages.css")
+    read("styles/refresh-pages.css") + "\n" + read("styles/manga-pages.css") + "\n" +
+    read("styles/about.css")
   );
   overrides.walkRules((rule) => {
     for (const selector of postcss.list.comma(rule.selector)) {

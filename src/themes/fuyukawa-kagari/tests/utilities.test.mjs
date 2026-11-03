@@ -108,9 +108,10 @@ test("drawer pin, second-click close, hover reentry and Escape agree with aria-e
 });
 
 test("About game entries use small complete thumbnails in an actual grid", () => {
-  const root = postcss.parse(read("pages/AboutPage.astro").match(/<style>([\s\S]*?)<\/style>/)[1]);
-  const card = declarations(root, ".about-game-card");
-  const image = declarations(root, ".about-game-card img");
+  const root = postcss.parse(read("styles/about.css"));
+  const selector = "body[data-fuyukawa] .me-page .about-game-card";
+  const card = declarations(root, selector);
+  const image = declarations(root, `${selector} img`);
   assert.equal(card.display, "grid");
   assert.equal(card["grid-template-columns"], "92px minmax(0, 1fr)");
   assert.equal(image.width, "92px");
@@ -118,11 +119,11 @@ test("About game entries use small complete thumbnails in an actual grid", () =>
   assert.equal(image["min-height"], "0");
   assert.equal(image["object-fit"], "contain");
   root.walkRules((rule) => {
-    if (rule.selector === ".about-game-card img") {
+    if (rule.selector === `${selector} img`) {
       rule.walkDecls("object-fit", (decl) => assert.equal(decl.value, "contain"));
     }
   });
-  assert.equal(declarations(root, ".about-game-card div")["min-height"], "0");
+  assert.equal(declarations(root, `${selector} div`)["min-height"], "0");
   assert.doesNotMatch(read("styles/refresh-pages.css"), /\.about-game-card (?:img|div|h3|p)\s*\{/);
 });
 
