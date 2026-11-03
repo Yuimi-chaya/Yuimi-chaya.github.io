@@ -10,11 +10,9 @@ body[data-fuyukawa] .manga-art-credit { grid-column: 1 / -1; padding-top: 16px; 
 body[data-fuyukawa] .manga-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
 body[data-fuyukawa] .manga-section-heading h2 { margin: 0; font-size: 1.7rem; line-height: 1.45; color: var(--manga-ink); }
 body[data-fuyukawa] .manga-section-heading .section-kicker { margin-bottom: 8px; }
-body[data-fuyukawa] .manga-rail-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-body[data-fuyukawa] .manga-rail-controls > span { font-family: Consolas, monospace; font-size: .74rem; color: var(--ink-soft); margin-right: 10px; }
-body[data-fuyukawa] .manga-rail-controls button { display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border: 1px solid var(--manga-rule); border-radius: 50%; background: transparent; color: var(--accent); cursor: pointer; }
-body[data-fuyukawa] .manga-rail-controls svg { width: 18px; height: 18px; }
-body[data-fuyukawa] .manga-rail-controls button:disabled { opacity: .32; cursor: default; }
+body[data-fuyukawa] .manga-rail-status { position: relative; flex-shrink: 0; min-width: 96px; padding-bottom: 12px; text-align: right; font-family: Consolas, monospace; font-size: .74rem; color: var(--ink-soft); }
+body[data-fuyukawa] .manga-rail-status::before, body[data-fuyukawa] .manga-rail-progress { position: absolute; inset: auto 0 0; height: 2px; background: var(--line); content: ""; }
+body[data-fuyukawa] .manga-rail-progress { background: var(--accent); transform: scaleX(0); transform-origin: left; }
 
 /* The original composite remains available until both independent layers decode. */
 body[data-fuyukawa] .hero-stage { height: calc(100svh - 82px); }
@@ -41,10 +39,10 @@ body[data-fuyukawa] .scene-divider { height: 8px; }
 body[data-fuyukawa] .scene-divider__rail { display: none; }
 
 /* Native swipe remains available; fine pointers use document scroll to advance the sticky chapter stage. */
-body[data-fuyukawa] .chapter-rail { --chapter-width: clamp(340px, 40vw, 680px); padding: 32px 0 60px; overflow: clip; background: #fff; }
+body[data-fuyukawa] .chapter-rail { --chapter-width: clamp(340px, 40vw, 680px); --chapter-gutter: clamp(28px, 4vw, 72px); padding: 32px 0 40px; overflow: clip; background: #fff; }
 body[data-fuyukawa] .chapter-rail-stage { width: 100%; overflow: clip; }
-body[data-fuyukawa] .chapter-rail .manga-section-heading { width: min(1200px, calc(100% - 56px)); margin-inline: auto; }
-body[data-fuyukawa] .chapter-track { position: relative; display: flex; gap: 28px; width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 12px max(28px, calc((100vw - var(--chapter-width)) / 2)) 18px; }
+body[data-fuyukawa] .chapter-rail .manga-section-heading { margin: 0 var(--chapter-gutter) 20px; }
+body[data-fuyukawa] .chapter-track { position: relative; display: flex; gap: 28px; width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 12px var(--chapter-gutter) 18px; scroll-padding-inline: var(--chapter-gutter); }
 body[data-fuyukawa] .chapter-track::-webkit-scrollbar { display: none; }
 body[data-fuyukawa] .chapter-leaf { --leaf-tint: #e7f0f8; position: relative; display: flex; flex: 0 0 var(--chapter-width); flex-direction: column; min-width: 0; min-height: 430px; padding: 22px; border: 1px solid var(--manga-rule); border-radius: 4px; background: #fff; box-shadow: 6px 7px 0 var(--leaf-tint); scroll-snap-align: center; }
 body[data-fuyukawa] .chapter-leaf:nth-child(2) { --leaf-tint: #f4e2eb; }
@@ -89,7 +87,6 @@ body[data-fuyukawa] .memory-album .manga-section-heading h2 { font-size: 1.3rem;
 /* Small illustrations live in the margins and colophon, never across prose. */
 
 @media (hover: hover) and (pointer: fine) {
-  body[data-fuyukawa] .manga-rail-controls button:not(:disabled):hover { background: #e8f1f9; }
   body[data-fuyukawa] .chapter-leaf:hover .chapter-arrow { color: var(--accent); }
 }
 @media (max-width: 1100px) {
@@ -106,9 +103,8 @@ body[data-fuyukawa] .memory-album .manga-section-heading h2 { font-size: 1.3rem;
   body[data-fuyukawa] .manga-scene-camera .manga-scene-front { inset: auto; left: 50%; bottom: 40px; translate: -53.5% 0; width: auto; height: min(calc(100% - 64px), calc(100vw * 1.42)); object-fit: contain; }
   body[data-fuyukawa] .manga-section-heading { gap: 16px; flex-wrap: wrap; }
   body[data-fuyukawa] .manga-section-heading h2 { font-size: 1.4rem; }
-  body[data-fuyukawa] .chapter-rail { --chapter-width: min(82vw, 460px); padding: 28px 0 44px; }
-  body[data-fuyukawa] .chapter-rail .manga-section-heading { width: calc(100% - 48px); }
-  body[data-fuyukawa] .chapter-track { gap: 20px; padding-inline: max(24px, calc((100vw - var(--chapter-width)) / 2)); }
+  body[data-fuyukawa] .chapter-rail { --chapter-width: min(82vw, 460px); --chapter-gutter: 24px; padding: 28px 0 32px; }
+  body[data-fuyukawa] .chapter-track { gap: 20px; }
   body[data-fuyukawa] .chapter-leaf { min-height: 420px; }
   body[data-fuyukawa] .blog-title-copy > .manga-handwritten { font-size: .72rem; }
   body[data-fuyukawa] .workshop-scene .manga-handwritten { display: none; }
@@ -116,7 +112,7 @@ body[data-fuyukawa] .memory-album .manga-section-heading h2 { font-size: 1.3rem;
 @media (max-width: 480px) {
   body[data-fuyukawa] .hero-copy { top: 123px; }
   body[data-fuyukawa] .hero h1 { font-size: 2.8rem; }
-  body[data-fuyukawa] .manga-rail-controls { margin-left: auto; }
+  body[data-fuyukawa] .manga-rail-status { margin-left: auto; min-width: 76px; }
   body[data-fuyukawa] .chapter-leaf { padding: 18px; }
   body[data-fuyukawa] .chapter-picture { margin-inline: 0; }
   body[data-fuyukawa] .chapter-caption h3 { font-size: 1rem; }

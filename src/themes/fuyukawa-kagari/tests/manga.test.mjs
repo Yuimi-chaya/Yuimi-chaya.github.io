@@ -231,49 +231,20 @@ test("archive filters include empty categories and restore every entry", () => {
   cleanup();
 });
 
-test("chapter controls target real leaf positions and account for track ends", () => {
-  assert.equal(nearestRailIndex([0, 324, 648, 972], 600), 2);
-  const root = element(), stage = element(), previous = element(), next = element(), label = element();
-  root.style = { getPropertyValue() { return ""; }, setProperty() {}, removeProperty() {} };
-  const track = Object.assign(element(), { scrollLeft: 0, scrollWidth: 1296, clientWidth: 400, scrollTo(value) { this.scrollLeft = Math.min(value.left, this.scrollWidth - this.clientWidth); } });
-  const items = [0, 324, 648, 972].map((offsetLeft) => Object.assign(element(), { offsetLeft }));
-  root.querySelectorAll = () => items;
-  root.querySelector = (selector) => ({ ".chapter-rail-stage": stage, "[data-rail-track]": track, "[data-rail-prev]": previous, "[data-rail-next]": next, "[data-rail-position]": label })[selector];
-  const frames = [];
-  const win = Object.assign(element(), { matchMedia: () => ({ matches: true }), requestAnimationFrame: (callback) => { frames.push(callback); return frames.length; }, cancelAnimationFrame() {} });
-  win.matchMedia = () => Object.assign(element(), { matches: true });
-  const cleanup = mountChapterRail(root, win);
-  assert.equal(root.dataset.railMode, "native");
-  assert.equal(track.tabIndex, 0);
-  assert.equal(previous.disabled, true);
-  next.dispatch("click");
-  assert.equal(track.scrollLeft, 324);
-  track.dispatch("scroll"); frames.pop()();
-  assert.equal(label.textContent, "02 / 04");
-  assert.equal(items[1].attributes["data-rail-active"], "true");
-  assert.equal(items[0].attributes["data-rail-active"], undefined);
-  next.dispatch("click"); next.dispatch("click");
-  track.dispatch("scroll"); frames.pop()();
-  assert.equal(next.disabled, true);
-  cleanup();
-  assert.equal(root.dataset.railMode, undefined);
-  assert.ok([...track.events.values()].every((handlers) => handlers.size === 0));
-});
-
-test("vertical chapter runway advances, reverses and releases scrolling without wheel capture", () => {
-  const root = element(), stage = Object.assign(element(), { clientHeight: 600, clientWidth: 500 });
-  const previous = element(), next = element(), label = element();
+function chapterFixture({ native = false, width = 1200, leafWidth = 500, gutter = 48, gap = 28 } = {}) {
+  const root = element(), stage = Object.assign(element(), { clientHeight: 600, clientWidth: width });
+  const label = element(), progress = element();
   const styles = new Map();
   root.style = {
     getPropertyValue: (name) => styles.get(name) ?? "",
     setProperty: (name, value) => styles.set(name, value),
     removeProperty: (name) => styles.delete(name)
   };
-  const track = Object.assign(element(), { scrollLeft: 0, scrollWidth: 2060, clientWidth: 500, scrollTo() {} });
-  const items = [250, 770, 1290, 1810].map((offsetLeft) => Object.assign(element(), { offsetLeft }));
+  const track = Object.assign(element(), { scrollLeft: 0, scrollWidth: 4 * leafWidth + 3 * gap + 2 * gutter, clientWidth: width });
+  const items = Array.from({ length: 4 }, (_, index) => Object.assign(element(), { offsetLeft: gutter + index * (leafWidth + gap), offsetWidth: leafWidth }));
   root.querySelectorAll = () => items;
-  root.querySelector = (selector) => ({ ".chapter-rail-stage": stage, "[data-rail-track]": track, "[data-rail-prev]": previous, "[data-rail-next]": next, "[data-rail-position]": label })[selector];
-  const reduced = Object.assign(element(), { matches: false });
+  root.querySelector = (selector) => ({ ".chapter-rail-stage": stage, "[data-rail-track]": track, "[data-rail-position]": label, "[data-rail-progress]": progress })[selector];
+  const reduced = Object.assign(element(), { matches: native });
   const fine = Object.assign(element(), { matches: true });
   const frames = new Map();
   let frameId = 0;
@@ -287,35 +258,60 @@ test("vertical chapter runway advances, reverses and releases scrolling without 
   root.getBoundingClientRect = () => ({ top: 500 - win.scrollY });
   const step = () => { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach((callback) => callback()); };
   const cleanup = mountChapterRail(root, win);
+  return { root, stage, track, label, progress, items, styles, win, reduced, fine, frames, step, cleanup };
+}
+
+test("button-free native chapters track centered snaps and both compact ends", () => {
+  assert.equal(nearestRailIndex([0, 324, 648, 972], 600), 2);
+  const { root, track, label, progress, items, step, cleanup } = chapterFixture({ native: true, width: 400, leafWidth: 300, gutter: 24, gap: 24 });
+  assert.equal(root.dataset.railMode, "native");
+  assert.equal(track.tabIndex, 0);
+  assert.equal(label.textContent, "01 / 04");
+  track.scrollLeft = 298;
+  track.dispatch("scroll"); step();
+  assert.equal(label.textContent, "02 / 04");
+  assert.equal(items[1].attributes["data-rail-active"], "true");
+  assert.equal(items[0].attributes["data-rail-active"], undefined);
+  track.scrollLeft = track.scrollWidth - track.clientWidth;
+  track.dispatch("scroll"); step();
+  assert.equal(label.textContent, "04 / 04");
+  assert.equal(progress.style.transform, "scaleX(1)");
+  cleanup();
+  assert.equal(root.dataset.railMode, undefined);
+  assert.equal(progress.style.transform, "");
+  assert.ok([...track.events.values()].every((handlers) => handlers.size === 0));
+});
+
+test("compact vertical chapter runway advances, reverses and keeps focus inside its real ends", () => {
+  const { root, track, label, progress, items, styles, win, reduced, fine, step, cleanup } = chapterFixture();
   assert.equal(root.dataset.railMode, "scroll");
   assert.equal(track.tabIndex, -1);
-  assert.equal(styles.get("--rail-runway"), "2160px");
+  assert.equal(styles.get("--rail-runway"), "1580px");
   assert.equal(track.style.transform, "translate3d(0px, 0, 0)");
-  win.scrollY = 500 + 540;
+  win.scrollY = 500 + 226;
   win.dispatch("scroll"); step();
-  assert.equal(track.style.transform, "translate3d(-540px, 0, 0)");
+  assert.equal(track.style.transform, "translate3d(-226px, 0, 0)");
   assert.equal(label.textContent, "02 / 04");
-  previous.dispatch("click"); step();
+  track.dispatch("focusin", { target: items[0] }); step();
   assert.equal(win.scrollY, 500);
-  assert.equal(win.lastBehavior, "smooth");
-  win.scrollY = 500 + 1560 + 500;
+  assert.equal(win.lastBehavior, "instant");
+  win.scrollY = 500 + 980 + 500;
   win.dispatch("scroll"); step();
-  assert.equal(track.style.transform, "translate3d(-1560px, 0, 0)");
+  assert.equal(track.style.transform, "translate3d(-980px, 0, 0)");
   assert.equal(label.textContent, "04 / 04");
-  assert.equal(next.disabled, true);
-  win.scrollY = 500 + 520;
+  assert.equal(progress.style.transform, "scaleX(1)");
+  win.scrollY = 500 + 226;
   win.dispatch("scroll"); step();
   assert.equal(label.textContent, "02 / 04");
   assert.equal(items[3].attributes["data-rail-active"], undefined);
   track.dispatch("focusin", { target: items[2] }); step();
-  assert.equal(win.scrollY, 500 + 1040);
+  assert.equal(win.scrollY, 500 + 754);
   assert.equal(win.lastBehavior, "instant");
   assert.equal(items[2].attributes["data-rail-active"], "true");
-  items[3].offsetLeft = 1950;
-  next.dispatch("click"); step();
-  assert.equal(win.scrollY, 500 + 1560, "the last card offset must not scroll past the sticky runway");
+  items[3].offsetLeft = 1800;
   track.dispatch("focusin", { target: items[3] }); step();
-  assert.equal(win.scrollY, 500 + 1560, "focus navigation obeys the same bounded travel");
+  assert.equal(win.scrollY, 500 + 980, "focus navigation obeys the bounded travel even when a card offset exceeds it");
+  assert.equal(label.textContent, "04 / 04");
   reduced.matches = true; reduced.dispatch("change");
   assert.equal(root.dataset.railMode, "native");
   assert.equal(track.tabIndex, 0);
@@ -325,6 +321,26 @@ test("vertical chapter runway advances, reverses and releases scrolling without 
   assert.ok([...win.events.values()].every((handlers) => handlers.size === 0));
   assert.ok([...fine.events.values()].every((handlers) => handlers.size === 0));
   assert.ok([...reduced.events.values()].every((handlers) => handlers.size === 0));
+});
+
+test("wide and narrow chapter ends keep only the shared gutter and always select the first and last leaf", () => {
+  for (const width of [761, 980, 1440, 1920, 2560]) {
+    const leafWidth = Math.max(340, Math.min(680, width * .4));
+    const gutter = Math.max(28, Math.min(72, width * .04));
+    const f = chapterFixture({ width, leafWidth, gutter });
+    const travel = f.track.scrollWidth - width;
+    assert.equal(f.items[0].offsetLeft, gutter);
+    assert.equal(f.label.textContent, "01 / 04");
+    f.win.scrollY = 500 + travel;
+    f.win.dispatch("scroll"); f.step();
+    assert.equal(f.label.textContent, "04 / 04");
+    assert.ok(Math.abs(f.items[3].offsetLeft + leafWidth - travel - (width - gutter)) < .01);
+    assert.equal(Number.parseFloat(f.styles.get("--rail-runway")) - 600, travel);
+    f.win.scrollY = 500;
+    f.win.dispatch("scroll"); f.step();
+    assert.equal(f.label.textContent, "01 / 04");
+    f.cleanup();
+  }
 });
 
 test("manga CSS stays theme-local, responsive, and never crops article covers", async () => {
@@ -345,7 +361,12 @@ test("manga CSS stays theme-local, responsive, and never crops article covers", 
   assert.match(source, /\.chapter-track::-webkit-scrollbar \{ display: none; \}/);
   assert.match(source, /\.chapter-rail\[data-rail-mode="scroll"\] \.chapter-rail-stage \{ position: sticky/);
   assert.match(source, /:has\(\.chapter-rail\[data-rail-mode="scroll"\]\) \{ overflow-x: clip; \}/);
-  assert.match(await read("components/ChapterRail.astro"), /class="chapter-rail-stage"/);
+  const rail = await read("components/ChapterRail.astro");
+  assert.match(rail, /class="chapter-rail-stage"/);
+  assert.doesNotMatch(rail, /<button|data-rail-prev|data-rail-next/);
+  assert.match(rail, /data-rail-position/);
+  assert.match(source, /--chapter-gutter: clamp\(28px, 4vw, 72px\)/);
+  assert.doesNotMatch(source, /100vw - var\(--chapter-width\)/);
   assert.match(source, /\.chapter-rail-stage \{ width: 100%; overflow: clip; \}/);
   assert.match(source, /\.chapter-leaf\[data-rail-active\] \.chapter-sticker \{ transform: scale\(1\.3\); \}/);
   assert.match(source, /@media \(max-width: 480px\) \{[^]*?\.chapter-leaf\[data-rail-active\] \.chapter-sticker \{ transform: scale\(1\.22\); \}/);

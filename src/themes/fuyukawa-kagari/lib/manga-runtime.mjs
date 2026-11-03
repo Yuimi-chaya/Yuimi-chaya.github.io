@@ -125,18 +125,16 @@ export function mountChapterRail(root, win = window) {
   const stage = root.querySelector(".chapter-rail-stage");
   const track = root.querySelector("[data-rail-track]");
   const items = [...root.querySelectorAll(".chapter-leaf")];
-  const previous = root.querySelector("[data-rail-prev]");
-  const next = root.querySelector("[data-rail-next]");
   const position = root.querySelector("[data-rail-position]");
-  if (!stage || !track || !items.length || !previous || !next) return () => {};
+  const progress = root.querySelector("[data-rail-progress]");
+  if (!stage || !track || !items.length) return () => {};
   const reduced = win.matchMedia("(prefers-reduced-motion: reduce)");
   const fine = win.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 761px)");
   let frame = 0, scrollMode = false, travel = 0, active = -1;
-  const offsets = () => items.map((item) => item.offsetLeft - items[0].offsetLeft);
+  const offsets = () => items.map((item, index) => index === 0 ? 0 : index === items.length - 1 ? travel
+    : clamp(item.offsetLeft + item.offsetWidth / 2 - stage.clientWidth / 2, 0, travel));
   const top = () => root.getBoundingClientRect().top + win.scrollY;
   const select = (index) => {
-    previous.disabled = index === 0;
-    next.disabled = index === items.length - 1;
     if (active === index) return;
     active = index;
     items.forEach((item, i) => {
@@ -147,17 +145,18 @@ export function mountChapterRail(root, win = window) {
   };
   const update = () => {
     frame = 0;
-    const left = scrollMode ? clamp(win.scrollY - top(), 0, travel) : track.scrollLeft;
+    const left = clamp(scrollMode ? win.scrollY - top() : track.scrollLeft, 0, travel);
     if (scrollMode) track.style.transform = `translate3d(${-left.toFixed(1)}px, 0, 0)`;
-    select(nearestRailIndex(offsets(), left));
+    if (progress) progress.style.transform = `scaleX(${travel ? left / travel : 0})`;
+    select(left <= 1 ? 0 : left >= travel - 1 ? items.length - 1 : nearestRailIndex(offsets(), left));
   };
   const schedule = () => { if (!frame) frame = win.requestAnimationFrame(update); };
   const measure = () => {
     const enabled = fine.matches && !reduced.matches && items.length > 1;
     root.dataset.railMode = enabled ? "scroll" : "native";
     scrollMode = enabled;
+    travel = Math.max(0, track.scrollWidth - stage.clientWidth);
     if (enabled) {
-      travel = Math.max(0, track.scrollWidth - stage.clientWidth);
       if (travel > 2) {
         const runway = `${stage.clientHeight + travel}px`;
         if (root.style.getPropertyValue("--rail-runway") !== runway) root.style.setProperty("--rail-runway", runway);
@@ -170,17 +169,10 @@ export function mountChapterRail(root, win = window) {
     if (!scrollMode) {
       root.style.removeProperty("--rail-runway");
       track.style.transform = "";
-    }
+      travel = Math.max(0, track.scrollWidth - stage.clientWidth);
+    } else track.scrollLeft = 0;
     update();
   };
-  const move = (direction) => {
-    const positions = offsets();
-    const current = scrollMode ? active : nearestRailIndex(positions, track.scrollLeft);
-    const index = clamp(current + direction, 0, items.length - 1);
-    if (scrollMode) win.scrollTo({ top: top() + clamp(positions[index], 0, travel), behavior: "smooth" });
-    else track.scrollTo({ left: positions[index], behavior: reduced.matches ? "auto" : "smooth" });
-  };
-  const prevClick = () => move(-1), nextClick = () => move(1);
   const focusIn = (event) => {
     const index = items.indexOf(event.target);
     if (index < 0 || !scrollMode) return;
@@ -188,8 +180,6 @@ export function mountChapterRail(root, win = window) {
     schedule();
   };
   const onScroll = () => { if (scrollMode) schedule(); };
-  previous.addEventListener("click", prevClick);
-  next.addEventListener("click", nextClick);
   track.addEventListener("focusin", focusIn);
   track.addEventListener("scroll", schedule, { passive: true });
   win.addEventListener("scroll", onScroll, { passive: true });
@@ -201,10 +191,9 @@ export function mountChapterRail(root, win = window) {
     win.cancelAnimationFrame(frame);
     delete root.dataset.railMode;
     root.style.removeProperty("--rail-runway");
+    if (progress) progress.style.transform = "";
     track.style.transform = "";
     track.tabIndex = 0;
-    previous.removeEventListener("click", prevClick);
-    next.removeEventListener("click", nextClick);
     track.removeEventListener("focusin", focusIn);
     track.removeEventListener("scroll", schedule);
     win.removeEventListener("scroll", onScroll);

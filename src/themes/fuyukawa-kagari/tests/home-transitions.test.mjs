@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import vm from "node:vm";
 import test from "node:test";
 import { mountHomeTransitions } from "../lib/home-transitions.mjs";
+import { mountChapterRail } from "../lib/manga-runtime.mjs";
 
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const lock = "is-fuyukawa-transition-locked";
@@ -148,6 +149,52 @@ test("the last active card is not the exit boundary and oversized wheels stop at
   assert.equal(f.wheel(160).defaultPrevented, false, "the tag scene and articles retain native forward scrolling");
   f.window.scrollY = 4400;
   assert.equal(f.wheel(600).defaultPrevented, false);
+  f.controller.cleanup();
+});
+
+test("compact rail geometry hands off at its shortened actual end and reverses to the same frame", async () => {
+  const f = fixture({ synchronousScroll: true });
+  const styles = new Map(), frames = new Map();
+  let serial = 0;
+  f.rail.style = {
+    getPropertyValue: name => styles.get(name) ?? "",
+    setProperty: (name, value) => styles.set(name, value),
+    removeProperty: name => styles.delete(name),
+  };
+  f.railStage.clientWidth = 1200;
+  Object.defineProperty(f.rail, "offsetHeight", { get: () => Number.parseFloat(styles.get("--rail-runway")) || 2360 });
+  const track = { scrollLeft: 0, scrollWidth: 2180, style: {},
+    addEventListener() {}, removeEventListener() {} };
+  const leaves = f.rail.querySelectorAll();
+  leaves.forEach((leaf, index) => {
+    leaf.offsetLeft = 48 + index * 528;
+    leaf.offsetWidth = 500;
+    leaf.removeAttribute = name => leaf.attributes.delete(name);
+  });
+  f.rail.querySelector = selector => selector === ".chapter-rail-stage" ? f.railStage : selector === "[data-rail-track]" ? track : null;
+  f.next.getBoundingClientRect = () => ({ top: 800 + f.rail.offsetHeight - f.window.scrollY });
+  f.window.requestAnimationFrame = callback => { frames.set(++serial, callback); return serial; };
+  f.window.cancelAnimationFrame = id => frames.delete(id);
+  const step = () => { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback()); };
+  const stopRail = mountChapterRail(f.rail, f.window);
+  assert.equal(styles.get("--rail-runway"), "1780px");
+  f.enter();
+  await f.complete();
+  assert.equal(f.window.scrollY, 800);
+  f.window.scrollY = 1760;
+  assert.equal(f.wheel(80).defaultPrevented, true);
+  assert.equal(f.window.scrollY, 1780);
+  step();
+  assert.equal(track.style.transform, "translate3d(-980px, 0, 0)");
+  assert.equal(f.wheel(60).defaultPrevented, true);
+  assert.equal(f.window.scrollY, 1780);
+  await f.complete();
+  assert.equal(f.window.scrollY, 2580);
+  assert.equal(f.wheel(-60).defaultPrevented, true);
+  await f.complete(); step();
+  assert.equal(f.window.scrollY, 1780);
+  assert.equal(track.style.transform, "translate3d(-980px, 0, 0)");
+  stopRail();
   f.controller.cleanup();
 });
 
