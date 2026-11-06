@@ -31,6 +31,7 @@ class Node {
   disabled = false;
   matches = false;
   focusCalls = 0;
+  animate?: (keyframes: unknown[], options: Record<string, unknown>) => FakeAnimation;
   classes = new Set<string>();
   classList = {
     toggle: (name: string, enabled: boolean) => {
@@ -75,6 +76,30 @@ class Node {
   }
 }
 
+type FakeAnimation = {
+  keyframes: unknown[];
+  options: Record<string, unknown>;
+  cancels: number;
+  finished: Promise<void>;
+  cancel: () => void;
+  finish: () => void;
+};
+
+function recordMotion(node: Node, animations: FakeAnimation[]) {
+  node.animate = (keyframes, options) => {
+    let resolve!: () => void;
+    let reject!: (error: Error) => void;
+    const finished = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
+    const animation: FakeAnimation = {
+      keyframes, options, finished, cancels: 0,
+      cancel() { this.cancels++; reject(new Error("Animation cancelled")); },
+      finish() { resolve(); }
+    };
+    animations.push(animation);
+    return animation;
+  };
+}
+
 function addPager(root: Node) {
   const [pager] = root.map("[data-works-pagination]", [new Node()]);
   const [range] = root.map("[data-works-range]", [new Node()]);
@@ -83,10 +108,12 @@ function addPager(root: Node) {
   return { pager, range, previous, next };
 }
 
-function kisaraFixture(search = "", mobile = false) {
+function kisaraFixture(search = "", mobile = false, animated = false) {
   const root = new Node();
   const document = new Node();
   const compact = new Node();
+  const motion = new Node();
+  const animations: FakeAnimation[] = [];
   compact.matches = mobile;
   const pager = addPager(root);
   const buttons = root.map("[data-works-filter]", [
@@ -94,19 +121,30 @@ function kisaraFixture(search = "", mobile = false) {
     ...["blog", "astrbot", "codex", "web", "guide"].map((worksFilter) => new Node({ worksFilter }))
   ]);
   const cards = root.map("[data-project-line]", projectEntries.map((project) => {
-    const card = new Node({ projectLine: project.line, projectId: project.id });
+    const card = new Node({
+      projectLine: project.line, projectId: project.id,
+      projectNote: project.note, projectTitle: project.title
+    });
     card.map("details", [new Node()]);
     card.map("a, summary", [new Node()]);
+    if (animated) recordMotion(card, animations);
     return card;
   }));
   const [count] = root.map("[data-works-count]", [new Node()]);
   const [empty] = root.map("[data-works-empty]", [new Node()]);
+  const [margin] = root.map("[data-works-margin]", [new Node()]);
+  const [quote] = root.map("[data-works-margin-quote]", [new Node()]);
+  const [title] = root.map("[data-works-margin-title]", [new Node()]);
+  if (animated) recordMotion(margin, animations);
   const bind = vm.runInNewContext(
     read("src/themes/kisara/lib/worksIndex.js").replace("export function", "function") + "\nbindWorksIndex",
-    { document, HTMLElement: Node, Element: Node, URLSearchParams, window: { location: { search }, matchMedia: () => compact } }
+    { document, HTMLElement: Node, Element: Node, URLSearchParams, window: {
+      location: { search },
+      matchMedia: (query: string) => query.includes("reduced-motion") ? motion : compact
+    } }
   );
   const cleanup = bind(root);
-  return { root, document, buttons, cards, count, empty, cleanup, compact, ...pager };
+  return { root, document, buttons, cards, count, empty, cleanup, compact, motion, animations, margin, quote, title, ...pager };
 }
 
 test("Kisara runtime keeps the seven-project archive, pages and line counts in sync", () => {
@@ -146,6 +184,78 @@ test("Kisara accepts valid deep links, ignores unknown lines and preserves nativ
   assert.ok([...invalid.root.listeners.values()].every((listeners) => listeners.size === 0));
   assert.equal(invalid.document.listeners.get("astro:before-swap")?.size, 0);
   assert.doesNotThrow(() => invalid.cleanup());
+});
+
+test("Kisara marginal notes follow visible project selection rather than arbitrary hover descendants", () => {
+  const f = kisaraFixture("", false, true);
+  assert.equal(f.quote.textContent, projectEntries[0].note);
+  assert.equal(f.title.textContent, projectEntries[0].title);
+  assert.equal(f.animations.length, 0, "Initial content is visible without an intro dependency");
+  f.root.dispatch("pointerenter", f.cards[1]);
+  assert.equal(f.quote.textContent, projectEntries[1].note);
+  assert.equal(f.title.textContent, projectEntries[1].title);
+  assert.equal(f.animations.length, 1);
+  f.root.dispatch("pointerenter", f.cards[1].querySelector("a, summary")!);
+  assert.equal(f.animations.length, 1);
+  f.root.dispatch("pointerenter", f.cards[6]);
+  assert.equal(f.quote.textContent, projectEntries[1].note, "Hidden projects cannot steal the margin");
+  f.root.dispatch("focusin", f.cards[2]);
+  assert.equal(f.quote.textContent, projectEntries[2].note);
+  assert.equal(f.animations[0].cancels, 1);
+  assert.equal(f.animations.length, 1, "Keyboard selection is immediate");
+  f.cleanup();
+});
+
+test("Kisara page and filter entrances cancel before rapid updates and stay under 300ms", async () => {
+  const f = kisaraFixture("", false, true);
+  f.root.dispatch("click", f.next);
+  assert.equal(f.quote.textContent, projectEntries[4].note);
+  assert.equal(f.animations.length, 3);
+  assert.deepEqual(f.animations.map((animation) => animation.options.delay), [0, 30, 60]);
+  for (const animation of f.animations) {
+    assert.ok(Number(animation.options.duration) + Number(animation.options.delay) <= 300);
+    assert.equal(animation.options.fill, "backwards", "Delay holds the entrance frame without retaining its ending transform");
+  }
+  const old = [...f.animations];
+  f.root.dispatch("click", f.buttons[1]);
+  assert.ok(old.every((animation) => animation.cancels === 1));
+  assert.equal(f.quote.textContent, projectEntries[0].note);
+  const current = f.animations.at(-1)!;
+  old.forEach((animation) => animation.finish());
+  await Promise.resolve();
+  await Promise.resolve();
+  f.cleanup();
+  assert.equal(current.cancels, 1, "Old completion cannot release the newer animation");
+});
+
+test("Kisara keyboard, reduced motion, background tabs and departure do not leave moving content", () => {
+  const f = kisaraFixture("", false, true);
+  f.root.dispatch("click", f.next, 0);
+  assert.equal(f.animations.length, 0);
+  f.root.dispatch("click", f.previous);
+  const first = [...f.animations];
+  f.motion.matches = true;
+  f.motion.dispatch("change");
+  assert.ok(first.every((animation) => animation.cancels === 1));
+  f.root.dispatch("click", f.next);
+  assert.equal(f.animations.length, first.length);
+  f.motion.matches = false;
+  f.document.hidden = true;
+  f.root.dispatch("click", f.previous);
+  assert.equal(f.animations.length, first.length);
+  f.document.hidden = false;
+  f.root.dispatch("click", f.next);
+  const last = f.animations.slice(first.length);
+  f.document.hidden = true;
+  f.document.dispatch("visibilitychange");
+  assert.ok(last.every((animation) => animation.cancels === 1));
+  f.cleanup();
+  f.cleanup();
+  assert.equal(f.motion.listeners.get("change")?.size, 0);
+  assert.equal(f.document.listeners.get("visibilitychange")?.size, 0);
+  assert.equal(f.compact.listeners.get("change")?.size, 0);
+  f.root.dispatch("click", f.previous);
+  assert.equal(f.animations.length, first.length + last.length);
 });
 
 function fuyukawaFixture(search = "", mobile = false) {

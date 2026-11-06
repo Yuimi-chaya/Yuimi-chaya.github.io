@@ -12,7 +12,13 @@ const covers = [
 ];
 const coverHeights = [1051, 874, 1051, 1051];
 
-const lineLabels = Object.fromEntries(projectTechLines.map((line) => [line.key, line.label]));
+const lineLabels = {
+  blog: "博客",
+  astrbot: "机器人",
+  codex: "开发工具",
+  web: "Web",
+  guide: "经验文档"
+} as const;
 const projects = projectEntries.map((project, index) => ({
   ...project,
   cover: covers[index % covers.length],
@@ -21,7 +27,6 @@ const projects = projectEntries.map((project, index) => ({
 }));
 const featured = projects[0];
 const archive = projects;
-const distinctLanguages = new Set(projects.map((project) => project.language)).size;
 ---
 
 <KisaraLayout
@@ -31,7 +36,7 @@ const distinctLanguages = new Set(projects.map((project) => project.language)).s
   priorityImages={["/themes/kisara/assets/works-opening-first.webp"]}
   showFooter={false}
 >
-  <div class="kisara-index" data-kisara-works-index data-works-album aria-labelledby="kisara-works-title">
+  <div class="kisara-index" data-kisara-works-index data-works-album aria-labelledby="kisara-works-heading">
     <header class="kisara-index-hero" id="kisara-works-title" data-works-intro data-video-state="idle">
       <div class="kisara-index-film" aria-hidden="true">
         <img
@@ -66,22 +71,22 @@ const distinctLanguages = new Set(projects.map((project) => project.language)).s
         />
       </div>
       <div class="kisara-index-hero-copy">
-        <p class="kisara-index-kicker"><span>WORKS / INDEX</span><i aria-hidden="true"></i>Yuimi Lab · 2026</p>
-        <h1 aria-label="Works, built in layers.">
-          <span>WORKS</span>
-          <em>built in <b>layers.</b></em>
+        <p class="kisara-index-byline">Yuimi-chaya <span aria-hidden="true">/</span> Works</p>
+        <h1 id="kisara-works-heading">
+          <span class="kisara-index-title-main">作品</span>
+          <span class="kisara-index-title-tail">和一点<span>小机关。</span></span>
         </h1>
         <p class="kisara-index-lede">
-          博客、机器人插件、桌面工具，和那些终于被写下来的方法。
+          给博客换几种性格，让机器人好好接话，<br class="kisara-index-desktop-break" />
+          再做些让自己用得顺手的小工具。
         </p>
         <div class="kisara-index-actions">
           <a href="#kisara-archive" class="kisara-index-primary">
-            <Icon name="tabler:arrow-down" aria-hidden="true" />
-            翻到档案
+            看作品<Icon name="tabler:arrow-down" aria-hidden="true" />
           </a>
           <a href="https://github.com/Yuimi-chaya" target="_blank" rel="noopener noreferrer" class="kisara-index-secondary">
             <Icon name="simple-icons:github" aria-hidden="true" />
-            Yuimi-chaya
+            GitHub
           </a>
           <button type="button" data-works-intro-replay aria-label="重播首屏动画" title="重播首屏动画" hidden>
             <Icon name="tabler:refresh" aria-hidden="true" />
@@ -89,37 +94,42 @@ const distinctLanguages = new Set(projects.map((project) => project.language)).s
         </div>
       </div>
 
-      <dl class="kisara-index-stats" aria-label="档案概览">
-        <div><dt>PROJECTS</dt><dd>{String(projects.length).padStart(2, "0")}</dd></div>
-        <div><dt>LANGUAGES</dt><dd>{String(distinctLanguages).padStart(2, "0")}</dd></div>
-        <div><dt>THEMES</dt><dd>03</dd></div>
-        <div><dt>STATUS</dt><dd>LIVE</dd></div>
-      </dl>
+      <p class="kisara-index-film-caption" aria-hidden="true">木更 <span>/ Engage Kiss</span></p>
     </header>
 
+    <div class="kisara-index-workbench">
+      <div class="kisara-index-sidebar">
     <nav class="kisara-index-filters" aria-label="按方向筛选项目">
-      <span class="kisara-index-filters-label">FILTER BY LINE</span>
+      <h2 class="kisara-index-filters-label">作品目录</h2>
       <div role="group" aria-label="项目方向">
         <button type="button" data-works-filter="all" aria-pressed="true" class="is-active">
-          全部<span>ALL</span>
+          全部<span>{String(projects.length).padStart(2, "0")}</span>
         </button>
         {projectTechLines.map((line) => (
           <button type="button" data-works-filter={line.key} aria-pressed="false">
-            {line.label.split(" / ")[0]}<span>{line.key.toUpperCase()}</span>
+            {lineLabels[line.key]}<span>{String(projects.filter((project) => project.line === line.key).length).padStart(2, "0")}</span>
           </button>
         ))}
       </div>
       <output class="kisara-index-count" aria-live="polite" aria-atomic="true">
         <strong data-works-count>{String(projects.length).padStart(2, "0")}</strong>
-        <span>FILES MATCHED</span>
+        <span>件作品</span>
       </output>
     </nav>
 
+        <aside class="kisara-index-marginalia" aria-labelledby="kisara-margin-title">
+          <h2 id="kisara-margin-title">制作后记</h2>
+          <blockquote data-works-margin>
+            <p data-works-margin-quote>{featured.note}</p>
+            <cite data-works-margin-title>{featured.title}</cite>
+          </blockquote>
+        </aside>
+      </div>
+
     <section class="kisara-index-archive" id="kisara-archive" aria-labelledby="kisara-archive-title">
       <header class="kisara-index-section-head">
-        <p><span>01</span> ARCHIVE</p>
-        <h2 id="kisara-archive-title">项目档案</h2>
-        <p>从博客主题到对话回合，从桌面工具到经验文档。</p>
+        <h2 id="kisara-archive-title">从一个小问题开始</h2>
+        <span>Yuimi Lab</span>
       </header>
 
       <div class="kisara-index-grid" role="list" aria-label="项目档案">
@@ -129,6 +139,8 @@ const distinctLanguages = new Set(projects.map((project) => project.language)).s
             role="listitem"
             data-project-id={project.id}
             data-project-line={project.line}
+            data-project-note={project.note}
+            data-project-title={project.title}
           >
             <div class="kisara-index-card-art" aria-hidden="true">
               <img src={project.cover} alt="" width="720" height={project.coverHeight} loading="lazy" decoding="async" />
@@ -146,7 +158,6 @@ const distinctLanguages = new Set(projects.map((project) => project.language)).s
               </ul>
               <div class="kisara-index-card-meta">
                 <span><i aria-hidden="true"></i>{project.language}</span>
-                <span>{project.stars} stars</span>
                 <span>{project.status}</span>
               </div>
               <a class="kisara-index-card-link" href={project.href} target="_blank" rel="noopener noreferrer">
@@ -156,7 +167,7 @@ const distinctLanguages = new Set(projects.map((project) => project.language)).s
               </a>
               <details class="kisara-index-card-reveal" name="kisara-project-notes">
                 <summary>
-                  项目手记
+                  为什么做它
                   <Icon name="tabler:chevron-down" aria-hidden="true" />
                 </summary>
                 <div>
@@ -181,19 +192,20 @@ const distinctLanguages = new Set(projects.map((project) => project.language)).s
         <button type="button" data-works-filter="all">回到全部</button>
       </div>
     </section>
+    </div>
 
     <aside class="kisara-index-feature" aria-labelledby="kisara-feature-title">
       <div>
-        <p class="kisara-index-kicker"><span>FEATURED FILE</span><i aria-hidden="true"></i>{featured.repo}</p>
+        <p class="kisara-index-kicker">你正在看的这个站点，也是其中一件作品。</p>
         <h2 id="kisara-feature-title">{featured.title}</h2>
       </div>
       <div class="kisara-index-feature-links">
         <a href={featured.href} target="_blank" rel="noopener noreferrer">
-          <Icon name="simple-icons:github" aria-hidden="true" />Repository
+          <Icon name="simple-icons:github" aria-hidden="true" />源代码
         </a>
         {featured.demo && (
           <a href={featured.demo} target="_blank" rel="noopener noreferrer">
-            <Icon name="tabler:link" aria-hidden="true" />Live site
+            <Icon name="tabler:link" aria-hidden="true" />打开站点
           </a>
         )}
       </div>
