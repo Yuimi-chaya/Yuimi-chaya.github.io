@@ -82,10 +82,11 @@ test("Kisara Works deep links point at the current page sections", () => {
   assert.doesNotMatch(routes, /kisara-kitchen-lab|kisara-drink-title|刀切测试|技术食材|实验配方/);
 });
 
-test("Works replaces portfolio statistics with a personal title and real project-side notes", () => {
-  assert.match(page, /kisara-index-title-main">作品/);
-  assert.match(page, /kisara-index-title-tail">和一点/);
-  assert.doesNotMatch(page, /built in|FILES MATCHED|FILTER BY LINE|FEATURED FILE|kisara-index-stats|distinctLanguages/);
+test("Works keeps the preferred English masthead and real project-side notes without portfolio statistics", () => {
+  assert.match(page, /kisara-index-title-main">WORKS/);
+  assert.match(page, /kisara-index-title-tail">built in <span>layers\.<\/span>/);
+  assert.match(page, /id="kisara-works-heading" lang="en"/);
+  assert.doesNotMatch(page, /FILES MATCHED|FILTER BY LINE|FEATURED FILE|kisara-index-stats|distinctLanguages/);
   assert.match(page, /class="kisara-index-workbench"[\s\S]*class="kisara-index-sidebar"[\s\S]*class="kisara-index-archive"/);
   assert.match(page, /data-works-margin-quote>\{featured\.note\}/);
   assert.match(page, /data-project-note=\{project\.note\}/);
