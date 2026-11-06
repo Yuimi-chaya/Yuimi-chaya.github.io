@@ -32,11 +32,16 @@ test("Fuyukawa chapters filter entries and swap the active photograph", () => {
 });
 
 test("Fuyukawa entries are native details with visible repository links", () => {
-  assert.match(page, /<details name="fuyukawa-project-notes">/);
+  assert.match(page, /<details name="fuyukawa-project-notes" data-works-disclosure>/);
   assert.match(page, /<summary>/);
   assert.match(page, /href=\{project\.href\}/);
   assert.match(page, /rel="noopener noreferrer"/);
   assert.doesNotMatch(page, /hidden=\{index[^}]*\}/);
+  assert.match(page, /bindWorksDetails\(root, "--manga-ease"\)/);
+  assert.match(page, /disclosure\.finish\(\)/);
+  assert.match(page, /disclosure\.cleanup\(\)/);
+  assert.match(page, /data-works-disclosure-content>\s*<div class="yuimi-works-entry-body" data-works-disclosure-inner>/);
+  assert.match(styles, /\.yuimi-works-entry details:not\(\[open\]\) > \[data-works-disclosure-content\] \{\s*display: none;/);
 });
 
 test("Fuyukawa Works loads its own stylesheet and keeps theme isolation", () => {

@@ -45,6 +45,7 @@ test("production build enforces route, CSS, bundle, and deferred-media budgets",
   assert.match(budgetSource, /Kisara Home HTML/);
   assert.match(budgetSource, /Kisara Home CSS/);
   assert.match(budgetSource, /Kisara shared layout runtime/);
+  assert.match(budgetSource, /Shared Works details runtime/);
   assert.match(budgetSource, /Kisara stage loader/);
   assert.match(budgetSource, /Kisara deferred stage runtime/);
   assert.match(budgetSource, /Kisara complete story images/);

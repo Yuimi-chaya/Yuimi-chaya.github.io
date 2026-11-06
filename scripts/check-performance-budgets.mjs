@@ -31,7 +31,8 @@ const bundleBudgets = [
   ["Kisara deferred stage runtime", "chibiStage.", 20_000],
   ["Kisara Blog page runtime", "blogPage.", 20_000],
   ["Kisara Works page runtime", "worksIndex.", 12_000],
-  ["Kisara Works video runtime", "worksHero.", 8_000]
+  ["Kisara Works video runtime", "worksHero.", 8_000],
+  ["Shared Works details runtime", "worksDetails.", 8_000]
 ];
 
 const formatBytes = (value) => `${(value / 1024).toFixed(1)} KiB`;

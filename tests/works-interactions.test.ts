@@ -6,6 +6,8 @@ import vm from "node:vm";
 import { projectEntries } from "../src/core/data/projects.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const detailsRuntime = read("src/core/interactions/worksDetails.js").replace("export function", "function");
+const withoutImports = (source: string) => source.replace(/^\s*import .*;\r?\n/gm, "");
 
 test("Both Works pages and route labels only use icons included by Astro", () => {
   const config = read("astro.config.mjs");
@@ -137,7 +139,7 @@ function kisaraFixture(search = "", mobile = false, animated = false) {
   const [title] = root.map("[data-works-margin-title]", [new Node()]);
   if (animated) recordMotion(margin, animations);
   const bind = vm.runInNewContext(
-    read("src/themes/kisara/lib/worksIndex.js").replace("export function", "function") + "\nbindWorksIndex",
+    detailsRuntime + "\n" + withoutImports(read("src/themes/kisara/lib/worksIndex.js")).replace("export function", "function") + "\nbindWorksIndex",
     { document, HTMLElement: Node, Element: Node, URLSearchParams, window: {
       location: { search },
       matchMedia: (query: string) => query.includes("reduced-motion") ? motion : compact
@@ -295,7 +297,7 @@ function fuyukawaFixture(search = "", mobile = false) {
   const [empty] = root.map("[data-works-empty]", [new Node()]);
   const script = read("src/themes/fuyukawa-kagari/pages/ProjectsPage.astro")
     .match(/<script>([\s\S]*?)<\/script>/)![1];
-  vm.runInNewContext(stripTypeScriptTypes(script), {
+  vm.runInNewContext(stripTypeScriptTypes(detailsRuntime + "\n" + withoutImports(script)), {
     document, Element: Node, URLSearchParams, window: { location: { search }, matchMedia: () => compact }
   });
   document.dispatch("astro:page-load");

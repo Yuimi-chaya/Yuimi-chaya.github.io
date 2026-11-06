@@ -65,14 +65,28 @@ test("Kisara Works keeps the four supplied covers with compact local assets", as
 
 test("Kisara Works keeps filters and selection usable without hover-only content", () => {
   assert.match(styles, /\.kisara-index-card-reveal \{/);
-  assert.match(page, /<details class="kisara-index-card-reveal" name="kisara-project-notes">/);
+  assert.match(page, /<details class="kisara-index-card-reveal" name="kisara-project-notes" data-works-disclosure>/);
   assert.match(page, /<summary>/);
   assert.match(styles, /\.kisara-index-card-reveal\[open\] summary svg/);
   assert.match(styles, /\.kisara-index-card\[hidden\]/);
   assert.match(styles, /\.kisara-index-empty\[hidden\]/);
-  assert.doesNotMatch(runtime, /preventDefault|is-open/);
+  assert.doesNotMatch(runtime, /addEventListener\(["'](?:keydown|wheel)|scrollTo|is-open/);
+  assert.match(runtime, /bindWorksDetails\(root, "--index-ease"\)/);
+  assert.match(runtime, /disclosure\.finish\(\)/);
+  assert.match(runtime, /disclosure\.cleanup\(\)/);
   assert.match(runtime, /preset = new URLSearchParams\(window\.location\.search\)\.get\("line"\)/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+});
+
+test("Kisara project notes occupy a separate row so disclosure cannot stretch the portrait", () => {
+  assert.match(page, /<\/a>\s*<\/div>\s*<details class="kisara-index-card-reveal"/);
+  assert.match(page, /data-works-disclosure-content>\s*<div class="kisara-index-card-notes" data-works-disclosure-inner>/);
+  assert.match(styles, /\.kisara-index-card-reveal:not\(\[open\]\) > \[data-works-disclosure-content\] \{\s*display: none;/);
+  const css = postcss.parse(styles);
+  const reveal = css.nodes.find((node) => node.type === "rule" && node.selector === ".kisara-index-card-reveal") as postcss.Rule;
+  assert.ok(reveal.nodes.some((node) => node.type === "decl" && node.prop === "grid-column" && node.value === "1 / -1"));
+  const card = css.nodes.find((node) => node.type === "rule" && node.selector === ".kisara-index-card") as postcss.Rule;
+  assert.ok(card.nodes.some((node) => node.type === "decl" && node.prop === "align-content" && node.value === "start"));
 });
 
 test("Kisara Works deep links point at the current page sections", () => {

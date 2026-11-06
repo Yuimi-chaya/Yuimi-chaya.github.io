@@ -132,7 +132,7 @@ const archive = projects;
         <span>Yuimi Lab</span>
       </header>
 
-      <div class="kisara-index-grid" role="list" aria-label="项目档案">
+      <div class="kisara-index-grid" role="list" aria-label="项目档案" data-works-disclosure-layout>
         {archive.map((project) => (
           <article
             class="kisara-index-card"
@@ -141,6 +141,7 @@ const archive = projects;
             data-project-line={project.line}
             data-project-note={project.note}
             data-project-title={project.title}
+            data-works-disclosure-item
           >
             <div class="kisara-index-card-art" aria-hidden="true">
               <img src={project.cover} alt="" width="720" height={project.coverHeight} loading="lazy" decoding="async" />
@@ -165,17 +166,19 @@ const archive = projects;
                 <span>{project.repo}</span>
                 <Icon name="tabler:external-link" aria-hidden="true" />
               </a>
-              <details class="kisara-index-card-reveal" name="kisara-project-notes">
-                <summary>
-                  为什么做它
-                  <Icon name="tabler:chevron-down" aria-hidden="true" />
-                </summary>
-                <div>
+            </div>
+            <details class="kisara-index-card-reveal" name="kisara-project-notes" data-works-disclosure>
+              <summary>
+                为什么做它
+                <Icon name="tabler:chevron-down" aria-hidden="true" />
+              </summary>
+              <div data-works-disclosure-content>
+                <div class="kisara-index-card-notes" data-works-disclosure-inner>
                   <p>{project.note}</p>
                   <p class="kisara-index-card-role">{project.role}</p>
                 </div>
-              </details>
-            </div>
+              </div>
+            </details>
           </article>
         ))}
       </div>

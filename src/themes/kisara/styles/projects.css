@@ -88,6 +88,7 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   margin: 0 auto;
   padding: 0 0 40px;
   color: var(--index-ink);
+  overflow-anchor: none;
 }
 
 .kisara-index::before {
@@ -521,6 +522,7 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   --index-card-paper: #fff;
   position: relative;
   display: grid;
+  align-content: start;
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   min-height: 230px;
   overflow: hidden;
@@ -714,7 +716,8 @@ body[data-kisara-page="projects"] .kisara-theme-button {
 }
 
 .kisara-index-card-reveal {
-  margin-top: 8px;
+  grid-column: 1 / -1;
+  padding-inline: 14px;
   border-top: 1px dotted var(--index-rule);
 }
 
@@ -749,8 +752,20 @@ body[data-kisara-page="projects"] .kisara-theme-button {
   transform: rotate(180deg);
 }
 
-.kisara-index-card-reveal > div {
-  padding: 4px 0 8px;
+.kisara-index-card-reveal[data-works-expanded="false"] summary svg {
+  transform: none;
+}
+
+.kisara-index-card-reveal[open] [data-works-disclosure-content] {
+  display: flow-root;
+}
+
+.kisara-index-card-reveal:not([open]) > [data-works-disclosure-content] {
+  display: none;
+}
+
+.kisara-index-card-notes {
+  padding: 4px 0 12px;
 }
 
 .kisara-index-card-reveal p {

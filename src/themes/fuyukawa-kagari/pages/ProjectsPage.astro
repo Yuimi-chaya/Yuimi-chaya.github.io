@@ -131,14 +131,15 @@ const groups = [
           </span>
         </div>
 
-        <div class="yuimi-works-list" role="list">
+        <div class="yuimi-works-list" role="list" data-works-disclosure-layout>
           {projects.map((project) => (
             <article
               class="yuimi-works-entry"
               role="listitem"
               data-project-chapter={project.chapter}
+              data-works-disclosure-item
             >
-              <details name="fuyukawa-project-notes">
+              <details name="fuyukawa-project-notes" data-works-disclosure>
                 <summary>
                   <span class="yuimi-works-entry-no">{project.no}</span>
                   <span class="yuimi-works-entry-main">
@@ -151,7 +152,8 @@ const groups = [
                     <Icon name="tabler:chevron-down" />
                   </span>
                 </summary>
-                <div class="yuimi-works-entry-body">
+                <div data-works-disclosure-content>
+                <div class="yuimi-works-entry-body" data-works-disclosure-inner>
                   <p>{project.summary}</p>
                   <div class="yuimi-works-entry-grid">
                     <div>
@@ -175,6 +177,7 @@ const groups = [
                       <Icon name="tabler:external-link" aria-hidden="true" />
                     </a>
                   </footer>
+                </div>
                 </div>
               </details>
             </article>
@@ -201,6 +204,8 @@ const groups = [
   </section>
 
   <script>
+    import { bindWorksDetails } from "../../../core/interactions/worksDetails.js";
+
     document.addEventListener("astro:page-load", () => {
       const root = document.querySelector<HTMLElement>("[data-yuimi-works]");
       if (!root || root.dataset.worksBound === "true") return;
@@ -219,6 +224,7 @@ const groups = [
       const previous = root.querySelector<HTMLButtonElement>('[data-works-page="prev"]');
       const next = root.querySelector<HTMLButtonElement>('[data-works-page="next"]');
       const compact = window.matchMedia("(max-width: 640px)");
+      const disclosure = bindWorksDetails(root, "--manga-ease");
       let page = 0;
       let pageSize = compact.matches ? 2 : 4;
       let activeKey = "all";
@@ -240,6 +246,7 @@ const groups = [
       };
 
       const apply = (key: string, targetPage = 0) => {
+        disclosure.finish();
         activeKey = key;
         const button = buttons.find((item) => item.dataset.worksChapter === key) ?? buttons[0];
         const data = chapterData.get(key) ?? chapterData.get("all")!;
@@ -300,6 +307,7 @@ const groups = [
       };
       compact.addEventListener("change", onResize);
       const cleanup = () => {
+        disclosure.cleanup();
         root.removeEventListener("click", onClick);
         compact.removeEventListener("change", onResize);
         document.removeEventListener("astro:before-swap", cleanup);

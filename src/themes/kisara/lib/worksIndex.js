@@ -1,3 +1,5 @@
+import { bindWorksDetails } from "../../../core/interactions/worksDetails.js";
+
 const filterButtonState = (buttons, active) => {
   buttons.forEach((button) => {
     const selected = button === active;
@@ -22,6 +24,7 @@ export function bindWorksIndex(root = document.querySelector("[data-kisara-works
   const marginTitle = root.querySelector("[data-works-margin-title]");
   const compact = window.matchMedia("(max-width: 640px)");
   const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const disclosure = bindWorksDetails(root, "--index-ease");
   const animations = new Set();
   let marginAnimation = null;
   let selectedCard = null;
@@ -77,6 +80,7 @@ export function bindWorksIndex(root = document.querySelector("[data-kisara-works
   };
 
   const applyFilter = (line, targetPage = 0, animate = false) => {
+    disclosure.finish();
     cancelAnimations();
     activeLine = line;
     const active = buttons.find((button) => button.dataset.worksFilter === line) ?? buttons[0];
@@ -151,6 +155,7 @@ export function bindWorksIndex(root = document.querySelector("[data-kisara-works
   if (preset && buttons.some((button) => button.dataset.worksFilter === preset)) applyFilter(preset);
 
   const cleanup = () => {
+    disclosure.cleanup();
     cancelAnimations();
     root.removeEventListener("click", onFilters);
     root.removeEventListener("pointerenter", onCardPointer, true);
