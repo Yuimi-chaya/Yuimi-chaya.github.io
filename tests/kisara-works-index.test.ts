@@ -94,6 +94,8 @@ test("Kisara Works deep links point at the current page sections", () => {
   assert.match(routes, /#kisara-archive/);
   assert.match(routes, /#kisara-feature-title/);
   assert.doesNotMatch(routes, /kisara-kitchen-lab|kisara-drink-title|刀切测试|技术食材|实验配方/);
+  assert.match(page, /id="kisara-archive" aria-label="项目档案"/);
+  assert.doesNotMatch(page, /从一个小问题开始|kisara-archive-title/);
 });
 
 test("Works keeps the preferred English masthead and real project-side notes without portfolio statistics", () => {

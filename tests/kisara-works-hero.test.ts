@@ -280,6 +280,10 @@ test("Film layout shares one complete frame, respects theme zoom and cannot crea
     assert.ok(statSync(new URL(`../public/themes/kisara/assets/${name}`, import.meta.url)).size > 0);
   }
   const page = read("src/themes/kisara/pages/ProjectsPage.astro");
+  const frame = page.match(/<div class="kisara-index-film-frame">([\s\S]*?)<\/div>/)?.[1] ?? "";
+  assert.match(frame, /kisara-index-film-poster[\s\S]*data-works-intro-video[\s\S]*kisara-index-film-still/);
+  assert.match(styles, /\.kisara-index-film-frame \{[^}]*mask-image: linear-gradient\(90deg, transparent,/);
+  assert.match(styles, /@media \(max-width: 860px\)[\s\S]*?\.kisara-index-film-frame \{[^}]*mask-image: none/);
   assert.match(page, /data-src="\/themes\/kisara\/assets\/works-opening\.mp4"/);
   assert.doesNotMatch(page, /\bautoplay\b|\bloop\b|worksHero[^"']*\?url/);
   assert.match(page, /entry !== generation/);
